@@ -1,0 +1,104 @@
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Toaster } from 'react-hot-toast'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { Navbar } from './components/layout/Navbar'
+import { Spinner } from './components/ui/Spinner'
+
+import LoginPage from './pages/LoginPage'
+import SolicitarAcessoPage from './pages/SolicitarAcessoPage'
+import PendingPage from './pages/PendingPage'
+import DashboardPage from './components/dashboard/DashboardPage'
+import ClientsPage from './components/clients/ClientsPage'
+import ClientDetail from './components/clients/ClientDetail'
+import ContactsPage from './components/contacts/ContactsPage'
+import ActivitiesPage from './components/activities/ActivitiesPage'
+import ProjectsPage from './components/projects/ProjectsPage'
+import SettingsPage from './components/settings/SettingsPage'
+
+const qc = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30000, retry: 1 } }
+})
+
+function AppLayout() {
+  return (
+    <div className="min-h-screen bg-bg-secondary">
+      <Navbar />
+      <Outlet />
+    </div>
+  )
+}
+
+function PrivateRoute() {
+  const { user, profile, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (!user) return <Navigate to="/login" replace />
+  if (profile?.status === 'pending') return <PendingPage status="pending" />
+  if (profile?.status === 'blocked') return <PendingPage status="blocked" />
+
+  return <AppLayout />
+}
+
+function AdminRoute() {
+  const { profile } = useAuth()
+  if (profile?.role !== 'admin' && profile?.role !== 'manager') return <Navigate to="/dashboard" replace />
+  return <Outlet />
+}
+
+function AuthRedirect() {
+  const { user, profile, loading } = useAuth()
+  if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>
+  if (user && profile?.status === 'active') return <Navigate to="/dashboard" replace />
+  return <Outlet />
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+      {/* Public routes */}
+      <Route element={<AuthRedirect />}>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
+      </Route>
+
+      {/* Protected routes */}
+      <Route element={<PrivateRoute />}>
+        <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/clientes" element={<ClientsPage />} />
+        <Route path="/clientes/:id" element={<ClientDetail />} />
+        <Route path="/contatos" element={<ContactsPage />} />
+        <Route path="/atividades" element={<ActivitiesPage />} />
+        <Route path="/projetos" element={<ProjectsPage />} />
+
+        <Route element={<AdminRoute />}>
+          <Route path="/configuracoes" element={<SettingsPage />} />
+        </Route>
+      </Route>
+
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  )
+}
+
+export default function App() {
+  return (
+    <QueryClientProvider client={qc}>
+      <AuthProvider>
+        <BrowserRouter>
+          <AppRoutes />
+          <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+        </BrowserRouter>
+      </AuthProvider>
+    </QueryClientProvider>
+  )
+}

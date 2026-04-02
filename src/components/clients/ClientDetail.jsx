@@ -1,0 +1,92 @@
+import { useState } from 'react'
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
+import { useClient } from '../../hooks/useClient'
+import { PageSpinner } from '../ui/Spinner'
+import { StagePill } from '../ui/StagePill'
+import { Badge } from '../ui/Badge'
+import { Button } from '../ui/Button'
+import { HealthScore } from '../ui/HealthBar'
+import { ClientForm } from './ClientForm'
+import { ClientTabOverview } from './tabs/ClientTabOverview'
+import { ClientTabActivities } from './tabs/ClientTabActivities'
+import { ClientTabOperacional } from './tabs/ClientTabOperacional'
+import { ClientTabHealth } from './tabs/ClientTabHealth'
+import { ClientTabContatos } from './tabs/ClientTabContatos'
+
+const TABS = [
+  { key: 'overview', label: 'Visão Geral' },
+  { key: 'atividades', label: 'Atividades' },
+  { key: 'operacional', label: 'Operacional' },
+  { key: 'health', label: 'Health Score' },
+  { key: 'contatos', label: 'Contatos' },
+  { key: 'anexos', label: 'Anexos' },
+]
+
+export default function ClientDetail() {
+  const { id } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const tab = searchParams.get('tab') || 'overview'
+  const [showEdit, setShowEdit] = useState(false)
+
+  const { data: client, isLoading } = useClient(id)
+
+  function setTab(t) {
+    setSearchParams({ tab: t })
+  }
+
+  if (isLoading) return <PageSpinner />
+  if (!client) return <div className="p-6 text-text-tertiary">Cliente não encontrado.</div>
+
+  return (
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4 mb-1">
+        <div>
+          <button onClick={() => navigate('/clientes')} className="text-xs text-text-tertiary hover:text-text-secondary mb-1 flex items-center gap-1">
+            ← Clientes
+          </button>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-bold text-text-primary">{client.name}</h1>
+            {client.stage && <StagePill name={client.stage.name} color={client.stage.color} />}
+            {client.abc_class && <Badge variant={client.abc_class === 'A' ? 'green' : client.abc_class === 'B' ? 'sky' : 'slate'}>ABC {client.abc_class}</Badge>}
+            <HealthScore score={client.health_total || 0} />
+          </div>
+          {client.segment && <p className="text-sm text-text-tertiary mt-0.5">{client.segment}</p>}
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto">
+        {TABS.map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+              tab === t.key
+                ? 'text-donc-navy border-donc-navy'
+                : 'text-text-tertiary border-transparent hover:text-text-primary'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab Content */}
+      {tab === 'overview' && <ClientTabOverview client={client} />}
+      {tab === 'atividades' && <ClientTabActivities client={client} />}
+      {tab === 'operacional' && <ClientTabOperacional client={client} />}
+      {tab === 'health' && <ClientTabHealth client={client} />}
+      {tab === 'contatos' && <ClientTabContatos client={client} />}
+      {tab === 'anexos' && (
+        <div className="text-center py-16 text-text-tertiary border-2 border-dashed border-border-tertiary rounded-lg">
+          Módulo de Anexos em breve.
+        </div>
+      )}
+
+      {showEdit && <ClientForm client={client} onClose={() => setShowEdit(false)} />}
+    </div>
+  )
+}

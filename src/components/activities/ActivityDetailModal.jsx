@@ -1,0 +1,113 @@
+import { useState } from 'react'
+import { useActivityMutations } from '../../hooks/useActivities'
+import { ActivityModal } from './ActivityModal'
+import { Button } from '../ui/Button'
+import { Badge } from '../ui/Badge'
+
+const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
+const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
+const typeLabel = { reuniao: 'Reunião', ligacao: 'Ligação', email: 'E-mail', whatsapp: 'WhatsApp', tarefa: 'Tarefa', nota: 'Nota' }
+
+function formatDate(d) {
+  if (!d) return '—'
+  return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
+}
+
+function InfoCell({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-text-tertiary mb-0.5">{label}</p>
+      <p className="text-sm text-text-primary">{value || '—'}</p>
+    </div>
+  )
+}
+
+export function ActivityDetailModal({ activity: a, onClose }) {
+  const [showEdit, setShowEdit] = useState(false)
+  const { update, remove } = useActivityMutations()
+
+  async function handleToggle() {
+    const newStatus = a.status === 'concluida' ? 'pendente' : 'concluida'
+    await update.mutateAsync({ id: a.id, status: newStatus })
+    onClose()
+  }
+
+  async function handleDelete() {
+    if (!confirm('Excluir esta atividade?')) return
+    await remove.mutateAsync(a.id)
+    onClose()
+  }
+
+  if (showEdit) return <ActivityModal activity={a} onClose={() => { setShowEdit(false); onClose() }} />
+
+  const isOverdue = a.due_date && a.status !== 'concluida' && new Date(a.due_date) < new Date()
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div className="relative mx-auto mt-[80px] mb-8 max-w-2xl bg-bg-primary rounded-lg shadow-xl">
+        {/* Header */}
+        <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+            style={{ backgroundColor: typeBg[a.type] }}>
+            {typeIcon[a.type]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-text-tertiary font-medium uppercase">{typeLabel[a.type]}</span>
+              <Badge variant={a.status === 'concluida' ? 'green' : isOverdue ? 'red' : 'amber'}>
+                {a.status === 'concluida' ? 'Concluída' : isOverdue ? 'Atrasada' : 'Pendente'}
+              </Badge>
+            </div>
+            <h2 className="text-base font-semibold text-text-primary mt-0.5">{a.title || a.description}</h2>
+            <p className="text-xs text-text-tertiary">{a.client?.name} · {formatDate(a.activity_date)}</p>
+          </div>
+          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary p-1 rounded hover:bg-bg-tertiary flex-shrink-0">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="p-4 space-y-4">
+          {/* Description box */}
+          <div className="bg-bg-secondary rounded-lg p-3">
+            <p className="text-sm text-text-primary whitespace-pre-wrap">{a.description}</p>
+          </div>
+
+          {/* Meta grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <InfoCell label="Cliente" value={a.client?.name} />
+            <InfoCell label="Contato" value={a.contact?.name} />
+            <InfoCell label="Responsável" value={a.responsible?.name} />
+            <InfoCell label="Status" value={a.status === 'concluida' ? 'Concluída' : 'Pendente'} />
+            <InfoCell label="Data" value={formatDate(a.activity_date)} />
+            <InfoCell label="Vencimento" value={formatDate(a.due_date)} />
+          </div>
+
+          {a.notes && (
+            <div>
+              <p className="text-xs text-text-tertiary mb-1">Notas</p>
+              <p className="text-sm text-text-primary whitespace-pre-wrap bg-bg-secondary rounded-lg p-3">{a.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-4 border-t border-border-tertiary">
+          <div className="flex gap-2">
+            <Button
+              variant={a.status === 'concluida' ? 'secondary' : 'green'}
+              size="sm"
+              onClick={handleToggle}
+              disabled={update.isPending}
+            >
+              {a.status === 'concluida' ? '↩ Reabrir' : '✓ Concluir'}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>✏ Editar</Button>
+          </div>
+          <Button variant="danger" size="sm" onClick={handleDelete} disabled={remove.isPending}>Excluir</Button>
+        </div>
+      </div>
+    </div>
+  )
+}
