@@ -11,7 +11,6 @@ const EMPTY = {
   abc_class: '', mrr: '', licencas: '', valor_lic: '',
   contract_start: '', contract_renewal: '', app_code: '', url_donc: '',
   onb_start: '', golive: '', delay_days: 0,
-  health_uso: 0, health_suporte: 0, health_relacionamento: 0, health_financeiro: 0, health_projeto: 0,
 }
 
 export function ClientForm({ client, onClose }) {
@@ -140,20 +139,6 @@ export function ClientForm({ client, onClose }) {
           <div>
             <label className="label-sm">Dias em Atraso</label>
             <input name="delay_days" type="number" value={form.delay_days} onChange={handleChange} className="input-base w-full" min="0" />
-          </div>
-        </div>
-
-        {/* Health scores */}
-        <div>
-          <label className="label-sm block mb-2">Health Score por Dimensão (0-20)</label>
-          <div className="grid grid-cols-5 gap-2">
-            {['uso','suporte','relacionamento','financeiro','projeto'].map(dim => (
-              <div key={dim}>
-                <label className="text-[11px] text-text-tertiary capitalize block mb-1">{dim}</label>
-                <input name={`health_${dim}`} type="number" value={form[`health_${dim}`]} onChange={handleChange}
-                  className="input-base w-full" min="0" max="20" />
-              </div>
-            ))}
           </div>
         </div>
 

@@ -17,7 +17,15 @@ import ProjectsPage from './components/projects/ProjectsPage'
 import SettingsPage from './components/settings/SettingsPage'
 
 const qc = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30000, retry: 1 } }
+  defaultOptions: {
+    queries: {
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: true,
+      retry: 1,
+    },
+  },
 })
 
 function AppLayout() {

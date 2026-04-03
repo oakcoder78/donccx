@@ -5,6 +5,59 @@ import { Button } from '../ui/Button'
 
 const DIMS = ['uso','suporte','relacionamento','financeiro','projeto']
 
+const DIMENSIONS_INFO = [
+  { icon: '📊', name: 'Uso', desc: 'Adoção da plataforma — módulos ativos, usuários e ordens de serviço' },
+  { icon: '🎧', name: 'Suporte', desc: 'Qualidade do atendimento — tickets, SLA e escaladas N3' },
+  { icon: '🤝', name: 'Relacionamento', desc: 'Mapeamento e engajamento de contatos-chave no cliente' },
+  { icon: '💰', name: 'Financeiro', desc: 'Classificação ABC e situação de pagamento' },
+  { icon: '🎯', name: 'Projeto', desc: 'Milestones e progresso do onboarding' },
+]
+
+function HealthScoreAccordion() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="border border-border-tertiary rounded-lg mb-4 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-bg-secondary hover:bg-bg-tertiary transition-colors text-left"
+      >
+        <span className="text-sm font-semibold text-text-primary">💡 Entenda o Health Score</span>
+        <svg
+          className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-4 py-4 bg-bg-secondary border-t border-border-tertiary space-y-4">
+          <p className="text-sm text-text-secondary">
+            Score de <strong>0 a 100</strong> que mede a saúde do relacionamento com o cliente,
+            composto por <strong>5 dimensões</strong> de até 20 pontos cada.
+          </p>
+          <div className="space-y-2">
+            {DIMENSIONS_INFO.map(d => (
+              <div key={d.name} className="flex items-start gap-2">
+                <span className="text-base leading-5">{d.icon}</span>
+                <div>
+                  <span className="text-sm font-medium text-text-primary">{d.name}</span>
+                  <span className="text-sm text-text-tertiary"> — {d.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-4 pt-1">
+            <span className="text-sm">🟢 <strong>Saudável</strong> ≥ 75</span>
+            <span className="text-sm">🟡 <strong>Atenção</strong> ≥ 50</span>
+            <span className="text-sm">🔴 <strong>Risco</strong> &lt; 50</span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function SettingsHealth() {
   const { data, isLoading } = useHealthConfig()
   const { updateConfig, updateRule } = useHealthConfigMutations()
@@ -33,6 +86,8 @@ export function SettingsHealth() {
     <div className="max-w-2xl space-y-6">
       <div>
         <h2 className="text-base font-semibold text-text-primary mb-4">❤️ Health Score</h2>
+
+        <HealthScoreAccordion />
 
         {/* Thresholds */}
         <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 mb-4">
