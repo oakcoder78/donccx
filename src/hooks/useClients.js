@@ -9,9 +9,10 @@ const CLIENT_SELECT = `
   client_catalog(catalog_item_id, catalog_items(*))
 `
 
-export function useClients(filters = {}) {
+export function useClients(filters = {}, options = {}) {
   return useQuery({
     queryKey: ['clients', filters],
+    ...options,
     queryFn: async () => {
       let q = supabase.from('clients').select(CLIENT_SELECT).order('name')
 

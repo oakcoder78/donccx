@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { useClients } from '../../hooks/useClients'
 import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
@@ -41,13 +42,21 @@ export default function DashboardPage() {
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
   const clientFilters = isAdminOrManager ? {} : { csm_id: profile?.id }
-  const { data: clients = [], isLoading: loadingClients } = useClients(clientFilters)
+  const { data: clients = [], isLoading: loadingClients } = useClients(clientFilters, { enabled: !!profile })
   const { data: activities = [], isLoading: loadingActivities } = useActivities(
-    isAdminOrManager ? { status: 'pendente' } : { responsible_id: profile?.id, status: 'pendente' }
+    isAdminOrManager ? { status: 'pendente' } : { responsible_id: profile?.id, status: 'pendente' },
+    { enabled: !!profile }
   )
   const { data: profiles = [] } = useProfiles()
 
-  if (loadingClients || loadingActivities) return <PageSpinner />
+  const [showAnyway, setShowAnyway] = useState(false)
+  useEffect(() => {
+    if (!loadingClients && !loadingActivities) return
+    const t = setTimeout(() => setShowAnyway(true), 3000)
+    return () => clearTimeout(t)
+  }, [loadingClients, loadingActivities])
+
+  if ((loadingClients || loadingActivities) && !showAnyway) return <PageSpinner />
 
   const today = new Date()
   const in30 = new Date(); in30.setDate(in30.getDate() + 30)

@@ -22,29 +22,7 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    // Timeout de segurança: se getSession travar, desbloqueia o app após 5s
-    const timeout = setTimeout(() => {
-      console.error('[AuthContext] getSession timeout — desbloqueando loading')
-      setLoading(false)
-    }, 5000)
-
-    supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
-        if (session?.user) {
-          setUser(session.user)
-          const p = await fetchProfile(session.user.id)
-          setProfile(p)
-        }
-      })
-      .catch((err) => {
-        console.error('[AuthContext] getSession error:', err)
-      })
-      .finally(() => {
-        clearTimeout(timeout)
-        setLoading(false)
-      })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         setUser(session.user)
         const p = await fetchProfile(session.user.id)
@@ -52,6 +30,11 @@ export function AuthProvider({ children }) {
       } else {
         setUser(null)
         setProfile(null)
+      }
+      // INITIAL_SESSION é o evento de boot — só aí desligamos o loading
+      // (ocorre após o await fetchProfile, então profile já está pronto)
+      if (event === 'INITIAL_SESSION') {
+        setLoading(false)
       }
     })
 

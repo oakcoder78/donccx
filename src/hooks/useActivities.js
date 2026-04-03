@@ -2,9 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
-export function useActivities(filters = {}) {
+export function useActivities(filters = {}, options = {}) {
   return useQuery({
     queryKey: ['activities', filters],
+    ...options,
     queryFn: async () => {
       let q = supabase
         .from('activities')
