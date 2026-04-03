@@ -48,6 +48,10 @@ export function ClientForm({ client, onClose }) {
       mrr: Number(form.mrr) || 0,
       licencas: Number(form.licencas) || 0,
       valor_lic: Number(form.valor_lic) || 0,
+      contract_start: form.contract_start || null,
+      contract_renewal: form.contract_renewal || null,
+      onb_start: form.onb_start || null,
+      golive: form.golive || null,
       catalogItems: selectedCatalog,
     }
     if (isEdit) {
