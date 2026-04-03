@@ -4,7 +4,7 @@ import {
   Chart, CategoryScale, LinearScale, PointElement, LineElement,
   Tooltip, Legend, Filler
 } from 'chart.js'
-import { useClientSupportMutations } from '../../../../hooks/useClient'
+import { useClientSupport, useClientSupportMutations } from '../../../../hooks/useClient'
 import { Button } from '../../../ui/Button'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
@@ -41,7 +41,7 @@ export function ClientSubSuporte({ client }) {
   const [errors, setErrors] = useState({})
   const { upsert } = useClientSupportMutations()
 
-  const supportData = client.client_support || []
+  const { data: supportData = [] } = useClientSupport(client.id)
   const sorted = [...supportData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
   const chartData6 = sorted.slice(-6)
 

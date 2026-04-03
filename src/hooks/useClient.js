@@ -48,6 +48,22 @@ export function useClientUsageMutations() {
   return { upsert }
 }
 
+export function useClientSupport(clientId) {
+  return useQuery({
+    queryKey: ['client_support', clientId],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_support')
+        .select('*')
+        .eq('client_id', clientId)
+        .order('ref_month')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
 export function useClientSupportMutations() {
   const qc = useQueryClient()
 
@@ -59,6 +75,7 @@ export function useClientSupportMutations() {
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['client', vars.client_id] })
+      qc.invalidateQueries({ queryKey: ['client_support', vars.client_id] })
       toast.success('Dados salvos')
     },
     onError: (e) => toast.error(e.message),
