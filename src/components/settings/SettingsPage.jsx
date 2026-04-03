@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { SettingsHealth } from './SettingsHealth'
 import { SettingsCatalog } from './SettingsCatalog'
+import { SettingsSegments } from './SettingsSegments'
 import { SettingsStages } from './SettingsStages'
 import { SettingsUsers } from './SettingsUsers'
 
 const MENU = [
-  { key: 'health', icon: '❤️', label: 'Health Score' },
-  { key: 'catalog', icon: '📦', label: 'Catálogos' },
-  { key: 'stages', icon: '🔄', label: 'Estágios' },
-  { key: 'users', icon: '👥', label: 'Usuários' },
+  { key: 'health',    icon: '❤️',  label: 'Health Score' },
+  { key: 'catalog',   icon: '📦',  label: 'Catálogos' },
+  { key: 'segments',  icon: '🏷️',  label: 'Segmentos' },
+  { key: 'stages',    icon: '🔄',  label: 'Estágios' },
+  { key: 'users',     icon: '👥',  label: 'Usuários' },
 ]
 
 export default function SettingsPage() {
@@ -39,10 +41,11 @@ export default function SettingsPage() {
 
       {/* Content */}
       <main className="flex-1 p-6">
-        {section === 'health' && <SettingsHealth />}
-        {section === 'catalog' && <SettingsCatalog />}
-        {section === 'stages' && <SettingsStages />}
-        {section === 'users' && <SettingsUsers />}
+        {section === 'health'   && <SettingsHealth />}
+        {section === 'catalog'  && <SettingsCatalog />}
+        {section === 'segments' && <SettingsSegments />}
+        {section === 'stages'   && <SettingsStages />}
+        {section === 'users'    && <SettingsUsers />}
       </main>
     </div>
   )

@@ -50,7 +50,7 @@ function abcVariant(abc) {
 
 export default function ClientsPage() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const { profile } = useAuth()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
@@ -71,9 +71,9 @@ export default function ClientsPage() {
   return (
     <div className="p-6">
       <PageHeader
-        title="Clientes"
-        subtitle={`${clients.length} clientes`}
-        action={<Button onClick={() => setShowForm(true)}>+ Novo Cliente</Button>}
+        title="Empresas"
+        subtitle={`${clients.length} empresa${clients.length !== 1 ? 's' : ''}`}
+        action={<Button onClick={() => setShowForm(true)}>+ Nova Empresa</Button>}
       />
 
       {/* Search */}
@@ -81,7 +81,7 @@ export default function ClientsPage() {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar cliente..."
+          placeholder="Buscar empresa..."
           className="w-full max-w-xs px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
         />
       </div>
@@ -106,10 +106,10 @@ export default function ClientsPage() {
       {isLoading ? <PageSpinner /> : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map(c => (
-            <ClientCard key={c.id} client={c} onClick={() => navigate(`/clientes/${c.id}`)} />
+            <CompanyCard key={c.id} client={c} onClick={() => navigate(`/empresas/${c.id}`)} />
           ))}
           {filtered.length === 0 && (
-            <div className="col-span-3 text-center py-16 text-text-tertiary">Nenhum cliente encontrado.</div>
+            <div className="col-span-3 text-center py-16 text-text-tertiary">Nenhuma empresa encontrada.</div>
           )}
         </div>
       )}
@@ -121,7 +121,13 @@ export default function ClientsPage() {
   )
 }
 
-function ClientCard({ client: c, onClick }) {
+function CompanyCard({ client: c, onClick }) {
+  const displayName = c.fantasy_name || c.name
+  const subtitle = c.fantasy_name ? c.name : null
+  const penetrationPct = c.unidades_total > 0
+    ? Math.round((c.unidades_donc / c.unidades_total) * 100)
+    : null
+
   const dims = [
     { label: 'Uso', val: c.health_uso },
     { label: 'Sup.', val: c.health_suporte },
@@ -136,11 +142,25 @@ function ClientCard({ client: c, onClick }) {
       className="bg-bg-primary border border-border-tertiary rounded-lg p-4 cursor-pointer hover:border-border-secondary hover:shadow-sm transition-all"
     >
       <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-text-primary truncate">{c.name}</h3>
-          {c.segment && <p className="text-xs text-text-tertiary">{c.segment}</p>}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          {/* Logo ou avatar */}
+          <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0 bg-donc-navy flex items-center justify-center">
+            {c.logo_url
+              ? <img src={c.logo_url} alt={displayName} className="w-full h-full object-cover" />
+              : <span className="text-white font-bold text-sm">{(displayName || '?')[0].toUpperCase()}</span>
+            }
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-text-primary truncate leading-tight">{displayName}</h3>
+            {subtitle && <p className="text-[11px] text-text-tertiary truncate">{subtitle}</p>}
+          </div>
         </div>
-        {c.stage && <StagePill name={c.stage.name} color={c.stage.color} />}
+        <div className="flex flex-col items-end gap-1">
+          {c.stage && <StagePill name={c.stage.name} color={c.stage.color} />}
+          {c.contract_active === false && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-text-tertiary/20 text-text-tertiary">Inativo</span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap mb-3">
@@ -149,6 +169,11 @@ function ClientCard({ client: c, onClick }) {
         {c.mrr > 0 && (
           <span className="text-xs text-text-tertiary">
             {c.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+          </span>
+        )}
+        {penetrationPct !== null && (
+          <span className="text-xs text-text-tertiary">
+            {c.unidades_donc}/{c.unidades_total} un. ({penetrationPct}%)
           </span>
         )}
       </div>

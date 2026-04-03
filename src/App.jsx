@@ -80,8 +80,11 @@ function AppRoutes() {
       {/* Protected routes */}
       <Route element={<PrivateRoute />}>
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/clientes" element={<ClientsPage />} />
-        <Route path="/clientes/:id" element={<ClientDetail />} />
+        <Route path="/empresas" element={<ClientsPage />} />
+        <Route path="/empresas/:id" element={<ClientDetail />} />
+        {/* Legacy redirects */}
+        <Route path="/clientes" element={<Navigate to="/empresas" replace />} />
+        <Route path="/clientes/:id" element={<Navigate to="/empresas" replace />} />
         <Route path="/contatos" element={<ContactsPage />} />
         <Route path="/atividades" element={<ActivitiesPage />} />
         <Route path="/projetos" element={<ProjectsPage />} />

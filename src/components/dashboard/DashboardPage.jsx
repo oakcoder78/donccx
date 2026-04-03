@@ -97,18 +97,18 @@ export default function DashboardPage() {
 
       {/* KPIs row 1 */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard label="Total Clientes" value={clients.length} onClick={() => navigate('/clientes')} />
-        <KpiCard label="Onboarding" value={onboarding.length} color="#59c2ed" onClick={() => navigate('/clientes?filter=onboarding')} />
-        <KpiCard label="Em Produção" value={producao.length} color="#1D9E75" onClick={() => navigate('/clientes?filter=producao')} />
-        <KpiCard label="Fatura em Atraso" value={atrasados.length} color="#E24B4A" onClick={() => navigate('/clientes?filter=atraso')} />
-        <KpiCard label="Renovação 30d" value={renovacao30.length} color="#BA7517" onClick={() => navigate('/clientes?filter=renovacao')} />
+        <KpiCard label="Total Empresas" value={clients.length} onClick={() => navigate('/empresas')} />
+        <KpiCard label="Onboarding" value={onboarding.length} color="#59c2ed" onClick={() => navigate('/empresas?filter=onboarding')} />
+        <KpiCard label="Em Produção" value={producao.length} color="#1D9E75" onClick={() => navigate('/empresas?filter=producao')} />
+        <KpiCard label="Fatura em Atraso" value={atrasados.length} color="#E24B4A" onClick={() => navigate('/empresas?filter=atraso')} />
+        <KpiCard label="Renovação 30d" value={renovacao30.length} color="#BA7517" onClick={() => navigate('/empresas?filter=renovacao')} />
       </div>
 
       {/* KPIs row 2 */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <KpiCard label="Saudáveis" value={saudaveis.length} color="#1D9E75" onClick={() => navigate('/clientes?filter=saudavel')} />
-        <KpiCard label="Atenção" value={atencao.length} color="#BA7517" onClick={() => navigate('/clientes?filter=atencao')} />
-        <KpiCard label="Em Risco" value={emRisco.length} color="#E24B4A" onClick={() => navigate('/clientes?filter=risco')} />
+        <KpiCard label="Saudáveis" value={saudaveis.length} color="#1D9E75" onClick={() => navigate('/empresas?filter=saudavel')} />
+        <KpiCard label="Atenção" value={atencao.length} color="#BA7517" onClick={() => navigate('/empresas?filter=atencao')} />
+        <KpiCard label="Em Risco" value={emRisco.length} color="#E24B4A" onClick={() => navigate('/empresas?filter=risco')} />
         <KpiCard label="Total Contatos" value={0} onClick={() => navigate('/contatos')} />
         <Card className="flex flex-col gap-1 bg-donc-navy border-donc-navy">
           <span className="text-xs text-white/60">MRR Total</span>
@@ -129,7 +129,7 @@ export default function DashboardPage() {
               {alertas.map((a, i) => (
                 <div key={i}
                   className="flex items-center gap-3 p-2 rounded-md hover:bg-bg-secondary cursor-pointer transition-colors"
-                  onClick={() => navigate(`/clientes/${a.client.id}`)}
+                  onClick={() => navigate(`/empresas/${a.client.id}`)}
                 >
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${a.type === 'risco' ? 'bg-donc-red' : a.type === 'atraso' ? 'bg-donc-amber' : 'bg-donc-purple'}`} />
                   <div className="flex-1 min-w-0">
@@ -167,12 +167,12 @@ export default function DashboardPage() {
 
       {/* Health Score list */}
       <Card>
-        <h3 className="text-sm font-semibold text-text-primary mb-4">Clientes por Health Score</h3>
+        <h3 className="text-sm font-semibold text-text-primary mb-4">Empresas por Health Score</h3>
         <div className="space-y-3">
           {sorted.slice(0, 8).map(c => (
             <div key={c.id}
               className="flex items-center gap-4 cursor-pointer hover:bg-bg-secondary p-2 rounded-md transition-colors"
-              onClick={() => navigate(`/clientes/${c.id}`)}
+              onClick={() => navigate(`/empresas/${c.id}`)}
             >
               <div className="w-40 truncate text-sm font-medium text-text-primary">{c.name}</div>
               <StagePill name={c.stage?.name || '—'} color={c.stage?.color} />

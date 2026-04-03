@@ -36,23 +36,33 @@ export default function ClientDetail() {
   }
 
   if (isLoading) return <PageSpinner />
-  if (!client) return <div className="p-6 text-text-tertiary">Cliente não encontrado.</div>
+  if (!client) return <div className="p-6 text-text-tertiary">Empresa não encontrada.</div>
+
+  const displayName = client.fantasy_name || client.name
 
   return (
     <div className="p-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
-          <button onClick={() => navigate('/clientes')} className="text-xs text-text-tertiary hover:text-text-secondary mb-1 flex items-center gap-1">
-            ← Clientes
+          <button onClick={() => navigate('/empresas')} className="text-xs text-text-tertiary hover:text-text-secondary mb-1 flex items-center gap-1">
+            ← Empresas
           </button>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-xl font-bold text-text-primary">{client.name}</h1>
+            {client.logo_url && (
+              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                <img src={client.logo_url} alt={displayName} className="w-full h-full object-cover" />
+              </div>
+            )}
+            <h1 className="text-xl font-bold text-text-primary">{displayName}</h1>
+            {client.fantasy_name && <span className="text-sm text-text-tertiary">{client.name}</span>}
             {client.stage && <StagePill name={client.stage.name} color={client.stage.color} />}
             {client.abc_class && <Badge variant={client.abc_class === 'A' ? 'green' : client.abc_class === 'B' ? 'sky' : 'slate'}>ABC {client.abc_class}</Badge>}
             <HealthScore score={client.health_total || 0} />
+            {client.contract_active === false && (
+              <span className="text-xs px-2 py-0.5 rounded bg-text-tertiary/20 text-text-tertiary">Contrato inativo</span>
+            )}
           </div>
-          {client.segment && <p className="text-sm text-text-tertiary mt-0.5">{client.segment}</p>}
         </div>
         <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
       </div>
