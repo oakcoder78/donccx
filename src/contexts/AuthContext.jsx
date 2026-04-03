@@ -14,19 +14,35 @@ export function AuthProvider({ children }) {
       .select('*')
       .eq('id', userId)
       .single()
-    if (error) return null
+    if (error) {
+      console.error('[AuthContext] fetchProfile error:', error)
+      return null
+    }
     return data
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user)
-        const p = await fetchProfile(session.user.id)
-        setProfile(p)
-      }
+    // Timeout de segurança: se getSession travar, desbloqueia o app após 5s
+    const timeout = setTimeout(() => {
+      console.error('[AuthContext] getSession timeout — desbloqueando loading')
       setLoading(false)
-    })
+    }, 5000)
+
+    supabase.auth.getSession()
+      .then(async ({ data: { session } }) => {
+        if (session?.user) {
+          setUser(session.user)
+          const p = await fetchProfile(session.user.id)
+          setProfile(p)
+        }
+      })
+      .catch((err) => {
+        console.error('[AuthContext] getSession error:', err)
+      })
+      .finally(() => {
+        clearTimeout(timeout)
+        setLoading(false)
+      })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
