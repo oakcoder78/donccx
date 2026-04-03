@@ -15,14 +15,14 @@ const TABS = ['Dados da Empresa', 'Contrato', 'Operacional', 'Endereço']
 
 const EMPTY = {
   name: '', fantasy_name: '', cnpj: '', segment_id: '',
-  unidades_total: 0, unidades_donc: 0,
+  unidades_total: '', unidades_donc: '',
   abc_class: '', csm_id: '', site: '', contract_active: true,
   logo_url: '',
   billing_type: 'por_licenca', billing_base_value: '',
   billing_floor: '', contract_signed_date: '', contract_start: '',
   contract_renewal: '', correction_index: '',
   stage_id: '', app_code: '', url_donc: '',
-  onb_start: '', golive: '', delay_days: 0, description: '',
+  onb_start: '', golive: '', description: '',
   address_cep: '', address_street: '', address_number: '',
   address_complement: '', address_neighborhood: '',
   address_city: '', address_state: '',
@@ -49,21 +49,37 @@ function fmtBRL(n) {
 export function ClientForm({ client, onClose }) {
   const isEdit = !!client
   const [activeTab, setActiveTab] = useState(0)
-  const [form, setForm] = useState(() => isEdit ? { ...EMPTY, ...client, segment_id: client.segment_id || '', csm_id: client.csm_id || '', stage_id: client.stage_id || '', contract_active: client.contract_active !== false } : EMPTY)
+  const [form, setForm] = useState(() =>
+    isEdit
+      ? {
+          ...EMPTY,
+          ...client,
+          unidades_total: client.unidades_total ?? '',
+          unidades_donc: client.unidades_donc ?? '',
+          billing_base_value: client.billing_base_value ?? '',
+          billing_floor: client.billing_floor ?? '',
+          segment_id: client.segment_id || '',
+          csm_id: client.csm_id || '',
+          stage_id: client.stage_id || '',
+          contract_active: client.contract_active !== false,
+        }
+      : EMPTY
+  )
   const [logoFile, setLogoFile] = useState(null)
   const [logoPreview, setLogoPreview] = useState(client?.logo_url || null)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const logoRef = useRef()
 
-  // Segment inline create
   const [addingSegment, setAddingSegment] = useState(false)
   const [newSegName, setNewSegName] = useState('')
 
-  // Catalog multi-select
-  const [selectedCatalog, setSelectedCatalog] = useState(client?.client_catalog?.map(cc => cc.catalog_item_id) || [])
+  const [selectedCatalog, setSelectedCatalog] = useState(
+    client?.client_catalog?.map(cc => cc.catalog_item_id) || []
+  )
 
-  // Module pricing: { [catalog_item_id]: { active: bool, value: string } }
+  // { [catalog_item_id]: { active: bool, value: string } }
   const [modPricing, setModPricing] = useState({})
+  const [modErrors, setModErrors] = useState({}) // { [id]: string }
 
   const { create, update } = useClientMutations()
   const { data: stages = [] } = useStages()
@@ -74,12 +90,16 @@ export function ClientForm({ client, onClose }) {
   const { data: existingModPricing = [] } = useModulePricing(client?.id)
   const { saveAll: saveModPricing } = useModulePricingMutations()
 
-  // Initialize module pricing from existing data (edit mode)
   useEffect(() => {
     if (existingModPricing.length > 0) {
       const init = {}
       existingModPricing.forEach(mp => {
-        init[mp.catalog_item_id] = { active: true, value: String(mp.additional_value || 0) }
+        init[mp.catalog_item_id] = {
+          active: true,
+          value: mp.additional_value != null && mp.additional_value !== 0
+            ? String(mp.additional_value)
+            : '',
+        }
       })
       setModPricing(init)
     }
@@ -90,13 +110,33 @@ export function ClientForm({ client, onClose }) {
   const solucoes = catalog.filter(c => c.type === 'solucao')
   const isMutating = create.isPending || update.isPending
 
-  // MRR real-time calculation
+  // MRR real-time
   const activeModList = Object.entries(modPricing)
     .filter(([, v]) => v.active)
     .map(([, v]) => ({ additional_value: Number(v.value) || 0 }))
   const unitValue = calculateUnitValue(Number(form.billing_base_value) || 0, activeModList)
   const floor = Number(form.billing_floor) || 0
   const mrrMinimo = floor * unitValue
+
+  // Toggle habilitar todos os módulos
+  const allActive = solucoes.length > 0 && solucoes.every(s => modPricing[s.id]?.active)
+  function toggleAll() {
+    if (allActive) {
+      // desativar todos
+      const next = {}
+      solucoes.forEach(s => {
+        next[s.id] = { active: false, value: modPricing[s.id]?.value || '' }
+      })
+      setModPricing(prev => ({ ...prev, ...next }))
+    } else {
+      // ativar todos
+      const next = {}
+      solucoes.forEach(s => {
+        next[s.id] = { active: true, value: modPricing[s.id]?.value || '' }
+      })
+      setModPricing(prev => ({ ...prev, ...next }))
+    }
+  }
 
   function set(name, value) {
     setForm(prev => ({ ...prev, [name]: value }))
@@ -107,7 +147,7 @@ export function ClientForm({ client, onClose }) {
     if (type === 'checkbox') { set(name, checked); return }
     if (name === 'cnpj') { set('cnpj', maskCNPJ(value)); return }
     if (name === 'address_cep') { set('address_cep', maskCEP(value)); return }
-    set(name, type === 'number' ? value : value)
+    set(name, value)
   }
 
   async function fetchCEP(cep) {
@@ -153,14 +193,17 @@ export function ClientForm({ client, onClose }) {
   }
 
   function toggleCatalog(id) {
-    setSelectedCatalog(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+    setSelectedCatalog(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
   }
 
   function toggleMod(itemId) {
     setModPricing(prev => ({
       ...prev,
-      [itemId]: { active: !prev[itemId]?.active, value: prev[itemId]?.value || '0' },
+      [itemId]: { active: !prev[itemId]?.active, value: prev[itemId]?.value || '' },
     }))
+    setModErrors(prev => ({ ...prev, [itemId]: undefined }))
   }
 
   function setModValue(itemId, value) {
@@ -168,10 +211,33 @@ export function ClientForm({ client, onClose }) {
       ...prev,
       [itemId]: { ...prev[itemId], active: prev[itemId]?.active ?? false, value },
     }))
+    setModErrors(prev => ({ ...prev, [itemId]: undefined }))
+  }
+
+  function validateMods() {
+    const errs = {}
+    solucoes.forEach(sol => {
+      const mp = modPricing[sol.id]
+      if (mp?.active) {
+        if (mp.value === '' || isNaN(Number(mp.value))) {
+          errs[sol.id] = 'Informe um valor válido'
+        }
+      }
+    })
+    return errs
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
+
+    // Validate module pricing
+    const errs = validateMods()
+    if (Object.keys(errs).length > 0) {
+      setModErrors(errs)
+      setActiveTab(1) // vai para aba Contrato onde ficam os modificadores
+      toast.error('Preencha o valor dos módulos habilitados')
+      return
+    }
 
     let logoUrl = form.logo_url
     if (logoFile) {
@@ -187,15 +253,15 @@ export function ClientForm({ client, onClose }) {
       cnpj: form.cnpj || null,
       segment_id: form.segment_id ? Number(form.segment_id) : null,
       logo_url: logoUrl || null,
-      unidades_total: Number(form.unidades_total) || 0,
-      unidades_donc: Number(form.unidades_donc) || 0,
+      unidades_total: form.unidades_total !== '' ? Number(form.unidades_total) : 0,
+      unidades_donc: form.unidades_donc !== '' ? Number(form.unidades_donc) : 0,
       abc_class: form.abc_class || null,
       csm_id: form.csm_id || null,
       site: form.site || null,
       contract_active: form.contract_active,
       billing_type: form.billing_type,
-      billing_base_value: Number(form.billing_base_value) || 0,
-      billing_floor: Number(form.billing_floor) || 0,
+      billing_base_value: form.billing_base_value !== '' ? Number(form.billing_base_value) : 0,
+      billing_floor: form.billing_floor !== '' ? Number(form.billing_floor) : 0,
       contract_signed_date: form.contract_signed_date || null,
       contract_start: form.contract_start || null,
       contract_renewal: form.contract_renewal || null,
@@ -206,7 +272,6 @@ export function ClientForm({ client, onClose }) {
       url_donc: form.url_donc || null,
       onb_start: form.onb_start || null,
       golive: form.golive || null,
-      delay_days: Number(form.delay_days) || 0,
       description: form.description || null,
       address_cep: form.address_cep || null,
       address_street: form.address_street || null,
@@ -227,7 +292,6 @@ export function ClientForm({ client, onClose }) {
       clientId = created.id
     }
 
-    // Save module pricing
     const items = Object.entries(modPricing)
       .filter(([, v]) => v.active)
       .map(([id, v]) => ({
@@ -265,7 +329,6 @@ export function ClientForm({ client, onClose }) {
         {/* ── ABA 1: Dados da Empresa ── */}
         {activeTab === 0 && (
           <div className="space-y-4">
-            {/* Logo upload */}
             <div className="flex items-center gap-4">
               <div
                 className="w-24 h-24 rounded-full overflow-hidden bg-bg-secondary border-2 border-dashed border-border-secondary flex items-center justify-center cursor-pointer hover:border-donc-sky transition-colors flex-shrink-0"
@@ -300,11 +363,18 @@ export function ClientForm({ client, onClose }) {
                 <input name="cnpj" value={form.cnpj} onChange={handleChange} className="input-base w-full" placeholder="00.000.000/0000-00" />
               </div>
               <div>
-                {/* Segmento */}
                 {!addingSegment ? (
                   <>
                     <label className="label-sm">Segmento</label>
-                    <select name="segment_id" value={form.segment_id} onChange={e => { if (e.target.value === '__new__') { setAddingSegment(true) } else { set('segment_id', e.target.value) } }} className="input-base w-full">
+                    <select
+                      name="segment_id"
+                      value={form.segment_id}
+                      onChange={e => {
+                        if (e.target.value === '__new__') { setAddingSegment(true) }
+                        else { set('segment_id', e.target.value) }
+                      }}
+                      className="input-base w-full"
+                    >
                       <option value="">— Selecionar —</option>
                       {segments.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       <option value="__new__">+ Novo segmento</option>
@@ -323,11 +393,7 @@ export function ClientForm({ client, onClose }) {
               </div>
               <div>
                 <label className="label-sm">Total de unidades/lojas</label>
-                <input name="unidades_total" type="number" value={form.unidades_total} onChange={handleChange} className="input-base w-full" min="0" />
-              </div>
-              <div>
-                <label className="label-sm">Unidades na Donc</label>
-                <input name="unidades_donc" type="number" value={form.unidades_donc} onChange={handleChange} className="input-base w-full" min="0" />
+                <input name="unidades_total" type="number" value={form.unidades_total} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
               </div>
               <div>
                 <label className="label-sm">Classificação ABC</label>
@@ -352,7 +418,6 @@ export function ClientForm({ client, onClose }) {
                   type="button"
                   onClick={() => set('contract_active', !form.contract_active)}
                   className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.contract_active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
-                  title="Quando desativado, esta empresa é excluída dos cálculos de dashboard e health score"
                 >
                   <span className={`block w-4 h-4 bg-white rounded-full shadow mx-1 transition-transform ${form.contract_active ? 'translate-x-4' : ''}`} />
                 </button>
@@ -380,11 +445,11 @@ export function ClientForm({ client, onClose }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label-sm">Valor base (R$ / {form.billing_type === 'por_os' ? 'OS' : 'licença'})</label>
-                <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.01" />
+                <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.01" placeholder="—" />
               </div>
               <div>
                 <label className="label-sm">Piso contratual (unidades mínimas)</label>
-                <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" />
+                <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
               </div>
               <div>
                 <label className="label-sm">Data de assinatura</label>
@@ -404,7 +469,6 @@ export function ClientForm({ client, onClose }) {
               </div>
             </div>
 
-            {/* MRR mínimo */}
             <div className="bg-bg-secondary rounded-lg p-3 border border-border-tertiary">
               <p className="text-xs text-text-tertiary mb-0.5">MRR mínimo garantido (piso × valor unitário)</p>
               <p className="text-lg font-bold text-donc-navy">{fmtBRL(mrrMinimo)}</p>
@@ -413,34 +477,54 @@ export function ClientForm({ client, onClose }) {
             {/* Modificadores por módulo */}
             {solucoes.length > 0 && (
               <div>
-                <label className="label-sm block mb-2">Modificadores por módulo (R$ adicional / unidade)</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="label-sm">Modificadores por módulo (R$ adicional / unidade)</label>
+                  {/* Toggle habilitar todos */}
+                  <button
+                    type="button"
+                    onClick={toggleAll}
+                    className="flex items-center gap-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <span className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 ${allActive ? 'bg-donc-lime' : 'bg-border-secondary'}`}>
+                      <span className={`block w-2.5 h-2.5 bg-white rounded-full shadow mt-0.75 mx-0.75 transition-transform ${allActive ? 'translate-x-4' : ''}`} style={{ marginTop: '3px' }} />
+                    </span>
+                    <span>{allActive ? 'Desabilitar todos' : 'Habilitar todos'}</span>
+                  </button>
+                </div>
+
                 <div className="space-y-2">
                   {solucoes.map(sol => {
-                    const mp = modPricing[sol.id] || { active: false, value: '0' }
+                    const mp = modPricing[sol.id] || { active: false, value: '' }
                     return (
-                      <div key={sol.id} className="flex items-center gap-3 py-2 border-b border-border-tertiary last:border-0">
-                        <button
-                          type="button"
-                          onClick={() => toggleMod(sol.id)}
-                          className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
-                        >
-                          <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
-                        </button>
-                        <span className="flex items-center gap-1.5 flex-1">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sol.color }} />
-                          <span className="text-sm text-text-primary">{sol.name}</span>
-                        </span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-text-tertiary">R$</span>
-                          <input
-                            type="number"
-                            value={mp.value}
-                            onChange={e => setModValue(sol.id, e.target.value)}
-                            disabled={!mp.active}
-                            className="input-base w-20 text-right disabled:opacity-40"
-                            min="0" step="0.01"
-                          />
+                      <div key={sol.id} className="py-2 border-b border-border-tertiary last:border-0">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleMod(sol.id)}
+                            className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
+                          >
+                            <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
+                          </button>
+                          <span className="flex items-center gap-1.5 flex-1">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sol.color }} />
+                            <span className="text-sm text-text-primary">{sol.name}</span>
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-text-tertiary">R$</span>
+                            <input
+                              type="number"
+                              value={mp.value}
+                              onChange={e => setModValue(sol.id, e.target.value)}
+                              disabled={!mp.active}
+                              placeholder={mp.active ? 'Valor' : '—'}
+                              className={`input-base w-24 text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
+                              min="0" step="0.01"
+                            />
+                          </div>
                         </div>
+                        {modErrors[sol.id] && (
+                          <p className="text-xs text-red-500 mt-1 ml-12">{modErrors[sol.id]}</p>
+                        )}
                       </div>
                     )
                   })}
@@ -448,7 +532,6 @@ export function ClientForm({ client, onClose }) {
               </div>
             )}
 
-            {/* MRR total com módulos */}
             <div className="bg-donc-navy/5 rounded-lg p-3 border border-donc-navy/20">
               <p className="text-xs text-text-tertiary mb-0.5">Valor unitário com módulos</p>
               <p className="text-sm font-semibold text-text-primary">
@@ -486,9 +569,18 @@ export function ClientForm({ client, onClose }) {
                 <label className="label-sm">Go Live</label>
                 <input name="golive" type="date" value={form.golive} onChange={handleChange} className="input-base w-full" />
               </div>
+              {/* Unidades na Donc — movido para cá */}
               <div>
-                <label className="label-sm">Dias em Atraso</label>
-                <input name="delay_days" type="number" value={form.delay_days} onChange={handleChange} className="input-base w-full" min="0" />
+                <label className="label-sm">Unidades na Donc</label>
+                <input
+                  name="unidades_donc"
+                  type="number"
+                  value={form.unidades_donc}
+                  onChange={handleChange}
+                  className="input-base w-full"
+                  min="0"
+                  placeholder="—"
+                />
               </div>
             </div>
 
@@ -496,29 +588,43 @@ export function ClientForm({ client, onClose }) {
             {(servicos.length > 0 || solucoes.length > 0) && (
               <div>
                 <label className="label-sm block mb-2">Serviços e Soluções</label>
-                {[{ label: 'Serviços', items: servicos }, { label: 'Soluções', items: solucoes }].map(({ label, items }) => items.length > 0 && (
-                  <div key={label} className="mb-2">
-                    <p className="text-xs text-text-tertiary mb-1">{label}</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {items.map(item => (
-                        <button type="button" key={item.id} onClick={() => toggleCatalog(item.id)}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                            selectedCatalog.includes(item.id) ? 'text-white border-transparent' : 'text-text-secondary border-border-secondary hover:border-text-tertiary'
-                          }`}
-                          style={selectedCatalog.includes(item.id) ? { backgroundColor: item.color, borderColor: item.color } : {}}
-                        >
-                          {item.name}
-                        </button>
-                      ))}
+                {[{ label: 'Serviços', items: servicos }, { label: 'Soluções', items: solucoes }].map(({ label, items }) =>
+                  items.length > 0 && (
+                    <div key={label} className="mb-2">
+                      <p className="text-xs text-text-tertiary mb-1">{label}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {items.map(item => (
+                          <button
+                            type="button"
+                            key={item.id}
+                            onClick={() => toggleCatalog(item.id)}
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                              selectedCatalog.includes(item.id)
+                                ? 'text-white border-transparent'
+                                : 'text-text-secondary border-border-secondary hover:border-text-tertiary'
+                            }`}
+                            style={selectedCatalog.includes(item.id) ? { backgroundColor: item.color, borderColor: item.color } : {}}
+                          >
+                            {item.name}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             )}
 
             <div>
               <label className="label-sm">Descrição do Projeto</label>
-              <textarea name="description" value={form.description} onChange={handleChange} rows={3} className="input-base w-full resize-none" placeholder="Contexto, objetivos, observações..." />
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                rows={3}
+                className="input-base w-full resize-none"
+                placeholder="Contexto, objetivos, observações..."
+              />
             </div>
           </div>
         )}

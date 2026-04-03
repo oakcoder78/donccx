@@ -31,12 +31,21 @@ export function ClientSubDados({ client }) {
           <InfoRow label="Início Onboarding" value={formatDate(client.onb_start)} />
           <InfoRow label="Go Live" value={formatDate(client.golive)} />
           <InfoRow label="MRR" value={client.mrr ? `R$ ${Number(client.mrr).toLocaleString('pt-BR')}` : null} />
-          <InfoRow label="Licenças" value={client.licencas ? `${client.licencas} × R$ ${Number(client.valor_lic).toLocaleString('pt-BR')}` : null} />
-          {client.delay_days > 0 && <InfoRow label="Dias em Atraso" value={`${client.delay_days} dias`} />}
+          <InfoRow
+            label="Licenças"
+            value={client.billing_floor ? `${client.billing_floor} × R$ ${Number(client.billing_base_value || 0).toLocaleString('pt-BR')}` : null}
+          />
+          <InfoRow
+            label="Unidades na Donc"
+            value={client.unidades_donc > 0 ? String(client.unidades_donc) : null}
+          />
+          {client.delay_days > 0 && (
+            <InfoRow label="Dias em Atraso" value={`${client.delay_days} dias`} />
+          )}
         </div>
       </div>
 
-      {/* Catalog chips */}
+      {/* Catalog chips — somente exibição, sem interação */}
       {(servicos.length > 0 || solucoes.length > 0) && (
         <Card>
           {servicos.length > 0 && (
@@ -44,7 +53,11 @@ export function ClientSubDados({ client }) {
               <p className="text-xs text-text-tertiary mb-2">Serviços</p>
               <div className="flex flex-wrap gap-1.5">
                 {servicos.map(s => (
-                  <span key={s.id} className="px-2.5 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: s.color }}>
+                  <span
+                    key={s.id}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium text-white select-none"
+                    style={{ backgroundColor: s.color }}
+                  >
                     {s.name}
                   </span>
                 ))}
@@ -56,7 +69,11 @@ export function ClientSubDados({ client }) {
               <p className="text-xs text-text-tertiary mb-2">Soluções</p>
               <div className="flex flex-wrap gap-1.5">
                 {solucoes.map(s => (
-                  <span key={s.id} className="px-2.5 py-1 rounded-full text-xs font-medium text-white" style={{ backgroundColor: s.color }}>
+                  <span
+                    key={s.id}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium text-white select-none"
+                    style={{ backgroundColor: s.color }}
+                  >
                     {s.name}
                   </span>
                 ))}
