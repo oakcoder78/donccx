@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMilestoneMutations } from '../../../../hooks/useMilestones'
+import { useMilestones, useMilestoneMutations } from '../../../../hooks/useMilestones'
 import { Button } from '../../../ui/Button'
 import { Badge } from '../../../ui/Badge'
 import { Modal } from '../../../ui/Modal'
@@ -13,7 +13,7 @@ function formatDate(d) {
 }
 
 export function ClientSubProjetos({ client }) {
-  const milestones = client.milestones || []
+  const { data: milestones = [] } = useMilestones(client.id)
   const { createMilestone, updateMilestone, removeMilestone, toggleTask, createTask } = useMilestoneMutations(client.id)
   const [showModal, setShowModal] = useState(false)
   const [editMs, setEditMs] = useState(null)

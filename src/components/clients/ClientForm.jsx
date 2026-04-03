@@ -230,15 +230,6 @@ export function ClientForm({ client, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault()
 
-    // Validate module pricing
-    const errs = validateMods()
-    if (Object.keys(errs).length > 0) {
-      setModErrors(errs)
-      setActiveTab(1) // vai para aba Contrato onde ficam os modificadores
-      toast.error('Preencha o valor dos módulos habilitados')
-      return
-    }
-
     let logoUrl = form.logo_url
     if (logoFile) {
       setUploadingLogo(true)
@@ -684,7 +675,16 @@ export function ClientForm({ client, onClose }) {
               <Button type="button" variant="secondary" onClick={() => setActiveTab(t => t - 1)}>← Anterior</Button>
             )}
             {activeTab < TABS.length - 1 && (
-              <Button type="button" onClick={() => setActiveTab(t => t + 1)}>Próximo →</Button>
+              <Button type="button" onClick={() => {
+                if (activeTab === 1) {
+                  const errs = validateMods()
+                  if (Object.keys(errs).length > 0) {
+                    setModErrors(errs)
+                    return
+                  }
+                }
+                setActiveTab(t => t + 1)
+              }}>Próximo →</Button>
             )}
             {activeTab === TABS.length - 1 && (
               <>
