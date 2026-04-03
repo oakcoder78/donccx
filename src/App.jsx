@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
+import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Navbar } from './components/layout/Navbar'
 import { Spinner } from './components/ui/Spinner'
@@ -39,8 +40,15 @@ function AppLayout() {
 
 function PrivateRoute() {
   const { user, profile, loading } = useAuth()
+  const [timedOut, setTimedOut] = useState(false)
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading) return
+    const t = setTimeout(() => setTimedOut(true), 3000)
+    return () => clearTimeout(t)
+  }, [loading])
+
+  if (loading && !timedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Spinner size="lg" />

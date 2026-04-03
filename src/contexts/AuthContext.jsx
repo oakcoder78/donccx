@@ -22,23 +22,42 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        setUser(session.user)
-        const p = await fetchProfile(session.user.id)
-        setProfile(p)
+    let mounted = true
+
+    // Timeout de segurança: desbloqueia o app após 3s mesmo sem resposta
+    const timeout = setTimeout(() => {
+      if (mounted) setLoading(false)
+    }, 3000)
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!mounted) return
+      clearTimeout(timeout)
+      setUser(session?.user ?? null)
+      if (session) {
+        fetchProfile(session.user.id)
+          .then(p => { if (mounted) setProfile(p) })
+          .finally(() => { if (mounted) setLoading(false) })
       } else {
-        setUser(null)
-        setProfile(null)
-      }
-      // INITIAL_SESSION é o evento de boot — só aí desligamos o loading
-      // (ocorre após o await fetchProfile, então profile já está pronto)
-      if (event === 'INITIAL_SESSION') {
         setLoading(false)
       }
     })
 
-    return () => subscription.unsubscribe()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return
+      setUser(session?.user ?? null)
+      if (session) {
+        const p = await fetchProfile(session.user.id)
+        if (mounted) setProfile(p)
+      } else {
+        setProfile(null)
+      }
+    })
+
+    return () => {
+      mounted = false
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function signIn(email, password) {
