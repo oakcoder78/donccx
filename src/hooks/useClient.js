@@ -23,7 +23,7 @@ export function useClient(id) {
         `)
         .eq('id', id)
         .single()
-      if (error) throw error
+      if (error) { console.error('[useClient] query error:', error); throw error }
       return data
     },
   })

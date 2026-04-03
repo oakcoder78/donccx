@@ -7,7 +7,7 @@ export function useProfiles() {
     queryKey: ['profiles'],
     queryFn: async () => {
       const { data, error } = await supabase.from('profiles').select('*').order('name')
-      if (error) throw error
+      if (error) { console.error('[useProfiles] query error:', error); throw error }
       return data
     },
   })

@@ -19,7 +19,7 @@ export function useActivities(filters = {}) {
       if (filters.search) q = q.ilike('description', `%${filters.search}%`)
 
       const { data, error } = await q
-      if (error) throw error
+      if (error) { console.error('[useActivities] query error:', error); throw error }
       return data
     },
   })

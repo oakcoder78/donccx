@@ -14,7 +14,7 @@ export function useContacts(filters = {}) {
       if (filters.search) q = q.ilike('name', `%${filters.search}%`)
 
       const { data, error } = await q
-      if (error) throw error
+      if (error) { console.error('[useContacts] query error:', error); throw error }
 
       let result = data
       if (filters.client_id) {

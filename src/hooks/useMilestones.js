@@ -12,7 +12,7 @@ export function useMilestones(clientId) {
         .select('*, milestone_tasks(*)')
         .eq('client_id', clientId)
         .order('created_at')
-      if (error) throw error
+      if (error) { console.error('[useMilestones] query error:', error); throw error }
       return data
     },
   })
@@ -26,7 +26,7 @@ export function useAllMilestones() {
         .from('milestones')
         .select('*, milestone_tasks(*), client:clients(id,name)')
         .order('due_date', { nullsFirst: false })
-      if (error) throw error
+      if (error) { console.error('[useAllMilestones] query error:', error); throw error }
       return data
     },
   })

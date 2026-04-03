@@ -7,7 +7,7 @@ export function useCatalog() {
     queryKey: ['catalog'],
     queryFn: async () => {
       const { data, error } = await supabase.from('catalog_items').select('*').order('type').order('name')
-      if (error) throw error
+      if (error) { console.error('[useCatalog] query error:', error); throw error }
       return data
     },
   })

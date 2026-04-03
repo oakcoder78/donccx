@@ -21,7 +21,7 @@ export function useClients(filters = {}) {
       if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
 
       const { data, error } = await q
-      if (error) throw error
+      if (error) { console.error('[useClients] query error:', error); throw error }
       return data
     },
   })

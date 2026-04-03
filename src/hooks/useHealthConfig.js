@@ -6,10 +6,12 @@ export function useHealthConfig() {
   return useQuery({
     queryKey: ['health_config'],
     queryFn: async () => {
-      const [{ data: config }, { data: rules }] = await Promise.all([
+      const [{ data: config, error: configError }, { data: rules, error: rulesError }] = await Promise.all([
         supabase.from('health_config').select('*').single(),
         supabase.from('health_rules').select('*').order('dimension').order('label'),
       ])
+      if (configError) { console.error('[useHealthConfig] health_config error:', configError); throw configError }
+      if (rulesError) { console.error('[useHealthConfig] health_rules error:', rulesError); throw rulesError }
       return { config, rules }
     },
   })
