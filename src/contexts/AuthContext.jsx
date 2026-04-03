@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-const AuthContext = createContext(null)
+const AuthContext = createContext({})
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -9,92 +9,64 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   async function fetchProfile(userId) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    if (error) {
-      console.error('[AuthContext] fetchProfile error:', error)
-      return null
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle()
+      setProfile(data)
+    } catch (e) {
+      setProfile(null)
     }
-    return data
   }
 
   useEffect(() => {
-    let mounted = true
-
-    // Timeout de segurança: desbloqueia o app após 3s mesmo sem resposta
-    const timeout = setTimeout(() => {
-      if (mounted) setLoading(false)
-    }, 3000)
-
+    // Busca sessão inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!mounted) return
-      clearTimeout(timeout)
-      setUser(session?.user ?? null)
-      if (session) {
-        fetchProfile(session.user.id)
-          .then(p => { if (mounted) setProfile(p) })
-          .finally(() => { if (mounted) setLoading(false) })
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) {
+        fetchProfile(u.id).finally(() => setLoading(false))
       } else {
         setLoading(false)
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return
-      setUser(session?.user ?? null)
-      if (session) {
-        const p = await fetchProfile(session.user.id)
-        if (mounted) setProfile(p)
+    // Escuta mudanças de auth (login, logout, refresh de token)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) {
+        fetchProfile(u.id)
       } else {
         setProfile(null)
       }
     })
 
-    return () => {
-      mounted = false
-      clearTimeout(timeout)
-      subscription.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
-  async function signIn(email, password) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    return data
-  }
-
-  async function signInWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({
+  const value = {
+    user,
+    profile,
+    loading,
+    isAdmin: profile?.role === 'admin',
+    isManager: profile?.role === 'manager' || profile?.role === 'admin',
+    signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
+    signInWithGoogle: () => supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/dashboard` }
-    })
-    if (error) throw error
-  }
-
-  async function signOut() {
-    await supabase.auth.signOut()
-    setUser(null)
-    setProfile(null)
-  }
-
-  async function refreshProfile() {
-    if (!user) return
-    const p = await fetchProfile(user.id)
-    setProfile(p)
+      options: { redirectTo: `${window.location.origin}/dashboard` },
+    }),
+    signOut: () => supabase.auth.signOut(),
+    refreshProfile: () => user ? fetchProfile(user.id) : Promise.resolve(),
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signInWithGoogle, signOut, refreshProfile }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   )
 }
 
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
-}
+export const useAuth = () => useContext(AuthContext)

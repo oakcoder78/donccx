@@ -14,22 +14,14 @@ export default function LoginPage() {
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-    try {
-      await signIn(email, password)
-      // AuthContext will update profile — handled in App route guard
-    } catch (err) {
-      toast.error(err.message || 'Erro ao fazer login')
-    } finally {
-      setLoading(false)
-    }
+    const { error } = await signIn(email, password)
+    if (error) toast.error(error.message || 'Erro ao fazer login')
+    setLoading(false)
   }
 
   async function handleGoogle() {
-    try {
-      await signInWithGoogle()
-    } catch (err) {
-      toast.error(err.message || 'Erro ao entrar com Google')
-    }
+    const { error } = await signInWithGoogle()
+    if (error) toast.error(error.message || 'Erro ao entrar com Google')
   }
 
   return (

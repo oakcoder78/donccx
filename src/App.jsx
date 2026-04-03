@@ -1,10 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
-import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Navbar } from './components/layout/Navbar'
-import { Spinner } from './components/ui/Spinner'
 
 import LoginPage from './pages/LoginPage'
 import SolicitarAcessoPage from './pages/SolicitarAcessoPage'
@@ -40,26 +38,10 @@ function AppLayout() {
 
 function PrivateRoute() {
   const { user, profile, loading } = useAuth()
-  const [timedOut, setTimedOut] = useState(false)
-
-  useEffect(() => {
-    if (!loading) return
-    const t = setTimeout(() => setTimedOut(true), 3000)
-    return () => clearTimeout(t)
-  }, [loading])
-
-  if (loading && !timedOut) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
-    )
-  }
-
+  if (loading) return null
   if (!user) return <Navigate to="/login" replace />
   if (profile?.status === 'pending') return <PendingPage status="pending" />
   if (profile?.status === 'blocked') return <PendingPage status="blocked" />
-
   return <AppLayout />
 }
 
@@ -71,12 +53,20 @@ function AdminRoute() {
 
 function AuthRedirect() {
   const { user, profile, loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>
+  if (loading) return null
   if (user && profile?.status === 'active') return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
 
 function AppRoutes() {
+  const { loading } = useAuth()
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div>Carregando...</div>
+    </div>
+  )
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
