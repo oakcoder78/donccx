@@ -14,9 +14,9 @@ export function useContacts(filters = {}) {
       if (filters.search) q = q.ilike('name', `%${filters.search}%`)
 
       const { data, error } = await q
-      if (error) { console.error('[useContacts] query error:', error); throw error }
+      if (error) { console.error('[useContacts] query error:', error); return [] }
 
-      let result = data
+      let result = data ?? []
       if (filters.client_id) {
         result = result.filter(c => c.contact_links.some(l => l.client_id === filters.client_id))
       }
@@ -31,6 +31,7 @@ export function useContacts(filters = {}) {
       }
       return result
     },
+    retry: 0,
   })
 }
 

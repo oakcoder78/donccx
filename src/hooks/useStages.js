@@ -7,9 +7,10 @@ export function useStages() {
     queryKey: ['stages'],
     queryFn: async () => {
       const { data, error } = await supabase.from('stages').select('*').order('display_order')
-      if (error) { console.error('[useStages] query error:', error); throw error }
-      return data
+      if (error) { console.error('[useStages] query error:', error); return [] }
+      return data ?? []
     },
+    retry: 0,
   })
 }
 
