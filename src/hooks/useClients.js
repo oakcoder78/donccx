@@ -10,20 +10,37 @@ const CLIENT_SELECT = `
   client_catalog(catalog_item_id, catalog_items(*))
 `
 
+function buildClientsQuery(filters) {
+  let q = supabase.from('clients').select(CLIENT_SELECT).order('name')
+  if (filters.csm_id)   q = q.eq('csm_id', filters.csm_id)
+  if (filters.stage_id) q = q.eq('stage_id', filters.stage_id)
+  if (filters.search)   q = q.ilike('name', `%${filters.search}%`)
+  if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
+  return q
+}
+
+/** Default query — active companies only (contract_active = true). */
 export function useClients(filters = {}, options = {}) {
   return useQuery({
     queryKey: ['clients', filters],
     ...options,
     queryFn: async () => {
-      let q = supabase.from('clients').select(CLIENT_SELECT).order('name')
-
-      if (filters.csm_id) q = q.eq('csm_id', filters.csm_id)
-      if (filters.stage_id) q = q.eq('stage_id', filters.stage_id)
-      if (filters.search) q = q.ilike('name', `%${filters.search}%`)
-      if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
-
-      const { data, error } = await q
+      const { data, error } = await buildClientsQuery(filters).eq('contract_active', true)
       if (error) { console.error('[useClients] query error:', error); return [] }
+      return data ?? []
+    },
+    retry: 0,
+  })
+}
+
+/** Admin/recovery variant — includes inactive companies. */
+export function useAllClients(filters = {}, options = {}) {
+  return useQuery({
+    queryKey: ['clients_all', filters],
+    ...options,
+    queryFn: async () => {
+      const { data, error } = await buildClientsQuery(filters)
+      if (error) { console.error('[useAllClients] query error:', error); return [] }
       return data ?? []
     },
     retry: 0,
