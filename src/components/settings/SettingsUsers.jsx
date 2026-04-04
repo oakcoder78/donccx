@@ -80,11 +80,19 @@ function NewUserModal({ onClose, onCreated }) {
     if (form.password.length < 8) { toast.error('Senha deve ter ao menos 8 caracteres'); return }
     setLoading(true)
     try {
-      const { data, error } = await supabase.functions.invoke('create-user', {
-        body: { name: form.name, email: form.email, password: form.password, role: form.role },
+      const { data: { session } } = await supabase.auth.getSession()
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role }),
       })
-      if (error || data?.error) {
-        toast.error(data?.error || error?.message || 'Erro ao criar usuário')
+      const data = await res.json()
+      if (!res.ok || data?.error) {
+        toast.error(data?.error || data?.message || 'Erro ao criar usuário')
         return
       }
 

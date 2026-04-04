@@ -13,7 +13,9 @@
       "Bash(git commit -m 'feat: initial doncCX v1 scaffold:*)",
       "Bash(curl -s http://localhost:5173)",
       "Bash(grep -n \"console.error\" src/hooks/*.js)",
-      "Bash(jobs -l)"
+      "Bash(jobs -l)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
