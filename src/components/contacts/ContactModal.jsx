@@ -3,6 +3,7 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useContactMutations } from '../../hooks/useContacts'
 import { useClients } from '../../hooks/useClients'
+import { maskPhoneInput, stripPhone, formatPhone } from '../../lib/formatPhone'
 
 const EMPTY = { name: '', cargo: '', email: '', linkedin: '', notes: '' }
 
@@ -15,7 +16,10 @@ const STATUS_OPTIONS = [
 export function ContactModal({ contact, onClose, defaultClientId }) {
   const isEdit = !!contact
   const [form, setForm] = useState(contact ? { ...EMPTY, ...contact } : EMPTY)
-  const [phones, setPhones] = useState(contact?.contact_phones || [{ number: '', type: 'WhatsApp' }])
+  const [phones, setPhones] = useState(
+    contact?.contact_phones?.map(p => ({ ...p, number: formatPhone(p.number) })) ||
+    [{ number: '', type: 'WhatsApp' }]
+  )
   const [links, setLinks] = useState(
     contact?.contact_links?.map(l => ({
       client_id: Number(l.client_id),
@@ -45,7 +49,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
     e.preventDefault()
     const payload = {
       ...form,
-      phones: phones.filter(p => p.number.trim()),
+      phones: phones.filter(p => p.number.trim()).map(p => ({ ...p, number: stripPhone(p.number) })),
       links: links.filter(l => l.client_id != null && l.client_id !== '').map(l => ({ ...l, client_id: Number(l.client_id) })),
     }
     if (isEdit) await update.mutateAsync({ id: contact.id, ...payload })
@@ -86,7 +90,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
           <div className="space-y-2">
             {phones.map((ph, i) => (
               <div key={i} className="flex gap-2">
-                <input value={ph.number} onChange={e => setPhone(i, 'number', e.target.value)}
+                <input value={ph.number} onChange={e => setPhone(i, 'number', maskPhoneInput(e.target.value))}
                   placeholder="(00) 00000-0000" className="input-base flex-1" />
                 <select value={ph.type} onChange={e => setPhone(i, 'type', e.target.value)} className="input-base w-28">
                   <option>WhatsApp</option><option>Celular</option><option>Fixo</option>

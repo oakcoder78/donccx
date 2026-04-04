@@ -1,6 +1,7 @@
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
+import { formatPhone } from '../../lib/formatPhone'
 
 const STATUS_INFO = {
   ativo: { emoji: '🟢', label: 'Ativo' },
@@ -67,7 +68,7 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
           {phones.map((p, i) => (
             <div key={i} className="flex items-center gap-2 text-sm text-text-primary mb-1">
               <span className="text-text-tertiary">{p.type === 'WhatsApp' ? '💬' : '📞'}</span>
-              {p.number} <span className="text-xs text-text-tertiary">{p.type}</span>
+              {formatPhone(p.number)} <span className="text-xs text-text-tertiary">{p.type}</span>
             </div>
           ))}
           {c.linkedin && (

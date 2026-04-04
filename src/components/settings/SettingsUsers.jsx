@@ -8,6 +8,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { UserEditModal } from '../ui/UserEditModal'
+import { formatPhone, maskPhoneInput, stripPhone } from '../../lib/formatPhone'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -56,7 +57,7 @@ function NewUserModal({ onClose, onCreated }) {
       if (newUserId) {
         const extra = {}
         if (form.email_secondary) extra.email_secondary = form.email_secondary
-        if (form.phone) { extra.phone = form.phone; extra.phone_is_whatsapp = form.phone_is_whatsapp }
+        if (form.phone) { extra.phone = stripPhone(form.phone); extra.phone_is_whatsapp = form.phone_is_whatsapp }
         if (Object.keys(extra).length) {
           await supabase.from('profiles').update(extra).eq('id', newUserId)
         }
@@ -91,7 +92,7 @@ function NewUserModal({ onClose, onCreated }) {
         <div>
           <label className="label-sm">Telefone</label>
           <div className="flex items-center gap-2">
-            <input name="phone" value={form.phone} onChange={handleChange} placeholder="(11) 99999-9999" className="input-base flex-1" />
+            <input name="phone" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: maskPhoneInput(e.target.value) }))} placeholder="(11) 99999-9999" className="input-base flex-1" />
             <label className="flex items-center gap-1.5 text-xs text-text-secondary whitespace-nowrap cursor-pointer">
               <input
                 type="checkbox"
@@ -188,7 +189,7 @@ export function SettingsUsers() {
                 <p className="text-xs text-text-tertiary">{p.email}</p>
                 {(p.phone) && (
                   <p className="text-xs text-text-tertiary">
-                    {p.phone}{p.phone_is_whatsapp ? ' · WhatsApp' : ''}
+                    {formatPhone(p.phone)}{p.phone_is_whatsapp ? ' · WhatsApp' : ''}
                   </p>
                 )}
               </div>

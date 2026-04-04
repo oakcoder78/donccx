@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
+import { maskPhoneInput, stripPhone } from '../../lib/formatPhone'
 
 function AvatarUpload({ userId, currentUrl, onUploaded }) {
   const [uploading, setUploading] = useState(false)
@@ -61,7 +62,7 @@ function AvatarUpload({ userId, currentUrl, onUploaded }) {
 export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose, onSaved }) {
   const [name, setName]                     = useState(profile?.name || '')
   const [emailSecondary, setEmailSecondary] = useState(profile?.email_secondary || '')
-  const [phone, setPhone]                   = useState(profile?.phone || '')
+  const [phone, setPhone]                   = useState(maskPhoneInput(profile?.phone || ''))
   const [phoneIsWhatsapp, setPhoneIsWhatsapp] = useState(profile?.phone_is_whatsapp || false)
   const [avatarUrl, setAvatarUrl]           = useState(profile?.avatar_url || null)
   const [saving, setSaving]                 = useState(false)
@@ -74,7 +75,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
         name,
         avatar_url: avatarUrl,
         email_secondary: emailSecondary || null,
-        phone: phone || null,
+        phone: stripPhone(phone) || null,
         phone_is_whatsapp: phoneIsWhatsapp,
       }).eq('id', profile.id)
       if (error) throw error
@@ -137,7 +138,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
           <div className="flex items-center gap-2">
             <input
               value={phone}
-              onChange={e => setPhone(e.target.value)}
+              onChange={e => setPhone(maskPhoneInput(e.target.value))}
               placeholder="(11) 99999-9999"
               className="input-base flex-1"
             />

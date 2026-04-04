@@ -5,6 +5,7 @@ import { Button } from '../../ui/Button'
 import { ContactModal } from '../../contacts/ContactModal'
 import { ContactPanel } from '../../contacts/ContactPanel'
 import { useUnlinkContact } from '../../../hooks/useContacts'
+import { formatPhone } from '../../../lib/formatPhone'
 
 // ─── helpers ────────────────────────────────────────────────────────────────────
 const STATUS_INFO = {
@@ -70,7 +71,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
               onClick={e => e.stopPropagation()}
               className="text-xs text-text-secondary hover:text-donc-verde transition-colors"
             >
-              💬 {wp.number}
+              💬 {formatPhone(wp.number)}
             </a>
           )}
         </div>
