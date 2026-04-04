@@ -96,9 +96,7 @@ export function ClientForm({ client, onClose }) {
       existingModPricing.forEach(mp => {
         init[mp.catalog_item_id] = {
           active: true,
-          value: mp.additional_value != null && mp.additional_value !== 0
-            ? String(mp.additional_value)
-            : '',
+          value: mp.additional_value != null ? String(mp.additional_value) : '',
         }
       })
       setModPricing(init)
@@ -671,6 +669,7 @@ export function ClientForm({ client, onClose }) {
             ))}
           </div>
           <div className="flex gap-2">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
             {activeTab > 0 && (
               <Button type="button" variant="secondary" onClick={() => setActiveTab(t => t - 1)}>← Anterior</Button>
             )}
@@ -686,14 +685,9 @@ export function ClientForm({ client, onClose }) {
                 setActiveTab(t => t + 1)
               }}>Próximo →</Button>
             )}
-            {activeTab === TABS.length - 1 && (
-              <>
-                <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-                <Button type="submit" disabled={isMutating || uploadingLogo}>
-                  {isMutating || uploadingLogo ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Empresa'}
-                </Button>
-              </>
-            )}
+            <Button type="submit" disabled={isMutating || uploadingLogo}>
+              {isMutating || uploadingLogo ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Empresa'}
+            </Button>
           </div>
         </div>
       </form>
