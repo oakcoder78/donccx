@@ -27,6 +27,16 @@ export function useActivities(filters = {}, options = {}) {
   })
 }
 
+const DATE_FIELDS = ['due_date', 'scheduled_at', 'date', 'activity_date']
+
+function sanitizeDates(payload) {
+  const result = { ...payload }
+  for (const field of DATE_FIELDS) {
+    if (field in result && !result[field]) result[field] = null
+  }
+  return result
+}
+
 export function useActivityMutations() {
   const qc = useQueryClient()
   const invalidate = () => {
@@ -36,7 +46,7 @@ export function useActivityMutations() {
 
   const create = useMutation({
     mutationFn: async (payload) => {
-      const { data, error } = await supabase.from('activities').insert(payload).select().single()
+      const { data, error } = await supabase.from('activities').insert(sanitizeDates(payload)).select().single()
       if (error) throw error
       return data
     },
@@ -46,7 +56,7 @@ export function useActivityMutations() {
 
   const update = useMutation({
     mutationFn: async ({ id, ...payload }) => {
-      const { data, error } = await supabase.from('activities').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+      const { data, error } = await supabase.from('activities').update({ ...sanitizeDates(payload), updated_at: new Date().toISOString() }).eq('id', id).select().single()
       if (error) throw error
       return data
     },
