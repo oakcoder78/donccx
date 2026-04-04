@@ -18,7 +18,8 @@ export function useContacts(filters = {}) {
 
       let result = data ?? []
       if (filters.client_id) {
-        result = result.filter(c => c.contact_links.some(l => l.client_id === filters.client_id))
+        const cid = Number(filters.client_id)
+        result = result.filter(c => c.contact_links.some(l => l.client_id === cid))
       }
       if (filters.papel) {
         result = result.filter(c => c.contact_links.some(l => l.papel === filters.papel))
@@ -51,7 +52,10 @@ export function useContactMutations() {
         await supabase.from('contact_phones').insert(phones.map(p => ({ ...p, contact_id: data.id })))
       }
       if (links?.length) {
-        await supabase.from('contact_links').insert(links.map(l => ({ ...l, contact_id: data.id })))
+        const linkRows = links.map(l => ({ ...l, contact_id: data.id, client_id: Number(l.client_id) }))
+        console.log('[useContacts create] inserting contact_links:', linkRows)
+        const { error: linkErr } = await supabase.from('contact_links').insert(linkRows)
+        if (linkErr) console.error('[useContacts create] contact_links insert error:', linkErr)
       }
       return data
     },
@@ -69,7 +73,12 @@ export function useContactMutations() {
       }
       if (links !== undefined) {
         await supabase.from('contact_links').delete().eq('contact_id', id)
-        if (links.length) await supabase.from('contact_links').insert(links.map(l => ({ ...l, contact_id: id })))
+        if (links.length) {
+          const linkRows = links.map(l => ({ ...l, contact_id: id, client_id: Number(l.client_id) }))
+          console.log('[useContacts update] inserting contact_links:', linkRows)
+          const { error: linkErr } = await supabase.from('contact_links').insert(linkRows)
+          if (linkErr) console.error('[useContacts update] contact_links insert error:', linkErr)
+        }
       }
       return data
     },
