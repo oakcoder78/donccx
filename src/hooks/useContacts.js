@@ -64,7 +64,7 @@ export function useContactMutations() {
   })
 
   const update = useMutation({
-    mutationFn: async ({ id, phones, links, ...payload }) => {
+    mutationFn: async ({ id, phones, links, contact_phones, contact_links, ...payload }) => {
       const { data, error } = await supabase.from('contacts').update(payload).eq('id', id).select().single()
       if (error) throw error
       if (phones !== undefined) {
