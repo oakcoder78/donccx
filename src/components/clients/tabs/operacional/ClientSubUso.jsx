@@ -22,17 +22,23 @@ function fmtMonth(ym) {
 }
 
 export function ClientSubUso({ client }) {
-  const [month, setMonth] = useState(currentMonth())
-  const [osVal, setOsVal] = useState('')
+  const [month, setMonth]     = useState(currentMonth())
+  const [osVal, setOsVal]     = useState('')
   const [usersVal, setUsersVal] = useState('')
-  const [errors, setErrors] = useState({})
-  const { upsert } = useClientUsageMutations()
+  const [errors, setErrors]   = useState({})
+  const { upsert, remove }    = useClientUsageMutations()
 
   const usageData = client.client_usage || []
-  const sorted = [...usageData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
+  const sorted    = [...usageData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
   const chartData6 = sorted.slice(-6)
 
-  // Preenche form ao trocar mês
+  function loadRow(u) {
+    setMonth(u.ref_month)
+    setOsVal(String(u.os_created))
+    setUsersVal(String(u.active_users))
+    setErrors({})
+  }
+
   function handleMonthChange(e) {
     const m = e.target.value
     setMonth(m)
@@ -68,6 +74,16 @@ export function ClientSubUso({ client }) {
     setErrors({})
   }
 
+  function handleDelete(u) {
+    if (!window.confirm(`Excluir dados de ${fmtMonth(u.ref_month)}?`)) return
+    remove.mutate(u.id)
+    if (month === u.ref_month) {
+      setMonth(currentMonth())
+      setOsVal('')
+      setUsersVal('')
+    }
+  }
+
   const lineChart = {
     labels: chartData6.map(u => fmtMonth(u.ref_month)),
     datasets: [
@@ -76,9 +92,7 @@ export function ClientSubUso({ client }) {
         data: chartData6.map(u => u.os_created),
         borderColor: '#59c2ed',
         backgroundColor: 'rgba(89,194,237,0.08)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
+        fill: true, tension: 0.4, pointRadius: 4,
         pointBackgroundColor: '#59c2ed',
       },
       {
@@ -86,9 +100,7 @@ export function ClientSubUso({ client }) {
         data: chartData6.map(u => u.active_users),
         borderColor: '#1D9E75',
         backgroundColor: 'rgba(29,158,117,0.06)',
-        fill: true,
-        tension: 0.4,
-        pointRadius: 4,
+        fill: true, tension: 0.4, pointRadius: 4,
         pointBackgroundColor: '#1D9E75',
       },
     ],
@@ -96,10 +108,7 @@ export function ClientSubUso({ client }) {
 
   const lineOptions = {
     responsive: true,
-    plugins: {
-      legend: { position: 'top' },
-      tooltip: { mode: 'index', intersect: false },
-    },
+    plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } },
     scales: {
       y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' } },
       x: { grid: { display: false } },
@@ -108,40 +117,30 @@ export function ClientSubUso({ client }) {
 
   return (
     <div className="space-y-5">
-      {/* Formulário de entrada */}
+
+      {/* Formulário */}
       <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4">
         <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">Registrar dados do mês</p>
         <div className="flex items-start gap-3 flex-wrap">
           <div>
             <label className="label-sm">Mês de Referência</label>
-            <input
-              type="month"
-              value={month}
-              onChange={handleMonthChange}
-              className="input-base"
-            />
+            <input type="month" value={month} onChange={handleMonthChange} className="input-base" />
           </div>
           <div>
             <label className="label-sm">OS Criadas</label>
             <input
-              type="number"
-              value={osVal}
+              type="number" value={osVal} min="0" placeholder="—"
               onChange={e => { setOsVal(e.target.value); setErrors(p => ({ ...p, os: undefined })) }}
-              placeholder="—"
               className={`input-base w-28 ${errors.os ? 'border-red-400' : ''}`}
-              min="0"
             />
             {errors.os && <p className="text-xs text-red-500 mt-0.5">{errors.os}</p>}
           </div>
           <div>
             <label className="label-sm">Usuários Ativos</label>
             <input
-              type="number"
-              value={usersVal}
+              type="number" value={usersVal} min="0" placeholder="—"
               onChange={e => { setUsersVal(e.target.value); setErrors(p => ({ ...p, users: undefined })) }}
-              placeholder="—"
               className={`input-base w-28 ${errors.users ? 'border-red-400' : ''}`}
-              min="0"
             />
             {errors.users && <p className="text-xs text-red-500 mt-0.5">{errors.users}</p>}
           </div>
@@ -173,23 +172,35 @@ export function ClientSubUso({ client }) {
                 <th className="text-left px-4 py-2 text-xs font-medium text-text-tertiary">Mês</th>
                 <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary">OS Criadas</th>
                 <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary">Usuários Ativos</th>
+                <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {[...sorted].reverse().map((u, i) => (
+              {[...sorted].reverse().map(u => (
                 <tr
                   key={u.ref_month}
-                  className={`border-t border-border-tertiary hover:bg-bg-secondary transition-colors cursor-pointer ${u.ref_month === month ? 'bg-donc-sky/5' : ''}`}
-                  onClick={() => {
-                    setMonth(u.ref_month)
-                    setOsVal(String(u.os_created))
-                    setUsersVal(String(u.active_users))
-                    setErrors({})
-                  }}
+                  className={`border-t border-border-tertiary transition-colors ${u.ref_month === month ? 'bg-donc-sky/5' : 'hover:bg-bg-secondary'}`}
                 >
                   <td className="px-4 py-2.5 font-medium text-text-primary">{fmtMonth(u.ref_month)}</td>
                   <td className="px-4 py-2.5 text-right text-text-secondary">{u.os_created.toLocaleString('pt-BR')}</td>
                   <td className="px-4 py-2.5 text-right text-text-secondary">{u.active_users.toLocaleString('pt-BR')}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => loadRow(u)}
+                        className="text-xs text-donc-sky hover:underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        className="text-xs text-donc-red hover:underline"
+                        disabled={remove.isPending}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

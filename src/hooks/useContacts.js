@@ -37,7 +37,11 @@ export function useContacts(filters = {}) {
 
 export function useContactMutations() {
   const qc = useQueryClient()
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['contacts'] })
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['contacts'] })
+    qc.invalidateQueries({ queryKey: ['client'] })
+    qc.invalidateQueries({ queryKey: ['clients'] })
+  }
 
   const create = useMutation({
     mutationFn: async ({ phones, links, ...payload }) => {

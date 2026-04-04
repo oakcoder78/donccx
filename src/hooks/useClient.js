@@ -38,14 +38,26 @@ export function useClientUsageMutations() {
       if (error) throw error
       return data
     },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['client', vars.client_id] })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client'] })
       toast.success('Dados salvos')
     },
     onError: (e) => toast.error(e.message),
   })
 
-  return { upsert }
+  const remove = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('client_usage').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client'] })
+      toast.success('Registro removido')
+    },
+    onError: (e) => toast.error(e.message),
+  })
+
+  return { upsert, remove }
 }
 
 export function useClientSupport(clientId) {
@@ -73,13 +85,26 @@ export function useClientSupportMutations() {
       if (error) throw error
       return data
     },
-    onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['client', vars.client_id] })
-      qc.invalidateQueries({ queryKey: ['client_support', vars.client_id] })
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client'] })
+      qc.invalidateQueries({ queryKey: ['client_support'] })
       toast.success('Dados salvos')
     },
     onError: (e) => toast.error(e.message),
   })
 
-  return { upsert }
+  const remove = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase.from('client_support').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['client'] })
+      qc.invalidateQueries({ queryKey: ['client_support'] })
+      toast.success('Registro removido')
+    },
+    onError: (e) => toast.error(e.message),
+  })
+
+  return { upsert, remove }
 }
