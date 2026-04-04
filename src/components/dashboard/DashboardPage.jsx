@@ -106,9 +106,9 @@ function MetricCard({ label, value, sub, subColor, color, onClick }) {
   )
 }
 
-function SectionCard({ title, action, children }) {
+function SectionCard({ title, action, children, style }) {
   return (
-    <div style={{ backgroundColor: '#fff', border: '0.5px solid #e8e7e3', borderRadius: 10, padding: 16, minWidth: 0 }}>
+    <div style={{ backgroundColor: '#fff', border: '0.5px solid #e8e7e3', borderRadius: 10, padding: 16, minWidth: 0, boxSizing: 'border-box', ...style }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{title}</span>
         {action}
@@ -183,7 +183,12 @@ export default function DashboardPage() {
     },
   })
 
-  const csmList = profiles.filter(p => p.role === 'csm' && p.status !== 'blocked')
+  const csmList           = profiles.filter(p => p.role === 'csm' && p.status !== 'blocked')
+  const selectedCsmProfile = selectedCsm ? csmList.find(p => p.id === selectedCsm) : null
+  const dateStr = (() => {
+    const s = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
+    return s.charAt(0).toUpperCase() + s.slice(1)
+  })()
 
   if (isLoading && !clients.length) return <PageSpinner />
 
@@ -220,15 +225,43 @@ export default function DashboardPage() {
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
+      {/* ── PAGE HEADER ──────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18', lineHeight: 1.1 }}>Dashboard</div>
+          <div style={{ fontSize: 13, color: '#888780', marginTop: 3 }}>{dateStr}</div>
+        </div>
+        {isAdminOrManager && (
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', border: '0.5px solid #d4d3ce', borderRadius: 7, cursor: 'pointer', backgroundColor: '#fff', userSelect: 'none' }}>
+            {/* Avatar circular 28px */}
+            <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0efed', fontSize: 11, fontWeight: 700, color: '#173557' }}>
+              {selectedCsmProfile?.avatar_url
+                ? <img src={selectedCsmProfile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                : initials(selectedCsmProfile?.name || 'T')}
+            </div>
+            <span style={{ fontSize: 13, color: '#1a1a18' }}>{selectedCsmProfile?.name || 'Todos os CSMs'}</span>
+            <span style={{ fontSize: 10, color: '#888780' }}>▼</span>
+            <select
+              value={selectedCsm}
+              onChange={e => setSelectedCsm(e.target.value)}
+              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%', fontSize: 0 }}
+            >
+              <option value="">Todos os CSMs</option>
+              {csmList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr minmax(0,1fr) minmax(0,1fr)', gap: 12, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr)', gap: 12, alignItems: 'stretch' }}>
 
         {/* Block 1 — user identity + pills */}
         <div style={{
-          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0,
+          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0, height: '100%', boxSizing: 'border-box',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20,
         }}>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             <HeroAvatar profile={profile} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
@@ -247,7 +280,7 @@ export default function DashboardPage() {
 
         {/* Block 2 — MRR */}
         <div style={{
-          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0,
+          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0, height: '100%', boxSizing: 'border-box',
           display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
         }}>
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8393A5' }}>
@@ -263,14 +296,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Block 3 — 3 quick stat cards stacked, sem wrapper */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
           {[
             { label: 'Sem interação 30d',   value: semInteracao.length, color: '#FAC775' },
             { label: 'Renovações em 30d',   value: renovacao30.length,  color: '#FAC775' },
             { label: 'Milestones vencidos', value: overdueCount,        color: '#f09595' },
           ].map(({ label, value, color }) => (
             <div key={label} style={{
-              backgroundColor: '#173557', borderRadius: 12, padding: '16px 20px', minWidth: 0,
+              backgroundColor: '#173557', borderRadius: 12, padding: '16px 20px', minWidth: 0, flex: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             }}>
               <span style={{ fontSize: 12, color: '#8393A5' }}>{label}</span>
@@ -279,22 +312,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
-
-      {/* CSM selector */}
-      {isAdminOrManager && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 12, color: '#888780' }}>Filtrar por CSM:</span>
-          <select
-            value={selectedCsm}
-            onChange={e => setSelectedCsm(e.target.value)}
-            className="input-base"
-            style={{ width: 200, fontSize: 13 }}
-          >
-            <option value="">Todos os CSMs</option>
-            {csmList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-      )}
 
       {/* ── MÉTRICAS ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
@@ -326,7 +343,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── ALERTAS + TAREFAS ────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr minmax(0,1fr)', gap: 12, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr minmax(0,1fr)', gap: 12, alignItems: 'stretch' }}>
 
         {/* Alertas prioritários */}
         <SectionCard
@@ -401,11 +418,12 @@ export default function DashboardPage() {
         </SectionCard>
 
         {/* Tarefas + Renovações */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
 
           <SectionCard
             title="Tarefas de hoje"
             action={<LinkBtn onClick={() => navigate('/atividades')}>ver todas →</LinkBtn>}
+            style={{ flex: 1 }}
           >
             {tasksDue.length === 0 ? (
               <EmptyState text="Nenhuma tarefa pendente." />
@@ -447,7 +465,7 @@ export default function DashboardPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Renovações próximas">
+          <SectionCard title="Renovações próximas" style={{ flex: 1 }}>
             {renewalsSorted.length === 0 ? (
               <EmptyState text="Nenhuma nos próximos 30 dias." />
             ) : (
@@ -486,7 +504,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── PORTFÓLIO + DIMENSÕES ────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12, alignItems: 'stretch' }}>
 
         {/* Saúde do portfólio */}
         <SectionCard
