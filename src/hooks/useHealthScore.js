@@ -13,7 +13,6 @@ export async function recalculateAndSave(client) {
   const { error } = await supabase
     .from('clients')
     .update({
-      health_total:          scores.total,
       health_uso:            scores.uso,
       health_suporte:        scores.suporte,
       health_relacionamento: scores.relacionamento,
