@@ -6,6 +6,7 @@ import { Navbar } from './components/layout/Navbar'
 import { VersionBadge } from './components/ui/VersionBadge'
 
 import LoginPage from './pages/LoginPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 import SolicitarAcessoPage from './pages/SolicitarAcessoPage'
 import PendingPage from './pages/PendingPage'
 import DashboardPage from './components/dashboard/DashboardPage'
@@ -73,6 +74,7 @@ function AppRoutes() {
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
       {/* Public routes */}
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<AuthRedirect />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
