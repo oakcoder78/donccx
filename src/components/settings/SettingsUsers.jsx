@@ -81,6 +81,7 @@ function NewUserModal({ onClose, onCreated }) {
     setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) { toast.error('Sessão expirada. Faça login novamente.'); return }
       const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`
       const res = await fetch(fnUrl, {
         method: 'POST',
