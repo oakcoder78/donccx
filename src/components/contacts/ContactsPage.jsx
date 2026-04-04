@@ -61,7 +61,7 @@ export default function ContactsPage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar contatos..."
+              placeholder="Buscar por nome ou empresa..."
               className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
             />
           </div>

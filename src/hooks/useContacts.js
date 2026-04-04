@@ -6,17 +6,25 @@ export function useContacts(filters = {}) {
   return useQuery({
     queryKey: ['contacts', filters],
     queryFn: async () => {
-      let q = supabase
+      const q = supabase
         .from('contacts')
-        .select(`*, contact_phones(*), contact_links(*, clients(id, name))`)
+        .select(`*, contact_phones(*), contact_links(*, clients(id, name, fantasy_name))`)
         .order('name')
-
-      if (filters.search) q = q.ilike('name', `%${filters.search}%`)
 
       const { data, error } = await q
       if (error) { console.error('[useContacts] query error:', error); return [] }
 
       let result = data ?? []
+      if (filters.search) {
+        const term = filters.search.toLowerCase()
+        result = result.filter(c =>
+          c.name?.toLowerCase().includes(term) ||
+          c.contact_links?.some(l =>
+            l.clients?.name?.toLowerCase().includes(term) ||
+            l.clients?.fantasy_name?.toLowerCase().includes(term)
+          )
+        )
+      }
       if (filters.client_id) {
         const cid = Number(filters.client_id)
         result = result.filter(c => c.contact_links.some(l => l.client_id === cid))
