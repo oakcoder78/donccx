@@ -92,7 +92,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
     setSendingReset(true)
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: 'https://donccx.vercel.app/reset-password',
       })
       if (error) throw error
       toast.success('E-mail de redefinição de senha enviado')
