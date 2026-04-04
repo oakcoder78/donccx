@@ -1,6 +1,8 @@
 import { Card } from '../../ui/Card'
 import { HealthBar } from '../../ui/HealthBar'
+import { Button } from '../../ui/Button'
 import { useHealthConfig } from '../../../hooks/useHealthConfig'
+import { useRecalculateHealth } from '../../../hooks/useHealthScore'
 
 const DIMS = [
   { key: 'uso', label: 'Uso', color: '#59c2ed' },
@@ -14,6 +16,7 @@ export function ClientTabHealth({ client }) {
   const { data } = useHealthConfig()
   const config = data?.config
   const rules = data?.rules || []
+  const recalculate = useRecalculateHealth()
 
   const score = client.health_total || 0
   const healthy = config?.threshold_healthy ?? 75
@@ -23,6 +26,18 @@ export function ClientTabHealth({ client }) {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span />
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={recalculate.isPending}
+          onClick={() => recalculate.mutate(client)}
+        >
+          {recalculate.isPending ? 'Calculando...' : '🩺 Recalcular'}
+        </Button>
+      </div>
+
       {/* Score card */}
       <Card className="flex items-center gap-6">
         <div>
