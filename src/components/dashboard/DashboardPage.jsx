@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
@@ -6,10 +6,6 @@ import { useClients } from '../../hooks/useClients'
 import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
-import { usePermissions } from '../../hooks/usePermissions'
-import { Card } from '../ui/Card'
-import { Badge } from '../ui/Badge'
-import { HealthBar, HealthScore } from '../ui/HealthBar'
 import { PageSpinner } from '../ui/Spinner'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -17,16 +13,24 @@ const todayStr = new Date().toISOString().slice(0, 10)
 const in30Str  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10) })()
 const ago30Str = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) })()
 
-const DIMENSIONS = [
-  { key: 'health_uso',            label: 'Uso',            color: '#59c2ed', variant: 'sky'    },
-  { key: 'health_suporte',        label: 'Suporte',        color: '#E24B4A', variant: 'red'    },
-  { key: 'health_relacionamento', label: 'Relacionamento', color: '#534AB7', variant: 'purple' },
-  { key: 'health_financeiro',     label: 'Financeiro',     color: '#BA7517', variant: 'amber'  },
-  { key: 'health_projeto',        label: 'Projeto',        color: '#1D9E75', variant: 'green'  },
+const DIMS = [
+  { key: 'health_uso',            label: 'Uso',            color: '#59c2ed', icon: '📊' },
+  { key: 'health_suporte',        label: 'Suporte',        color: '#E24B4A', icon: '🎯' },
+  { key: 'health_relacionamento', label: 'Relacionamento', color: '#534AB7', icon: '🤝' },
+  { key: 'health_financeiro',     label: 'Financeiro',     color: '#BA7517', icon: '💰' },
+  { key: 'health_projeto',        label: 'Projeto',        color: '#1D9E75', icon: '🚀' },
 ]
 
-const ABC_VARIANT = { A: 'green', B: 'amber', C: 'red' }
+const PHRASES = [
+  'Pronta para mais um dia?',
+  'Vamos lá, seu portfólio espera!',
+  'Foco no cliente, sempre.',
+  'Que dia produtivo te espera!',
+]
 
+const ABC_COLORS = { A: '#1D9E75', B: '#BA7517', C: '#E24B4A' }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Bom dia'
@@ -38,97 +42,134 @@ function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 }
 
-// ─── Hero Avatar ─────────────────────────────────────────────────────────────
+function ptDate(str) {
+  return new Date(str + 'T00:00:00').toLocaleDateString('pt-BR')
+}
+
+// ─── Sub-components ──────────────────────────────────────────────────────────
 function HeroAvatar({ profile }) {
   if (profile?.avatar_url) {
     return (
       <img
         src={profile.avatar_url}
         alt={profile.name}
-        className="w-14 h-14 rounded-full object-cover flex-shrink-0 border-2 border-white/20"
+        style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.15)' }}
       />
     )
   }
   return (
-    <div
-      className="w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 text-xl font-bold border-2 border-white/20"
-      style={{ backgroundColor: '#59c2ed', color: '#173557' }}
-    >
+    <div style={{
+      width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      backgroundColor: '#0d2340', color: '#59c2ed', fontSize: 20, fontWeight: 700,
+      border: '2px solid rgba(255,255,255,0.10)',
+    }}>
       {initials(profile?.name)}
     </div>
   )
 }
 
-// ─── Pill (hero status) ───────────────────────────────────────────────────────
-function HeroPill({ children, color }) {
+function HeroPill({ label, value, valueColor }) {
   return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-      style={{ backgroundColor: `${color}25`, color }}
-    >
-      {children}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      padding: '5px 10px', borderRadius: 20,
+      backgroundColor: 'rgba(255,255,255,0.07)',
+      fontSize: 12, color: 'rgba(255,255,255,0.45)',
+      whiteSpace: 'nowrap',
+    }}>
+      <strong style={{ color: valueColor, fontWeight: 700 }}>{value}</strong>
+      {label}
     </span>
   )
 }
 
-// ─── KPI Card ─────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, color, onClick }) {
+function MetricCard({ label, value, sub, subColor, color, onClick }) {
   return (
-    <Card onClick={onClick}>
-      <span className="text-xs text-text-tertiary block mb-1">{label}</span>
-      <span className="text-2xl font-bold block" style={{ color: color || 'inherit' }}>{value}</span>
-    </Card>
+    <div
+      onClick={onClick}
+      style={{
+        backgroundColor: '#fff', border: '0.5px solid #e8e7e3', borderRadius: 10, padding: 16,
+        cursor: onClick ? 'pointer' : 'default', minWidth: 0,
+      }}
+    >
+      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#888780', marginBottom: 6, lineHeight: 1.2 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 28, fontWeight: 700, color: color || '#1a1a18', lineHeight: 1 }}>
+        {value}
+      </div>
+      {sub !== undefined && (
+        <div style={{ fontSize: 12, color: subColor || '#888780', marginTop: 5 }}>{sub}</div>
+      )}
+    </div>
   )
 }
 
-// ─── Section title ────────────────────────────────────────────────────────────
-function SectionTitle({ children, action }) {
+function SectionCard({ title, action, children }) {
   return (
-    <div className="flex items-center justify-between mb-3">
-      <h3 className="text-sm font-semibold text-text-primary">{children}</h3>
-      {action}
+    <div style={{ backgroundColor: '#fff', border: '0.5px solid #e8e7e3', borderRadius: 10, padding: 16, minWidth: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{title}</span>
+        {action}
+      </div>
+      {children}
     </div>
+  )
+}
+
+function EmptyState({ text }) {
+  return <p style={{ fontSize: 13, color: '#888780', padding: '8px 0', textAlign: 'center' }}>{text}</p>
+}
+
+function LinkBtn({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{ fontSize: 12, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+      {children}
+    </button>
   )
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const navigate  = useNavigate()
+  const navigate = useNavigate()
   const { profile } = useAuth()
-  const { canViewCSMManagement } = usePermissions()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
-
   const [selectedCsm, setSelectedCsm] = useState('')
+  const phrase = useMemo(() => PHRASES[Math.floor(Math.random() * PHRASES.length)], [])
 
   const csmFilter = isAdminOrManager
     ? (selectedCsm ? { csm_id: selectedCsm } : {})
     : { csm_id: profile?.id }
 
-  const { data: clients = [], isLoading: loadingClients } = useClients(csmFilter, { enabled: !!profile })
+  const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
   const { data: profiles = [] } = useProfiles()
-  const { data: myTasks = [] }  = useActivities(
+  const { data: myTasks = [] } = useActivities(
     { responsible_id: profile?.id, status: 'pendente' },
     { enabled: !!profile }
   )
 
-  // Client IDs with activity in last 30d
-  const { data: recentClientIds = [] } = useQuery({
-    queryKey: ['recent_activity_clients', selectedCsm || 'all'],
+  // Last activity date per client (for "sem interação" logic)
+  const { data: lastActivityMap = {} } = useQuery({
+    queryKey: ['last_activity_map', selectedCsm || 'all'],
     enabled: !!profile,
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const { data } = await supabase
         .from('activities')
-        .select('client_id')
-        .gte('activity_date', ago30Str)
-      return [...new Set((data || []).map(a => a.client_id).filter(Boolean))]
+        .select('client_id, activity_date')
+        .order('activity_date', { ascending: false })
+      const map = {}
+      ;(data || []).forEach(a => { if (a.client_id && !map[a.client_id]) map[a.client_id] = a.activity_date })
+      return map
     },
-    staleTime: 2 * 60 * 1000,
   })
 
   // Overdue milestones count
   const { data: overdueCount = 0 } = useQuery({
     queryKey: ['overdue_milestones', csmFilter, clients.length],
     enabled: !!profile && clients.length > 0,
+    staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const ids = clients.map(c => c.id)
       if (!ids.length) return 0
@@ -140,146 +181,143 @@ export default function DashboardPage() {
         .neq('status', 'done')
       return count || 0
     },
-    staleTime: 2 * 60 * 1000,
   })
 
   const csmList = profiles.filter(p => p.role === 'csm' && p.status !== 'blocked')
 
-  if (loadingClients && !clients.length) return <PageSpinner />
+  if (isLoading && !clients.length) return <PageSpinner />
 
   // ─── Computed ────────────────────────────────────────────────────────────
   const emRisco      = clients.filter(c => (c.health_total || 0) < 50)
   const emAtencao    = clients.filter(c => { const s = c.health_total || 0; return s >= 50 && s < 75 })
   const saudaveis    = clients.filter(c => (c.health_total || 0) >= 75)
-  const semInteracao = clients.filter(c => !recentClientIds.includes(c.id))
+  const semInteracao = clients.filter(c => {
+    const last = lastActivityMap[c.id]
+    return !last || last < ago30Str
+  })
   const renovacao30  = clients.filter(c => c.contract_renewal && c.contract_renewal >= todayStr && c.contract_renewal <= in30Str)
   const mrrTotal     = clients.reduce((s, c) => s + (c.mrr || 0), 0)
+  const mrrNum       = mrrTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
 
-  const tasksDue   = myTasks.filter(a => a.due_date && a.due_date <= todayStr)
-  const tasksToday = tasksDue.filter(a => a.due_date === todayStr)
+  const tasksDue     = myTasks.filter(a => a.due_date && a.due_date <= todayStr)
+  const tasksToday   = tasksDue.filter(a => a.due_date === todayStr)
+  const tasksOverdue = tasksDue.filter(a => a.due_date < todayStr)
 
   const alertaClients = [...clients]
     .filter(c => (c.health_total || 0) < 75)
     .sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
     .slice(0, 10)
 
-  const sortedByHealth  = [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
+  const sortedPortfolio = [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
   const renewalsSorted  = [...renovacao30].sort((a, b) => a.contract_renewal.localeCompare(b.contract_renewal))
 
-  const dimBreakdown = DIMENSIONS.map(d => ({
+  const dimHealth = DIMS.map(d => ({
     ...d,
-    count: clients.filter(c => (c[d.key] || 0) < 10).length,
+    healthy: clients.filter(c => (c[d.key] || 0) >= 10).length,
+    total: clients.length,
   }))
 
   return (
-    <div className="p-6 space-y-5">
+    <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <div
-        className="rounded-lg p-5"
-        style={{ backgroundColor: '#173557' }}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-[2fr_1.2fr_1fr] gap-5 items-start">
+      {/* ── HERO ─────────────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr minmax(0,1fr) minmax(0,1fr)', gap: 12, alignItems: 'start' }}>
 
-          {/* Col 1: usuário */}
-          <div className="flex items-start gap-4">
+        {/* Block 1 — user identity + pills */}
+        <div style={{
+          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0,
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20,
+        }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
             <HeroAvatar profile={profile} />
-            <div className="flex-1 min-w-0">
-              <p className="text-white/60 text-xs mb-0.5">{greeting()},</p>
-              <p className="text-white font-semibold text-base leading-tight truncate">{profile?.name}</p>
-              <p className="text-white/50 text-xs mt-0.5 capitalize">{profile?.role}</p>
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {emRisco.length > 0 && (
-                  <HeroPill color="#E24B4A">{emRisco.length} em risco</HeroPill>
-                )}
-                {tasksToday.length > 0 && (
-                  <HeroPill color="#BA7517">{tasksToday.length} tarefa{tasksToday.length !== 1 ? 's' : ''} hoje</HeroPill>
-                )}
-                {saudaveis.length > 0 && (
-                  <HeroPill color="#1D9E75">{saudaveis.length} saudáve{saudaveis.length !== 1 ? 'is' : 'l'}</HeroPill>
-                )}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile?.name}
               </div>
+              <div style={{ fontSize: 12, color: '#8393A5', marginTop: 3 }}>{phrase}</div>
             </div>
           </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <HeroPill label="em risco"    value={emRisco.length}      valueColor="#f09595" />
+            <HeroPill label="atrasadas"   value={tasksOverdue.length} valueColor="#FAC775" />
+            <HeroPill label="saudáveis"   value={saudaveis.length}    valueColor="#7fd47f" />
+          </div>
+        </div>
 
-          {/* Col 2: MRR */}
-          <div
-            className="rounded-md p-4"
-            style={{ backgroundColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)' }}
-          >
-            <p className="text-white/60 text-xs mb-1">MRR do portfólio</p>
-            <p className="text-white text-2xl font-bold leading-none">
-              {mrrTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-            </p>
-            <p className="text-white/50 text-xs mt-2">
-              {clients.length} empresa{clients.length !== 1 ? 's' : ''} ativa{clients.length !== 1 ? 's' : ''}
-            </p>
+        {/* Block 2 — MRR */}
+        <div style={{
+          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0,
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        }}>
+          <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8393A5' }}>
+            MRR do portfólio
           </div>
+          <div style={{ marginTop: 8 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: '#d3da47' }}>R$ </span>
+            <span style={{ fontSize: 40, fontWeight: 700, color: '#d3da47', lineHeight: 1 }}>{mrrNum}</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#8393A5', marginTop: 8 }}>
+            {clients.length} empresa{clients.length !== 1 ? 's' : ''} ativa{clients.length !== 1 ? 's' : ''}
+          </div>
+        </div>
 
-          {/* Col 3: métricas rápidas */}
-          <div
-            className="rounded-md divide-y"
-            style={{ backgroundColor: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.10)', divideColor: 'rgba(255,255,255,0.08)' }}
-          >
-            <div className="px-4 py-3">
-              <p className="text-white/50 text-xs">Sem interação 30d</p>
-              <p className="text-white font-bold text-lg leading-tight" style={{ color: semInteracao.length > 0 ? '#E24B4A' : 'white' }}>
-                {semInteracao.length}
-              </p>
+        {/* Block 3 — 3 quick stat cards stacked, sem wrapper */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
+          {[
+            { label: 'Sem interação 30d',   value: semInteracao.length, color: '#FAC775' },
+            { label: 'Renovações em 30d',   value: renovacao30.length,  color: '#FAC775' },
+            { label: 'Milestones vencidos', value: overdueCount,        color: '#f09595' },
+          ].map(({ label, value, color }) => (
+            <div key={label} style={{
+              backgroundColor: '#173557', borderRadius: 12, padding: '16px 20px', minWidth: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <span style={{ fontSize: 12, color: '#8393A5' }}>{label}</span>
+              <span style={{ fontSize: 20, fontWeight: 700, color }}>{value}</span>
             </div>
-            <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-white/50 text-xs">Renovações em 30d</p>
-              <p className="font-bold text-lg leading-tight" style={{ color: renovacao30.length > 0 ? '#BA7517' : 'white' }}>
-                {renovacao30.length}
-              </p>
-            </div>
-            <div className="px-4 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-white/50 text-xs">Milestones vencidos</p>
-              <p className="font-bold text-lg leading-tight" style={{ color: overdueCount > 0 ? '#E24B4A' : 'white' }}>
-                {overdueCount}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Seletor CSM (admin/manager) */}
+      {/* CSM selector */}
       {isAdminOrManager && (
-        <div className="flex items-center gap-2 justify-end">
-          <span className="text-xs text-text-tertiary">Filtrar por CSM:</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: 12, color: '#888780' }}>Filtrar por CSM:</span>
           <select
             value={selectedCsm}
             onChange={e => setSelectedCsm(e.target.value)}
-            className="input-base text-sm w-48"
+            className="input-base"
+            style={{ width: 200, fontSize: 13 }}
           >
             <option value="">Todos os CSMs</option>
-            {csmList.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
+            {csmList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
       )}
 
-      {/* ── KPIs ─────────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <KpiCard
+      {/* ── MÉTRICAS ─────────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
+        <MetricCard
           label="Em Risco"
           value={emRisco.length}
           color={emRisco.length > 0 ? '#E24B4A' : undefined}
           onClick={() => navigate('/empresas')}
         />
-        <KpiCard
+        <MetricCard
           label="Em Atenção"
           value={emAtencao.length}
           color={emAtencao.length > 0 ? '#BA7517' : undefined}
           onClick={() => navigate('/empresas')}
         />
-        <KpiCard
+        <MetricCard
           label="Tarefas Vencendo Hoje"
           value={tasksToday.length}
           color={tasksToday.length > 0 ? '#BA7517' : undefined}
+          sub={tasksOverdue.length > 0 ? `${tasksOverdue.length} atrasada${tasksOverdue.length !== 1 ? 's' : ''}` : undefined}
+          subColor="#E24B4A"
         />
-        <KpiCard
+        <MetricCard
           label="Saudáveis"
           value={saudaveis.length}
           color={saudaveis.length > 0 ? '#1D9E75' : undefined}
@@ -287,190 +325,247 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* ── Principal ────────────────────────────────────────────────────── */}
-      <div className="grid md:grid-cols-[1.4fr_1fr] gap-4 items-start">
+      {/* ── ALERTAS + TAREFAS ────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr minmax(0,1fr)', gap: 12, alignItems: 'start' }}>
 
         {/* Alertas prioritários */}
-        <Card>
-          <SectionTitle>Alertas Prioritários</SectionTitle>
+        <SectionCard
+          title="Alertas prioritários"
+          action={<LinkBtn onClick={() => navigate('/empresas')}>ver todas as contas →</LinkBtn>}
+        >
           {alertaClients.length === 0 ? (
-            <p className="text-sm text-text-tertiary">Nenhum alerta no momento.</p>
+            <EmptyState text="Nenhum alerta no momento." />
           ) : (
-            <div className="space-y-1">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {alertaClients.map(c => {
                 const score    = c.health_total || 0
-                const barColor = score < 50 ? '#E24B4A' : '#BA7517'
-                const lowDims  = DIMENSIONS.filter(d => (c[d.key] || 0) < 10)
+                const barColor = score < 50 ? '#E24B4A' : '#EF9F27'
+                const scoreColor = score < 50 ? '#E24B4A' : '#EF9F27'
+                const lowDims  = DIMS.filter(d => (c[d.key] || 0) < 10)
 
-                // Reason text
-                const noInteraction = !recentClientIds.includes(c.id)
-                const reasons = []
-                if (noInteraction) reasons.push('Sem interação recente')
-                if (c.delay_days > 0) reasons.push(`${c.delay_days}d de atraso financeiro`)
+                const lastDate  = lastActivityMap[c.id]
+                const daysSince = lastDate ? Math.floor((new Date() - new Date(lastDate + 'T00:00:00')) / 86400000) : null
+                const reasons   = []
+                if (!lastDate) reasons.push('Sem interação registrada')
+                else if (daysSince > 30) reasons.push(`Sem interação há ${daysSince} dias`)
+                if ((c.delay_days || 0) > 0) reasons.push(`Fatura ${c.delay_days}d em atraso`)
 
                 return (
                   <div
                     key={c.id}
                     onClick={() => navigate(`/empresas/${c.id}`)}
-                    className="flex items-stretch gap-0 rounded-md overflow-hidden hover:bg-bg-secondary cursor-pointer transition-colors"
+                    style={{ display: 'flex', alignItems: 'stretch', borderRadius: 8, overflow: 'hidden', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f7f7f5'}
+                    onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    {/* Severity bar */}
-                    <div className="w-1 flex-shrink-0 rounded-l-md" style={{ backgroundColor: barColor }} />
-
-                    <div className="flex-1 min-w-0 px-3 py-2 flex items-start gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-medium text-text-primary truncate">{c.name}</span>
+                    <div style={{ width: 3, backgroundColor: barColor, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0, padding: '8px 10px', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {c.name}
+                          </span>
                           {c.abc_class && (
-                            <Badge variant={ABC_VARIANT[c.abc_class] || 'slate'}>{c.abc_class}</Badge>
+                            <span style={{
+                              fontSize: 11, fontWeight: 600, padding: '1px 6px', borderRadius: 5,
+                              backgroundColor: `${ABC_COLORS[c.abc_class] || '#888'}25`,
+                              color: ABC_COLORS[c.abc_class] || '#888',
+                            }}>
+                              {c.abc_class}
+                            </span>
                           )}
                         </div>
                         {reasons.length > 0 && (
-                          <p className="text-xs text-text-tertiary mt-0.5">{reasons.join(' · ')}</p>
+                          <div style={{ fontSize: 12, color: '#888780', marginTop: 2 }}>{reasons.join(' · ')}</div>
                         )}
                         {lowDims.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 5 }}>
                             {lowDims.map(d => (
-                              <Badge key={d.key} variant={d.variant}>{d.label}</Badge>
+                              <span key={d.key} style={{
+                                fontSize: 11, fontWeight: 500, padding: '1px 7px', borderRadius: 5,
+                                backgroundColor: `${d.color}22`, color: d.color,
+                              }}>
+                                {d.label}
+                              </span>
                             ))}
                           </div>
                         )}
                       </div>
-                      <HealthScore score={score} showLabel={false} />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: scoreColor, flexShrink: 0, paddingTop: 1 }}>{score}</span>
                     </div>
                   </div>
                 )
               })}
             </div>
           )}
-        </Card>
+        </SectionCard>
 
-        {/* Tarefas + Renovações empilhadas */}
-        <div className="space-y-4">
+        {/* Tarefas + Renovações */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
 
-          {/* Tarefas de hoje */}
-          <Card>
-            <SectionTitle>Tarefas de Hoje</SectionTitle>
+          <SectionCard
+            title="Tarefas de hoje"
+            action={<LinkBtn onClick={() => navigate('/atividades')}>ver todas →</LinkBtn>}
+          >
             {tasksDue.length === 0 ? (
-              <p className="text-sm text-text-tertiary">Nenhuma tarefa pendente.</p>
+              <EmptyState text="Nenhuma tarefa pendente." />
             ) : (
-              <div className="space-y-1">
-                {tasksDue.slice(0, 6).map(a => {
+              <div>
+                {tasksDue.slice(0, 6).map((a, i) => {
                   const isOverdue = a.due_date < todayStr
                   return (
-                    <div key={a.id} className="flex items-start gap-2 py-1.5 border-b border-border-tertiary last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">{a.title || a.description}</p>
+                    <div key={a.id} style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
+                      borderBottom: i < tasksDue.slice(0, 6).length - 1 ? '0.5px solid #f0efed' : 'none',
+                    }}>
+                      {/* Checkbox visual */}
+                      <div style={{
+                        width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                        border: `1.5px solid ${isOverdue ? '#E24B4A80' : '#d4d3ce'}`,
+                      }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.title || a.description}
+                        </div>
                         {a.client?.name && (
-                          <p className="text-xs text-text-tertiary truncate">{a.client.name}</p>
+                          <div style={{ fontSize: 11, color: '#888780', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.client.name}
+                          </div>
                         )}
                       </div>
-                      <Badge variant={isOverdue ? 'red' : 'amber'}>
-                        {isOverdue ? 'Atrasada' : 'Hoje'}
-                      </Badge>
+                      <span style={{
+                        fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
+                        backgroundColor: isOverdue ? '#E24B4A20' : '#BA751718',
+                        color: isOverdue ? '#E24B4A' : '#BA7517',
+                      }}>
+                        {isOverdue ? 'atrasada' : 'hoje'}
+                      </span>
                     </div>
                   )
                 })}
               </div>
             )}
-          </Card>
+          </SectionCard>
 
-          {/* Renovações próximas */}
-          <Card>
-            <SectionTitle>Renovações Próximas</SectionTitle>
+          <SectionCard title="Renovações próximas">
             {renewalsSorted.length === 0 ? (
-              <p className="text-sm text-text-tertiary">Nenhuma nos próximos 30 dias.</p>
+              <EmptyState text="Nenhuma nos próximos 30 dias." />
             ) : (
-              <div className="space-y-1">
-                {renewalsSorted.map(c => {
+              <div>
+                {renewalsSorted.map((c, i) => {
                   const days = Math.ceil((new Date(c.contract_renewal) - new Date()) / 86400000)
                   return (
                     <div
                       key={c.id}
                       onClick={() => navigate(`/empresas/${c.id}`)}
-                      className="flex items-center gap-2 py-1.5 border-b border-border-tertiary last:border-0 cursor-pointer hover:bg-bg-secondary -mx-1.5 px-1.5 rounded-sm transition-colors"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', cursor: 'pointer',
+                        borderBottom: i < renewalsSorted.length - 1 ? '0.5px solid #f0efed' : 'none',
+                      }}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
-                        <p className="text-xs text-text-tertiary">
-                          {new Date(c.contract_renewal + 'T00:00:00').toLocaleDateString('pt-BR')}
-                        </p>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {c.name}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#888780' }}>{ptDate(c.contract_renewal)}</div>
                       </div>
-                      <Badge variant={days < 15 ? 'red' : 'amber'}>{days}d</Badge>
+                      <span style={{
+                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
+                        backgroundColor: days < 15 ? '#E24B4A20' : '#BA751718',
+                        color: days < 15 ? '#E24B4A' : '#BA7517',
+                      }}>
+                        {days}d
+                      </span>
                     </div>
                   )
                 })}
               </div>
             )}
-          </Card>
+          </SectionCard>
         </div>
       </div>
 
-      {/* ── Inferior ─────────────────────────────────────────────────────── */}
-      <div className="grid md:grid-cols-2 gap-4 items-start">
+      {/* ── PORTFÓLIO + DIMENSÕES ────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12, alignItems: 'start' }}>
 
         {/* Saúde do portfólio */}
-        <Card>
-          <SectionTitle>Saúde do Portfólio</SectionTitle>
+        <SectionCard
+          title="Saúde do portfólio"
+          action={<LinkBtn onClick={() => navigate('/empresas')}>ver empresas →</LinkBtn>}
+        >
           {clients.length === 0 ? (
-            <p className="text-sm text-text-tertiary">Nenhuma empresa.</p>
+            <EmptyState text="Nenhuma empresa." />
           ) : (
-            <div className="space-y-3">
-              {sortedByHealth.slice(0, 10).map(c => {
-                const score  = c.health_total || 0
-                const label  = score >= 75 ? 'Saudável' : score >= 50 ? 'Atenção' : 'Risco'
-                const color  = score >= 75 ? '#1D9E75' : score >= 50 ? '#BA7517' : '#E24B4A'
-                const variant = score >= 75 ? 'green' : score >= 50 ? 'amber' : 'red'
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {sortedPortfolio.slice(0, 10).map(c => {
+                const score   = c.health_total || 0
+                const color   = score >= 75 ? '#1D9E75' : score >= 50 ? '#BA7517' : '#E24B4A'
+                const label   = score >= 75 ? 'saudável' : score >= 50 ? 'atenção' : 'risco'
                 return (
                   <div
                     key={c.id}
                     onClick={() => navigate(`/empresas/${c.id}`)}
-                    className="flex items-center gap-3 cursor-pointer hover:bg-bg-secondary -mx-1.5 px-1.5 py-1 rounded-md transition-colors"
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
                   >
-                    <div className="w-32 truncate text-sm text-text-primary flex-shrink-0">{c.name}</div>
-                    <div className="flex-1">
-                      <HealthBar value={score} max={100} />
+                    <div style={{ width: 130, fontSize: 13, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {c.name}
                     </div>
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <span className="text-sm font-bold" style={{ color }}>{score}</span>
-                      <Badge variant={variant}>{label}</Badge>
+                    <div style={{ flex: 1, height: 6, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(100, score)}%`, backgroundColor: color, borderRadius: 3 }} />
                     </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color, width: 28, textAlign: 'right', flexShrink: 0 }}>{score}</span>
+                    <span style={{
+                      fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
+                      backgroundColor: `${color}20`, color, minWidth: 54, textAlign: 'center',
+                    }}>
+                      {label}
+                    </span>
                   </div>
                 )
               })}
             </div>
           )}
-        </Card>
+        </SectionCard>
 
-        {/* Alertas por dimensão */}
-        {isAdminOrManager && clients.length > 0 ? (
-          <Card>
-            <SectionTitle>Alertas por Dimensão</SectionTitle>
-            <div className="space-y-3">
-              {dimBreakdown.map(d => {
-                const pct = clients.length > 0 ? Math.round((d.count / clients.length) * 100) : 0
+        {/* Saúde por dimensão */}
+        <SectionCard title="Saúde por dimensão">
+          {clients.length === 0 ? (
+            <EmptyState text="Sem dados." />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {dimHealth.map(d => {
+                const pct       = d.total > 0 ? Math.round((d.healthy / d.total) * 100) : 0
+                const majority  = d.healthy >= d.total - d.healthy
+                const countText = majority
+                  ? `${d.healthy}/${d.total} saudáveis`
+                  : `${d.total - d.healthy}/${d.total} com alerta`
                 return (
-                  <div key={d.key} className="flex items-center gap-3">
-                    <div className="w-32 text-sm text-text-secondary flex-shrink-0">{d.label}</div>
-                    <div className="flex-1 h-2 bg-bg-tertiary rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, backgroundColor: d.color }}
-                      />
+                  <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {/* Icon */}
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      backgroundColor: `${d.color}22`, fontSize: 15,
+                    }}>
+                      {d.icon}
                     </div>
-                    <div className="w-16 text-right flex-shrink-0">
-                      <span className="text-xs text-text-tertiary">{d.count}/{clients.length}</span>
+                    <div style={{ fontSize: 13, color: '#4a4a46', width: 108, flexShrink: 0 }}>{d.label}</div>
+                    <div style={{ flex: 1, height: 6, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${pct}%`, backgroundColor: d.color, borderRadius: 3 }} />
                     </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 600, flexShrink: 0, minWidth: 88, textAlign: 'right',
+                      color: majority ? '#1D9E75' : '#E24B4A',
+                    }}>
+                      {countText}
+                    </span>
                   </div>
                 )
               })}
             </div>
-          </Card>
-        ) : (
-          <div />
-        )}
+          )}
+        </SectionCard>
       </div>
-
     </div>
   )
 }
