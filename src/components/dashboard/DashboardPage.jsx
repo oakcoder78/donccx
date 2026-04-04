@@ -53,15 +53,15 @@ function HeroAvatar({ profile }) {
       <img
         src={profile.avatar_url}
         alt={profile.name}
-        style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.15)' }}
+        style={{ width: 100, height: 100, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid rgba(255,255,255,0.15)' }}
       />
     )
   }
   return (
     <div style={{
-      width: 56, height: 56, borderRadius: '50%', flexShrink: 0,
+      width: 100, height: 100, borderRadius: '50%', flexShrink: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backgroundColor: '#0d2340', color: '#59c2ed', fontSize: 20, fontWeight: 700,
+      backgroundColor: '#0d2340', color: '#59c2ed', fontSize: 32, fontWeight: 700,
       border: '2px solid rgba(255,255,255,0.10)',
     }}>
       {initials(profile?.name)}
