@@ -34,6 +34,22 @@ export function useAllMilestones() {
   })
 }
 
+export function useUpdateMilestoneStatus() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, status }) => {
+      const { error } = await supabase.from('milestones').update({ status }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['milestones_all'] })
+      qc.invalidateQueries({ queryKey: ['milestones'] })
+      qc.invalidateQueries({ queryKey: ['client'] })
+    },
+    onError: (e) => toast.error(e.message),
+  })
+}
+
 export function useMilestoneMutations(clientId) {
   const qc = useQueryClient()
   const invalidate = () => {
