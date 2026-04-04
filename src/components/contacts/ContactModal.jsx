@@ -6,13 +6,24 @@ import { useClients } from '../../hooks/useClients'
 
 const EMPTY = { name: '', cargo: '', email: '', linkedin: '', notes: '' }
 
+const STATUS_OPTIONS = [
+  { value: 'ativo', label: '🟢 Ativo' },
+  { value: 'morno', label: '🟡 Morno' },
+  { value: 'frio',  label: '🔴 Frio'  },
+]
+
 export function ContactModal({ contact, onClose, defaultClientId }) {
   const isEdit = !!contact
   const [form, setForm] = useState(contact ? { ...EMPTY, ...contact } : EMPTY)
   const [phones, setPhones] = useState(contact?.contact_phones || [{ number: '', type: 'WhatsApp' }])
   const [links, setLinks] = useState(
-    contact?.contact_links?.map(l => ({ client_id: l.client_id, papel: l.papel, engajamento: l.engajamento, champion: l.champion })) ||
-    (defaultClientId ? [{ client_id: defaultClientId, papel: 'Usuário', engajamento: 'Médio', champion: false }] : [])
+    contact?.contact_links?.map(l => ({
+      client_id: l.client_id,
+      papel: l.papel,
+      engajamento: l.engajamento || 'ativo',
+      champion: l.champion,
+    })) ||
+    (defaultClientId ? [{ client_id: defaultClientId, papel: 'Usuário', engajamento: 'ativo', champion: false }] : [])
   )
 
   const { create, update } = useContactMutations()
@@ -26,7 +37,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
   function removePhone(i) { setPhones(p => p.filter((_,idx) => idx !== i)) }
   function setPhone(i, k, v) { setPhones(p => p.map((ph, idx) => idx === i ? { ...ph, [k]: v } : ph)) }
 
-  function addLink() { setLinks(l => [...l, { client_id: '', papel: 'Usuário', engajamento: 'Médio', champion: false }]) }
+  function addLink() { setLinks(l => [...l, { client_id: '', papel: 'Usuário', engajamento: 'ativo', champion: false }]) }
   function removeLink(i) { setLinks(l => l.filter((_,idx) => idx !== i)) }
   function setLink(i, k, v) { setLinks(l => l.map((lk, idx) => idx === i ? { ...lk, [k]: v } : lk)) }
 
@@ -86,24 +97,27 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
           </div>
         </div>
 
-        {/* Links */}
+        {/* Links com Empresas */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="label-sm">Vínculos com Clientes</label>
+            <label className="label-sm">Vínculos com Empresas</label>
             <button type="button" onClick={addLink} className="text-xs text-donc-sky hover:underline">+ Adicionar</button>
           </div>
           <div className="space-y-2">
             {links.map((lk, i) => (
               <div key={i} className="flex gap-2 items-center flex-wrap">
                 <select value={lk.client_id} onChange={e => setLink(i, 'client_id', e.target.value)} className="input-base flex-1 min-w-[140px]">
-                  <option value="">Cliente</option>
+                  <option value="">Empresa</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <select value={lk.papel} onChange={e => setLink(i, 'papel', e.target.value)} className="input-base w-32">
-                  <option>Decisor</option><option>Influenciador</option><option>Usuário</option>
+                  <option>Decisor</option>
+                  <option>Influenciador</option>
+                  <option>Usuário</option>
+                  <option>Técnico</option>
                 </select>
-                <select value={lk.engajamento} onChange={e => setLink(i, 'engajamento', e.target.value)} className="input-base w-24">
-                  <option>Alto</option><option>Médio</option><option>Baixo</option>
+                <select value={lk.engajamento} onChange={e => setLink(i, 'engajamento', e.target.value)} className="input-base w-28">
+                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                 </select>
                 <label className="flex items-center gap-1 text-xs text-text-secondary cursor-pointer">
                   <input type="checkbox" checked={lk.champion} onChange={e => setLink(i, 'champion', e.target.checked)} className="accent-donc-amber" />

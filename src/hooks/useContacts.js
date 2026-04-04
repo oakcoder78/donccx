@@ -23,8 +23,8 @@ export function useContacts(filters = {}) {
       if (filters.papel) {
         result = result.filter(c => c.contact_links.some(l => l.papel === filters.papel))
       }
-      if (filters.engajamento) {
-        result = result.filter(c => c.contact_links.some(l => l.engajamento === filters.engajamento))
+      if (filters.status) {
+        result = result.filter(c => c.contact_links.some(l => l.engajamento === filters.status))
       }
       if (filters.champion) {
         result = result.filter(c => c.contact_links.some(l => l.champion === true))
@@ -83,4 +83,19 @@ export function useContactMutations() {
   })
 
   return { create, update, remove }
+}
+
+export function useUnlinkContact() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (linkId) => {
+      const { error } = await supabase.from('contact_links').delete().eq('id', linkId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      qc.invalidateQueries({ queryKey: ['client'] })
+    },
+    onError: (e) => toast.error(e.message),
+  })
 }

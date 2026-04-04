@@ -9,28 +9,31 @@ import { PageSpinner } from '../ui/Spinner'
 import { ContactModal } from './ContactModal'
 import { ContactPanel } from './ContactPanel'
 
+const PAPEL_VARIANT = { Decisor: 'navy', Influenciador: 'purple', Técnico: 'sky', Usuário: 'slate' }
+
 const CHIPS = [
-  { key: 'Decisor', label: 'Decisor', type: 'papel' },
+  { key: 'Decisor',     label: 'Decisor',      type: 'papel' },
   { key: 'Influenciador', label: 'Influenciador', type: 'papel' },
-  { key: 'Usuário', label: 'Usuário', type: 'papel' },
-  { key: 'Alto', label: 'Eng. Alto', type: 'engajamento' },
-  { key: 'Médio', label: 'Eng. Médio', type: 'engajamento' },
-  { key: 'Baixo', label: 'Eng. Baixo', type: 'engajamento' },
-  { key: 'champion', label: '⭐ Champions', type: 'champion' },
+  { key: 'Usuário',     label: 'Usuário',       type: 'papel' },
+  { key: 'Técnico',     label: 'Técnico',       type: 'papel' },
+  { key: 'ativo',       label: '🟢 Ativo',      type: 'status' },
+  { key: 'morno',       label: '🟡 Morno',      type: 'status' },
+  { key: 'frio',        label: '🔴 Frio',       type: 'status' },
+  { key: 'champion',    label: '⭐ Champions',   type: 'champion' },
 ]
 
 export default function ContactsPage() {
-  const [search, setSearch] = useState('')
+  const [search, setSearch]         = useState('')
   const [activeChips, setActiveChips] = useState([])
   const [clientChip, setClientChip] = useState(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected]     = useState(null)
   const [editContact, setEditContact] = useState(null)
 
   const filters = {
     search,
-    papel: activeChips.find(c => ['Decisor','Influenciador','Usuário'].includes(c)),
-    engajamento: activeChips.find(c => ['Alto','Médio','Baixo'].includes(c)),
+    papel:   activeChips.find(c => ['Decisor','Influenciador','Usuário','Técnico'].includes(c)),
+    status:  activeChips.find(c => ['ativo','morno','frio'].includes(c)),
     champion: activeChips.includes('champion') || undefined,
     client_id: clientChip,
   }
@@ -78,7 +81,7 @@ export default function ContactsPage() {
                 {chip.label}
               </button>
             ))}
-            {clientChip ? (
+            {clientChip && (
               <button
                 onClick={() => setClientChip(null)}
                 className="px-3 py-1.5 rounded-full text-xs font-medium bg-donc-sky/20 text-donc-blue border border-donc-sky/40 flex items-center gap-1"
@@ -86,7 +89,7 @@ export default function ContactsPage() {
                 {clients.find(c => c.id === clientChip)?.name}
                 <span className="text-xs">✕</span>
               </button>
-            ) : null}
+            )}
           </div>
 
           {/* Contact list */}
@@ -109,9 +112,7 @@ export default function ContactsPage() {
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     {c.contact_links?.slice(0,1).map(l => (
-                      <Badge key={l.id} variant={l.papel === 'Decisor' ? 'navy' : l.papel === 'Influenciador' ? 'purple' : 'slate'}>
-                        {l.papel}
-                      </Badge>
+                      <Badge key={l.id} variant={PAPEL_VARIANT[l.papel] || 'slate'}>{l.papel}</Badge>
                     ))}
                     {c.contact_links?.some(l => l.champion) && <span className="text-yellow-500 text-xs">⭐</span>}
                   </div>
@@ -124,7 +125,7 @@ export default function ContactsPage() {
           )}
         </div>
 
-        {/* Right panel - sticky */}
+        {/* Right panel */}
         {selected && (
           <div className="w-80 flex-shrink-0">
             <ContactPanel
