@@ -7,6 +7,7 @@ import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
+import { BrazilMap } from './BrazilMap'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const todayStr = new Date().toISOString().slice(0, 10)
@@ -214,7 +215,6 @@ export default function DashboardPage() {
     .slice(0, 10)
 
   const sortedPortfolio = [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
-  const renewalsSorted  = [...renovacao30].sort((a, b) => a.contract_renewal.localeCompare(b.contract_renewal))
 
   const dimHealth = DIMS.map(d => ({
     ...d,
@@ -417,46 +417,92 @@ export default function DashboardPage() {
           )}
         </SectionCard>
 
-        {/* Tarefas + Renovações */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, height: '100%', boxSizing: 'border-box' }}>
+        {/* Tarefas de hoje */}
+        <SectionCard
+          title="Tarefas de hoje"
+          action={<LinkBtn onClick={() => navigate('/atividades')}>ver todas →</LinkBtn>}
+        >
+          {tasksDue.length === 0 ? (
+            <EmptyState text="Nenhuma tarefa pendente." />
+          ) : (
+            <div>
+              {tasksDue.slice(0, 8).map((a, i) => {
+                const isOverdue = a.due_date < todayStr
+                return (
+                  <div key={a.id} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
+                    borderBottom: i < tasksDue.slice(0, 8).length - 1 ? '0.5px solid #f0efed' : 'none',
+                  }}>
+                    <div style={{
+                      width: 15, height: 15, borderRadius: 4, flexShrink: 0,
+                      border: `1.5px solid ${isOverdue ? '#E24B4A80' : '#d4d3ce'}`,
+                    }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.title || a.description}
+                      </div>
+                      {a.client?.name && (
+                        <div style={{ fontSize: 11, color: '#888780', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.client.name}
+                        </div>
+                      )}
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
+                      backgroundColor: isOverdue ? '#E24B4A20' : '#BA751718',
+                      color: isOverdue ? '#E24B4A' : '#BA7517',
+                    }}>
+                      {isOverdue ? 'atrasada' : 'hoje'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* ── MAPA + SAÚDE ─────────────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr minmax(0,1fr)', gap: 12, alignItems: 'stretch' }}>
+
+        {/* Distribuição Geográfica */}
+        <SectionCard title="Distribuição Geográfica">
+          <BrazilMap clients={clients} />
+        </SectionCard>
+
+        {/* Saúde do portfólio + Saúde por dimensão */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0 }}>
 
           <SectionCard
-            title="Tarefas de hoje"
-            action={<LinkBtn onClick={() => navigate('/atividades')}>ver todas →</LinkBtn>}
-            style={{ flex: 1 }}
+            title="Saúde do portfólio"
+            action={<LinkBtn onClick={() => navigate('/empresas')}>ver empresas →</LinkBtn>}
           >
-            {tasksDue.length === 0 ? (
-              <EmptyState text="Nenhuma tarefa pendente." />
+            {clients.length === 0 ? (
+              <EmptyState text="Nenhuma empresa." />
             ) : (
-              <div>
-                {tasksDue.slice(0, 6).map((a, i) => {
-                  const isOverdue = a.due_date < todayStr
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {sortedPortfolio.slice(0, 8).map(c => {
+                  const score = c.health_total || 0
+                  const color = score >= 75 ? '#1D9E75' : score >= 50 ? '#BA7517' : '#E24B4A'
+                  const label = score >= 75 ? 'saudável' : score >= 50 ? 'atenção' : 'risco'
                   return (
-                    <div key={a.id} style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-                      borderBottom: i < tasksDue.slice(0, 6).length - 1 ? '0.5px solid #f0efed' : 'none',
-                    }}>
-                      {/* Checkbox visual */}
-                      <div style={{
-                        width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                        border: `1.5px solid ${isOverdue ? '#E24B4A80' : '#d4d3ce'}`,
-                      }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {a.title || a.description}
-                        </div>
-                        {a.client?.name && (
-                          <div style={{ fontSize: 11, color: '#888780', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {a.client.name}
-                          </div>
-                        )}
+                    <div
+                      key={c.id}
+                      onClick={() => navigate(`/empresas/${c.id}`)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                    >
+                      <div style={{ width: 110, fontSize: 12, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        {c.name}
                       </div>
+                      <div style={{ flex: 1, height: 5, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, score)}%`, backgroundColor: color, borderRadius: 3 }} />
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color, width: 24, textAlign: 'right', flexShrink: 0 }}>{score}</span>
                       <span style={{
-                        fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
-                        backgroundColor: isOverdue ? '#E24B4A20' : '#BA751718',
-                        color: isOverdue ? '#E24B4A' : '#BA7517',
+                        fontSize: 10, fontWeight: 500, padding: '1px 6px', borderRadius: 4, flexShrink: 0,
+                        backgroundColor: `${color}20`, color, minWidth: 48, textAlign: 'center',
                       }}>
-                        {isOverdue ? 'atrasada' : 'hoje'}
+                        {label}
                       </span>
                     </div>
                   )
@@ -465,34 +511,35 @@ export default function DashboardPage() {
             )}
           </SectionCard>
 
-          <SectionCard title="Renovações próximas" style={{ flex: 1 }}>
-            {renewalsSorted.length === 0 ? (
-              <EmptyState text="Nenhuma nos próximos 30 dias." />
+          <SectionCard title="Saúde por dimensão">
+            {clients.length === 0 ? (
+              <EmptyState text="Sem dados." />
             ) : (
-              <div>
-                {renewalsSorted.map((c, i) => {
-                  const days = Math.ceil((new Date(c.contract_renewal) - new Date()) / 86400000)
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {dimHealth.map(d => {
+                  const pct      = d.total > 0 ? Math.round((d.healthy / d.total) * 100) : 0
+                  const majority = d.healthy >= d.total - d.healthy
+                  const countText = majority
+                    ? `${d.healthy}/${d.total} saudáveis`
+                    : `${d.total - d.healthy}/${d.total} com alerta`
                   return (
-                    <div
-                      key={c.id}
-                      onClick={() => navigate(`/empresas/${c.id}`)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', cursor: 'pointer',
-                        borderBottom: i < renewalsSorted.length - 1 ? '0.5px solid #f0efed' : 'none',
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {c.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#888780' }}>{ptDate(c.contract_renewal)}</div>
+                    <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 7, flexShrink: 0,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        backgroundColor: `${d.color}22`, fontSize: 13,
+                      }}>
+                        {d.icon}
+                      </div>
+                      <div style={{ fontSize: 12, color: '#4a4a46', width: 92, flexShrink: 0 }}>{d.label}</div>
+                      <div style={{ flex: 1, height: 5, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, backgroundColor: d.color, borderRadius: 3 }} />
                       </div>
                       <span style={{
-                        fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
-                        backgroundColor: days < 15 ? '#E24B4A20' : '#BA751718',
-                        color: days < 15 ? '#E24B4A' : '#BA7517',
+                        fontSize: 11, fontWeight: 600, flexShrink: 0, minWidth: 82, textAlign: 'right',
+                        color: majority ? '#1D9E75' : '#E24B4A',
                       }}>
-                        {days}d
+                        {countText}
                       </span>
                     </div>
                   )
@@ -501,88 +548,6 @@ export default function DashboardPage() {
             )}
           </SectionCard>
         </div>
-      </div>
-
-      {/* ── PORTFÓLIO + DIMENSÕES ────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12, alignItems: 'stretch' }}>
-
-        {/* Saúde do portfólio */}
-        <SectionCard
-          title="Saúde do portfólio"
-          action={<LinkBtn onClick={() => navigate('/empresas')}>ver empresas →</LinkBtn>}
-        >
-          {clients.length === 0 ? (
-            <EmptyState text="Nenhuma empresa." />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {sortedPortfolio.slice(0, 10).map(c => {
-                const score   = c.health_total || 0
-                const color   = score >= 75 ? '#1D9E75' : score >= 50 ? '#BA7517' : '#E24B4A'
-                const label   = score >= 75 ? 'saudável' : score >= 50 ? 'atenção' : 'risco'
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => navigate(`/empresas/${c.id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
-                  >
-                    <div style={{ width: 130, fontSize: 13, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {c.name}
-                    </div>
-                    <div style={{ flex: 1, height: 6, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(100, score)}%`, backgroundColor: color, borderRadius: 3 }} />
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: 700, color, width: 28, textAlign: 'right', flexShrink: 0 }}>{score}</span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 500, padding: '2px 7px', borderRadius: 5, flexShrink: 0,
-                      backgroundColor: `${color}20`, color, minWidth: 54, textAlign: 'center',
-                    }}>
-                      {label}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </SectionCard>
-
-        {/* Saúde por dimensão */}
-        <SectionCard title="Saúde por dimensão">
-          {clients.length === 0 ? (
-            <EmptyState text="Sem dados." />
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              {dimHealth.map(d => {
-                const pct       = d.total > 0 ? Math.round((d.healthy / d.total) * 100) : 0
-                const majority  = d.healthy >= d.total - d.healthy
-                const countText = majority
-                  ? `${d.healthy}/${d.total} saudáveis`
-                  : `${d.total - d.healthy}/${d.total} com alerta`
-                return (
-                  <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {/* Icon */}
-                    <div style={{
-                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      backgroundColor: `${d.color}22`, fontSize: 15,
-                    }}>
-                      {d.icon}
-                    </div>
-                    <div style={{ fontSize: 13, color: '#4a4a46', width: 108, flexShrink: 0 }}>{d.label}</div>
-                    <div style={{ flex: 1, height: 6, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${pct}%`, backgroundColor: d.color, borderRadius: 3 }} />
-                    </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, flexShrink: 0, minWidth: 88, textAlign: 'right',
-                      color: majority ? '#1D9E75' : '#E24B4A',
-                    }}>
-                      {countText}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </SectionCard>
       </div>
     </div>
   )
