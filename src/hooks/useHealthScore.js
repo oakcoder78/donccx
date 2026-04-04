@@ -40,7 +40,7 @@ export function useRecalculateHealth() {
   return useMutation({
     mutationFn: recalculateAndSave,
     onSuccess: (scores, client) => {
-      qc.invalidateQueries({ queryKey: ['client', client.id] })
+      qc.invalidateQueries({ queryKey: ['client', String(client.id)] })
       qc.invalidateQueries({ queryKey: ['clients'] })
       toast.success(
         `Health Score atualizado: ${scores.total} pts`,
