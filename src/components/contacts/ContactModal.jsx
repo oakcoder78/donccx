@@ -7,9 +7,9 @@ import { useClients } from '../../hooks/useClients'
 const EMPTY = { name: '', cargo: '', email: '', linkedin: '', notes: '' }
 
 const STATUS_OPTIONS = [
-  { value: 'ativo', label: '🟢 Ativo' },
-  { value: 'morno', label: '🟡 Morno' },
-  { value: 'frio',  label: '🔴 Frio'  },
+  { value: 'Alto',  label: '🟢 Alto'  },
+  { value: 'Médio', label: '🟡 Médio' },
+  { value: 'Baixo', label: '🔴 Baixo' },
 ]
 
 export function ContactModal({ contact, onClose, defaultClientId }) {
@@ -18,12 +18,12 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
   const [phones, setPhones] = useState(contact?.contact_phones || [{ number: '', type: 'WhatsApp' }])
   const [links, setLinks] = useState(
     contact?.contact_links?.map(l => ({
-      client_id: l.client_id,
+      client_id: Number(l.client_id),
       papel: l.papel,
-      engajamento: l.engajamento || 'ativo',
+      engajamento: l.engajamento || 'Alto',
       champion: l.champion,
     })) ||
-    (defaultClientId ? [{ client_id: defaultClientId, papel: 'Usuário', engajamento: 'ativo', champion: false }] : [])
+    (defaultClientId != null ? [{ client_id: Number(defaultClientId), papel: 'Usuário', engajamento: 'Alto', champion: false }] : [])
   )
 
   const { create, update } = useContactMutations()
@@ -37,7 +37,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
   function removePhone(i) { setPhones(p => p.filter((_,idx) => idx !== i)) }
   function setPhone(i, k, v) { setPhones(p => p.map((ph, idx) => idx === i ? { ...ph, [k]: v } : ph)) }
 
-  function addLink() { setLinks(l => [...l, { client_id: '', papel: 'Usuário', engajamento: 'ativo', champion: false }]) }
+  function addLink() { setLinks(l => [...l, { client_id: '', papel: 'Usuário', engajamento: 'Alto', champion: false }]) }
   function removeLink(i) { setLinks(l => l.filter((_,idx) => idx !== i)) }
   function setLink(i, k, v) { setLinks(l => l.map((lk, idx) => idx === i ? { ...lk, [k]: v } : lk)) }
 
@@ -46,7 +46,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
     const payload = {
       ...form,
       phones: phones.filter(p => p.number.trim()),
-      links: links.filter(l => l.client_id).map(l => ({ ...l, client_id: Number(l.client_id) })),
+      links: links.filter(l => l.client_id != null && l.client_id !== '').map(l => ({ ...l, client_id: Number(l.client_id) })),
     }
     if (isEdit) await update.mutateAsync({ id: contact.id, ...payload })
     else await create.mutateAsync(payload)

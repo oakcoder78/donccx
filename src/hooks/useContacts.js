@@ -55,7 +55,7 @@ export function useContactMutations() {
         const linkRows = links.map(l => ({ ...l, contact_id: data.id, client_id: Number(l.client_id) }))
         console.log('[useContacts create] inserting contact_links:', linkRows)
         const { error: linkErr } = await supabase.from('contact_links').insert(linkRows)
-        if (linkErr) console.error('[useContacts create] contact_links insert error:', linkErr)
+        if (linkErr) { console.error('[useContacts create] contact_links insert error:', linkErr); throw linkErr }
       }
       return data
     },
@@ -77,7 +77,7 @@ export function useContactMutations() {
           const linkRows = links.map(l => ({ ...l, contact_id: id, client_id: Number(l.client_id) }))
           console.log('[useContacts update] inserting contact_links:', linkRows)
           const { error: linkErr } = await supabase.from('contact_links').insert(linkRows)
-          if (linkErr) console.error('[useContacts update] contact_links insert error:', linkErr)
+          if (linkErr) { console.error('[useContacts update] contact_links insert error:', linkErr); throw linkErr }
         }
       }
       return data
