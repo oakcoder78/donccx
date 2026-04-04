@@ -1,5 +1,8 @@
 {
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "env": {
+    "VITE_VERCEL_GIT_COMMIT_SHA": "@vercel-git-commit-sha"
+  }
 }

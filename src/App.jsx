@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { Navbar } from './components/layout/Navbar'
+import { VersionBadge } from './components/ui/VersionBadge'
 
 import LoginPage from './pages/LoginPage'
 import SolicitarAcessoPage from './pages/SolicitarAcessoPage'
@@ -106,6 +107,7 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
           <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+          <VersionBadge />
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>
