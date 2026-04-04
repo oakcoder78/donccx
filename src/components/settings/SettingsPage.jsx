@@ -4,17 +4,25 @@ import { SettingsCatalog } from './SettingsCatalog'
 import { SettingsSegments } from './SettingsSegments'
 import { SettingsStages } from './SettingsStages'
 import { SettingsUsers } from './SettingsUsers'
+import { SettingsLogs } from './SettingsLogs'
+import { usePermissions } from '../../hooks/usePermissions'
 
-const MENU = [
+const BASE_MENU = [
   { key: 'health',    icon: '❤️',  label: 'Health Score' },
   { key: 'catalog',   icon: '📦',  label: 'Catálogos' },
   { key: 'segments',  icon: '🏷️',  label: 'Segmentos' },
   { key: 'stages',    icon: '🔄',  label: 'Estágios' },
   { key: 'users',     icon: '👥',  label: 'Usuários' },
+  { key: 'logs',      icon: '📋',  label: 'Auditoria' },
 ]
 
 export default function SettingsPage() {
+  const { canManageUsers } = usePermissions()
   const [section, setSection] = useState('health')
+
+  const MENU = canManageUsers
+    ? BASE_MENU
+    : BASE_MENU.filter(m => m.key !== 'logs')
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
@@ -46,6 +54,7 @@ export default function SettingsPage() {
         {section === 'segments' && <SettingsSegments />}
         {section === 'stages'   && <SettingsStages />}
         {section === 'users'    && <SettingsUsers />}
+        {section === 'logs'     && canManageUsers && <SettingsLogs />}
       </main>
     </div>
   )

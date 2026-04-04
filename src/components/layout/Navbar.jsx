@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -102,12 +103,12 @@ function UserProfileModal({ onClose }) {
 
 export function Navbar() {
   const { profile, signOut } = useAuth()
+  const { canViewSettings } = usePermissions()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
 
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
-  const links = isAdminOrManager ? [...navLinks, { to: '/configuracoes', label: 'Config.' }] : navLinks
+  const links = canViewSettings ? [...navLinks, { to: '/configuracoes', label: 'Config.' }] : navLinks
 
   async function handleSignOut() {
     await signOut()

@@ -1,4 +1,5 @@
 import { Card } from '../../../ui/Card'
+import { usePermissions } from '../../../../hooks/usePermissions'
 
 function InfoRow({ label, value }) {
   if (!value) return null
@@ -16,6 +17,7 @@ function formatDate(d) {
 }
 
 export function ClientSubDados({ client }) {
+  const { canViewFinancial } = usePermissions()
   const servicos = client.client_catalog?.filter(cc => cc.catalog_items?.type === 'servico').map(cc => cc.catalog_items) || []
   const solucoes = client.client_catalog?.filter(cc => cc.catalog_items?.type === 'solucao').map(cc => cc.catalog_items) || []
 
@@ -30,11 +32,15 @@ export function ClientSubDados({ client }) {
           <InfoRow label="Renovação" value={formatDate(client.contract_renewal)} />
           <InfoRow label="Início Onboarding" value={formatDate(client.onb_start)} />
           <InfoRow label="Go Live" value={formatDate(client.golive)} />
-          <InfoRow label="MRR" value={client.mrr ? `R$ ${Number(client.mrr).toLocaleString('pt-BR')}` : null} />
-          <InfoRow
-            label="Licenças"
-            value={client.billing_floor ? `${client.billing_floor} × R$ ${Number(client.billing_base_value || 0).toLocaleString('pt-BR')}` : null}
-          />
+          {canViewFinancial && (
+            <>
+              <InfoRow label="MRR" value={client.mrr ? `R$ ${Number(client.mrr).toLocaleString('pt-BR')}` : null} />
+              <InfoRow
+                label="Licenças"
+                value={client.billing_floor ? `${client.billing_floor} × R$ ${Number(client.billing_base_value || 0).toLocaleString('pt-BR')}` : null}
+              />
+            </>
+          )}
           <InfoRow
             label="Unidades na Donc"
             value={client.unidades_donc > 0 ? String(client.unidades_donc) : null}

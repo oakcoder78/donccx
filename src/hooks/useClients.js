@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
+import { useAuditLog } from './useAuditLog'
 import toast from 'react-hot-toast'
 
 const CLIENT_SELECT = `
@@ -31,6 +32,8 @@ export function useClients(filters = {}, options = {}) {
 
 export function useClientMutations() {
   const qc = useQueryClient()
+  const { logAction } = useAuditLog()
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['clients'] })
     qc.invalidateQueries({ queryKey: ['client'] })
@@ -43,6 +46,7 @@ export function useClientMutations() {
       if (catalogItems?.length) {
         await supabase.from('client_catalog').insert(catalogItems.map(id => ({ client_id: data.id, catalog_item_id: id })))
       }
+      await logAction('create_client', 'client', data.id, data.name, null, payload)
       return data
     },
     onSuccess: () => { invalidate(); toast.success('Cliente criado') },
@@ -51,14 +55,43 @@ export function useClientMutations() {
 
   const update = useMutation({
     mutationFn: async ({ id, catalogItems, ...payload }) => {
-      const { data, error } = await supabase.from('clients').update({ ...payload, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+      // Fetch old data to detect field changes for audit
+      const { data: oldData } = await supabase
+        .from('clients')
+        .select('name, csm_id, stage_id')
+        .eq('id', id)
+        .single()
+
+      const { data, error } = await supabase
+        .from('clients')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single()
       if (error) throw error
+
       if (catalogItems !== undefined) {
         await supabase.from('client_catalog').delete().eq('client_id', id)
         if (catalogItems.length) {
           await supabase.from('client_catalog').insert(catalogItems.map(cid => ({ client_id: id, catalog_item_id: cid })))
         }
       }
+
+      // Log generic update
+      await logAction('update_client', 'client', id, oldData?.name || String(id), oldData, payload)
+
+      // Log specific changes
+      if (payload.csm_id !== undefined && payload.csm_id !== oldData?.csm_id) {
+        await logAction('change_csm', 'client', id, oldData?.name,
+          { csm_id: oldData?.csm_id },
+          { csm_id: payload.csm_id })
+      }
+      if (payload.stage_id !== undefined && payload.stage_id !== oldData?.stage_id) {
+        await logAction('change_stage', 'client', id, oldData?.name,
+          { stage_id: oldData?.stage_id },
+          { stage_id: payload.stage_id })
+      }
+
       return data
     },
     onSuccess: () => { invalidate(); toast.success('Cliente atualizado') },
@@ -69,6 +102,7 @@ export function useClientMutations() {
     mutationFn: async (id) => {
       const { error } = await supabase.from('clients').delete().eq('id', id)
       if (error) throw error
+      await logAction('delete_client', 'client', id, String(id), null, null)
     },
     onSuccess: () => { invalidate(); toast.success('Cliente removido') },
     onError: (e) => toast.error(e.message),

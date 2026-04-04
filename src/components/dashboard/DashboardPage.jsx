@@ -4,6 +4,7 @@ import { useClients } from '../../hooks/useClients'
 import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
+import { usePermissions } from '../../hooks/usePermissions'
 import { Card } from '../ui/Card'
 import { Badge } from '../ui/Badge'
 import { Avatar } from '../ui/Avatar'
@@ -39,6 +40,7 @@ function daysUntil(dateStr) {
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const { canViewCSMManagement } = usePermissions()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
   const clientFilters = isAdminOrManager ? {} : { csm_id: profile?.id }
@@ -186,7 +188,7 @@ export default function DashboardPage() {
       </Card>
 
       {/* CSM Management */}
-      {isAdminOrManager && (
+      {canViewCSMManagement && (
         <Card>
           <h3 className="text-sm font-semibold text-text-primary mb-4">Gestão de CSMs</h3>
           <div className="grid md:grid-cols-3 gap-3">
