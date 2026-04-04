@@ -3,7 +3,7 @@ export function VersionBadge() {
     <div style={{
       position: 'fixed',
       bottom: '8px',
-      left: '8px',
+      right: '8px',
       zIndex: 9999,
       background: 'rgba(0,0,0,0.6)',
       color: 'white',
