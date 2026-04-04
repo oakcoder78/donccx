@@ -1,18 +1,11 @@
-import { useState } from 'react'
 import { Line } from 'react-chartjs-2'
 import {
   Chart, CategoryScale, LinearScale, PointElement, LineElement,
   Tooltip, Legend, Filler
 } from 'chart.js'
 import { useClientSupport, useClientSupportMutations } from '../../../../hooks/useClient'
-import { Button } from '../../../ui/Button'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
-
-function currentMonth() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 
 function fmtMonth(ym) {
   if (!ym) return ''
@@ -30,76 +23,16 @@ function fmtPct(val) {
   return val == null ? '—' : `${val}%`
 }
 
-export function ClientSubSuporte({ client }) {
-  const [month, setMonth]         = useState(currentMonth())
-  const [openedVal, setOpenedVal] = useState('')
-  const [resolvedVal, setResolvedVal] = useState('')
-  const [slaVal, setSlaVal]       = useState('')
-  const [n1Val, setN1Val]         = useState('')
-  const [n2Val, setN2Val]         = useState('')
-  const [n3Val, setN3Val]         = useState('')
-  const [errors, setErrors]       = useState({})
-  const { upsert, remove }        = useClientSupportMutations()
-
+export function ClientSubSuporte({ client, onEdit }) {
+  const { remove }             = useClientSupportMutations()
   const { data: supportData = [] } = useClientSupport(client.id)
-  const sorted    = [...supportData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
+
+  const sorted     = [...supportData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
   const chartData6 = sorted.slice(-6)
-
-  function loadRow(u) {
-    setMonth(u.ref_month)
-    setOpenedVal(String(u.tickets_opened ?? ''))
-    setResolvedVal(String(u.tickets_resolved ?? ''))
-    setSlaVal(String(u.sla_first_response ?? ''))
-    setN1Val(String(u.n1_pct ?? ''))
-    setN2Val(String(u.n2_pct ?? ''))
-    setN3Val(String(u.n3_pct ?? ''))
-    setErrors({})
-  }
-
-  function handleMonthChange(e) {
-    const m = e.target.value
-    setMonth(m)
-    const existing = supportData.find(u => u.ref_month === m)
-    if (existing) {
-      loadRow(existing)
-    } else {
-      setOpenedVal(''); setResolvedVal(''); setSlaVal('')
-      setN1Val(''); setN2Val(''); setN3Val('')
-    }
-    setErrors({})
-  }
-
-  function validate() {
-    const errs = {}
-    if (openedVal === '' || isNaN(Number(openedVal)) || Number(openedVal) < 0) errs.opened = 'Número válido'
-    if (resolvedVal === '' || isNaN(Number(resolvedVal)) || Number(resolvedVal) < 0) errs.resolved = 'Número válido'
-    return errs
-  }
-
-  async function handleSave() {
-    const errs = validate()
-    if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    await upsert.mutateAsync({
-      client_id: client.id,
-      ref_month: month,
-      tickets_opened: Number(openedVal) || 0,
-      tickets_resolved: Number(resolvedVal) || 0,
-      sla_first_response: slaVal !== '' ? Number(slaVal) : 0,
-      n1_pct: n1Val !== '' ? Number(n1Val) : 0,
-      n2_pct: n2Val !== '' ? Number(n2Val) : 0,
-      n3_pct: n3Val !== '' ? Number(n3Val) : 0,
-    })
-    setErrors({})
-  }
 
   function handleDelete(u) {
     if (!window.confirm(`Excluir dados de ${fmtMonth(u.ref_month)}?`)) return
     remove.mutate(u.id)
-    if (month === u.ref_month) {
-      setMonth(currentMonth())
-      setOpenedVal(''); setResolvedVal(''); setSlaVal('')
-      setN1Val(''); setN2Val(''); setN3Val('')
-    }
   }
 
   const lineChart = {
@@ -136,84 +69,6 @@ export function ClientSubSuporte({ client }) {
   return (
     <div className="space-y-5">
 
-      {/* Formulário */}
-      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4">
-        <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">Registrar dados do mês</p>
-        <div className="flex items-start gap-3 flex-wrap">
-          <div>
-            <label className="label-sm">Mês de Referência</label>
-            <input type="month" value={month} onChange={handleMonthChange} className="input-base" />
-          </div>
-          <div>
-            <label className="label-sm">Tickets Abertos</label>
-            <input
-              type="number" value={openedVal} min="0" placeholder="—"
-              onChange={e => { setOpenedVal(e.target.value); setErrors(p => ({ ...p, opened: undefined })) }}
-              className={`input-base w-24 ${errors.opened ? 'border-red-400' : ''}`}
-            />
-            {errors.opened && <p className="text-xs text-red-500 mt-0.5">{errors.opened}</p>}
-          </div>
-          <div>
-            <label className="label-sm">Tickets Resolvidos</label>
-            <input
-              type="number" value={resolvedVal} min="0" placeholder="—"
-              onChange={e => { setResolvedVal(e.target.value); setErrors(p => ({ ...p, resolved: undefined })) }}
-              className={`input-base w-24 ${errors.resolved ? 'border-red-400' : ''}`}
-            />
-            {errors.resolved && <p className="text-xs text-red-500 mt-0.5">{errors.resolved}</p>}
-          </div>
-          <div>
-            <label className="label-sm">SLA 1ª Resp. (min)</label>
-            <input type="number" value={slaVal} onChange={e => setSlaVal(e.target.value)}
-              placeholder="—" className="input-base w-24" min="0" />
-          </div>
-          <div>
-            <label className="label-sm">N1 (tickets)</label>
-            <input type="number" value={n1Val} onChange={e => setN1Val(e.target.value)}
-              placeholder="—" className="input-base w-20" min="0" />
-          </div>
-          <div>
-            <label className="label-sm">N2 (tickets)</label>
-            <input type="number" value={n2Val} onChange={e => setN2Val(e.target.value)}
-              placeholder="—" className="input-base w-20" min="0" />
-          </div>
-          <div>
-            <label className="label-sm">N3 (tickets)</label>
-            <input type="number" value={n3Val} onChange={e => setN3Val(e.target.value)}
-              placeholder="—" className="input-base w-20" min="0" />
-          </div>
-          <div className="pt-5">
-            <Button size="sm" onClick={handleSave} disabled={upsert.isPending}>
-              {upsert.isPending ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </div>
-        </div>
-
-        {/* Indicadores calculados em tempo real */}
-        {(openedVal !== '' || resolvedVal !== '') && (
-          <div className="mt-3 flex gap-4 flex-wrap">
-            <span className="text-xs text-text-tertiary">
-              Taxa resolução: <strong className="text-text-primary">{fmtPct(calcPct(Number(resolvedVal) || 0, Number(openedVal) || 0))}</strong>
-            </span>
-            {n1Val !== '' && (
-              <span className="text-xs text-text-tertiary">
-                %N1: <strong className="text-text-primary">{fmtPct(calcPct(Number(n1Val) || 0, Number(resolvedVal) || 0))}</strong>
-              </span>
-            )}
-            {n2Val !== '' && (
-              <span className="text-xs text-text-tertiary">
-                %N2: <strong className="text-text-primary">{fmtPct(calcPct(Number(n2Val) || 0, Number(resolvedVal) || 0))}</strong>
-              </span>
-            )}
-            {n3Val !== '' && (
-              <span className="text-xs text-text-tertiary">
-                %N3: <strong className="text-text-primary">{fmtPct(calcPct(Number(n3Val) || 0, Number(resolvedVal) || 0))}</strong>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Gráfico */}
       {chartData6.length > 0 && (
         <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
@@ -223,7 +78,7 @@ export function ClientSubSuporte({ client }) {
       )}
 
       {/* Tabela histórica */}
-      {sorted.length > 0 && (
+      {sorted.length > 0 ? (
         <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-border-tertiary">
             <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Histórico completo</p>
@@ -248,10 +103,7 @@ export function ClientSubSuporte({ client }) {
               </thead>
               <tbody>
                 {[...sorted].reverse().map(u => (
-                  <tr
-                    key={u.ref_month}
-                    className={`border-t border-border-tertiary transition-colors ${u.ref_month === month ? 'bg-donc-sky/5' : 'hover:bg-bg-secondary'}`}
-                  >
+                  <tr key={u.ref_month} className="border-t border-border-tertiary hover:bg-bg-secondary transition-colors">
                     <td className="px-4 py-2.5 font-medium text-text-primary">{fmtMonth(u.ref_month)}</td>
                     <td className="px-4 py-2.5 text-right text-text-secondary">{u.tickets_opened}</td>
                     <td className="px-4 py-2.5 text-right text-text-secondary">{u.tickets_resolved}</td>
@@ -264,19 +116,21 @@ export function ClientSubSuporte({ client }) {
                     <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcPct(u.n2_pct, u.tickets_resolved))}</td>
                     <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcPct(u.n3_pct, u.tickets_resolved))}</td>
                     <td className="px-4 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-3">
+                      <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => loadRow(u)}
-                          className="text-xs text-donc-sky hover:underline"
+                          onClick={() => onEdit(u.ref_month)}
+                          className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
+                          title="Editar"
                         >
-                          Editar
+                          ✏️
                         </button>
                         <button
                           onClick={() => handleDelete(u)}
-                          className="text-xs text-donc-red hover:underline"
                           disabled={remove.isPending}
+                          className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-red transition-colors"
+                          title="Excluir"
                         >
-                          Excluir
+                          🗑️
                         </button>
                       </div>
                     </td>
@@ -286,11 +140,9 @@ export function ClientSubSuporte({ client }) {
             </table>
           </div>
         </div>
-      )}
-
-      {sorted.length === 0 && (
+      ) : (
         <div className="text-center py-8 text-text-tertiary text-sm">
-          Nenhum dado registrado ainda. Use o formulário acima para começar.
+          Nenhum dado registrado ainda. Clique em "Registrar Dados" para começar.
         </div>
       )}
     </div>
