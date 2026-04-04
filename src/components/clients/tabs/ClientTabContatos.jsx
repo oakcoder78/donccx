@@ -3,6 +3,7 @@ import { Avatar } from '../../ui/Avatar'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { ContactModal } from '../../contacts/ContactModal'
+import { ContactPanel } from '../../contacts/ContactPanel'
 import { useUnlinkContact } from '../../../hooks/useContacts'
 
 // ─── helpers ────────────────────────────────────────────────────────────────────
@@ -22,13 +23,20 @@ function getWhatsapp(phones = []) {
 }
 
 // ─── Rich contact card ──────────────────────────────────────────────────────────
-function ContactCard({ link, onEdit, onUnlink }) {
+function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
   const c   = link.contacts || {}
   const st  = STATUS_INFO[link.engajamento] || STATUS_INFO.morno
   const wp  = getWhatsapp(c.contact_phones || [])
 
   return (
-    <div className="flex items-start gap-3 p-4 bg-bg-primary border border-border-tertiary rounded-lg hover:border-border-secondary transition-colors">
+    <div
+      onClick={onClick}
+      className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
+        isSelected
+          ? 'border-donc-navy bg-donc-navy/5 shadow-sm'
+          : 'bg-bg-primary border-border-tertiary hover:border-border-secondary'
+      }`}
+    >
       {/* Avatar */}
       <div className="flex-shrink-0 relative">
         <Avatar name={c.name} size="lg" />
@@ -69,7 +77,7 @@ function ContactCard({ link, onEdit, onUnlink }) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
         {wp && (
           <a href={`https://wa.me/${wp.number.replace(/\D/g,'')}`}
             target="_blank" rel="noreferrer"
@@ -168,11 +176,28 @@ function PowerMap({ links }) {
 
 // ─── Main component ─────────────────────────────────────────────────────────────
 export function ClientTabContatos({ client }) {
-  const [showCreate, setShowCreate]       = useState(false)
+  const [showCreate, setShowCreate]         = useState(false)
   const [editingContact, setEditingContact] = useState(null)
+  const [selectedLink, setSelectedLink]     = useState(null)
   const unlinkContact = useUnlinkContact()
 
   const links = client.contact_links || []
+
+  function buildContactFromLink(link) {
+    const c = link.contacts || {}
+    return {
+      ...c,
+      contact_phones: c.contact_phones || [],
+      contact_links: [{
+        id: link.id,
+        client_id: link.client_id,
+        papel: link.papel,
+        engajamento: link.engajamento,
+        champion: link.champion,
+        clients: { id: client.id, name: client.fantasy_name || client.name },
+      }],
+    }
+  }
 
   function handleEdit(link) {
     const c = link.contacts || {}
@@ -187,11 +212,17 @@ export function ClientTabContatos({ client }) {
         champion: link.champion,
       }],
     })
+    setSelectedLink(null)
   }
 
   function handleUnlink(linkId) {
     if (!window.confirm('Desvincular este contato da empresa?')) return
     unlinkContact.mutate(linkId)
+    if (selectedLink?.id === linkId) setSelectedLink(null)
+  }
+
+  function handleCardClick(link) {
+    setSelectedLink(prev => prev?.id === link.id ? null : link)
   }
 
   return (
@@ -202,18 +233,32 @@ export function ClientTabContatos({ client }) {
         <Button size="sm" onClick={() => setShowCreate(true)}>+ Novo Contato</Button>
       </div>
 
-      {/* Cards */}
-      <div className="space-y-2">
-        {links.map(link => (
-          <ContactCard
-            key={link.id}
-            link={link}
-            onEdit={handleEdit}
-            onUnlink={handleUnlink}
-          />
-        ))}
-        {links.length === 0 && (
-          <p className="text-center py-12 text-text-tertiary text-sm">Nenhum contato vinculado.</p>
+      {/* Cards + Side Panel */}
+      <div className="flex gap-4 items-start">
+        <div className={`space-y-2 ${selectedLink ? 'flex-1' : 'w-full'}`}>
+          {links.map(link => (
+            <ContactCard
+              key={link.id}
+              link={link}
+              onEdit={handleEdit}
+              onUnlink={handleUnlink}
+              isSelected={selectedLink?.id === link.id}
+              onClick={() => handleCardClick(link)}
+            />
+          ))}
+          {links.length === 0 && (
+            <p className="text-center py-12 text-text-tertiary text-sm">Nenhum contato vinculado.</p>
+          )}
+        </div>
+
+        {selectedLink && (
+          <div className="w-72 flex-shrink-0">
+            <ContactPanel
+              contact={buildContactFromLink(selectedLink)}
+              onEdit={() => handleEdit(selectedLink)}
+              onClose={() => setSelectedLink(null)}
+            />
+          </div>
         )}
       </div>
 
