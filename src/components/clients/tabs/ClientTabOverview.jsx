@@ -22,7 +22,7 @@ export function ClientTabOverview({ client }) {
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-text-primary">Atividades Recentes</h3>
-          <button onClick={() => navigate(`/clientes/${client.id}?tab=atividades`)} className="text-xs text-donc-sky hover:underline">Ver todas</button>
+          <button onClick={() => navigate(`/empresas/${client.id}?tab=atividades`)} className="text-xs text-donc-sky hover:underline">Ver todas</button>
         </div>
         {recentActivities.length === 0 ? (
           <p className="text-sm text-text-tertiary">Nenhuma atividade.</p>
@@ -46,7 +46,7 @@ export function ClientTabOverview({ client }) {
       <Card>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-text-primary">Power Map</h3>
-          <button onClick={() => navigate(`/clientes/${client.id}?tab=contatos`)} className="text-xs text-donc-sky hover:underline">Ver todos</button>
+          <button onClick={() => navigate(`/empresas/${client.id}?tab=contatos`)} className="text-xs text-donc-sky hover:underline">Ver todos</button>
         </div>
         {activeContacts.length === 0 ? (
           <p className="text-sm text-text-tertiary">Nenhum contato vinculado.</p>
@@ -73,7 +73,7 @@ export function ClientTabOverview({ client }) {
       <Card className="md:col-span-2">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-text-primary">Milestones Ativos</h3>
-          <button onClick={() => navigate(`/clientes/${client.id}?tab=operacional`)} className="text-xs text-donc-sky hover:underline">Ver todos</button>
+          <button onClick={() => navigate(`/empresas/${client.id}?tab=operacional`)} className="text-xs text-donc-sky hover:underline">Ver todos</button>
         </div>
         {activeMilestones.length === 0 ? (
           <p className="text-sm text-text-tertiary">Nenhum milestone ativo.</p>
