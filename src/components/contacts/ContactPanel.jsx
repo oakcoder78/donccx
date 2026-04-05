@@ -19,6 +19,7 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
   const phones = c.contact_phones || []
   const links  = c.contact_links  || []
   const whatsapp = phones.find(p => p.type === 'WhatsApp')
+  const primaryEmail = c.contact_emails?.find(e => e.is_primary)?.email ?? c.email
 
   return (
     <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 sticky top-20">
@@ -41,8 +42,8 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
 
       {/* Action buttons */}
       <div className="flex gap-2 mb-4">
-        {c.email && (
-          <a href={`mailto:${c.email}`}
+        {primaryEmail && (
+          <a href={`mailto:${primaryEmail}`}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary">
             📧 E-mail
           </a>
@@ -60,11 +61,14 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
       <div className="space-y-3 mb-4">
         <div>
           <p className="text-xs font-medium text-text-tertiary uppercase mb-2">Contato</p>
-          {c.email && (
-            <div className="flex items-center gap-2 text-sm text-text-primary mb-1">
-              <span className="text-text-tertiary">📧</span> {c.email}
+          {/* Multiple emails via contact_emails, fall back to contacts.email */}
+          {(c.contact_emails?.length > 0 ? c.contact_emails : c.email ? [{ email: c.email, is_primary: true }] : []).map((em, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm text-text-primary mb-1">
+              <span className="text-text-tertiary">📧</span>
+              <a href={`mailto:${em.email}`} className="hover:underline">{em.email}</a>
+              {em.is_primary && <span className="text-xs text-text-tertiary bg-bg-secondary px-1 rounded">principal</span>}
             </div>
-          )}
+          ))}
           {phones.map((p, i) => (
             <div key={i} className="flex items-center gap-2 text-sm text-text-primary mb-1">
               <span className="text-text-tertiary">{p.type === 'WhatsApp' ? '💬' : '📞'}</span>

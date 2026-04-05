@@ -8,7 +8,7 @@ export function useContacts(filters = {}) {
     queryFn: async () => {
       const q = supabase
         .from('contacts')
-        .select(`*, contact_phones(*), contact_links(*, clients(id, name, fantasy_name))`)
+        .select(`*, contact_phones(*), contact_emails(*), contact_links(*, clients(id, name, fantasy_name))`)
         .order('name')
 
       const { data, error } = await q
@@ -44,6 +44,17 @@ export function useContacts(filters = {}) {
   })
 }
 
+// ── Helpers de e-mail ─────────────────────────────────────────────────────────
+async function syncContactEmails(contactId, primaryEmail, extraEmails) {
+  await supabase.from('contact_emails').delete().eq('contact_id', contactId)
+  const rows = []
+  if (primaryEmail) rows.push({ contact_id: contactId, email: primaryEmail, type: 'work', is_primary: true })
+  for (const e of (extraEmails ?? [])) {
+    if (e.email?.trim()) rows.push({ contact_id: contactId, email: e.email.trim(), type: e.type || 'work', is_primary: false })
+  }
+  if (rows.length) await supabase.from('contact_emails').insert(rows)
+}
+
 export function useContactMutations() {
   const qc = useQueryClient()
   const invalidate = () => {
@@ -53,7 +64,7 @@ export function useContactMutations() {
   }
 
   const create = useMutation({
-    mutationFn: async ({ phones, links, ...payload }) => {
+    mutationFn: async ({ phones, links, extra_emails, ...payload }) => {
       const { data, error } = await supabase.from('contacts').insert(payload).select().single()
       if (error) throw error
       if (phones?.length) {
@@ -61,10 +72,10 @@ export function useContactMutations() {
       }
       if (links?.length) {
         const linkRows = links.map(l => ({ ...l, contact_id: data.id, client_id: Number(l.client_id) }))
-        console.log('[useContacts create] inserting contact_links:', linkRows)
         const { error: linkErr } = await supabase.from('contact_links').insert(linkRows)
-        if (linkErr) { console.error('[useContacts create] contact_links insert error:', linkErr); throw linkErr }
+        if (linkErr) throw linkErr
       }
+      await syncContactEmails(data.id, payload.email, extra_emails)
       return data
     },
     onSuccess: () => { invalidate(); toast.success('Contato criado') },
@@ -72,7 +83,7 @@ export function useContactMutations() {
   })
 
   const update = useMutation({
-    mutationFn: async ({ id, phones, links, contact_phones, contact_links, ...payload }) => {
+    mutationFn: async ({ id, phones, links, extra_emails, contact_phones, contact_links, contact_emails: _old, ...payload }) => {
       const { data, error } = await supabase.from('contacts').update(payload).eq('id', id).select().single()
       if (error) throw error
       if (phones !== undefined) {
@@ -83,9 +94,18 @@ export function useContactMutations() {
         await supabase.from('contact_links').delete().eq('contact_id', id)
         if (links.length) {
           const linkRows = links.map(l => ({ ...l, contact_id: id, client_id: Number(l.client_id) }))
-          console.log('[useContacts update] inserting contact_links:', linkRows)
           const { error: linkErr } = await supabase.from('contact_links').insert(linkRows)
-          if (linkErr) { console.error('[useContacts update] contact_links insert error:', linkErr); throw linkErr }
+          if (linkErr) throw linkErr
+        }
+      }
+      // Sincroniza contact_emails sempre que extra_emails é passado
+      if (extra_emails !== undefined) {
+        await syncContactEmails(id, payload.email ?? data.email, extra_emails)
+      } else if (payload.email !== undefined) {
+        // Só atualiza o e-mail primário sem tocar nos extras
+        await supabase.from('contact_emails').delete().eq('contact_id', id).eq('is_primary', true)
+        if (payload.email) {
+          await supabase.from('contact_emails').insert({ contact_id: id, email: payload.email, type: 'work', is_primary: true })
         }
       }
       return data

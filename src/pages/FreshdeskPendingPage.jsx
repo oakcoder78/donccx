@@ -72,6 +72,12 @@ function groupContacts(contacts) {
   return { singles, groups }
 }
 
+// Escolhe o contato "primário" para mescla (mais tickets; empate → nome mais longo)
+function pickPrimary(c1, c2) {
+  if (c1.ticket_count !== c2.ticket_count) return c1.ticket_count > c2.ticket_count ? c1 : c2
+  return c1.name.length >= c2.name.length ? c1 : c2
+}
+
 // Resolve os contatos a importar com base nas decisões do CSM
 function buildResolvedContacts(singles, groups, resolutions) {
   const result = [...singles]
@@ -81,6 +87,14 @@ function buildResolvedContacts(singles, groups, resolutions) {
     if (res.action === 'pick_first')  result.push(g.contacts[0])
     if (res.action === 'pick_second') result.push(g.contacts[1] ?? g.contacts[0])
     if (res.action === 'keep_both')   result.push(...g.contacts)
+    if (res.action === 'merge_contacts') {
+      const primary   = pickPrimary(g.contacts[0], g.contacts[1] ?? g.contacts[0])
+      const secondary = g.contacts.find(c => c !== primary) ?? null
+      result.push({
+        ...primary,
+        secondary_emails: secondary?.email ? [{ email: secondary.email, type: 'work' }] : [],
+      })
+    }
   }
   return result
 }
@@ -134,6 +148,7 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
   const c1 = group.contacts[0]
   const c2 = group.contacts[1]
   const resolved = !!resolution
+  const mergedPrimary = resolution?.action === 'merge_contacts' ? pickPrimary(c1, c2) : null
 
   const btnCls = (active) =>
     `text-xs px-2.5 py-1 rounded border transition-colors ${
@@ -141,6 +156,17 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
         ? 'bg-donc-navy text-white border-donc-navy'
         : 'border-border-tertiary text-text-secondary hover:bg-bg-tertiary'
     }`
+
+  function cardHighlight(c, idx) {
+    if (!resolution) return 'border-border-tertiary bg-bg-secondary'
+    if (resolution.action === 'pick_first'  && idx === 0) return 'border-donc-verde bg-donc-verde/5'
+    if (resolution.action === 'pick_second' && idx === 1) return 'border-donc-verde bg-donc-verde/5'
+    if (resolution.action === 'keep_both')  return 'border-donc-verde bg-donc-verde/5'
+    if (resolution.action === 'merge_contacts') {
+      return c === mergedPrimary ? 'border-donc-sky bg-donc-sky/5' : 'border-border-tertiary bg-bg-secondary opacity-60'
+    }
+    return 'border-border-tertiary bg-bg-secondary'
+  }
 
   return (
     <div className={`rounded-lg border-2 p-3 mb-2 ${resolved ? 'border-border-tertiary bg-bg-primary' : 'border-amber-400 bg-amber-50/40'}`}>
@@ -152,7 +178,10 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
         {!resolved && (
           <span className="text-xs text-amber-700">Resolução necessária antes de aprovar</span>
         )}
-        {resolved && resolution.action !== 'discard' && (
+        {resolved && resolution.action === 'merge_contacts' && (
+          <span className="text-xs text-donc-sky">✓ Mesclar — manter {mergedPrimary?.name} com ambos os emails</span>
+        )}
+        {resolved && resolution.action !== 'discard' && resolution.action !== 'merge_contacts' && (
           <span className="text-xs text-donc-verde">✓ Resolvido</span>
         )}
         {resolved && resolution.action === 'discard' && (
@@ -163,16 +192,7 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
       {/* Lado a lado */}
       <div className="grid grid-cols-2 gap-2 mb-2.5">
         {[c1, c2].map((c, idx) => (
-          <div
-            key={idx}
-            className={`rounded p-2.5 border text-sm ${
-              (resolution?.action === 'pick_first'  && idx === 0) ||
-              (resolution?.action === 'pick_second' && idx === 1) ||
-              resolution?.action === 'keep_both'
-                ? 'border-donc-verde bg-donc-verde/5'
-                : 'border-border-tertiary bg-bg-secondary'
-            }`}
-          >
+          <div key={idx} className={`rounded p-2.5 border text-sm ${cardHighlight(c, idx)}`}>
             <p className="font-medium text-text-primary truncate">{c.name}</p>
             <p className="text-xs text-text-secondary mt-0.5 truncate">{c.email}</p>
             {c.phone && <p className="text-xs text-text-tertiary mt-0.5">{c.phone}</p>}
@@ -203,6 +223,12 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
           onClick={() => onResolve(group.key, { action: 'keep_both' })}
         >
           Manter ambos
+        </button>
+        <button
+          className={btnCls(resolution?.action === 'merge_contacts')}
+          onClick={() => onResolve(group.key, { action: 'merge_contacts' })}
+        >
+          Mesclar em um contato
         </button>
         <button
           className={btnCls(resolution?.action === 'discard')}
@@ -369,11 +395,24 @@ async function approveContacts(clientId, contacts) {
     if (!contactId) {
       const { data: created, error } = await supabase
         .from('contacts')
-        .insert({ name: c.name, email: c.email, ...(c.phone ? { cargo: null } : {}) })
+        .insert({ name: c.name, email: c.email })
         .select('id')
         .single()
       if (error) { console.error('Erro ao criar contato:', error.message); continue }
       contactId = created.id
+
+      // Insere e-mail primário em contact_emails
+      await supabase.from('contact_emails').insert({
+        contact_id: contactId, email: c.email, type: 'work', is_primary: true,
+      })
+    }
+
+    // Insere e-mails secundários (resultado de mescla)
+    if (c.secondary_emails?.length) {
+      const rows = c.secondary_emails.map(se => ({
+        contact_id: contactId, email: se.email, type: se.type || 'work', is_primary: false,
+      }))
+      await supabase.from('contact_emails').upsert(rows, { onConflict: 'contact_id,email', ignoreDuplicates: true })
     }
 
     const papel = ['Decisor','Influenciador','Usuário','Técnico'].includes(c.suggested_papel)

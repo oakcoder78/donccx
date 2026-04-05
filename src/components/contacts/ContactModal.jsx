@@ -20,6 +20,9 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
     contact?.contact_phones?.map(p => ({ ...p, number: formatPhone(p.number) })) ||
     [{ number: '', type: 'WhatsApp' }]
   )
+  const [extraEmails, setExtraEmails] = useState(
+    contact?.contact_emails?.filter(e => !e.is_primary).map(e => ({ email: e.email, type: e.type || 'work' })) || []
+  )
   const [links, setLinks] = useState(
     contact?.contact_links?.map(l => ({
       client_id: Number(l.client_id),
@@ -41,6 +44,10 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
   function removePhone(i) { setPhones(p => p.filter((_,idx) => idx !== i)) }
   function setPhone(i, k, v) { setPhones(p => p.map((ph, idx) => idx === i ? { ...ph, [k]: v } : ph)) }
 
+  function addExtraEmail() { setExtraEmails(e => [...e, { email: '', type: 'work' }]) }
+  function removeExtraEmail(i) { setExtraEmails(e => e.filter((_,idx) => idx !== i)) }
+  function setExtraEmail(i, k, v) { setExtraEmails(e => e.map((em, idx) => idx === i ? { ...em, [k]: v } : em)) }
+
   function addLink() { setLinks(l => [...l, { client_id: '', papel: 'Usuário', engajamento: 'Alto', champion: false }]) }
   function removeLink(i) { setLinks(l => l.filter((_,idx) => idx !== i)) }
   function setLink(i, k, v) { setLinks(l => l.map((lk, idx) => idx === i ? { ...lk, [k]: v } : lk)) }
@@ -51,6 +58,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
       ...form,
       phones: phones.filter(p => p.number.trim()).map(p => ({ ...p, number: stripPhone(p.number) })),
       links: links.filter(l => l.client_id != null && l.client_id !== '').map(l => ({ ...l, client_id: Number(l.client_id) })),
+      extra_emails: extraEmails.filter(e => e.email.trim()),
     }
     if (isEdit) await update.mutateAsync({ id: contact.id, ...payload })
     else await create.mutateAsync(payload)
@@ -98,6 +106,31 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
                 <button type="button" onClick={() => removePhone(i)} className="text-donc-red text-sm px-1">✕</button>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Extra Emails */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="label-sm">Emails adicionais</label>
+            <button type="button" onClick={addExtraEmail} className="text-xs text-donc-sky hover:underline">+ Adicionar</button>
+          </div>
+          <div className="space-y-2">
+            {extraEmails.map((em, i) => (
+              <div key={i} className="flex gap-2">
+                <input type="email" value={em.email} onChange={e => setExtraEmail(i, 'email', e.target.value)}
+                  placeholder="email@exemplo.com" className="input-base flex-1" />
+                <select value={em.type} onChange={e => setExtraEmail(i, 'type', e.target.value)} className="input-base w-28">
+                  <option value="work">Trabalho</option>
+                  <option value="personal">Pessoal</option>
+                  <option value="other">Outro</option>
+                </select>
+                <button type="button" onClick={() => removeExtraEmail(i)} className="text-donc-red text-sm px-1">✕</button>
+              </div>
+            ))}
+            {extraEmails.length === 0 && (
+              <p className="text-xs text-text-tertiary">Nenhum email adicional</p>
+            )}
           </div>
         </div>
 
