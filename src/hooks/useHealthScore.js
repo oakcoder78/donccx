@@ -30,7 +30,6 @@ export async function recalculateAndSave(client) {
       health_relacionamento: scores.relacionamento,
       health_financeiro:     scores.financeiro,
       health_projeto:        scores.projeto,
-      health_total:          scores.total,
       updated_at:            new Date().toISOString(),
     })
     .eq('id', client.id)
