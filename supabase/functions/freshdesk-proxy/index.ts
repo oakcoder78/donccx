@@ -46,21 +46,28 @@ serve(async (req) => {
 
     const domain = Deno.env.get('FRESHDESK_DOMAIN')
     const apiKey = Deno.env.get('FRESHDESK_API_KEY')
-    if (!domain || !apiKey) return json({ error: 'Freshdesk not configured on server (missing FRESHDESK_DOMAIN or FRESHDESK_API_KEY)' }, 500)
+    if (!domain || !apiKey) {
+      console.error('freshdesk-proxy: secrets ausentes — FRESHDESK_DOMAIN:', !!domain, 'FRESHDESK_API_KEY:', !!apiKey)
+      return json({ error: 'Freshdesk not configured on server (missing FRESHDESK_DOMAIN or FRESHDESK_API_KEY)' }, 500)
+    }
 
     // ── Forward to Freshdesk ────────────────────────────────────────────────
     const qs = Object.keys(params).length
       ? '?' + new URLSearchParams(params as Record<string, string>).toString()
       : ''
     const url = `https://${domain}/api/v2${path}${qs}`
+    const authHeader = 'Basic ' + btoa(`${apiKey}:X`)
+
+    console.log('freshdesk-proxy: GET', url, '| auth prefix:', authHeader.slice(0, 12) + '...')
 
     const fdRes = await fetch(url, {
       headers: {
-        Authorization: 'Basic ' + btoa(`${apiKey}:X`),
+        Authorization: authHeader,
         'Content-Type': 'application/json',
       },
     })
 
+    console.log('freshdesk-proxy: response', fdRes.status, path)
     const data = await fdRes.json().catch(() => null)
     return json(data, fdRes.status)
 
