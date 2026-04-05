@@ -145,12 +145,23 @@ export default function DashboardPage() {
 
   const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
   const { data: profiles = [] } = useProfiles()
-  const { data: myTasks = [] } = useActivities(
-    { responsible_id: profile?.id, status: 'pendente' },
-    { enabled: !!profile }
-  )
+  // Admin/manager vê todas as pendentes; CSM só as próprias
+  const activitiesFilter = isAdminOrManager
+    ? { status: 'pendente' }
+    : { responsible_id: profile?.id, status: 'pendente' }
+  const { data: myTasks = [] } = useActivities(activitiesFilter, { enabled: !!profile })
 
   // Last activity date per client (for "sem interação" logic)
+  // useMemo deve ficar antes de qualquer early return (Rules of Hooks)
+  const upcomingActivities = useMemo(() =>
+    [...myTasks]
+      .filter(a => a.activity_date && a.activity_date >= todayStr)
+      .sort((a, b) => {
+        if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
+        return (a.activity_time || '').localeCompare(b.activity_time || '')
+      }),
+  [myTasks])
+
   const { data: lastActivityMap = {} } = useQuery({
     queryKey: ['last_activity_map', selectedCsm || 'all'],
     enabled: !!profile,
@@ -216,16 +227,6 @@ export default function DashboardPage() {
   ]
   const alertaTotal   = alertaClients.length
   const alertaSliced  = alertaClients.slice(0, 5)
-
-  // Próximas atividades: pendentes a partir de hoje, ordenadas por data/hora asc
-  const upcomingActivities = useMemo(() =>
-    [...myTasks]
-      .filter(a => a.activity_date && a.activity_date >= todayStr)
-      .sort((a, b) => {
-        if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
-        return (a.activity_time || '').localeCompare(b.activity_time || '')
-      }),
-  [myTasks])
 
   const sortedPortfolio = [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
 
