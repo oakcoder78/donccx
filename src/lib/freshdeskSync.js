@@ -80,20 +80,34 @@ export async function fetchCompaniesFreshdesk() {
  * @param {string} month  formato YYYY-MM
  */
 export async function fetchTicketsByCompany(freshdeskCompanyId, month) {
+  // A search API do Freshdesk não suporta company_id. Usa o endpoint padrão
+  // com paginação e filtra pelo mês client-side.
   const [year, mo] = month.split('-')
-  const startDate  = `${year}-${mo}-01`
-  const nextMonth  = new Date(Number(year), Number(mo), 1)  // 1º dia do mês seguinte
-  const endDate    = nextMonth.toISOString().slice(0, 10)
-
-  const query = `company_id:${freshdeskCompanyId} AND created_at:>'${startDate}' AND created_at:<'${endDate}'`
+  const monthStart = new Date(`${year}-${mo}-01T00:00:00Z`)
+  const monthEnd   = new Date(Number(year), Number(mo), 1)
 
   let all  = []
   let page = 1
-  while (page <= 10) {
-    const result = await fdGet('/search/tickets', { query, page: String(page) })
-    const items  = result?.results ?? []
-    all = all.concat(items)
-    if (!items.length || all.length >= (result?.total ?? 0)) break
+  while (page <= 20) {
+    const data = await fdGet('/tickets', {
+      company_id: String(freshdeskCompanyId),
+      per_page: '100',
+      page: String(page),
+      include: 'stats',
+      order_by: 'created_at',
+      order_type: 'desc',
+    })
+    if (!Array.isArray(data) || !data.length) break
+
+    const oldest  = new Date(data[data.length - 1].created_at)
+    const inMonth = data.filter(t => {
+      const d = new Date(t.created_at)
+      return d >= monthStart && d < monthEnd
+    })
+    all = all.concat(inMonth)
+
+    if (oldest < monthStart) break
+    if (data.length < 100) break
     page++
   }
   return all
