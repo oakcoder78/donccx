@@ -209,10 +209,23 @@ export default function DashboardPage() {
   const tasksToday   = tasksDue.filter(a => a.due_date === todayStr)
   const tasksOverdue = tasksDue.filter(a => a.due_date < todayStr)
 
-  const alertaClients = [...clients]
-    .filter(c => (c.health_total || 0) < 75)
-    .sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
-    .slice(0, 10)
+  // Alertas: Em Risco primeiro (score asc), depois Em Atenção (score asc)
+  const alertaClients = [
+    ...clients.filter(c => (c.health_total || 0) < 50).sort((a, b) => (a.health_total || 0) - (b.health_total || 0)),
+    ...clients.filter(c => { const s = c.health_total || 0; return s >= 50 && s < 75 }).sort((a, b) => (a.health_total || 0) - (b.health_total || 0)),
+  ]
+  const alertaTotal   = alertaClients.length
+  const alertaSliced  = alertaClients.slice(0, 5)
+
+  // Próximas atividades: pendentes a partir de hoje, ordenadas por data/hora asc
+  const upcomingActivities = useMemo(() =>
+    [...myTasks]
+      .filter(a => a.activity_date && a.activity_date >= todayStr)
+      .sort((a, b) => {
+        if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
+        return (a.activity_time || '').localeCompare(b.activity_time || '')
+      }),
+  [myTasks])
 
   const sortedPortfolio = [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0))
 
@@ -347,14 +360,23 @@ export default function DashboardPage() {
 
         {/* Alertas prioritários */}
         <SectionCard
-          title="Alertas prioritários"
-          action={<LinkBtn onClick={() => navigate('/empresas')}>ver todas as contas →</LinkBtn>}
+          title={
+            <>
+              Alertas prioritários
+              {alertaTotal > 5 && (
+                <span style={{ fontWeight: 400, color: '#888780', marginLeft: 4 }}>
+                  (5/{alertaTotal})
+                </span>
+              )}
+            </>
+          }
+          action={<LinkBtn onClick={() => navigate('/empresas?health=alerta')}>ver todas as contas →</LinkBtn>}
         >
-          {alertaClients.length === 0 ? (
+          {alertaTotal === 0 ? (
             <EmptyState text="Nenhum alerta no momento." />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {alertaClients.map(c => {
+              {alertaSliced.map(c => {
                 const score    = c.health_total || 0
                 const barColor = score < 50 ? '#E24B4A' : '#EF9F27'
                 const scoreColor = score < 50 ? '#E24B4A' : '#EF9F27'
@@ -417,25 +439,37 @@ export default function DashboardPage() {
           )}
         </SectionCard>
 
-        {/* Tarefas de hoje */}
+        {/* Próximas Atividades */}
         <SectionCard
-          title="Tarefas de hoje"
-          action={<LinkBtn onClick={() => navigate('/atividades')}>ver todas →</LinkBtn>}
+          title={
+            <>
+              Próximas Atividades
+              {upcomingActivities.length > 5 && (
+                <span style={{ fontWeight: 400, color: '#888780', marginLeft: 4 }}>
+                  (5/{upcomingActivities.length})
+                </span>
+              )}
+            </>
+          }
+          action={<LinkBtn onClick={() => navigate('/atividades?status=pendente')}>ver todas →</LinkBtn>}
         >
-          {tasksDue.length === 0 ? (
-            <EmptyState text="Nenhuma tarefa pendente." />
+          {upcomingActivities.length === 0 ? (
+            <EmptyState text="Nenhuma atividade pendente." />
           ) : (
             <div>
-              {tasksDue.slice(0, 8).map((a, i) => {
-                const isOverdue = a.due_date < todayStr
+              {upcomingActivities.slice(0, 5).map((a, i) => {
+                const isToday = a.activity_date === todayStr
+                const dateLabel = isToday
+                  ? 'hoje'
+                  : (() => { const [,m,d] = a.activity_date.split('-'); return `${d}/${m}` })()
                 return (
                   <div key={a.id} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-                    borderBottom: i < tasksDue.slice(0, 8).length - 1 ? '0.5px solid #f0efed' : 'none',
+                    borderBottom: i < Math.min(upcomingActivities.length, 5) - 1 ? '0.5px solid #f0efed' : 'none',
                   }}>
                     <div style={{
                       width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                      border: `1.5px solid ${isOverdue ? '#E24B4A80' : '#d4d3ce'}`,
+                      border: '1.5px solid #d4d3ce',
                     }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -449,10 +483,10 @@ export default function DashboardPage() {
                     </div>
                     <span style={{
                       fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
-                      backgroundColor: isOverdue ? '#E24B4A20' : '#BA751718',
-                      color: isOverdue ? '#E24B4A' : '#BA7517',
+                      backgroundColor: isToday ? '#BA751718' : '#59c2ed18',
+                      color: isToday ? '#BA7517' : '#59c2ed',
                     }}>
-                      {isOverdue ? 'atrasada' : 'hoje'}
+                      {dateLabel}
                     </span>
                   </div>
                 )
