@@ -1,0 +1,93 @@
+[
+  {
+    "doncCX_id": 18,
+    "doncCX_nome": "CENTER KENNEDY COMERCIO LTDA",
+    "freshdesk_id": 70000731834,
+    "freshdesk_nome": "Center Kennedy",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 21,
+    "doncCX_nome": "Comercial de Eletromóveis Ltda",
+    "freshdesk_id": 70000732244,
+    "freshdesk_nome": "Lojas Eletromóveis",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 14,
+    "doncCX_nome": "CYBELAR COMERCIO E INDUSTRIA LTDA",
+    "freshdesk_id": 70000731735,
+    "freshdesk_nome": "Cybelar",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 2,
+    "doncCX_nome": "Db S.a Comercio de Moveis e Eletrodomesticos",
+    "freshdesk_id": 70000040552,
+    "freshdesk_nome": "Berlanda",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 1,
+    "doncCX_nome": "DONC TECNOLOGIA LTDA - ME",
+    "freshdesk_id": null,
+    "freshdesk_nome": "—",
+    "confianca": "ignorar"
+  },
+  {
+    "doncCX_id": 16,
+    "doncCX_nome": "EUGENIO RAULINO KOERICH SA COMERCIO E INDUSTRIA",
+    "freshdesk_id": 70000174306,
+    "freshdesk_nome": "Koerich",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 4,
+    "doncCX_nome": "Horfran - Comercial Eletromóveis Ltda",
+    "freshdesk_id": 70000731390,
+    "freshdesk_nome": "Multiloja",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 15,
+    "doncCX_nome": "LOJAO DE ELETRO-DOMESTICOS RIO DO PEIXE LTDA",
+    "freshdesk_id": 70000732242,
+    "freshdesk_nome": "Feirão Magazine",
+    "confianca": "manual"
+  },
+  {
+    "doncCX_id": 19,
+    "doncCX_nome": "LOJAS ADELINO LTDA",
+    "freshdesk_id": 70000732241,
+    "freshdesk_nome": "Lojas Adelino",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 17,
+    "doncCX_nome": "LOJAS SOLAR LTDA",
+    "freshdesk_id": 70000732200,
+    "freshdesk_nome": "Lojas Solar",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 3,
+    "doncCX_nome": "Mercadomóveis Ltda",
+    "freshdesk_id": 70000731923,
+    "freshdesk_nome": "Lojas MM",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 5,
+    "doncCX_nome": "SOLAR MAGAZINE LTDA - ME",
+    "freshdesk_id": 70000731472,
+    "freshdesk_nome": "Solar Magazine",
+    "confianca": "auto"
+  },
+  {
+    "doncCX_id": 20,
+    "doncCX_nome": "Todimo Materiais para Construção S.A",
+    "freshdesk_id": 70000732239,
+    "freshdesk_nome": "Todimo",
+    "confianca": "auto"
+  }
+]

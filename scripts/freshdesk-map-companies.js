@@ -54,7 +54,7 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 })
 
-const FD_BASE = `https://${FD_DOMAIN}.freshdesk.com/api/v2`
+const FD_BASE = `https://${FD_DOMAIN}/api/v2`
 const FD_AUTH = 'Basic ' + Buffer.from(`${FD_API_KEY}:X`).toString('base64')
 
 // ── Helpers Freshdesk ─────────────────────────────────────────────────────────
@@ -148,7 +148,46 @@ function printTable(rows) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log(`\n🔄  Buscando empresas do Freshdesk (${FD_DOMAIN}.freshdesk.com)...`)
+  const outPath = resolve(__dir, 'freshdesk-mapping.json')
+
+  // No modo --apply, usa o JSON já editado sem reprocessar
+  if (APPLY) {
+    let saved
+    try {
+      saved = JSON.parse(readFileSync(outPath, 'utf-8'))
+    } catch {
+      console.error('❌  freshdesk-mapping.json não encontrado. Rode sem --apply primeiro.')
+      process.exit(1)
+    }
+
+    // Aplica todos os que têm freshdesk_id preenchido e confianca != 'ignorar'
+    const toApply = saved.filter(r => r.freshdesk_id && r.confianca !== 'ignorar')
+    console.log(`\n⬆️   Aplicando ${toApply.length} mapeamento(s) do JSON no banco...`)
+    let updated = 0
+    for (const r of toApply) {
+      const { error: upErr } = await supabase
+        .from('clients')
+        .update({ freshdesk_company_id: parseInt(r.freshdesk_id, 10) })
+        .eq('id', r.doncCX_id)
+      if (upErr) console.error(`    ❌  ${r.doncCX_nome}: ${upErr.message}`)
+      else { console.log(`    ✔  ${r.doncCX_nome} → ${r.freshdesk_id} (${r.freshdesk_nome})`); updated++ }
+    }
+    console.log(`\n    ${updated}/${toApply.length} clientes atualizados`)
+    return
+  }
+
+  // Modo padrão: gera/atualiza o JSON com matches automáticos
+  // Preserva overrides manuais já salvos no JSON anterior
+  let previousManual = {}
+  try {
+    const prev = JSON.parse(readFileSync(outPath, 'utf-8'))
+    // Guarda entradas que foram editadas manualmente (freshdesk_id preenchido mas confianca != 'auto')
+    prev.filter(r => r.freshdesk_id && r.confianca !== 'auto').forEach(r => {
+      previousManual[r.doncCX_id] = r
+    })
+  } catch { /* arquivo não existe ainda */ }
+
+  console.log(`\n🔄  Buscando empresas do Freshdesk (${FD_DOMAIN})...`)
   const fdCompanies = await fetchAllFdCompanies()
   console.log(`    → ${fdCompanies.length} empresas encontradas`)
 
@@ -162,10 +201,13 @@ async function main() {
   console.log(`    → ${clients.length} clientes sem freshdesk_company_id`)
 
   const rows = clients.map(c => {
+    // Se havia override manual, preserva
+    if (previousManual[c.id]) return previousManual[c.id]
+
     const match = computeMatch(c, fdCompanies)
     return {
-      doncCX_id:    c.id,
-      doncCX_nome:  c.name,
+      doncCX_id:      c.id,
+      doncCX_nome:    c.name,
       freshdesk_id:   match?.fdId   ?? null,
       freshdesk_nome: match?.fdName ?? '—',
       confianca:      match         ? match.confidence : 'sem match',
@@ -174,34 +216,13 @@ async function main() {
 
   printTable(rows)
 
-  const outPath = resolve(__dir, 'freshdesk-mapping.json')
   writeFileSync(outPath, JSON.stringify(rows, null, 2), 'utf-8')
   console.log(`✅  Mapeamento salvo em scripts/freshdesk-mapping.json`)
 
-  const autoRows  = rows.filter(r => r.confianca === 'auto' && r.freshdesk_id)
-  const manualRows = rows.filter(r => r.confianca !== 'auto')
-  console.log(`\n📊  Resumo: ${autoRows.length} automáticos | ${manualRows.length} para revisão manual`)
-
-  if (APPLY) {
-    console.log('\n⬆️   Aplicando mapeamentos "auto" no banco...')
-    let updated = 0
-    for (const r of autoRows) {
-      const { error: upErr } = await supabase
-        .from('clients')
-        .update({ freshdesk_company_id: r.freshdesk_id })
-        .eq('id', r.doncCX_id)
-      if (upErr) console.error(`    ❌  ${r.doncCX_nome}: ${upErr.message}`)
-      else { console.log(`    ✔  ${r.doncCX_nome} → ${r.freshdesk_id}`); updated++ }
-    }
-    console.log(`\n    ${updated}/${autoRows.length} clientes atualizados`)
-    if (manualRows.length) {
-      console.log(`\n⚠️   ${manualRows.length} clientes sem match automático.`)
-      console.log('    Edite freshdesk-mapping.json, preencha o freshdesk_id manualmente')
-      console.log('    e rode novamente com --apply para aplicar as correções.')
-    }
-  } else {
-    console.log('\nℹ️   Para aplicar os mapeamentos automáticos, rode com --apply')
-  }
+  const autoRows   = rows.filter(r => r.confianca === 'auto' && r.freshdesk_id)
+  const manualRows = rows.filter(r => !r.freshdesk_id)
+  console.log(`\n📊  Resumo: ${autoRows.length} automáticos | ${manualRows.length} sem match`)
+  console.log('\nℹ️   Edite o JSON para corrigir os sem match, depois rode com --apply')
 }
 
 main().catch(e => { console.error('\n❌', e.message); process.exit(1) })

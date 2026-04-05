@@ -52,7 +52,7 @@ serve(async (req) => {
     const qs = Object.keys(params).length
       ? '?' + new URLSearchParams(params as Record<string, string>).toString()
       : ''
-    const url = `https://${domain}.freshdesk.com/api/v2${path}${qs}`
+    const url = `https://${domain}/api/v2${path}${qs}`
 
     const fdRes = await fetch(url, {
       headers: {
