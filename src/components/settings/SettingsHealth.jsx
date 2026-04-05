@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
+import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
+import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
+import toast from 'react-hot-toast'
 
 const DIMS = ['uso','suporte','relacionamento','financeiro','projeto']
 
@@ -61,9 +64,24 @@ function HealthScoreAccordion() {
 export function SettingsHealth() {
   const { data, isLoading } = useHealthConfig()
   const { updateConfig, updateRule } = useHealthConfigMutations()
+  const { profile } = useAuth()
+  const isAdmin = profile?.role === 'admin'
 
   const [thresholds, setThresholds] = useState({ threshold_healthy: 75, threshold_attention: 50 })
   const [ruleEdits, setRuleEdits] = useState({})
+  const [recalculating, setRecalculating] = useState(false)
+
+  async function handleRecalculateAll() {
+    setRecalculating(true)
+    try {
+      const count = await recalculateAllHealthScores()
+      toast.success(`Health Score recalculado para ${count} cliente${count !== 1 ? 's' : ''}`, { icon: '🩺' })
+    } catch (e) {
+      toast.error(e.message || 'Erro ao recalcular health scores')
+    } finally {
+      setRecalculating(false)
+    }
+  }
 
   useEffect(() => {
     if (data?.config) setThresholds({ threshold_healthy: data.config.threshold_healthy, threshold_attention: data.config.threshold_attention })
@@ -108,6 +126,19 @@ export function SettingsHealth() {
           </div>
           <Button size="sm" onClick={saveThresholds} disabled={updateConfig.isPending}>Salvar</Button>
         </div>
+
+        {/* Recalcular todos — admin only */}
+        {isAdmin && (
+          <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 mb-4 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-text-primary">Recalcular Health Scores</p>
+              <p className="text-xs text-text-tertiary mt-0.5">Atualiza o score de todos os clientes ativos com base nos dados atuais.</p>
+            </div>
+            <Button size="sm" onClick={handleRecalculateAll} disabled={recalculating}>
+              {recalculating ? 'Calculando…' : 'Recalcular todos'}
+            </Button>
+          </div>
+        )}
 
         {/* Rules by dimension */}
         {DIMS.map(dim => {
