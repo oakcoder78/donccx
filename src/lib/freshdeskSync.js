@@ -241,26 +241,40 @@ export async function syncCompanySupport(clientId, month) {
   // 5. Monta snapshot
   const snapshot = { ...supportData, new_contacts: newContacts }
 
-  // 6. Upsert com pending = true
-  //    - Se já existe registro para o mês: atualiza apenas pending e snapshot
-  //    - Se não existe: insere (valores principais ficam em 0 até aprovação)
-  const { data: existing } = await supabase
-    .from('client_support')
-    .select('id')
-    .eq('client_id', clientId)
-    .eq('ref_month', month)
-    .maybeSingle()
+  // Garante formato YYYY-MM para comparação correta
+  const refMonth = month.slice(0, 7)
 
-  if (existing) {
+  // 6. Lógica de salvamento:
+  //    a) pending=false existente → cria novo registro pendente separado (não sobrescreve o aprovado)
+  //    b) pending=true existente  → atualiza snapshot sem criar duplicata
+  //    c) nenhum registro         → cria novo com pending=true
+  const { data: existingRows } = await supabase
+    .from('client_support')
+    .select('id, pending')
+    .eq('client_id', clientId)
+    .eq('ref_month', refMonth)
+
+  const approvedRow = (existingRows ?? []).find(r => r.pending === false)
+  const pendingRow  = (existingRows ?? []).find(r => r.pending === true)
+
+  if (pendingRow) {
+    // (b) Já existe pendente — atualiza
     const { error } = await supabase
       .from('client_support')
-      .update({ pending: true, freshdesk_snapshot: snapshot })
-      .eq('id', existing.id)
+      .update({ freshdesk_snapshot: snapshot })
+      .eq('id', pendingRow.id)
+    if (error) throw error
+  } else if (approvedRow) {
+    // (a) Existe registro aprovado — cria pendente separado sem sobrescrever as colunas principais
+    const { error } = await supabase
+      .from('client_support')
+      .insert({ client_id: clientId, ref_month: refMonth, pending: true, freshdesk_snapshot: snapshot })
     if (error) throw error
   } else {
+    // (c) Nenhum registro — cria do zero
     const { error } = await supabase
       .from('client_support')
-      .insert({ client_id: clientId, ref_month: month, pending: true, freshdesk_snapshot: snapshot })
+      .insert({ client_id: clientId, ref_month: refMonth, pending: true, freshdesk_snapshot: snapshot })
     if (error) throw error
   }
 

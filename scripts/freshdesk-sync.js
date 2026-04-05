@@ -192,23 +192,31 @@ async function syncOne(client, month, groupsMap) {
   const snapshot = { ...supportData, new_contacts: newContacts }
 
   if (!DRY_RUN) {
-    const { data: existing } = await supabase
+    const refMonth = month.slice(0, 7)
+    const { data: existingRows } = await supabase
       .from('client_support')
-      .select('id')
+      .select('id, pending')
       .eq('client_id', client.id)
-      .eq('ref_month', month)
-      .maybeSingle()
+      .eq('ref_month', refMonth)
 
-    if (existing) {
+    const approvedRow = (existingRows ?? []).find(r => r.pending === false)
+    const pendingRow  = (existingRows ?? []).find(r => r.pending === true)
+
+    if (pendingRow) {
       const { error } = await supabase
         .from('client_support')
-        .update({ pending: true, freshdesk_snapshot: snapshot })
-        .eq('id', existing.id)
+        .update({ freshdesk_snapshot: snapshot })
+        .eq('id', pendingRow.id)
+      if (error) throw error
+    } else if (approvedRow) {
+      const { error } = await supabase
+        .from('client_support')
+        .insert({ client_id: client.id, ref_month: refMonth, pending: true, freshdesk_snapshot: snapshot })
       if (error) throw error
     } else {
       const { error } = await supabase
         .from('client_support')
-        .insert({ client_id: client.id, ref_month: month, pending: true, freshdesk_snapshot: snapshot })
+        .insert({ client_id: client.id, ref_month: refMonth, pending: true, freshdesk_snapshot: snapshot })
       if (error) throw error
     }
   }
