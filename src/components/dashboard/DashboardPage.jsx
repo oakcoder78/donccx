@@ -479,14 +479,17 @@ export default function DashboardPage() {
                     ? { backgroundColor: '#BA751718', color: '#BA7517' }
                     : { backgroundColor: '#59c2ed18', color: '#59c2ed' }
                 return (
-                  <div key={a.id} style={{
-                    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
-                    borderBottom: i < Math.min(upcomingActivities.length, 5) - 1 ? '0.5px solid #f0efed' : 'none',
-                  }}>
-                    <div style={{
-                      width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                      border: `1.5px solid ${isOverdue ? '#E24B4A80' : '#d4d3ce'}`,
-                    }} />
+                  <div
+                    key={a.id}
+                    onClick={() => a.client_id && navigate(`/empresas/${a.client_id}?tab=atividades`)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '8px 6px',
+                      borderBottom: i < Math.min(upcomingActivities.length, 5) - 1 ? '0.5px solid #f0efed' : 'none',
+                      borderRadius: 6, cursor: a.client_id ? 'pointer' : 'default', transition: 'background 0.1s',
+                    }}
+                    onMouseEnter={e => { if (a.client_id) e.currentTarget.style.backgroundColor = '#f7f7f5' }}
+                    onMouseLeave={e => { e.currentTarget.style.backgroundColor = 'transparent' }}
+                  >
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.title || a.description}
