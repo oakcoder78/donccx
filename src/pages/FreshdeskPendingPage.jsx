@@ -13,16 +13,36 @@ function fmtMonth(ym) {
   return `${months[parseInt(m) - 1]}/${y.slice(2)}`
 }
 
+// ── ABORDAGEM 1: Sistema de scoring com regex ─────────────────────────────────
+
+/** Retorna array de tokens significativos (> 2 chars, sem acentos, lowercase) */
 function normalizeName(name) {
-  if (!name) return ''
+  if (!name) return []
   return name.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[àáâãäå]/g, 'a')
+    .replace(/[èéêë]/g, 'e')
+    .replace(/[ìíîï]/g, 'i')
+    .replace(/[òóôõö]/g, 'o')
+    .replace(/[ùúûü]/g, 'u')
+    .replace(/ç/g, 'c')
+    .replace(/ñ/g, 'n')
     .replace(/[^a-z\s]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+    .split(' ')
+    .filter(t => t.length > 2)
 }
 
-// ── Distância de edição (Levenshtein) ─────────────────────────────────────────
+/** Separa parte local e domínio de um e-mail */
+function extractEmailParts(email) {
+  if (!email) return { local: '', domain: '' }
+  const match = email.match(/^([^@]+)@(.+)$/)
+  return match
+    ? { local: match[1].toLowerCase(), domain: match[2].toLowerCase() }
+    : { local: '', domain: '' }
+}
+
+/** Levenshtein entre duas strings */
 function editDistance(a, b) {
   const m = a.length, n = b.length
   const dp = Array.from({ length: m + 1 }, (_, i) =>
@@ -34,21 +54,43 @@ function editDistance(a, b) {
   return dp[m][n]
 }
 
-function sameFirstLast(a, b) {
-  const pa = normalizeName(a).split(' ').filter(Boolean)
-  const pb = normalizeName(b).split(' ').filter(Boolean)
-  if (pa.length < 2 || pb.length < 2) return false
-  return pa[0] === pb[0] && pa[pa.length - 1] === pb[pb.length - 1]
+/** Score de similaridade 0–100 entre dois contatos */
+function contactSimilarityScore(a, b) {
+  let score = 0
+  const ta = normalizeName(a.name)
+  const tb = normalizeName(b.name)
+  const ea = extractEmailParts(a.email)
+  const eb = extractEmailParts(b.email)
+
+  // Mesmo domínio de e-mail: +40
+  if (ea.domain && eb.domain && ea.domain === eb.domain) score += 40
+
+  // Primeiro token do nome igual: +30
+  if (ta.length > 0 && tb.length > 0 && ta[0] === tb[0]) score += 30
+
+  // Levenshtein entre nomes completos normalizados <= 3: +20
+  const na = ta.join(' '), nb = tb.join(' ')
+  if (na && nb && editDistance(na, nb) <= 3) score += 20
+
+  // Mesmo último token: +20
+  if (ta.length > 0 && tb.length > 0 && ta[ta.length - 1] === tb[tb.length - 1]) score += 20
+
+  // Parte local do e-mail contém token do nome com >= 4 chars: +15
+  const sigA = ta.filter(t => t.length >= 4)
+  const sigB = tb.filter(t => t.length >= 4)
+  const emailHit =
+    sigA.some(t => new RegExp(t, 'i').test(eb.local)) ||
+    sigB.some(t => new RegExp(t, 'i').test(ea.local))
+  if (emailHit) score += 15
+
+  return Math.min(score, 100)
 }
 
-function areDuplicates(c1, c2) {
-  const na = normalizeName(c1.name)
-  const nb = normalizeName(c2.name)
-  return editDistance(na, nb) <= 3 || sameFirstLast(c1.name, c2.name)
-}
-
-// ── Agrupa contatos detectando possíveis duplicatas ───────────────────────────
-// Retorna { singles: Contact[], groups: { key, contacts: Contact[] }[] }
+/**
+ * Agrupa contatos por similaridade.
+ * Retorna { singles, groups: [{ key, contacts, score, level }] }
+ * level: 'probable' (score >= 70) | 'possible' (score 40–69)
+ */
 function groupContacts(contacts) {
   if (!contacts?.length) return { singles: [], groups: [] }
   const used = new Set()
@@ -57,28 +99,37 @@ function groupContacts(contacts) {
 
   for (let i = 0; i < contacts.length; i++) {
     if (used.has(i)) continue
-    const dupes = [contacts[i]]
+    let bestScore = 0, bestJ = -1
     for (let j = i + 1; j < contacts.length; j++) {
       if (used.has(j)) continue
-      if (areDuplicates(contacts[i], contacts[j])) {
-        dupes.push(contacts[j])
-        used.add(j)
-      }
+      const s = contactSimilarityScore(contacts[i], contacts[j])
+      if (s >= 40 && s > bestScore) { bestScore = s; bestJ = j }
     }
     used.add(i)
-    if (dupes.length > 1) groups.push({ key: `g${i}`, contacts: dupes })
-    else singles.push(contacts[i])
+    if (bestJ !== -1) {
+      used.add(bestJ)
+      groups.push({
+        key:      `g${i}`,
+        contacts: [contacts[i], contacts[bestJ]],
+        score:    bestScore,
+        level:    bestScore >= 70 ? 'probable' : 'possible',
+      })
+    } else {
+      singles.push(contacts[i])
+    }
   }
   return { singles, groups }
 }
 
-// Escolhe o contato "primário" para mescla (mais tickets; empate → nome mais longo)
+// ── Helpers de mescla ─────────────────────────────────────────────────────────
+
+/** Escolhe o contato primário (mais tickets; empate → nome mais longo) */
 function pickPrimary(c1, c2) {
   if (c1.ticket_count !== c2.ticket_count) return c1.ticket_count > c2.ticket_count ? c1 : c2
   return c1.name.length >= c2.name.length ? c1 : c2
 }
 
-// Resolve os contatos a importar com base nas decisões do CSM
+/** Resolve os contatos a importar com base nas decisões automáticas */
 function buildResolvedContacts(singles, groups, resolutions) {
   const result = [...singles]
   for (const g of groups) {
@@ -101,12 +152,12 @@ function buildResolvedContacts(singles, groups, resolutions) {
 
 // ── Campos de comparação ──────────────────────────────────────────────────────
 const FIELDS = [
-  { key: 'tickets_opened',    label: 'Tickets abertos'    },
-  { key: 'tickets_resolved',  label: 'Tickets resolvidos'  },
-  { key: 'sla_first_response', label: '1ª resposta (min)' },
-  { key: 'n1_pct',            label: 'N1 (qtd)'           },
-  { key: 'n2_pct',            label: 'N2 (qtd)'           },
-  { key: 'n3_pct',            label: 'N3 (qtd)'           },
+  { key: 'tickets_opened',     label: 'Tickets abertos'    },
+  { key: 'tickets_resolved',   label: 'Tickets resolvidos'  },
+  { key: 'sla_first_response', label: '1ª resposta (min)'   },
+  { key: 'n1_pct',             label: 'N1 (qtd)'            },
+  { key: 'n2_pct',             label: 'N2 (qtd)'            },
+  { key: 'n3_pct',             label: 'N3 (qtd)'            },
 ]
 
 function CompareRow({ label, current, proposed }) {
@@ -122,7 +173,6 @@ function CompareRow({ label, current, proposed }) {
   )
 }
 
-// ── Badge de papel ────────────────────────────────────────────────────────────
 function PapelBadge({ papel }) {
   const cls =
     papel === 'Técnico'       ? 'bg-blue-100 text-blue-700' :
@@ -131,10 +181,80 @@ function PapelBadge({ papel }) {
   return <span className={`text-xs px-1.5 py-0.5 rounded ${cls}`}>{papel}</span>
 }
 
-// ── Card de contato único ─────────────────────────────────────────────────────
-function SingleContactRow({ c }) {
+// ── ABORDAGEM 2: Modal de mescla manual ───────────────────────────────────────
+function MergeModal({ contacts, onConfirm, onClose }) {
+  const [primary, setPrimary] = useState(null)
+  const c1 = contacts[0], c2 = contacts[1]
+  const secondary = primary ? contacts.find(c => c !== primary) : null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+      <div className="bg-bg-primary border border-border-secondary rounded-xl p-5 w-full max-w-md shadow-xl">
+        <h3 className="text-sm font-semibold text-text-primary mb-1">Mesclar contatos</h3>
+        <p className="text-xs text-text-tertiary mb-4">Qual contato manter como principal?</p>
+
+        <div className="grid grid-cols-2 gap-3 mb-3">
+          {[c1, c2].map((c, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setPrimary(c)}
+              className={`rounded-lg border-2 p-3 text-left transition-colors ${
+                primary === c
+                  ? 'border-donc-sky bg-donc-sky/5'
+                  : 'border-border-tertiary hover:border-border-secondary bg-bg-secondary'
+              }`}
+            >
+              <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
+              <p className="text-xs text-text-secondary mt-0.5 truncate">{c.email}</p>
+              <p className="text-xs text-text-tertiary mt-1">{c.ticket_count} tickets</p>
+            </button>
+          ))}
+        </div>
+
+        {primary ? (
+          <p className="text-xs text-text-secondary mb-4 bg-bg-secondary rounded p-2">
+            Manter <strong>{primary.name}</strong> com o e-mail de <strong>{secondary?.name}</strong> como secundário
+          </p>
+        ) : (
+          <p className="text-xs text-text-tertiary mb-4">Selecione o contato principal acima</p>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs px-3 py-1.5 border border-border-tertiary rounded hover:bg-bg-secondary text-text-secondary"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => primary && onConfirm(primary, secondary)}
+            disabled={!primary}
+            className="text-xs px-3 py-1.5 bg-donc-navy text-white rounded disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Confirmar mescla
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Card de contato único (com checkbox) ──────────────────────────────────────
+function SingleContactRow({ c, checked, onToggle }) {
   return (
     <tr className="border-t border-border-tertiary">
+      <td className="pl-3 py-2">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={() => onToggle(c)}
+          className="accent-donc-sky cursor-pointer"
+          title="Selecionar para mescla manual"
+        />
+      </td>
       <td className="px-3 py-2 text-text-primary">{c.name}</td>
       <td className="px-3 py-2 text-text-secondary text-xs">{c.email}</td>
       <td className="px-3 py-2 text-right text-text-secondary">{c.ticket_count}</td>
@@ -143,12 +263,24 @@ function SingleContactRow({ c }) {
   )
 }
 
-// ── Card de grupo de duplicatas ───────────────────────────────────────────────
-function DuplicateGroupCard({ group, resolution, onResolve }) {
+// ── Card de grupo de duplicatas (com score + checkboxes) ──────────────────────
+function DuplicateGroupCard({ group, resolution, onResolve, checkedEmails, onToggle }) {
   const c1 = group.contacts[0]
   const c2 = group.contacts[1]
-  const resolved = !!resolution
+  const resolved     = !!resolution
   const mergedPrimary = resolution?.action === 'merge_contacts' ? pickPrimary(c1, c2) : null
+
+  const isProbable = group.level === 'probable'
+
+  const scoreBadgeCls = isProbable
+    ? 'bg-red-100 text-red-700'
+    : 'bg-amber-100 text-amber-800'
+
+  const borderCls = resolved
+    ? 'border-border-tertiary bg-bg-primary'
+    : isProbable
+      ? 'border-red-400 bg-red-50/30'
+      : 'border-amber-400 bg-amber-50/40'
 
   const btnCls = (active) =>
     `text-xs px-2.5 py-1 rounded border transition-colors ${
@@ -159,21 +291,23 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
 
   function cardHighlight(c, idx) {
     if (!resolution) return 'border-border-tertiary bg-bg-secondary'
-    if (resolution.action === 'pick_first'  && idx === 0) return 'border-donc-verde bg-donc-verde/5'
-    if (resolution.action === 'pick_second' && idx === 1) return 'border-donc-verde bg-donc-verde/5'
-    if (resolution.action === 'keep_both')  return 'border-donc-verde bg-donc-verde/5'
-    if (resolution.action === 'merge_contacts') {
+    if (resolution.action === 'pick_first'     && idx === 0) return 'border-donc-verde bg-donc-verde/5'
+    if (resolution.action === 'pick_second'    && idx === 1) return 'border-donc-verde bg-donc-verde/5'
+    if (resolution.action === 'keep_both')                   return 'border-donc-verde bg-donc-verde/5'
+    if (resolution.action === 'merge_contacts')
       return c === mergedPrimary ? 'border-donc-sky bg-donc-sky/5' : 'border-border-tertiary bg-bg-secondary opacity-60'
-    }
     return 'border-border-tertiary bg-bg-secondary'
   }
 
   return (
-    <div className={`rounded-lg border-2 p-3 mb-2 ${resolved ? 'border-border-tertiary bg-bg-primary' : 'border-amber-400 bg-amber-50/40'}`}>
-      {/* Label */}
-      <div className="flex items-center gap-2 mb-2.5">
-        <span className="text-xs font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">
-          Possível duplicata
+    <div className={`rounded-lg border-2 p-3 mb-2 ${borderCls}`}>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-2.5 flex-wrap">
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded ${scoreBadgeCls}`}>
+          {isProbable ? 'Duplicata provável' : 'Possível duplicata'}
+        </span>
+        <span className="text-xs font-mono text-text-tertiary bg-bg-secondary px-1.5 py-0.5 rounded border border-border-tertiary">
+          score {group.score}
         </span>
         {!resolved && (
           <span className="text-xs text-amber-700">Resolução necessária antes de aprovar</span>
@@ -193,47 +327,48 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
       <div className="grid grid-cols-2 gap-2 mb-2.5">
         {[c1, c2].map((c, idx) => (
           <div key={idx} className={`rounded p-2.5 border text-sm ${cardHighlight(c, idx)}`}>
-            <p className="font-medium text-text-primary truncate">{c.name}</p>
-            <p className="text-xs text-text-secondary mt-0.5 truncate">{c.email}</p>
-            {c.phone && <p className="text-xs text-text-tertiary mt-0.5">{c.phone}</p>}
-            <div className="flex items-center gap-2 mt-1.5">
-              <span className="text-xs text-text-tertiary">{c.ticket_count} tickets</span>
-              <PapelBadge papel={c.suggested_papel} />
+            <div className="flex items-start gap-1.5">
+              <input
+                type="checkbox"
+                checked={checkedEmails.has(c.email)}
+                onChange={() => onToggle(c)}
+                className="accent-donc-sky cursor-pointer mt-0.5 flex-shrink-0"
+                title="Selecionar para mescla manual"
+              />
+              <div className="min-w-0">
+                <p className="font-medium text-text-primary truncate">{c.name}</p>
+                <p className="text-xs text-text-secondary mt-0.5 truncate">{c.email}</p>
+                {c.phone && <p className="text-xs text-text-tertiary mt-0.5">{c.phone}</p>}
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-xs text-text-tertiary">{c.ticket_count} tickets</span>
+                  <PapelBadge papel={c.suggested_papel} />
+                </div>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Ações de resolução */}
+      {/* Ações de resolução automática */}
       <div className="flex flex-wrap gap-1.5">
-        <button
-          className={btnCls(resolution?.action === 'pick_first')}
-          onClick={() => onResolve(group.key, { action: 'pick_first' })}
-        >
+        <button className={btnCls(resolution?.action === 'pick_first')}
+          onClick={() => onResolve(group.key, { action: 'pick_first' })}>
           Usar {c1.name.split(' ')[0]}
         </button>
-        <button
-          className={btnCls(resolution?.action === 'pick_second')}
-          onClick={() => onResolve(group.key, { action: 'pick_second' })}
-        >
+        <button className={btnCls(resolution?.action === 'pick_second')}
+          onClick={() => onResolve(group.key, { action: 'pick_second' })}>
           Usar {c2.name.split(' ')[0]}
         </button>
-        <button
-          className={btnCls(resolution?.action === 'keep_both')}
-          onClick={() => onResolve(group.key, { action: 'keep_both' })}
-        >
+        <button className={btnCls(resolution?.action === 'keep_both')}
+          onClick={() => onResolve(group.key, { action: 'keep_both' })}>
           Manter ambos
         </button>
-        <button
-          className={btnCls(resolution?.action === 'merge_contacts')}
-          onClick={() => onResolve(group.key, { action: 'merge_contacts' })}
-        >
+        <button className={btnCls(resolution?.action === 'merge_contacts')}
+          onClick={() => onResolve(group.key, { action: 'merge_contacts' })}>
           Mesclar em um contato
         </button>
-        <button
-          className={btnCls(resolution?.action === 'discard')}
-          onClick={() => onResolve(group.key, { action: 'discard' })}
-        >
+        <button className={btnCls(resolution?.action === 'discard')}
+          onClick={() => onResolve(group.key, { action: 'discard' })}>
           Descartar ambos
         </button>
       </div>
@@ -242,11 +377,14 @@ function DuplicateGroupCard({ group, resolution, onResolve }) {
 }
 
 // ── Seção de contatos novos ───────────────────────────────────────────────────
-function NewContactsSection({ newContacts, dupResolutions, onResolve }) {
-  const { singles, groups } = groupContacts(newContacts)
+function NewContactsSection({ effectiveContacts, dupResolutions, onResolve, checkedEmails, onToggle, onOpenMergeModal }) {
+  const { singles, groups } = groupContacts(effectiveContacts)
   const hasContent = singles.length > 0 || groups.length > 0
 
   if (!hasContent) return null
+
+  const checkedCount = checkedEmails.size
+  const selectedContacts = effectiveContacts.filter(c => checkedEmails.has(c.email))
 
   return (
     <div className="mt-3 border-t border-border-tertiary pt-3">
@@ -254,18 +392,20 @@ function NewContactsSection({ newContacts, dupResolutions, onResolve }) {
         Contatos novos encontrados
         {groups.length > 0 && (
           <span className="ml-2 normal-case font-normal text-amber-600">
-            — {groups.length} grupo{groups.length !== 1 ? 's' : ''} de possível duplicata
+            — {groups.length} grupo{groups.length !== 1 ? 's' : ''} detectado{groups.length !== 1 ? 's' : ''}
           </span>
         )}
       </p>
 
-      {/* Grupos de duplicatas */}
+      {/* Grupos de duplicatas (scoring automático) */}
       {groups.map(g => (
         <DuplicateGroupCard
           key={g.key}
           group={g}
           resolution={dupResolutions[g.key] ?? null}
           onResolve={onResolve}
+          checkedEmails={checkedEmails}
+          onToggle={onToggle}
         />
       ))}
 
@@ -274,6 +414,7 @@ function NewContactsSection({ newContacts, dupResolutions, onResolve }) {
         <table className="w-full text-sm mt-1">
           <thead>
             <tr className="bg-bg-secondary">
+              <th className="pl-3 py-1.5 w-8" />
               <th className="text-left px-3 py-1.5 text-xs font-medium text-text-tertiary">Nome</th>
               <th className="text-left px-3 py-1.5 text-xs font-medium text-text-tertiary">E-mail</th>
               <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Tickets</th>
@@ -281,9 +422,44 @@ function NewContactsSection({ newContacts, dupResolutions, onResolve }) {
             </tr>
           </thead>
           <tbody>
-            {singles.map((c, i) => <SingleContactRow key={i} c={c} />)}
+            {singles.map((c, i) => (
+              <SingleContactRow
+                key={i}
+                c={c}
+                checked={checkedEmails.has(c.email)}
+                onToggle={onToggle}
+              />
+            ))}
           </tbody>
         </table>
+      )}
+
+      {/* Barra flutuante — ABORDAGEM 2: mescla manual por checkbox */}
+      {checkedCount >= 2 && (
+        <div className="mt-3 p-2.5 bg-donc-navy text-white rounded-lg flex items-center justify-between gap-3 sticky bottom-2 shadow-lg">
+          <span className="text-xs">
+            {checkedCount} contatos selecionados
+          </span>
+          <div className="flex gap-2">
+            {checkedCount === 2 ? (
+              <button
+                type="button"
+                onClick={() => onOpenMergeModal(selectedContacts)}
+                className="text-xs px-3 py-1 bg-white text-donc-navy rounded font-medium hover:bg-gray-100 transition-colors"
+              >
+                Mesclar selecionados
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toast.error('Selecione exatamente 2 contatos para mesclar', { icon: '⚠️' })}
+                className="text-xs px-3 py-1 bg-white/20 text-white rounded"
+              >
+                Mesclar selecionados
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
@@ -292,19 +468,54 @@ function NewContactsSection({ newContacts, dupResolutions, onResolve }) {
 // ── Card de empresa / mês ─────────────────────────────────────────────────────
 function PendingCard({ record, onAction }) {
   const snap = record.freshdesk_snapshot ?? {}
-  const [busy, setBusy] = useState(false)
-  const [dupResolutions, setDupResolutions] = useState({})
 
-  const newContacts  = snap.new_contacts ?? []
-  const { groups }   = groupContacts(newContacts)
+  const [busy, setBusy]                   = useState(false)
+  const [dupResolutions, setDupResolutions] = useState({})
+  // effectiveContacts: lista de contatos após mesclas manuais
+  const [effectiveContacts, setEffectiveContacts] = useState(() => snap.new_contacts ?? [])
+  const [checkedEmails, setCheckedEmails] = useState(new Set())
+  const [mergeModal, setMergeModal]       = useState(null) // [c1, c2] or null
+
+  const { groups } = groupContacts(effectiveContacts)
   const unresolvedCount = groups.filter(g => !dupResolutions[g.key]).length
 
   function handleResolve(key, resolution) {
     setDupResolutions(p => ({ ...p, [key]: resolution }))
   }
 
+  function handleToggleCheck(contact) {
+    setCheckedEmails(prev => {
+      const next = new Set(prev)
+      next.has(contact.email) ? next.delete(contact.email) : next.add(contact.email)
+      return next
+    })
+  }
+
+  function handleOpenMergeModal(selected) {
+    if (selected.length !== 2) {
+      toast.error('Selecione exatamente 2 contatos para mesclar', { icon: '⚠️' })
+      return
+    }
+    setMergeModal(selected)
+  }
+
+  function handleManualMerge(primary, secondary) {
+    setEffectiveContacts(prev =>
+      prev
+        .filter(c => c.email !== secondary.email)
+        .map(c => c.email === primary.email
+          ? { ...c, secondary_emails: [...(c.secondary_emails ?? []), { email: secondary.email, type: 'work' }] }
+          : c,
+        ),
+    )
+    // Recalcula grupos — resoluções anteriores ficam obsoletas
+    setDupResolutions({})
+    setCheckedEmails(new Set())
+    setMergeModal(null)
+    toast.success(`Mescla confirmada: "${primary.name}" manterá ambos os e-mails`)
+  }
+
   async function act(action) {
-    // Bloqueia approve/merge se há duplicatas sem resolução
     if ((action === 'approve' || action === 'merge') && unresolvedCount > 0) {
       toast.error(
         `Resolva ${unresolvedCount} grupo${unresolvedCount !== 1 ? 's' : ''} de duplicata antes de aprovar`,
@@ -312,10 +523,9 @@ function PendingCard({ record, onAction }) {
       )
       return
     }
-
     setBusy(true)
     try {
-      const { singles, groups: gs } = groupContacts(newContacts)
+      const { singles, groups: gs } = groupContacts(effectiveContacts)
       const resolvedContacts = buildResolvedContacts(singles, gs, dupResolutions)
       await onAction(record, action, resolvedContacts)
     } finally {
@@ -323,59 +533,73 @@ function PendingCard({ record, onAction }) {
     }
   }
 
-  const totalNew = newContacts.length
-  const dupLabel = groups.length > 0 ? ` · ${groups.length} duplicata${groups.length !== 1 ? 's' : ''}` : ''
+  const totalNew = effectiveContacts.length
+  const dupLabel = groups.length > 0 ? ` · ${groups.length} grupo${groups.length !== 1 ? 's' : ''}` : ''
 
   return (
-    <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-      {/* Header */}
-      <div className="px-4 py-3 bg-bg-secondary border-b border-border-tertiary flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-semibold text-text-primary text-sm truncate">{record.client?.name}</span>
-          <span className="text-xs text-text-tertiary flex-shrink-0">{fmtMonth(record.ref_month)}</span>
-          {totalNew > 0 && (
-            <span className="text-xs bg-donc-sky/15 text-donc-sky rounded px-1.5 py-0.5 flex-shrink-0">
-              +{totalNew} contato{totalNew !== 1 ? 's' : ''}{dupLabel}
-            </span>
-          )}
-          {unresolvedCount > 0 && (
-            <span className="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 flex-shrink-0">
-              ⚠️ {unresolvedCount} duplicata{unresolvedCount !== 1 ? 's' : ''} pendente{unresolvedCount !== 1 ? 's' : ''}
-            </span>
-          )}
+    <>
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+        {/* Header */}
+        <div className="px-4 py-3 bg-bg-secondary border-b border-border-tertiary flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
+            <span className="font-semibold text-text-primary text-sm truncate">{record.client?.name}</span>
+            <span className="text-xs text-text-tertiary flex-shrink-0">{fmtMonth(record.ref_month)}</span>
+            {totalNew > 0 && (
+              <span className="text-xs bg-donc-sky/15 text-donc-sky rounded px-1.5 py-0.5 flex-shrink-0">
+                +{totalNew} contato{totalNew !== 1 ? 's' : ''}{dupLabel}
+              </span>
+            )}
+            {unresolvedCount > 0 && (
+              <span className="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 flex-shrink-0">
+                ⚠️ {unresolvedCount} duplicata{unresolvedCount !== 1 ? 's' : ''} pendente{unresolvedCount !== 1 ? 's' : ''}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Button size="sm" variant="green"     onClick={() => act('approve')} disabled={busy}>Aprovar</Button>
+            <Button size="sm" variant="secondary" onClick={() => act('merge')}   disabled={busy}>Mesclar</Button>
+            <Button size="sm" variant="danger"    onClick={() => act('reject')}  disabled={busy}>Rejeitar</Button>
+          </div>
         </div>
-        <div className="flex gap-2 flex-shrink-0">
-          <Button size="sm" variant="green"     onClick={() => act('approve')} disabled={busy}>Aprovar</Button>
-          <Button size="sm" variant="secondary" onClick={() => act('merge')}   disabled={busy}>Mesclar</Button>
-          <Button size="sm" variant="danger"    onClick={() => act('reject')}  disabled={busy}>Rejeitar</Button>
+
+        <div className="p-4">
+          {/* Comparação de métricas */}
+          <table className="w-full text-sm mb-3">
+            <thead>
+              <tr className="bg-bg-secondary">
+                <th className="text-left px-3 py-1.5 text-xs font-medium text-text-tertiary">Campo</th>
+                <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Atual</th>
+                <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Freshdesk</th>
+              </tr>
+            </thead>
+            <tbody>
+              {FIELDS.map(f => (
+                <CompareRow key={f.key} label={f.label} current={record[f.key]} proposed={snap[f.key]} />
+              ))}
+            </tbody>
+          </table>
+
+          {/* Contatos */}
+          <NewContactsSection
+            effectiveContacts={effectiveContacts}
+            dupResolutions={dupResolutions}
+            onResolve={handleResolve}
+            checkedEmails={checkedEmails}
+            onToggle={handleToggleCheck}
+            onOpenMergeModal={handleOpenMergeModal}
+          />
         </div>
       </div>
 
-      <div className="p-4">
-        {/* Comparação de métricas */}
-        <table className="w-full text-sm mb-3">
-          <thead>
-            <tr className="bg-bg-secondary">
-              <th className="text-left px-3 py-1.5 text-xs font-medium text-text-tertiary">Campo</th>
-              <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Atual</th>
-              <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Freshdesk</th>
-            </tr>
-          </thead>
-          <tbody>
-            {FIELDS.map(f => (
-              <CompareRow key={f.key} label={f.label} current={record[f.key]} proposed={snap[f.key]} />
-            ))}
-          </tbody>
-        </table>
-
-        {/* Contatos */}
-        <NewContactsSection
-          newContacts={newContacts}
-          dupResolutions={dupResolutions}
-          onResolve={handleResolve}
+      {/* Modal de mescla manual */}
+      {mergeModal && (
+        <MergeModal
+          contacts={mergeModal}
+          onConfirm={handleManualMerge}
+          onClose={() => setMergeModal(null)}
         />
-      </div>
-    </div>
+      )}
+    </>
   )
 }
 
@@ -407,7 +631,7 @@ async function approveContacts(clientId, contacts) {
       })
     }
 
-    // Insere e-mails secundários (resultado de mescla)
+    // Insere e-mails secundários (resultado de mescla automática ou manual)
     if (c.secondary_emails?.length) {
       const rows = c.secondary_emails.map(se => ({
         contact_id: contactId, email: se.email, type: se.type || 'work', is_primary: false,
@@ -428,8 +652,8 @@ async function approveContacts(clientId, contacts) {
 // ── Página principal ──────────────────────────────────────────────────────────
 export default function FreshdeskPendingPage() {
   const navigate = useNavigate()
-  const [records, setRecords]   = useState([])
-  const [loading, setLoading]   = useState(true)
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -504,7 +728,7 @@ export default function FreshdeskPendingPage() {
         <div>
           <h1 className="text-lg font-semibold text-text-primary">Importações Pendentes — Freshdesk</h1>
           <p className="text-sm text-text-tertiary mt-0.5">
-            Revise os dados importados antes de aplicá-los. Resolva duplicatas antes de aprovar.
+            Revise os dados importados. Resolva duplicatas detectadas ou selecione manualmente com os checkboxes.
           </p>
         </div>
         <div className="flex gap-2">
