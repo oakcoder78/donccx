@@ -153,14 +153,22 @@ export default function DashboardPage() {
 
   // Last activity date per client (for "sem interação" logic)
   // useMemo deve ficar antes de qualquer early return (Rules of Hooks)
-  const upcomingActivities = useMemo(() =>
-    [...myTasks]
+  // Atrasadas (< hoje) primeiro, depois futuras/hoje — ambas asc por data/hora
+  const upcomingActivities = useMemo(() => {
+    const overdue = [...myTasks]
+      .filter(a => a.activity_date && a.activity_date < todayStr)
+      .sort((a, b) => {
+        if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
+        return (a.activity_time || '').localeCompare(b.activity_time || '')
+      })
+    const future = [...myTasks]
       .filter(a => a.activity_date && a.activity_date >= todayStr)
       .sort((a, b) => {
         if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
         return (a.activity_time || '').localeCompare(b.activity_time || '')
-      }),
-  [myTasks])
+      })
+    return [...overdue, ...future]
+  }, [myTasks])
 
   const { data: lastActivityMap = {} } = useQuery({
     queryKey: ['last_activity_map', selectedCsm || 'all'],
@@ -342,11 +350,10 @@ export default function DashboardPage() {
           onClick={() => navigate('/empresas')}
         />
         <MetricCard
-          label="Tarefas Vencendo Hoje"
-          value={tasksToday.length}
-          color={tasksToday.length > 0 ? '#BA7517' : undefined}
-          sub={tasksOverdue.length > 0 ? `${tasksOverdue.length} atrasada${tasksOverdue.length !== 1 ? 's' : ''}` : undefined}
-          subColor="#E24B4A"
+          label="Atividades Pendentes"
+          value={myTasks.length}
+          color={myTasks.length > 0 ? '#BA7517' : undefined}
+          onClick={() => navigate('/atividades?status=pendente')}
         />
         <MetricCard
           label="Saudáveis"
@@ -459,10 +466,18 @@ export default function DashboardPage() {
           ) : (
             <div>
               {upcomingActivities.slice(0, 5).map((a, i) => {
-                const isToday = a.activity_date === todayStr
-                const dateLabel = isToday
-                  ? 'hoje'
-                  : (() => { const [,m,d] = a.activity_date.split('-'); return `${d}/${m}` })()
+                const isOverdue = a.activity_date < todayStr
+                const isToday   = a.activity_date === todayStr
+                const dateLabel = isOverdue
+                  ? 'atrasada'
+                  : isToday
+                    ? 'hoje'
+                    : (() => { const [,m,d] = a.activity_date.split('-'); return `${d}/${m}` })()
+                const badgeStyle = isOverdue
+                  ? { backgroundColor: '#E24B4A20', color: '#E24B4A' }
+                  : isToday
+                    ? { backgroundColor: '#BA751718', color: '#BA7517' }
+                    : { backgroundColor: '#59c2ed18', color: '#59c2ed' }
                 return (
                   <div key={a.id} style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0',
@@ -470,7 +485,7 @@ export default function DashboardPage() {
                   }}>
                     <div style={{
                       width: 15, height: 15, borderRadius: 4, flexShrink: 0,
-                      border: '1.5px solid #d4d3ce',
+                      border: `1.5px solid ${isOverdue ? '#E24B4A80' : '#d4d3ce'}`,
                     }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -482,11 +497,7 @@ export default function DashboardPage() {
                         </div>
                       )}
                     </div>
-                    <span style={{
-                      fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 5, flexShrink: 0,
-                      backgroundColor: isToday ? '#BA751718' : '#59c2ed18',
-                      color: isToday ? '#BA7517' : '#59c2ed',
-                    }}>
+                    <span style={{ fontSize: 11, fontWeight: 500, padding: '2px 8px', borderRadius: 5, flexShrink: 0, ...badgeStyle }}>
                       {dateLabel}
                     </span>
                   </div>
