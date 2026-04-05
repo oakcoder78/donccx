@@ -5,24 +5,30 @@ import { SettingsSegments } from './SettingsSegments'
 import { SettingsStages } from './SettingsStages'
 import { SettingsUsers } from './SettingsUsers'
 import { SettingsLogs } from './SettingsLogs'
+import { SettingsFreshdesk } from './SettingsFreshdesk'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useAuth } from '../../contexts/AuthContext'
 
 const BASE_MENU = [
-  { key: 'health',    icon: '❤️',  label: 'Health Score' },
-  { key: 'catalog',   icon: '📦',  label: 'Catálogos' },
-  { key: 'segments',  icon: '🏷️',  label: 'Segmentos' },
-  { key: 'stages',    icon: '🔄',  label: 'Estágios' },
-  { key: 'users',     icon: '👥',  label: 'Usuários' },
-  { key: 'logs',      icon: '📋',  label: 'Auditoria' },
+  { key: 'health',     icon: '❤️',  label: 'Health Score' },
+  { key: 'catalog',    icon: '📦',  label: 'Catálogos' },
+  { key: 'segments',   icon: '🏷️',  label: 'Segmentos' },
+  { key: 'stages',     icon: '🔄',  label: 'Estágios' },
+  { key: 'users',      icon: '👥',  label: 'Usuários' },
+  { key: 'logs',       icon: '📋',  label: 'Auditoria' },
+  { key: 'freshdesk',  icon: '🎧',  label: 'Freshdesk', adminOnly: true },
 ]
 
 export default function SettingsPage() {
   const { canManageUsers } = usePermissions()
+  const { isAdmin } = useAuth()
   const [section, setSection] = useState('health')
 
-  const MENU = canManageUsers
-    ? BASE_MENU
-    : BASE_MENU.filter(m => m.key !== 'logs')
+  const MENU = BASE_MENU.filter(m => {
+    if (m.key === 'logs' && !canManageUsers) return false
+    if (m.adminOnly && !isAdmin) return false
+    return true
+  })
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
@@ -49,12 +55,13 @@ export default function SettingsPage() {
 
       {/* Content */}
       <main className="flex-1 p-6">
-        {section === 'health'   && <SettingsHealth />}
-        {section === 'catalog'  && <SettingsCatalog />}
-        {section === 'segments' && <SettingsSegments />}
-        {section === 'stages'   && <SettingsStages />}
-        {section === 'users'    && <SettingsUsers />}
-        {section === 'logs'     && canManageUsers && <SettingsLogs />}
+        {section === 'health'    && <SettingsHealth />}
+        {section === 'catalog'   && <SettingsCatalog />}
+        {section === 'segments'  && <SettingsSegments />}
+        {section === 'stages'    && <SettingsStages />}
+        {section === 'users'     && <SettingsUsers />}
+        {section === 'logs'      && canManageUsers && <SettingsLogs />}
+        {section === 'freshdesk' && isAdmin && <SettingsFreshdesk />}
       </main>
     </div>
   )

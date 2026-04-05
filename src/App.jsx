@@ -16,6 +16,7 @@ import ContactsPage from './components/contacts/ContactsPage'
 import ActivitiesPage from './components/activities/ActivitiesPage'
 import ProjectsPage from './components/projects/ProjectsPage'
 import SettingsPage from './components/settings/SettingsPage'
+import FreshdeskPendingPage from './pages/FreshdeskPendingPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -94,6 +95,7 @@ function AppRoutes() {
 
         <Route element={<AdminRoute />}>
           <Route path="/configuracoes" element={<SettingsPage />} />
+          <Route path="/config/freshdesk/pendentes" element={<FreshdeskPendingPage />} />
         </Route>
       </Route>
 
