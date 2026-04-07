@@ -236,6 +236,14 @@ export function ClientForm({ client, onClose }) {
       setUploadingLogo(false)
     }
 
+    // Soluções em client_catalog derivam do modPricing (fonte da verdade = Contrato)
+    const solucaoIdSet = new Set(solucoes.map(s => s.id))
+    const servicesInCatalog = selectedCatalog.filter(id => !solucaoIdSet.has(id))
+    const activeModIds = Object.entries(modPricing)
+      .filter(([, v]) => v.active)
+      .map(([id]) => Number(id))
+    const catalogItems = [...servicesInCatalog, ...activeModIds]
+
     const payload = {
       name: form.name,
       fantasy_name: form.fantasy_name || null,
@@ -269,7 +277,7 @@ export function ClientForm({ client, onClose }) {
       address_neighborhood: form.address_neighborhood || null,
       address_city: form.address_city || null,
       address_state: form.address_state || null,
-      catalogItems: selectedCatalog,
+      catalogItems,
     }
 
     let clientId
@@ -577,29 +585,56 @@ export function ClientForm({ client, onClose }) {
             {(servicos.length > 0 || solucoes.length > 0) && (
               <div>
                 <label className="label-sm block mb-2">Serviços e Soluções</label>
-                {[{ label: 'Serviços', items: servicos }, { label: 'Soluções', items: solucoes }].map(({ label, items }) =>
-                  items.length > 0 && (
-                    <div key={label} className="mb-2">
-                      <p className="text-xs text-text-tertiary mb-1">{label}</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {items.map(item => (
-                          <button
-                            type="button"
+
+                {/* Serviços — editáveis */}
+                {servicos.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs text-text-tertiary mb-1">Serviços</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {servicos.map(item => (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() => toggleCatalog(item.id)}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            selectedCatalog.includes(item.id)
+                              ? 'text-white border-transparent'
+                              : 'text-text-secondary border-border-secondary hover:border-text-tertiary'
+                          }`}
+                          style={selectedCatalog.includes(item.id) ? { backgroundColor: item.color, borderColor: item.color } : {}}
+                        >
+                          {item.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Soluções — read-only, derivadas da aba Contrato */}
+                {solucoes.length > 0 && (
+                  <div className="mb-2">
+                    <p className="text-xs text-text-tertiary mb-1">
+                      Soluções <span className="text-text-tertiary/60">(gerenciadas na aba Contrato)</span>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {solucoes.map(item => {
+                        const active = modPricing[item.id]?.active
+                        return (
+                          <span
                             key={item.id}
-                            onClick={() => toggleCatalog(item.id)}
-                            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                              selectedCatalog.includes(item.id)
+                            className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
+                              active
                                 ? 'text-white border-transparent'
-                                : 'text-text-secondary border-border-secondary hover:border-text-tertiary'
+                                : 'text-text-tertiary border-border-tertiary opacity-40'
                             }`}
-                            style={selectedCatalog.includes(item.id) ? { backgroundColor: item.color, borderColor: item.color } : {}}
+                            style={active ? { backgroundColor: item.color, borderColor: item.color } : {}}
                           >
                             {item.name}
-                          </button>
-                        ))}
-                      </div>
+                          </span>
+                        )
+                      })}
                     </div>
-                  )
+                  </div>
                 )}
               </div>
             )}
