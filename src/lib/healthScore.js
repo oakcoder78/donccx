@@ -16,6 +16,7 @@ function clamp(val, min, max) {
 const ALWAYS_INCLUDE = new Set(['no_proj', 'mp_ok'])
 
 function applyRule(rules, key, appliedRules) {
+  if (!Array.isArray(rules)) return 0
   const rule = rules.find(r => r.rule_key === key)
   if (!rule) return 0
   if (rule.points !== 0 || ALWAYS_INCLUDE.has(key)) {
@@ -32,6 +33,7 @@ function isNeutralStage(client) {
 
 // ─── USO ───────────────────────────────────────────────────────────────────────
 function calcUso(client, rules) {
+  if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
   if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
   const usage = [...(client.client_usage ?? [])]
@@ -98,6 +100,7 @@ function calcUso(client, rules) {
 
 // ─── SUPORTE ───────────────────────────────────────────────────────────────────
 function calcSuporte(client, rules) {
+  if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
   if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
   const support = [...(client.client_support ?? [])]
@@ -131,15 +134,17 @@ function calcSuporte(client, rules) {
 
 // ─── RELACIONAMENTO ────────────────────────────────────────────────────────────
 function calcRelacionamento(client, rules) {
+  if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
   if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
   let mod = 0
 
   const links = client.contact_links ?? []
+  console.log('[calcRelacionamento] contact_links:', links)
 
   // Decisor
-  const hasDecisor = links.some(l => l.papel === 'Decisor')
+  const hasDecisor = links.some(l => l.papel?.toLowerCase() === 'decisor')
   if (!hasDecisor) {
     const refDate = client.golive || client.contract_start
     let monthsSince = 0
@@ -179,21 +184,23 @@ function calcRelacionamento(client, rules) {
 
 // ─── FINANCEIRO ────────────────────────────────────────────────────────────────
 function calcFinanceiro(client, rules) {
+  if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
   // Sempre calcula — não respeita estágio neutro
   const appliedRules = []
   let mod = 0
 
-  const d = client.delay_days ?? 0
-  if (d === 0)      mod += applyRule(rules, 'fin_ok',  appliedRules)
-  else if (d <= 30) mod += applyRule(rules, 'fin_30',  appliedRules)
-  else if (d <= 60) mod += applyRule(rules, 'fin_60',  appliedRules)
-  else              mod += applyRule(rules, 'fin_90',  appliedRules)
+  const days = parseInt(client.delay_days, 10) || 0
+  if (days === 0)       mod += applyRule(rules, 'fin_ok',  appliedRules)
+  else if (days <= 30)  mod += applyRule(rules, 'fin_30',  appliedRules)
+  else if (days <= 60)  mod += applyRule(rules, 'fin_60',  appliedRules)
+  else                  mod += applyRule(rules, 'fin_90',  appliedRules)
 
   return { score: clamp(20 + mod, 0, 20), appliedRules }
 }
 
 // ─── PROJETO ───────────────────────────────────────────────────────────────────
 function calcProjeto(client, rules) {
+  if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
   if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
