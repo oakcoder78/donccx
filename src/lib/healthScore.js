@@ -42,8 +42,8 @@ function calcUso(client) {
     const cur   = values[0]
     const prev3 = values.slice(1, 4)
     const avg   = prev3.reduce((s, v) => s + v, 0) / prev3.length
-    if (cur > avg * 1.10) return  5               // crescimento > 10%
-    if (cur < avg * 0.90) return -5               // queda > 10%
+    if (cur > avg * 1.35) return  5               // crescimento > 35%
+    if (cur < avg * 0.65) return -5               // queda > 35%
     return 3                                      // estável ±10%
   }
 
