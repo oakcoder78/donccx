@@ -30,7 +30,7 @@ function calcFinanceiro(client) {
 function calcUso(client) {
   // Estágios que recebem pontuação neutra imediata (sem análise de tendência)
   const stageName = (client.stage?.name ?? '').toLowerCase().trim()
-  const neutralStages = ['sem estágio', 'onboarding', 'estabilização', 'churned']
+  const neutralStages = ['sem estágio', 'onboarding', 'estabilização', 'em espera', 'churned']
   if (neutralStages.includes(stageName)) return 6
 
   // Contrato inativo: sem pontuação
@@ -60,6 +60,7 @@ function calcUso(client) {
 
   const historyThisMonth = (client.client_catalog_history ?? []).filter(h => {
     if (!h.changed_at) return false
+    if (h.catalog_items?.type !== 'solucao') return false
     const d = new Date(h.changed_at)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === currentYM
   })

@@ -19,7 +19,7 @@ export function useClient(id) {
           milestones(*, milestone_tasks(*)),
           client_usage(*),
           client_support(*),
-          client_catalog_history(*),
+          client_catalog_history(*, catalog_items(type)),
           onboarding_phases(*, onboarding_tasks(*))
         `)
         .eq('id', id)
