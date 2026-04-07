@@ -136,7 +136,7 @@ function calcRelacionamento(client) {
   else if (links.length >= 1) pts += 3
 
   // Mapa de poder: presença de Decisor
-  const hasDecisao = links.some(l => l.role === 'Decisor')
+  const hasDecisao = links.some(l => l.papel === 'Decisor')
   if (hasDecisao) pts += 5
 
   // Champion
@@ -144,9 +144,9 @@ function calcRelacionamento(client) {
   if (hasChampion) pts += 3
 
   // Engajamento: bônus se maioria dos links é 'Alto'
-  const engLinks = links.filter(l => l.engagement != null)
+  const engLinks = links.filter(l => l.engajamento != null)
   if (engLinks.length > 0) {
-    const altoCount = engLinks.filter(l => l.engagement === 'Alto').length
+    const altoCount = engLinks.filter(l => l.engajamento === 'Alto').length
     if (altoCount > engLinks.length / 2) pts += 2
   }
 
