@@ -38,6 +38,11 @@ function calcUso(client) {
   else if (solucoes >= 2) pts += 7
   else if (solucoes === 1) pts += 3
 
+  // Isenção para clientes em Onboarding: sem penalidade de OS ou usuários ativos
+  if (client.stage?.name === 'Onboarding') {
+    return clamp(pts + 5, 0, 20)
+  }
+
   // 2 meses mais recentes de client_usage
   const usage = [...(client.client_usage ?? [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
@@ -102,6 +107,14 @@ function calcSuporte(client) {
   else if (n3Pct <= 10) pts += 0
   else                  pts -= 5
 
+  // SLA de primeira resposta (média em minutos)
+  const slaFirst = latest.sla_first_response ?? null
+  if (slaFirst !== null) {
+    if (slaFirst <= 15)      pts += 3
+    else if (slaFirst <= 60) pts += 1
+    // > 60: +0
+  }
+
   return clamp(pts, 0, 20)
 }
 
@@ -117,18 +130,24 @@ function calcRelacionamento(client) {
     .reduce((sum, a) => sum + (typeWeight[a.type] ?? 0), 0)
   pts += Math.min(10, actScore)
 
-  // Contatos cadastrados
+  // Contatos cadastrados via contact_links
   const links = client.contact_links ?? []
   if (links.length >= 3)      pts += 5
   else if (links.length >= 1) pts += 3
 
-  // Temperatura média dos contatos
-  const temps = links.map(l => l.contacts?.temperature).filter(Boolean)
-  if (temps.length > 0) {
-    const verde   = temps.filter(t => /verde|green/i.test(t)).length
-    const amarelo = temps.filter(t => /amarelo|yellow/i.test(t)).length
-    if (verde   > temps.length / 2) pts += 5
-    else if (amarelo > temps.length / 2) pts += 3
+  // Mapa de poder: presença de Decisor
+  const hasDecisao = links.some(l => l.role === 'Decisor')
+  if (hasDecisao) pts += 5
+
+  // Champion
+  const hasChampion = links.some(l => l.champion === true)
+  if (hasChampion) pts += 3
+
+  // Engajamento: bônus se maioria dos links é 'Alto'
+  const engLinks = links.filter(l => l.engagement != null)
+  if (engLinks.length > 0) {
+    const altoCount = engLinks.filter(l => l.engagement === 'Alto').length
+    if (altoCount > engLinks.length / 2) pts += 2
   }
 
   return clamp(pts, 0, 20)
