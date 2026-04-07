@@ -27,3 +27,13 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
+
+# Secrets e binários locais
+*.json.secret
+client_secret_*.json
+supabase.exe
+supabase_windows_amd64.tar.gz
+supabase/functions/**/.env
+OAuthClient.jpg

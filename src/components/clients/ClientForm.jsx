@@ -94,9 +94,11 @@ export function ClientForm({ client, onClose }) {
     if (existingModPricing.length > 0) {
       const init = {}
       existingModPricing.forEach(mp => {
+        const catalogEntry = client?.client_catalog?.find(cc => cc.catalog_item_id === mp.catalog_item_id)
         init[mp.catalog_item_id] = {
           active: true,
           value: mp.additional_value != null ? String(mp.additional_value) : '',
+          status: catalogEntry?.status || 'implantado',
         }
       })
       setModPricing(init)
@@ -120,17 +122,15 @@ export function ClientForm({ client, onClose }) {
   const allActive = solucoes.length > 0 && solucoes.every(s => modPricing[s.id]?.active)
   function toggleAll() {
     if (allActive) {
-      // desativar todos
       const next = {}
       solucoes.forEach(s => {
-        next[s.id] = { active: false, value: modPricing[s.id]?.value || '' }
+        next[s.id] = { active: false, value: modPricing[s.id]?.value || '', status: modPricing[s.id]?.status || 'implantado' }
       })
       setModPricing(prev => ({ ...prev, ...next }))
     } else {
-      // ativar todos
       const next = {}
       solucoes.forEach(s => {
-        next[s.id] = { active: true, value: modPricing[s.id]?.value || '' }
+        next[s.id] = { active: true, value: modPricing[s.id]?.value || '', status: modPricing[s.id]?.status || 'implantado' }
       })
       setModPricing(prev => ({ ...prev, ...next }))
     }
@@ -197,10 +197,10 @@ export function ClientForm({ client, onClose }) {
   }
 
   function toggleMod(itemId) {
-    setModPricing(prev => ({
-      ...prev,
-      [itemId]: { active: !prev[itemId]?.active, value: prev[itemId]?.value || '' },
-    }))
+    setModPricing(prev => {
+      const cur = prev[itemId] || { active: false, value: '', status: 'implantado' }
+      return { ...prev, [itemId]: { ...cur, active: !cur.active, status: cur.status || 'implantado' } }
+    })
     setModErrors(prev => ({ ...prev, [itemId]: undefined }))
   }
 
@@ -210,6 +210,13 @@ export function ClientForm({ client, onClose }) {
       [itemId]: { ...prev[itemId], active: prev[itemId]?.active ?? false, value },
     }))
     setModErrors(prev => ({ ...prev, [itemId]: undefined }))
+  }
+
+  function setModStatus(itemId, status) {
+    setModPricing(prev => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], status },
+    }))
   }
 
   function validateMods() {
@@ -238,11 +245,13 @@ export function ClientForm({ client, onClose }) {
 
     // Soluções em client_catalog derivam do modPricing (fonte da verdade = Contrato)
     const solucaoIdSet = new Set(solucoes.map(s => s.id))
-    const servicesInCatalog = selectedCatalog.filter(id => !solucaoIdSet.has(id))
-    const activeModIds = Object.entries(modPricing)
+    const servicesInCatalog = selectedCatalog
+      .filter(id => !solucaoIdSet.has(id))
+      .map(id => ({ catalog_item_id: id, status: 'implantado' }))
+    const activeModItems = Object.entries(modPricing)
       .filter(([, v]) => v.active)
-      .map(([id]) => Number(id))
-    const catalogItems = [...servicesInCatalog, ...activeModIds]
+      .map(([id, v]) => ({ catalog_item_id: Number(id), status: v.status || 'implantado' }))
+    const catalogItems = [...servicesInCatalog, ...activeModItems]
 
     const payload = {
       name: form.name,
@@ -506,6 +515,19 @@ export function ClientForm({ client, onClose }) {
                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sol.color }} />
                             <span className="text-sm text-text-primary">{sol.name}</span>
                           </span>
+                          {mp.active && (
+                            <select
+                              value={mp.status || 'implantado'}
+                              onChange={e => setModStatus(sol.id, e.target.value)}
+                              className="input-base text-xs py-0.5 px-2 h-7"
+                            >
+                              <option value="implantado">Implantado</option>
+                              <option value="em_implantacao">Em implantação</option>
+                              <option value="pausado">Pausado</option>
+                              <option value="abandonado">Abandonado</option>
+                              <option value="descontinuado">Descontinuado</option>
+                            </select>
+                          )}
                           <div className="flex items-center gap-1">
                             <span className="text-xs text-text-tertiary">R$</span>
                             <input

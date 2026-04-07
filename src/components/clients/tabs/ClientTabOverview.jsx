@@ -2,8 +2,14 @@ import { useNavigate } from 'react-router-dom'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Avatar } from '../../ui/Avatar'
+import { useCatalog } from '../../../hooks/useCatalog'
 
 const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
+
+const GAP_META = {
+  pausado:    { icon: '⚠', label: 'Pausado' },
+  abandonado: { icon: '⛔', label: 'Abandonado' },
+}
 
 function formatDate(d) {
   if (!d) return '—'
@@ -12,9 +18,26 @@ function formatDate(d) {
 
 export function ClientTabOverview({ client }) {
   const navigate = useNavigate()
+  const { data: catalog = [] } = useCatalog()
+
   const recentActivities = [...(client.activities || [])].sort((a,b) => b.activity_date?.localeCompare(a.activity_date)).slice(0,4)
   const activeContacts = client.contact_links || []
   const activeMilestones = (client.milestones || []).filter(m => m.status !== 'done').slice(0,3)
+
+  // Oportunidades de Expansão
+  const allSolucoes = catalog.filter(c => c.type === 'solucao')
+  const catalogMap = {}
+  client.client_catalog?.forEach(cc => { catalogMap[cc.catalog_item_id] = cc })
+  const contractedIds = new Set(Object.keys(catalogMap).map(Number))
+
+  const gaps = allSolucoes.filter(sol => {
+    const entry = catalogMap[sol.id]
+    return entry && (entry.status === 'pausado' || entry.status === 'abandonado')
+  })
+
+  const expansao = allSolucoes.filter(sol => !contractedIds.has(sol.id))
+
+  const showOportunidades = gaps.length > 0 || expansao.length > 0
 
   return (
     <div className="grid md:grid-cols-2 gap-4">
@@ -97,6 +120,54 @@ export function ClientTabOverview({ client }) {
           </div>
         )}
       </Card>
+
+      {/* Oportunidades de Expansão */}
+      {showOportunidades && (
+        <Card className="md:col-span-2">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">Oportunidades de Expansão</h3>
+
+          {gaps.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-text-tertiary mb-2">Gaps de adoção</p>
+              <div className="flex flex-wrap gap-1.5">
+                {gaps.map(sol => {
+                  const status = catalogMap[sol.id]?.status
+                  const meta = GAP_META[status] || { icon: '⚠', label: status }
+                  return (
+                    <span
+                      key={sol.id}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium text-white"
+                      style={{ backgroundColor: sol.color }}
+                      title={meta.label}
+                    >
+                      <span>{meta.icon}</span>
+                      {sol.name}
+                      <span className="opacity-75 text-[10px]">· {meta.label}</span>
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {expansao.length > 0 && (
+            <div>
+              <p className="text-xs text-text-tertiary mb-2">Potencial de expansão</p>
+              <div className="flex flex-wrap gap-1.5">
+                {expansao.map(sol => (
+                  <span
+                    key={sol.id}
+                    className="px-2.5 py-1 rounded-full text-xs font-medium text-text-tertiary border border-border-secondary"
+                    title="Não contratado"
+                  >
+                    {sol.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
     </div>
   )
 }

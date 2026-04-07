@@ -7,7 +7,7 @@ const CLIENT_SELECT = `
   *,
   stage:stages(*),
   csm:profiles!clients_csm_id_fkey(id, name, email),
-  client_catalog(catalog_item_id, catalog_items(*))
+  client_catalog(catalog_item_id, status, catalog_items(*))
 `
 
 function buildClientsQuery(filters) {
@@ -61,7 +61,13 @@ export function useClientMutations() {
       const { data, error } = await supabase.from('clients').insert(payload).select().single()
       if (error) throw error
       if (catalogItems?.length) {
-        await supabase.from('client_catalog').insert(catalogItems.map(id => ({ client_id: data.id, catalog_item_id: id })))
+        await supabase.from('client_catalog').insert(
+          catalogItems.map(item => {
+            const cid = typeof item === 'object' ? item.catalog_item_id : item
+            const st  = typeof item === 'object' ? (item.status || 'implantado') : 'implantado'
+            return { client_id: data.id, catalog_item_id: cid, status: st }
+          })
+        )
       }
       await logAction('create_client', 'client', data.id, data.name, null, payload)
       return data
@@ -90,7 +96,13 @@ export function useClientMutations() {
       if (catalogItems !== undefined) {
         await supabase.from('client_catalog').delete().eq('client_id', id)
         if (catalogItems.length) {
-          await supabase.from('client_catalog').insert(catalogItems.map(cid => ({ client_id: id, catalog_item_id: cid })))
+          await supabase.from('client_catalog').insert(
+            catalogItems.map(item => {
+              const cid = typeof item === 'object' ? item.catalog_item_id : item
+              const st  = typeof item === 'object' ? (item.status || 'implantado') : 'implantado'
+              return { client_id: id, catalog_item_id: cid, status: st }
+            })
+          )
         }
       }
 

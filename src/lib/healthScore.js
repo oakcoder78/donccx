@@ -30,46 +30,46 @@ function calcFinanceiro(client) {
 function calcUso(client) {
   let pts = 0
 
-  // Módulos contratados (type === 'solucao')
-  const solucoes = (client.client_catalog ?? [])
-    .filter(cc => cc.catalog_items?.type === 'solucao').length
-
-  if (solucoes >= 4)      pts += 10
-  else if (solucoes >= 2) pts += 7
-  else if (solucoes === 1) pts += 3
-
-  // Isenção para clientes em Onboarding SEM dados de uso ainda: assume estável
-  const hasUsageData = (client.client_usage ?? []).length > 0
-  if (client.stage?.name === 'Onboarding' && !hasUsageData) {
-    return clamp(pts + 5, 0, 20)
-  }
-
-  // 2 meses mais recentes de client_usage
   const usage = [...(client.client_usage ?? [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
-  const cur = usage[0]
-  const prev = usage[1]
 
-  if (cur && prev) {
-    // Usuários ativos: crescimento vs mês anterior
-    const userChg = prev.active_users > 0
-      ? (cur.active_users - prev.active_users) / prev.active_users
-      : 0
-    if (userChg >= 0.1)       pts += 5   // crescimento ≥10%
-    else if (userChg >= -0.1) pts += 3   // estável
-    else if (userChg >= -0.3) pts += 0   // queda 10-30%
-    else                      pts -= 5   // queda >30%
-
-    // Volume OS
-    const osChg = prev.os_created > 0
-      ? (cur.os_created - prev.os_created) / prev.os_created
-      : 0
-    if (osChg < -0.2)  pts -= 3   // queda >20%
-    else if (osChg > 0) pts += 2  // qualquer crescimento
-    // estável: +0
-  } else if (cur) {
-    pts += 3  // só um mês disponível: assume estável
+  // Isenção para clientes em Onboarding SEM dados de uso ainda: score neutro
+  if (client.stage?.name === 'Onboarding' && usage.length === 0) {
+    return 10
   }
+
+  if (usage.length < 2) {
+    // Histórico insuficiente: pontuação neutra para OS e usuários
+    pts += 3 // OS neutro
+    pts += 3 // usuários neutro
+  } else {
+    const cur   = usage[0]
+    const last3 = usage.slice(1, 4) // até 3 meses anteriores
+
+    const avg3OS    = last3.reduce((s, u) => s + (u.os_created   ?? 0), 0) / last3.length
+    const avg3Users = last3.reduce((s, u) => s + (u.active_users ?? 0), 0) / last3.length
+
+    // Tendência OS vs média dos 3 meses anteriores
+    const osChg = avg3OS > 0 ? ((cur.os_created ?? 0) - avg3OS) / avg3OS : 0
+    if (osChg > 0.1)       pts += 5   // crescimento > 10%
+    else if (osChg >= -0.1) pts += 3  // estável ±10%
+    else                    pts -= 5  // queda > 10%
+
+    // Tendência usuários ativos vs média dos 3 meses anteriores
+    const userChg = avg3Users > 0 ? ((cur.active_users ?? 0) - avg3Users) / avg3Users : 0
+    if (userChg > 0.1)       pts += 5   // crescimento > 10%
+    else if (userChg >= -0.1) pts += 3  // estável ±10%
+    else                      pts -= 5  // queda > 10%
+  }
+
+  // Bônus/penalidade por status de módulos (soluções contratadas)
+  const solucaoCatalog = (client.client_catalog ?? [])
+    .filter(cc => cc.catalog_items?.type === 'solucao')
+  const hasEmImplantacao = solucaoCatalog.some(cc => cc.status === 'em_implantacao')
+  const abandonados = solucaoCatalog.filter(cc => cc.status === 'abandonado')
+
+  if (hasEmImplantacao) pts += 5            // novo módulo em rollout: bônus pontual
+  pts -= abandonados.length * 3             // penalidade por módulo abandonado
 
   return clamp(pts, 0, 20)
 }

@@ -15,7 +15,26 @@
       "Bash(grep -n \"console.error\" src/hooks/*.js)",
       "Bash(jobs -l)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(node --input-type=module)",
+      "Bash(xargs ls:*)",
+      "Bash(winget install:*)",
+      "Bash(curl -s https://api.github.com/repos/supabase/cli/releases/latest)",
+      "Bash(curl -L -o supabase_windows_amd64.tar.gz \"https://github.com/supabase/cli/releases/download/v2.84.2/supabase_windows_amd64.tar.gz\")",
+      "Bash(tar -xzf supabase_windows_amd64.tar.gz)",
+      "Bash(ls supabase*)",
+      "Bash(./supabase.exe --version)",
+      "Bash(./supabase.exe login:*)",
+      "Bash(./supabase.exe secrets:*)",
+      "Bash(./supabase.exe functions:*)",
+      "Bash(node scripts/freshdesk-map-companies.js)",
+      "Bash(./supabase.exe projects:*)",
+      "Bash(curl -s -u \"8Ln3DPgDEDaTWQasKuga:X\" \"https://donc.freshdesk.com/api/v2/companies?per_page=100&page=1\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); matches=[c for c in data if any\\(k in c['name'].lower\\(\\) for k in ['feir','peixe','rio do','lojao','lojas rio']\\)]; print\\(json.dumps\\(matches, indent=2, ensure_ascii=False\\)\\)\")",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\(0,'utf8'\\); const arr=JSON.parse\\(d\\); arr.filter\\(c=>/feir|peixe|rio do|lojao/i.test\\(c.name\\)\\).forEach\\(c=>console.log\\(c.id, c.name\\)\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(node scripts/freshdesk-map-companies.js --apply)",
+      "Bash(node scripts/freshdesk-sync.js 2026-03)"
     ]
   }
 }
