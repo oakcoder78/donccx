@@ -38,8 +38,9 @@ function calcUso(client) {
   else if (solucoes >= 2) pts += 7
   else if (solucoes === 1) pts += 3
 
-  // Isenção para clientes em Onboarding: sem penalidade de OS ou usuários ativos
-  if (client.stage?.name === 'Onboarding') {
+  // Isenção para clientes em Onboarding SEM dados de uso ainda: assume estável
+  const hasUsageData = (client.client_usage ?? []).length > 0
+  if (client.stage?.name === 'Onboarding' && !hasUsageData) {
     return clamp(pts + 5, 0, 20)
   }
 
