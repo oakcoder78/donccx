@@ -7,7 +7,7 @@ const FULL_CLIENT_SELECT = `
   *,
   stage:stages(*),
   csm:profiles!clients_csm_id_fkey(id, name, email),
-  client_catalog(catalog_item_id, status, catalog_items(*)),
+  client_catalog(id, catalog_item_id, status, catalog_items(*)),
   contact_links(*, contacts(*, contact_phones(*))),
   activities(*, responsible:profiles(id,name), contacts(id,name)),
   milestones(*, milestone_tasks(*)),
