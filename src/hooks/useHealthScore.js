@@ -28,6 +28,23 @@ async function fetchRules() {
  */
 export async function recalculateAndSave(client, rules) {
   const effectiveRules = rules ?? await fetchRules()
+  console.log('[recalculateAndSave] rules recebidas:', effectiveRules)
+  console.log('[recalculateAndSave] client recebido:', {
+    id: client?.id,
+    contract_active: client?.contract_active,
+    delay_days: client?.delay_days,
+    stage: client?.stage,
+    golive: client?.golive,
+    client_usage_count: client?.client_usage?.length,
+    client_support_count: client?.client_support?.length,
+    contact_links_count: client?.contact_links?.length,
+    activities_count: client?.activities?.length,
+    milestones_count: client?.milestones?.length,
+    catalog_history_count: client?.client_catalog_history?.length,
+  })
+  if (!effectiveRules?.length) {
+    console.warn('[recalculateAndSave] AVISO: rules vazio ou não carregado — score retornará 20 em todas as dimensões')
+  }
   const scores = calculateHealthScore(client, effectiveRules)
 
   const { error } = await supabase
@@ -69,15 +86,15 @@ export async function recalculateAllHealthScores() {
  *
  * Uso:
  *   const recalculate = useRecalculateHealth()
- *   recalculate.mutate(client)          // sem feedback de toast
- *   recalculate.mutateAsync(client)     // com await
+ *   recalculate.mutate({ client, rules })   // passa rules diretamente (evita fetch extra)
+ *   recalculate.mutate({ client })          // busca rules automaticamente via fetchRules()
  */
 export function useRecalculateHealth() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: recalculateAndSave,
-    onSuccess: (scores, client) => {
+    mutationFn: ({ client, rules }) => recalculateAndSave(client, rules),
+    onSuccess: (scores, { client }) => {
       qc.invalidateQueries({ queryKey: ['client', String(client.id)] })
       qc.invalidateQueries({ queryKey: ['clients'] })
       toast.success(

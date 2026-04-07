@@ -32,7 +32,7 @@ export function ClientTabHealth({ client }) {
           size="sm"
           variant="secondary"
           disabled={recalculate.isPending}
-          onClick={() => recalculate.mutate(client)}
+          onClick={() => recalculate.mutate({ client, rules })}
         >
           {recalculate.isPending ? 'Calculando...' : '🩺 Recalcular'}
         </Button>
