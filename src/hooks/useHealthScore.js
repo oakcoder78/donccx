@@ -12,7 +12,8 @@ const FULL_CLIENT_SELECT = `
   activities(*, responsible:profiles(id,name), contacts(id,name)),
   milestones(*, milestone_tasks(*)),
   client_usage(*),
-  client_support(*)
+  client_support(*),
+  client_catalog_history(*)
 `
 
 /**

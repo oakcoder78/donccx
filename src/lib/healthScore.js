@@ -28,48 +28,67 @@ function calcFinanceiro(client) {
 
 // ─── USO ───────────────────────────────────────────────────────────────────────
 function calcUso(client) {
-  let pts = 0
+  // Estágios que recebem pontuação neutra imediata (sem análise de tendência)
+  const stageName = (client.stage?.name ?? '').toLowerCase().trim()
+  const neutralStages = ['sem estágio', 'onboarding', 'estabilização', 'churned']
+  if (neutralStages.includes(stageName)) return 6
+
+  // Contrato inativo: sem pontuação
+  if (client.contract_active === false) return 0
+
+  // Tendência por métrica: compara valor atual com média dos 3 meses anteriores
+  function scoreTrend(values) {
+    if (values.length < 2) return 3               // histórico insuficiente: neutro
+    const cur   = values[0]
+    const prev3 = values.slice(1, 4)
+    const avg   = prev3.reduce((s, v) => s + v, 0) / prev3.length
+    if (cur > avg * 1.10) return  5               // crescimento > 10%
+    if (cur < avg * 0.90) return -5               // queda > 10%
+    return 3                                      // estável ±10%
+  }
 
   const usage = [...(client.client_usage ?? [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
 
-  // Isenção para clientes em Onboarding SEM dados de uso ainda: score neutro
-  if (client.stage?.name === 'Onboarding' && usage.length === 0) {
-    return 10
-  }
+  let pts = 0
+  pts += scoreTrend(usage.map(u => u.os_created   ?? 0))
+  pts += scoreTrend(usage.map(u => u.active_users ?? 0))
 
-  if (usage.length < 2) {
-    // Histórico insuficiente: pontuação neutra para OS e usuários
-    pts += 3 // OS neutro
-    pts += 3 // usuários neutro
-  } else {
-    const cur   = usage[0]
-    const last3 = usage.slice(1, 4) // até 3 meses anteriores
+  // Bônus/penalidades por mudança de status no mês corrente (via client_catalog_history)
+  const now = new Date()
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    const avg3OS    = last3.reduce((s, u) => s + (u.os_created   ?? 0), 0) / last3.length
-    const avg3Users = last3.reduce((s, u) => s + (u.active_users ?? 0), 0) / last3.length
+  const historyThisMonth = (client.client_catalog_history ?? []).filter(h => {
+    if (!h.changed_at) return false
+    const d = new Date(h.changed_at)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === currentYM
+  })
 
-    // Tendência OS vs média dos 3 meses anteriores
-    const osChg = avg3OS > 0 ? ((cur.os_created ?? 0) - avg3OS) / avg3OS : 0
-    if (osChg > 0.1)       pts += 5   // crescimento > 10%
-    else if (osChg >= -0.1) pts += 3  // estável ±10%
-    else                    pts -= 5  // queda > 10%
+  const implantadoApplied = new Set()
+  const abandonadoApplied = new Set()
 
-    // Tendência usuários ativos vs média dos 3 meses anteriores
-    const userChg = avg3Users > 0 ? ((cur.active_users ?? 0) - avg3Users) / avg3Users : 0
-    if (userChg > 0.1)       pts += 5   // crescimento > 10%
-    else if (userChg >= -0.1) pts += 3  // estável ±10%
-    else                      pts -= 5  // queda > 10%
-  }
-
-  // Bônus/penalidade por status de módulos (soluções contratadas)
-  const solucaoCatalog = (client.client_catalog ?? [])
-    .filter(cc => cc.catalog_items?.type === 'solucao')
-  const hasEmImplantacao = solucaoCatalog.some(cc => cc.status === 'em_implantacao')
-  const abandonados = solucaoCatalog.filter(cc => cc.status === 'abandonado')
-
-  if (hasEmImplantacao) pts += 5            // novo módulo em rollout: bônus pontual
-  pts -= abandonados.length * 3             // penalidade por módulo abandonado
+  historyThisMonth.forEach(h => {
+    const key = h.catalog_item_id
+    // Módulo concluiu implantação (+5, max uma vez por módulo)
+    if (
+      h.status_novo === 'implantado' &&
+      h.status_anterior != null &&
+      h.status_anterior !== 'implantado' &&
+      !implantadoApplied.has(key)
+    ) {
+      pts += 5
+      implantadoApplied.add(key)
+    }
+    // Módulo foi abandonado (-3, max uma vez por módulo)
+    if (
+      h.status_novo === 'abandonado' &&
+      h.status_anterior !== 'abandonado' &&
+      !abandonadoApplied.has(key)
+    ) {
+      pts -= 3
+      abandonadoApplied.add(key)
+    }
+  })
 
   return clamp(pts, 0, 20)
 }
