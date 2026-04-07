@@ -41,7 +41,6 @@ export function useClientUsageMutations() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client'] })
-      toast.success('Dados salvos')
     },
     onError: (e) => toast.error(e.message),
   })
@@ -89,7 +88,6 @@ export function useClientSupportMutations() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['client'] })
       qc.invalidateQueries({ queryKey: ['client_support'] })
-      toast.success('Dados salvos')
     },
     onError: (e) => toast.error(e.message),
   })

@@ -1,20 +1,10 @@
 import { useEffect } from 'react'
 
 export function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-2xl' }) {
-  useEffect(() => {
-    if (!isOpen) return
-    const handler = (e) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [isOpen, onClose])
-
   if (!isOpen) return null
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/50"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
-    >
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
       <div className={`relative mx-auto mt-[60px] mb-8 ${maxWidth} bg-bg-primary rounded-lg shadow-xl`}>
         <div className="flex items-center justify-between p-4 border-b border-border-tertiary">
           <h2 className="text-base font-semibold text-text-primary">{title}</h2>

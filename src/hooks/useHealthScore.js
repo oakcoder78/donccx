@@ -16,12 +16,19 @@ const FULL_CLIENT_SELECT = `
   client_catalog_history(*, catalog_items(type))
 `
 
+async function fetchRules() {
+  const { data, error } = await supabase.from('health_rules').select('*')
+  if (error) { console.error('[useHealthScore] fetchRules error:', error); return [] }
+  return data ?? []
+}
+
 /**
  * Calcula o health score a partir do objeto cliente e persiste no banco.
- * Pode ser chamado como função pura (fora de hooks) se necessário.
+ * Se rules não for fornecido, busca do banco automaticamente.
  */
-export async function recalculateAndSave(client) {
-  const scores = calculateHealthScore(client)
+export async function recalculateAndSave(client, rules) {
+  const effectiveRules = rules ?? await fetchRules()
+  const scores = calculateHealthScore(client, effectiveRules)
 
   const { error } = await supabase
     .from('clients')
@@ -44,15 +51,16 @@ export async function recalculateAndSave(client) {
  * score de cada um e persiste. Retorna a quantidade de clientes atualizados.
  */
 export async function recalculateAllHealthScores() {
-  const { data: clients, error } = await supabase
-    .from('clients')
-    .select(FULL_CLIENT_SELECT)
-    .eq('contract_active', true)
+  const [clientsResult, rules] = await Promise.all([
+    supabase.from('clients').select(FULL_CLIENT_SELECT).eq('contract_active', true),
+    fetchRules(),
+  ])
 
-  if (error) throw error
-  if (!clients?.length) return 0
+  if (clientsResult.error) throw clientsResult.error
+  const clients = clientsResult.data ?? []
+  if (!clients.length) return 0
 
-  await Promise.all(clients.map(c => recalculateAndSave(c)))
+  await Promise.all(clients.map(c => recalculateAndSave(c, rules)))
   return clients.length
 }
 

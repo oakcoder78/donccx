@@ -8,6 +8,7 @@ import {
   useClientSupportMutations,
 } from '../../../../hooks/useClient'
 import { supabase } from '../../../../lib/supabaseClient'
+import toast from 'react-hot-toast'
 
 function currentMonth() {
   const d = new Date()
@@ -123,6 +124,7 @@ export function RegistrarDadosModal({ client, initialMonth, onClose }) {
       await Promise.all(saves)
       qc.invalidateQueries({ queryKey: ['client', String(client.id)] })
       qc.invalidateQueries({ queryKey: ['clients'] })
+      toast.success('Dados salvos')
       onClose()
     } finally {
       setSaving(false)

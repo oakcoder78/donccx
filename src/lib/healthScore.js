@@ -1,68 +1,72 @@
 /**
- * calculateHealthScore(client)
+ * calculateHealthScore(client, rules)
  *
- * Recebe o objeto completo do cliente (conforme useClient.js) e retorna:
- * { total, uso, suporte, relacionamento, financeiro, projeto }
- *
- * Cada dimensão: 0–20 pts. Total: soma das 5, capped em [0, 100].
+ * Recebe o objeto completo do cliente e o array de health_rules do banco.
+ * Cada dimensão parte de 20 e recebe modificadores negativos.
+ * Retorna: { total, uso, suporte, relacionamento, financeiro, projeto, appliedRules }
  */
 
-// ─── FINANCEIRO ────────────────────────────────────────────────────────────────
-function calcFinanceiro(client) {
-  let pts = 0
+// ─── HELPERS ───────────────────────────────────────────────────────────────────
 
-  // ABC class
-  const abc = { A: 15, B: 10, C: 5 }
-  pts += abc[client.abc_class] ?? 0
+function clamp(val, min, max) {
+  return Math.min(max, Math.max(min, val))
+}
 
-  // Dias em atraso
-  const d = client.delay_days ?? 0
-  if (d === 0)      pts += 5
-  else if (d <= 15) pts += 3
-  else if (d <= 30) pts += 0
-  else if (d <= 60) pts -= 3
-  else              pts -= 5
+// Regras que entram em appliedRules mesmo com points = 0 (indicam estado)
+const ALWAYS_INCLUDE = new Set(['no_proj', 'mp_ok'])
 
-  return clamp(pts, 0, 20)
+function applyRule(rules, key, appliedRules) {
+  const rule = rules.find(r => r.rule_key === key)
+  if (!rule) return 0
+  if (rule.points !== 0 || ALWAYS_INCLUDE.has(key)) {
+    appliedRules.push({ rule_key: rule.rule_key, label: rule.label, points: rule.points })
+  }
+  return rule.points
+}
+
+const NEUTRAL_STAGES = ['sem estágio', 'onboarding', 'estabilização', 'em espera', 'churned']
+
+function isNeutralStage(client) {
+  return NEUTRAL_STAGES.includes((client.stage?.name ?? '').toLowerCase().trim())
 }
 
 // ─── USO ───────────────────────────────────────────────────────────────────────
-function calcUso(client) {
-  // Estágios que recebem pontuação neutra imediata (sem análise de tendência)
-  const stageName = (client.stage?.name ?? '').toLowerCase().trim()
-  const neutralStages = ['sem estágio', 'onboarding', 'estabilização', 'em espera', 'churned']
-  if (neutralStages.includes(stageName)) return 6
-
-  // Contrato inativo: sem pontuação
-  if (client.contract_active === false) return 0
-
-  // Tendência por métrica: compara valor atual com média dos 3 meses anteriores
-  function scoreTrend(values) {
-    if (values.length < 2) return 3               // histórico insuficiente: neutro
-    const cur   = values[0]
-    const prev3 = values.slice(1, 4)
-    const avg   = prev3.reduce((s, v) => s + v, 0) / prev3.length
-    if (cur > avg * 1.35) return  5               // crescimento > 35%
-    if (cur < avg * 0.65) return -5               // queda > 35%
-    return 3                                      // estável ±10%
-  }
+function calcUso(client, rules) {
+  if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
   const usage = [...(client.client_usage ?? [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
 
-  let pts = 0
-  pts += scoreTrend(usage.map(u => u.os_created   ?? 0))
-  pts += scoreTrend(usage.map(u => u.active_users ?? 0))
+  if (usage.length < 2) return { score: 20, appliedRules: [] }
 
-  // Bônus/penalidades por mudança de status no mês corrente (via client_catalog_history)
-  const now = new Date()
-  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const appliedRules = []
+  let mod = 0
 
+  const cur   = usage[0]
+  const last3 = usage.slice(1, 4)
+  const avg3OS    = last3.reduce((s, u) => s + (u.os_created   ?? 0), 0) / last3.length
+  const avg3Users = last3.reduce((s, u) => s + (u.active_users ?? 0), 0) / last3.length
+
+  // Tendência OS
+  const osChg = avg3OS > 0 ? ((cur.os_created ?? 0) - avg3OS) / avg3OS : 0
+  if (osChg > 0.35)       mod += applyRule(rules, 'os_up',     appliedRules)
+  else if (osChg < -0.35) mod += applyRule(rules, 'os_down',   appliedRules)
+  else                    mod += applyRule(rules, 'os_stable',  appliedRules)
+
+  // Tendência usuários ativos
+  const userChg = avg3Users > 0 ? ((cur.active_users ?? 0) - avg3Users) / avg3Users : 0
+  if (userChg > 0.35)       mod += applyRule(rules, 'usr_up',    appliedRules)
+  else if (userChg < -0.35) mod += applyRule(rules, 'usr_down',  appliedRules)
+  else                      mod += applyRule(rules, 'usr_stable', appliedRules)
+
+  // Bônus/penalidades por mudança de status no ref_month do registro mais recente
+  const refMonth = cur.ref_month
   const historyThisMonth = (client.client_catalog_history ?? []).filter(h => {
     if (!h.changed_at) return false
     if (h.catalog_items?.type !== 'solucao') return false
-    const d = new Date(h.changed_at)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` === currentYM
+    const d  = new Date(h.changed_at)
+    const hm = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    return hm === refMonth
   })
 
   const implantadoApplied = new Set()
@@ -70,168 +74,199 @@ function calcUso(client) {
 
   historyThisMonth.forEach(h => {
     const key = h.catalog_item_id
-    // Módulo concluiu implantação (+5, max uma vez por módulo)
     if (
       h.status_novo === 'implantado' &&
       h.status_anterior != null &&
       h.status_anterior !== 'implantado' &&
       !implantadoApplied.has(key)
     ) {
-      pts += 5
+      mod += applyRule(rules, 'mod_new', appliedRules)
       implantadoApplied.add(key)
     }
-    // Módulo foi abandonado (-3, max uma vez por módulo)
     if (
       h.status_novo === 'abandonado' &&
       h.status_anterior !== 'abandonado' &&
       !abandonadoApplied.has(key)
     ) {
-      pts -= 3
+      mod += applyRule(rules, 'mod_abandoned', appliedRules)
       abandonadoApplied.add(key)
     }
   })
 
-  return clamp(pts, 0, 20)
+  return { score: clamp(20 + mod, 0, 20), appliedRules }
 }
 
 // ─── SUPORTE ───────────────────────────────────────────────────────────────────
-function calcSuporte(client) {
+function calcSuporte(client, rules) {
+  if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
+
   const support = [...(client.client_support ?? [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
   const latest = support[0]
 
-  if (!latest) return 10 // sem dados: score neutro
+  if (!latest) return { score: 20, appliedRules: [] }
 
-  let pts = 0
+  const appliedRules = []
+  let mod = 0
+
   const opened   = latest.tickets_opened   ?? 0
   const resolved = latest.tickets_resolved ?? 0
+  const taxa     = opened > 0 ? resolved / opened : 1
 
-  // Tickets abertos
-  if (opened === 0)      pts += 8
-  else if (opened <= 3)  pts += 5
-  else if (opened <= 7)  pts += 3
-  else if (opened <= 15) pts += 0
-  else                   pts -= 5
-
-  // Taxa resolução (resolvidos / abertos)
-  const taxa = opened > 0 ? resolved / opened : 1
-  if (taxa >= 0.9)      pts += 7
-  else if (taxa >= 0.7) pts += 4
-  else if (taxa >= 0.5) pts += 0
-  else                  pts -= 5
-
-  // N3% — n3_pct armazena CONTAGEM de tickets N3 (não percentual)
-  const n3Count = latest.n3_pct ?? 0
-  const n3Pct   = resolved > 0 ? (n3Count / resolved) * 100 : 0
-  if (n3Pct === 0)      pts += 5
-  else if (n3Pct <= 5)  pts += 3
-  else if (n3Pct <= 10) pts += 0
-  else                  pts -= 5
-
-  // SLA de primeira resposta (média em minutos)
-  const slaFirst = latest.sla_first_response ?? null
-  if (slaFirst !== null) {
-    if (slaFirst <= 15)      pts += 3
-    else if (slaFirst <= 60) pts += 1
-    // > 60: +0
+  if (opened === 0) {
+    mod += applyRule(rules, 't0', appliedRules)
+  } else if (opened <= 15) {
+    mod += applyRule(rules, taxa >= 0.9 ? 't15_ok' : 't15_nok', appliedRules)
+  } else {
+    mod += applyRule(rules, taxa >= 0.9 ? 'thi_ok' : 'thi_nok', appliedRules)
   }
 
-  return clamp(pts, 0, 20)
+  const sla = latest.sla_first_response ?? null
+  if (sla !== null) {
+    mod += applyRule(rules, sla <= 15 ? 'sla_ok' : 'sla_nok', appliedRules)
+  }
+
+  return { score: clamp(20 + mod, 0, 20), appliedRules }
 }
 
 // ─── RELACIONAMENTO ────────────────────────────────────────────────────────────
-function calcRelacionamento(client) {
-  let pts = 0
+function calcRelacionamento(client, rules) {
+  if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
-  // Atividades últimos 90 dias
-  const cutoff = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-  const typeWeight = { email: 0.5, whatsapp: 1, reuniao: 2, ligacao: 1 }
-  const actScore = (client.activities ?? [])
-    .filter(a => a.activity_date && new Date(a.activity_date + 'T00:00:00') >= cutoff)
-    .reduce((sum, a) => sum + (typeWeight[a.type] ?? 0), 0)
-  pts += Math.min(10, actScore)
+  const appliedRules = []
+  let mod = 0
 
-  // Contatos cadastrados via contact_links
   const links = client.contact_links ?? []
-  if (links.length >= 3)      pts += 5
-  else if (links.length >= 1) pts += 3
 
-  // Mapa de poder: presença de Decisor
-  const hasDecisao = links.some(l => l.papel === 'Decisor')
-  if (hasDecisao) pts += 5
-
-  // Champion
-  const hasChampion = links.some(l => l.champion === true)
-  if (hasChampion) pts += 3
-
-  // Engajamento: bônus se maioria dos links é 'Alto'
-  const engLinks = links.filter(l => l.engajamento != null)
-  if (engLinks.length > 0) {
-    const altoCount = engLinks.filter(l => l.engajamento === 'Alto').length
-    if (altoCount > engLinks.length / 2) pts += 2
+  // Decisor
+  const hasDecisor = links.some(l => l.papel === 'Decisor')
+  if (!hasDecisor) {
+    const refDate = client.golive || client.contract_start
+    let monthsSince = 0
+    if (refDate) {
+      const d   = new Date(refDate + 'T00:00:00')
+      const now = new Date()
+      monthsSince = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth())
+    }
+    if (monthsSince <= 1)     mod += applyRule(rules, 'nd_m1', appliedRules)
+    else if (monthsSince <= 2) mod += applyRule(rules, 'nd_m2', appliedRules)
+    else                       mod += applyRule(rules, 'nd_m3', appliedRules)
   }
 
-  return clamp(pts, 0, 20)
+  // Champion
+  if (!links.some(l => l.champion === true)) {
+    mod += applyRule(rules, 'no_champ', appliedRules)
+  }
+
+  // Engajamento: atividades últimos 30 dias
+  const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const recentActs = (client.activities ?? []).filter(a =>
+    a.activity_date && new Date(a.activity_date + 'T00:00:00') >= cutoff
+  )
+  const hasHigh = recentActs.some(a => a.type === 'reuniao' || a.type === 'ligacao')
+  const hasMid  = recentActs.some(a => a.type === 'email'   || a.type === 'whatsapp')
+
+  if (recentActs.length === 0 || (!hasHigh && !hasMid)) {
+    mod += applyRule(rules, 'eng_low', appliedRules)
+  } else if (hasHigh) {
+    mod += applyRule(rules, 'eng_high', appliedRules)
+  } else {
+    mod += applyRule(rules, 'eng_mid', appliedRules)
+  }
+
+  return { score: clamp(20 + mod, 0, 20), appliedRules }
+}
+
+// ─── FINANCEIRO ────────────────────────────────────────────────────────────────
+function calcFinanceiro(client, rules) {
+  // Sempre calcula — não respeita estágio neutro
+  const appliedRules = []
+  let mod = 0
+
+  const d = client.delay_days ?? 0
+  if (d === 0)      mod += applyRule(rules, 'fin_ok',  appliedRules)
+  else if (d <= 30) mod += applyRule(rules, 'fin_30',  appliedRules)
+  else if (d <= 60) mod += applyRule(rules, 'fin_60',  appliedRules)
+  else              mod += applyRule(rules, 'fin_90',  appliedRules)
+
+  return { score: clamp(20 + mod, 0, 20), appliedRules }
 }
 
 // ─── PROJETO ───────────────────────────────────────────────────────────────────
-function calcProjeto(client) {
+function calcProjeto(client, rules) {
+  if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
+
+  const appliedRules = []
+  let mod = 0
+
   const milestones = client.milestones ?? []
 
-  // Sem milestones: checar se está em produção há >120 dias
   if (milestones.length === 0) {
-    const isProducao = client.stage?.name === 'Produção'
-    if (isProducao && client.golive) {
-      const days = Math.floor(
-        (Date.now() - new Date(client.golive + 'T00:00:00').getTime()) / 86400000
-      )
-      if (days > 120) return 0 // sem milestones em produção → alerta
-    }
-    return 10 // neutro (onboarding sem milestones ainda)
+    applyRule(rules, 'no_proj', appliedRules) // 0 pts, entra para indicar estado
+    return { score: 20, appliedRules }
   }
 
-  let pts = 0
-  const total = milestones.length
-  const done  = milestones.filter(m => m.status === 'done').length
-  const donePct = done / total
+  // Onboarding atrasado: golive + 90 dias e há milestones 'onboarding' não concluídos
+  if (client.golive) {
+    const goliveDate = new Date(client.golive + 'T00:00:00')
+    const cutoff90   = new Date(goliveDate.getTime() + 90 * 24 * 60 * 60 * 1000)
+    if (new Date() > cutoff90) {
+      const hasLateOnb = milestones.some(m => /onboarding/i.test(m.title) && m.status !== 'done')
+      if (hasLateOnb) mod += applyRule(rules, 'ob_late', appliedRules)
+    }
+  }
 
-  // % milestones concluídos
-  if (donePct === 1)        pts += 10
-  else if (donePct >= 0.75) pts += 7
-  else if (donePct >= 0.5)  pts += 4
-  // abaixo de 50%: +0
-
-  // Tarefas em atraso: tasks não concluídas em milestones com due_date passado
+  // Milestones atrasados (máx. 3 aplicações de mp_late)
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  let overdueTaskCount = 0
-  milestones.forEach(m => {
-    if (m.status === 'done') return
-    if (!m.due_date) return
-    if (new Date(m.due_date + 'T00:00:00') >= today) return
-    overdueTaskCount += (m.milestone_tasks ?? []).filter(t => !t.done).length
-  })
+  const lateMilestones = milestones.filter(m =>
+    m.status !== 'done' && m.due_date && new Date(m.due_date + 'T00:00:00') < today
+  )
+  const lateCount = Math.min(lateMilestones.length, 3)
+  for (let i = 0; i < lateCount; i++) {
+    mod += applyRule(rules, 'mp_late', appliedRules)
+  }
 
-  if (overdueTaskCount === 0)     pts += 10
-  else if (overdueTaskCount <= 2) pts += 7
-  else if (overdueTaskCount <= 5) pts += 4
-  // acima de 5: +0
+  // Milestones no prazo: nenhum atrasado
+  if (lateMilestones.length === 0) {
+    applyRule(rules, 'mp_ok', appliedRules) // 0 pts, entra para indicar estado
+  }
 
-  return clamp(pts, 0, 20)
+  return { score: clamp(20 + mod, 0, 20), appliedRules }
 }
 
 // ─── TOTAL ─────────────────────────────────────────────────────────────────────
-export function calculateHealthScore(client) {
-  const financeiro    = calcFinanceiro(client)
-  const uso           = calcUso(client)
-  const suporte       = calcSuporte(client)
-  const relacionamento = calcRelacionamento(client)
-  const projeto       = calcProjeto(client)
+export function calculateHealthScore(client, rules = []) {
+  if (client.contract_active === false) {
+    return {
+      total: 0, uso: 0, suporte: 0, relacionamento: 0, financeiro: 0, projeto: 0,
+      appliedRules: { uso: [], suporte: [], relacionamento: [], financeiro: [], projeto: [] },
+    }
+  }
 
-  const total = clamp(financeiro + uso + suporte + relacionamento + projeto, 0, 100)
+  const uso           = calcUso(client, rules)
+  const suporte       = calcSuporte(client, rules)
+  const relacionamento = calcRelacionamento(client, rules)
+  const financeiro    = calcFinanceiro(client, rules)
+  const projeto       = calcProjeto(client, rules)
 
-  return { total, uso, suporte, relacionamento, financeiro, projeto }
-}
+  const total = clamp(
+    uso.score + suporte.score + relacionamento.score + financeiro.score + projeto.score,
+    0, 100
+  )
 
-function clamp(val, min, max) {
-  return Math.min(max, Math.max(min, val))
+  return {
+    total,
+    uso:           uso.score,
+    suporte:       suporte.score,
+    relacionamento: relacionamento.score,
+    financeiro:    financeiro.score,
+    projeto:       projeto.score,
+    appliedRules: {
+      uso:           uso.appliedRules,
+      suporte:       suporte.appliedRules,
+      relacionamento: relacionamento.appliedRules,
+      financeiro:    financeiro.appliedRules,
+      projeto:       projeto.appliedRules,
+    },
+  }
 }
