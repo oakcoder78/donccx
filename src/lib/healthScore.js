@@ -12,8 +12,14 @@ function clamp(val, min, max) {
   return Math.min(max, Math.max(min, val))
 }
 
-// Regras que entram em appliedRules mesmo com points = 0 (indicam estado)
-const ALWAYS_INCLUDE = new Set(['no_proj', 'mp_ok'])
+// Regras que entram em appliedRules mesmo com points = 0 (indicam estado saudável/neutro)
+const ALWAYS_INCLUDE = new Set([
+  'no_proj', 'mp_ok',
+  'os_stable', 'usr_stable',
+  't0', 't15_ok', 'sla_ok',
+  'eng_high',
+  'fin_ok',
+])
 
 function applyRule(rules, key, appliedRules) {
   if (!Array.isArray(rules)) return 0

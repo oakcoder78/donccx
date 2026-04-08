@@ -34,7 +34,8 @@
       "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\(0,'utf8'\\); const arr=JSON.parse\\(d\\); arr.filter\\(c=>/feir|peixe|rio do|lojao/i.test\\(c.name\\)\\).forEach\\(c=>console.log\\(c.id, c.name\\)\\)\")",
       "Bash(node -e ':*)",
       "Bash(node scripts/freshdesk-map-companies.js --apply)",
-      "Bash(node scripts/freshdesk-sync.js 2026-03)"
+      "Bash(node scripts/freshdesk-sync.js 2026-03)",
+      "Bash(git config:*)"
     ]
   }
 }

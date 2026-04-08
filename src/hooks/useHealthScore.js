@@ -87,6 +87,7 @@ export async function recalculateAndSave(client, rules) {
 
   const scores = calculateHealthScore(enrichedClient, effectiveRules)
 
+  const now = new Date().toISOString()
   const { error } = await supabase
     .from('clients')
     .update({
@@ -95,7 +96,8 @@ export async function recalculateAndSave(client, rules) {
       health_relacionamento: scores.relacionamento,
       health_financeiro:     scores.financeiro,
       health_projeto:        scores.projeto,
-      updated_at:            new Date().toISOString(),
+      health_calculated_at:  now,
+      updated_at:            now,
     })
     .eq('id', client.id)
 
