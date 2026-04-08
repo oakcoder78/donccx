@@ -87,7 +87,9 @@ export async function recalculateAndSave(client, rules) {
 
   console.log('[recalculateAndSave] rules recebidas:', effectiveRules?.length, effectiveRules)
   console.log('[recalculateAndSave] client_usage:', enrichedClient.client_usage)
+  console.log('[recalculateAndSave] client_support:', enrichedClient.client_support)
   console.log('[recalculateAndSave] activities:', enrichedClient.activities)
+  console.log('[recalculateAndSave] milestones:', enrichedClient.milestones)
   console.log('[recalculateAndSave] client info:', {
     id: enrichedClient.id,
     contract_active: enrichedClient.contract_active,
@@ -95,8 +97,6 @@ export async function recalculateAndSave(client, rules) {
     stage: enrichedClient.stage?.name,
     golive: enrichedClient.golive,
     contact_links_count: enrichedClient.contact_links?.length,
-    milestones_count: enrichedClient.milestones?.length,
-    client_support_count: enrichedClient.client_support?.length,
     catalog_history_count: enrichedClient.client_catalog_history?.length,
   })
 
