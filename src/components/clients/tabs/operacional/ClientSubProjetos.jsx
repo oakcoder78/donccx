@@ -121,17 +121,48 @@ export function ClientSubProjetos({ client }) {
     setShowMsModal(true)
   }
 
+  // confirmação: concluir milestone com tarefas abertas
+  const [showConfirmMs,    setShowConfirmMs]    = useState(false)
+  const [pendingMsPayload, setPendingMsPayload] = useState(null)
+  const [pendingOpenTasks, setPendingOpenTasks] = useState([])
+
   async function handleSaveMs() {
     const payload = { ...msForm }
     if (!payload.responsible_id) delete payload.responsible_id
     if (!payload.description)    delete payload.description
     if (!payload.due_date)       delete payload.due_date
+
+    // Verificar tarefas em aberto ao concluir um milestone já existente
+    if (payload.status === 'done' && editMs) {
+      const openTasks = (editMs.milestone_tasks ?? []).filter(t => !t.done)
+      if (openTasks.length > 0) {
+        setPendingMsPayload(payload)
+        setPendingOpenTasks(openTasks)
+        setShowConfirmMs(true)
+        return
+      }
+    }
+
+    await doSaveMs(payload)
+  }
+
+  async function doSaveMs(payload) {
     if (editMs) {
       await updateMilestone.mutateAsync({ id: editMs.id, ...payload })
     } else {
       await createMilestone.mutateAsync({ ...payload, project_id: msProjectId })
     }
     setShowMsModal(false)
+    setShowConfirmMs(false)
+  }
+
+  async function confirmConcluirTodas() {
+    await Promise.all(pendingOpenTasks.map(t => toggleTask.mutateAsync({ id: t.id, done: true })))
+    await doSaveMs(pendingMsPayload)
+  }
+
+  async function confirmSalvarAssim() {
+    await doSaveMs(pendingMsPayload)
   }
 
   // tarefas inline
@@ -376,6 +407,47 @@ export function ClientSubProjetos({ client }) {
               disabled={!projForm.title.trim() || createProject.isPending || updateProject.isPending}
             >
               Salvar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Confirmação tarefas em aberto */}
+      <Modal
+        isOpen={showConfirmMs}
+        onClose={() => setShowConfirmMs(false)}
+        title="Milestone com tarefas em aberto"
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Este milestone tem{' '}
+            <span className="font-semibold text-text-primary">{pendingOpenTasks.length}</span>{' '}
+            tarefa{pendingOpenTasks.length !== 1 ? 's' : ''} em aberto. Milestones com tarefas pendentes
+            podem impactar o Health Score do cliente. Como deseja prosseguir?
+          </p>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              onClick={confirmConcluirTodas}
+              disabled={updateMilestone.isPending || toggleTask.isPending}
+              className="w-full justify-center"
+            >
+              Concluir todas as tarefas e salvar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={confirmSalvarAssim}
+              disabled={updateMilestone.isPending}
+              className="w-full justify-center"
+            >
+              Salvar assim mesmo
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowConfirmMs(false)}
+              className="w-full justify-center"
+            >
+              Cancelar
             </Button>
           </div>
         </div>
