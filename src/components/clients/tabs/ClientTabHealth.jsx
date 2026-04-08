@@ -61,8 +61,8 @@ function DimPanel({ dim, score, appliedRules: dimApplied, allRules, hasBeenCalcu
 
   return (
     <div
-      className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden"
-      style={{ borderLeftWidth: 3, borderLeftColor: dim.color }}
+      className="bg-bg-primary rounded-lg overflow-hidden"
+      style={{ border: `1px solid ${dim.color}`, borderLeftWidth: 3 }}
     >
       <div className="px-4 py-3 flex items-center justify-between border-b border-border-tertiary">
         <span className="text-sm font-semibold" style={{ color: dim.color }}>{dim.label}</span>
@@ -83,14 +83,14 @@ function DimPanel({ dim, score, appliedRules: dimApplied, allRules, hasBeenCalcu
         ) : visibleMods.length === 0 ? (
           <p className="text-xs text-text-tertiary italic">Score base 20 — nenhuma penalidade aplicada</p>
         ) : (
-          <div className="grid md:grid-cols-3 gap-2">
+          <div className="space-y-1">
             {visibleMods.map(r => (
               <div
                 key={r.rule_key}
-                className="flex items-center justify-between px-2 py-1.5 rounded-md"
+                className="flex items-center justify-between gap-1 px-2 py-1.5 rounded-md"
                 style={{ backgroundColor: r.points > 0 ? '#1D9E7510' : '#E24B4A10' }}
               >
-                <span className="text-xs text-text-secondary">{r.label}</span>
+                <span className="text-xs text-text-secondary break-words min-w-0 flex-1">{r.label}</span>
                 <PointsBadge points={r.points} />
               </div>
             ))}
@@ -191,39 +191,50 @@ export function ClientTabHealth({ client }) {
 
       {/* Cards de dimensão clicáveis */}
       <div>
-        <div className="grid grid-cols-5 gap-3">
+        <div className="grid grid-cols-5 gap-3 items-start">
           {DIMS.map(d => {
-            const val      = client[`health_${d.key}`] ?? 0
-            const color    = dimStatusColor(val, d.color)
-            const isOpen   = openMap[d.key]
+            const val    = client[`health_${d.key}`] ?? 0
+            const color  = dimStatusColor(val, d.color)
+            const isOpen = openMap[d.key]
             return (
-              <button
-                key={d.key}
-                onClick={() => toggleDim(d.key)}
-                className="text-center rounded-lg p-3 border transition-all cursor-pointer hover:shadow-md focus:outline-none"
-                style={{
-                  backgroundColor: isOpen ? `${d.color}0d` : 'var(--color-bg-primary)',
-                  borderColor: isOpen ? d.color : 'var(--color-border-tertiary)',
-                  borderBottomColor: isOpen ? d.color : undefined,
-                }}
-              >
-                <div className="text-2xl font-bold mb-1" style={{ color }}>{val}</div>
-                <div className="text-xs text-text-tertiary mb-2">{d.label}</div>
-                <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${Math.min(100, (val / 20) * 100)}%`, backgroundColor: color }}
+              <div key={d.key} className="flex flex-col gap-2">
+                <button
+                  onClick={() => toggleDim(d.key)}
+                  className="w-full text-center rounded-lg p-3 transition-all cursor-pointer hover:shadow-md focus-visible:outline-none"
+                  style={{
+                    backgroundColor: isOpen ? `${d.color}0d` : 'var(--color-bg-primary)',
+                    border: `1px solid ${isOpen ? d.color : 'var(--color-border-tertiary)'}`,
+                    outline: 'none',
+                  }}
+                >
+                  <div className="text-2xl font-bold mb-1" style={{ color }}>{val}</div>
+                  <div className="text-xs text-text-tertiary mb-2">{d.label}</div>
+                  <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (val / 20) * 100)}%`, backgroundColor: color }}
+                    />
+                  </div>
+                  <div className="mt-2 flex justify-center text-text-tertiary">
+                    <ChevronIcon open={isOpen} />
+                  </div>
+                </button>
+
+                {isOpen && (
+                  <DimPanel
+                    dim={d}
+                    score={val}
+                    appliedRules={liveAppliedRules?.[d.key] ?? []}
+                    allRules={rules}
+                    hasBeenCalculated={hasBeenCalculated}
                   />
-                </div>
-                <div className="mt-2 flex justify-center text-text-tertiary">
-                  <ChevronIcon open={isOpen} />
-                </div>
-              </button>
+                )}
+              </div>
             )
           })}
         </div>
 
-        {/* Controles + painéis expandidos */}
+        {/* Controles */}
         <div className="mt-3 flex items-center justify-end gap-1">
           <Button size="xs" variant="ghost" onClick={expandAll} disabled={allOpen}>
             Expandir tudo
@@ -233,21 +244,6 @@ export function ClientTabHealth({ client }) {
             Colapsar tudo
           </Button>
         </div>
-
-        {DIMS.some(d => openMap[d.key]) && (
-          <div className="mt-2 space-y-2">
-            {DIMS.filter(d => openMap[d.key]).map(d => (
-              <DimPanel
-                key={d.key}
-                dim={d}
-                score={client[`health_${d.key}`] ?? 0}
-                appliedRules={liveAppliedRules?.[d.key] ?? []}
-                allRules={rules}
-                hasBeenCalculated={hasBeenCalculated}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   )
