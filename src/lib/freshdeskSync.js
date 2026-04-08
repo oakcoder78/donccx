@@ -135,7 +135,8 @@ export function processTicketsToSupport(tickets, clientId, month, groupsMap = {}
       const responded = new Date(t.stats.first_responded_at).getTime()
       return Math.round((responded - created) / 60000)
     })
-    .filter(ms => ms > 0)
+    // Ignora negativos (dado corrompido), zero e acima de 480 min (8h — distorcem a média)
+    .filter(ms => ms >= 1 && ms <= 480)
 
   const sla_first_response = responseTimes.length
     ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)

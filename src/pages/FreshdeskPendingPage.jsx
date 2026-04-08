@@ -54,36 +54,32 @@ function editDistance(a, b) {
   return dp[m][n]
 }
 
-/** Score de similaridade 0–100 entre dois contatos */
+/**
+ * Score de similaridade 0–100 entre dois contatos.
+ * Duplicata apenas quando:
+ *   - Mesmo e-mail completo (score 100), OU
+ *   - Nome muito similar (edição < 20% do comprimento) E mesmo domínio de e-mail (score 60)
+ * Qualquer outra combinação retorna 0 — evita falsos positivos por domínio compartilhado.
+ */
 function contactSimilarityScore(a, b) {
-  let score = 0
-  const ta = normalizeName(a.name)
-  const tb = normalizeName(b.name)
-  const ea = extractEmailParts(a.email)
-  const eb = extractEmailParts(b.email)
+  const ea = a.email?.toLowerCase() ?? ''
+  const eb = b.email?.toLowerCase() ?? ''
 
-  // Mesmo domínio de e-mail: +40
-  if (ea.domain && eb.domain && ea.domain === eb.domain) score += 40
+  // Mesmo e-mail completo → duplicata definitiva
+  if (ea && eb && ea === eb) return 100
 
-  // Primeiro token do nome igual: +30
-  if (ta.length > 0 && tb.length > 0 && ta[0] === tb[0]) score += 30
+  // Nome muito similar + mesmo domínio → possível duplicata
+  const na = normalizeName(a.name).join(' ')
+  const nb = normalizeName(b.name).join(' ')
+  if (na && nb) {
+    const domA = extractEmailParts(a.email).domain
+    const domB = extractEmailParts(b.email).domain
+    const maxLen    = Math.max(na.length, nb.length)
+    const threshold = Math.ceil(maxLen * 0.2)
+    if (domA && domB && domA === domB && editDistance(na, nb) < threshold) return 60
+  }
 
-  // Levenshtein entre nomes completos normalizados <= 3: +20
-  const na = ta.join(' '), nb = tb.join(' ')
-  if (na && nb && editDistance(na, nb) <= 3) score += 20
-
-  // Mesmo último token: +20
-  if (ta.length > 0 && tb.length > 0 && ta[ta.length - 1] === tb[tb.length - 1]) score += 20
-
-  // Parte local do e-mail contém token do nome com >= 4 chars: +15
-  const sigA = ta.filter(t => t.length >= 4)
-  const sigB = tb.filter(t => t.length >= 4)
-  const emailHit =
-    sigA.some(t => new RegExp(t, 'i').test(eb.local)) ||
-    sigB.some(t => new RegExp(t, 'i').test(ea.local))
-  if (emailHit) score += 15
-
-  return Math.min(score, 100)
+  return 0
 }
 
 /**
