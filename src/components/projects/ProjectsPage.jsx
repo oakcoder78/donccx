@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { useAllMilestones, useUpdateMilestoneStatus } from '../../hooks/useMilestones'
+import { useAllProjects, useUpdateProjectStatus } from '../../hooks/useProjects'
 import { PageHeader } from '../ui/PageHeader'
 import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 
 const COLUMNS = [
-  { key: 'planejado',    label: 'Planejado',    color: '#888780' },
-  { key: 'em_andamento', label: 'Em Andamento', color: '#59c2ed' },
-  { key: 'done',         label: 'Concluído',    color: '#1D9E75' },
+  { key: 'planejado',    label: 'Planejado',    color: '#888780', badge: 'slate'  },
+  { key: 'em_andamento', label: 'Em Andamento', color: '#59c2ed', badge: 'sky'   },
+  { key: 'concluido',    label: 'Concluído',    color: '#1D9E75', badge: 'green' },
+  { key: 'suspenso',     label: 'Suspenso',     color: '#BA7517', badge: 'amber' },
 ]
 
 const todayStr = new Date().toISOString().slice(0, 10)
@@ -21,44 +22,39 @@ function formatDate(d) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
-  const { data: milestones = [], isLoading } = useAllMilestones()
-  const updateStatus = useUpdateMilestoneStatus()
+  const { data: projects = [], isLoading } = useAllProjects()
+  const updateStatus = useUpdateProjectStatus()
 
-  // Local copy for optimistic updates
   const [local, setLocal] = useState([])
-  useEffect(() => { setLocal(milestones) }, [milestones])
+  useEffect(() => { setLocal(projects) }, [projects])
 
   function onDragEnd(result) {
     const { source, destination, draggableId } = result
-
-    // Dropped outside or same position — no-op
     if (!destination) return
     if (source.droppableId === destination.droppableId && source.index === destination.index) return
 
     const id        = parseInt(draggableId, 10)
     const newStatus = destination.droppableId
 
-    // Optimistic update — move card immediately in UI
-    setLocal(prev => prev.map(m => m.id === id ? { ...m, status: newStatus } : m))
-
-    // Persist to Supabase
+    setLocal(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p))
     updateStatus.mutate({ id, status: newStatus })
   }
 
   if (isLoading) return <PageSpinner />
 
+  const total = local.length
+
   return (
     <div className="p-6">
-      <PageHeader title="Projetos" subtitle={`${local.length} milestones`} />
+      <PageHeader title="Projetos" subtitle={`${total} projeto${total !== 1 ? 's' : ''}`} />
 
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           {COLUMNS.map(col => {
-            const items = local.filter(m => m.status === col.key)
+            const items = local.filter(p => p.status === col.key)
 
             return (
               <div key={col.key} className="bg-bg-tertiary rounded-lg p-3 flex flex-col">
-                {/* Column header */}
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: col.color }} />
                   <h3 className="text-sm font-semibold text-text-primary">{col.label}</h3>
@@ -67,7 +63,6 @@ export default function ProjectsPage() {
                   </span>
                 </div>
 
-                {/* Droppable zone per column */}
                 <Droppable droppableId={col.key}>
                   {(provided, snapshot) => (
                     <div
@@ -82,20 +77,23 @@ export default function ProjectsPage() {
                         gap: 8,
                       }}
                     >
-                      {items.map((m, index) => {
-                        const tasks     = m.milestone_tasks || []
-                        const done      = tasks.filter(t => t.done).length
-                        const pct       = tasks.length ? Math.round((done / tasks.length) * 100) : m.progress || 0
-                        const isOverdue = m.due_date && m.status !== 'done' && m.due_date < todayStr
+                      {items.map((proj, index) => {
+                        const milestones  = proj.milestones ?? []
+                        const totalMs     = milestones.length
+                        const doneMs      = milestones.filter(m => m.status === 'done').length
+                        const pct         = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
+                        const isOverdue   = proj.end_date && proj.status !== 'concluido' && proj.end_date < todayStr
+                        const clientName  = proj.client?.fantasy_name || proj.client?.name || '—'
+                        const respName    = proj.responsible?.name || null
 
                         return (
-                          <Draggable key={m.id} draggableId={String(m.id)} index={index}>
+                          <Draggable key={proj.id} draggableId={String(proj.id)} index={index}>
                             {(provided, snapshot) => (
                               <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                onClick={() => navigate(`/empresas/${m.client_id}?tab=operacional`)}
+                                onClick={() => navigate(`/empresas/${proj.client_id}?tab=operacional&sub=projetos`)}
                                 className="bg-bg-primary border border-border-tertiary rounded-md p-3 hover:border-border-secondary transition-colors select-none"
                                 style={{
                                   ...provided.draggableProps.style,
@@ -104,32 +102,37 @@ export default function ProjectsPage() {
                                   cursor:    snapshot.isDragging ? 'grabbing' : 'grab',
                                 }}
                               >
-                                <p className="text-xs font-medium text-donc-blue mb-0.5 truncate">{m.client?.name}</p>
-                                <p className="text-sm font-semibold text-text-primary mb-2">{m.title}</p>
+                                <p className="text-xs font-medium text-donc-blue mb-0.5 truncate">{clientName}</p>
+                                <p className="text-sm font-semibold text-text-primary mb-1 leading-snug">{proj.title}</p>
 
-                                <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden mb-1">
-                                  <div
-                                    className="h-full rounded-full"
-                                    style={{ width: `${pct}%`, backgroundColor: col.color }}
-                                  />
-                                </div>
+                                {respName && (
+                                  <p className="text-xs text-text-tertiary mb-2 truncate">👤 {respName}</p>
+                                )}
 
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-text-tertiary">{done}/{tasks.length} tarefas</span>
-                                  {m.due_date && (
-                                    <span className={`text-xs ${isOverdue ? 'text-donc-red font-medium' : 'text-text-tertiary'}`}>
-                                      {formatDate(m.due_date)}
+                                {totalMs > 0 && (
+                                  <>
+                                    <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden mb-1">
+                                      <div
+                                        className="h-full rounded-full transition-all"
+                                        style={{ width: `${pct}%`, backgroundColor: col.color }}
+                                      />
+                                    </div>
+                                    <p className="text-xs text-text-tertiary mb-1">
+                                      {doneMs}/{totalMs} milestones · {pct}%
+                                    </p>
+                                  </>
+                                )}
+
+                                <div className="flex items-center justify-between mt-1 gap-1">
+                                  {totalMs > 0 && (
+                                    <Badge variant={col.badge}>{pct}%</Badge>
+                                  )}
+                                  {proj.end_date && (
+                                    <span className={`text-xs ml-auto ${isOverdue ? 'text-donc-red font-medium' : 'text-text-tertiary'}`}>
+                                      {formatDate(proj.end_date)}
                                     </span>
                                   )}
                                 </div>
-
-                                {pct > 0 && (
-                                  <div className="mt-1.5">
-                                    <Badge variant={col.key === 'done' ? 'green' : col.key === 'em_andamento' ? 'sky' : 'slate'}>
-                                      {pct}%
-                                    </Badge>
-                                  </div>
-                                )}
                               </div>
                             )}
                           </Draggable>
@@ -139,7 +142,7 @@ export default function ProjectsPage() {
                       {provided.placeholder}
 
                       {items.length === 0 && !snapshot.isDraggingOver && (
-                        <p className="text-xs text-text-tertiary text-center py-6">Nenhum item</p>
+                        <p className="text-xs text-text-tertiary text-center py-6">Nenhum projeto</p>
                       )}
                     </div>
                   )}

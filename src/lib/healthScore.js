@@ -211,37 +211,77 @@ function calcProjeto(client, rules) {
   const appliedRules = []
   let mod = 0
 
-  const milestones = client.milestones ?? []
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const projects  = client.projects ?? []
 
-  if (milestones.length === 0) {
-    applyRule(rules, 'no_proj', appliedRules) // 0 pts, entra para indicar estado
+  // ── Sem projetos: fallback para lógica legada de milestones ────────────────
+  if (projects.length === 0) {
+    const milestones = client.milestones ?? []
+    if (milestones.length === 0) {
+      applyRule(rules, 'no_proj', appliedRules)
+      return { score: 20, appliedRules }
+    }
+    if (client.golive) {
+      const cutoff90 = new Date(new Date(client.golive + 'T00:00:00').getTime() + 90 * 86400000)
+      if (new Date() > cutoff90) {
+        if (milestones.some(m => /onboarding/i.test(m.title) && m.status !== 'done')) {
+          mod += applyRule(rules, 'ob_late', appliedRules)
+        }
+      }
+    }
+    const late = milestones.filter(m => m.status !== 'done' && m.due_date && m.due_date < todayStr)
+    for (let i = 0; i < Math.min(late.length, 3); i++) mod += applyRule(rules, 'mp_late', appliedRules)
+    if (late.length === 0) applyRule(rules, 'mp_ok', appliedRules)
+    return { score: clamp(20 + mod, 0, 20), appliedRules }
+  }
+
+  // ── Com projetos: ignorar suspensos ────────────────────────────────────────
+  const active = projects.filter(p => p.status !== 'suspenso')
+
+  if (active.length === 0) {
+    applyRule(rules, 'no_proj', appliedRules)
     return { score: 20, appliedRules }
   }
 
-  // Onboarding atrasado: golive + 90 dias e há milestones 'onboarding' não concluídos
+  // projeto_atrasado: projeto em_andamento ou planejado com end_date vencida
+  const hasOverdueProject = active.some(p =>
+    (p.status === 'em_andamento' || p.status === 'planejado') &&
+    p.end_date && p.end_date < todayStr
+  )
+  if (hasOverdueProject) mod += applyRule(rules, 'projeto_atrasado', appliedRules)
+
+  // Milestones dos projetos ativos
+  const activeMilestones = active.flatMap(p => p.milestones ?? [])
+
+  if (activeMilestones.length === 0) {
+    applyRule(rules, 'no_proj', appliedRules)
+    return { score: clamp(20 + mod, 0, 20), appliedRules }
+  }
+
+  // ob_late: onboarding não concluído após 90 dias do go-live
   if (client.golive) {
-    const goliveDate = new Date(client.golive + 'T00:00:00')
-    const cutoff90   = new Date(goliveDate.getTime() + 90 * 24 * 60 * 60 * 1000)
+    const cutoff90 = new Date(new Date(client.golive + 'T00:00:00').getTime() + 90 * 86400000)
     if (new Date() > cutoff90) {
-      const hasLateOnb = milestones.some(m => /onboarding/i.test(m.title) && m.status !== 'done')
-      if (hasLateOnb) mod += applyRule(rules, 'ob_late', appliedRules)
+      if (activeMilestones.some(m => /onboarding/i.test(m.title) && m.status !== 'done')) {
+        mod += applyRule(rules, 'ob_late', appliedRules)
+      }
     }
   }
 
-  // Milestones atrasados (máx. 3 aplicações de mp_late)
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const lateMilestones = milestones.filter(m =>
-    m.status !== 'done' && m.due_date && new Date(m.due_date + 'T00:00:00') < today
+  // mp_late: milestones atrasados (máx. 3)
+  const lateMilestones = activeMilestones.filter(m =>
+    m.status !== 'done' && m.due_date && m.due_date < todayStr
   )
-  const lateCount = Math.min(lateMilestones.length, 3)
-  for (let i = 0; i < lateCount; i++) {
+  for (let i = 0; i < Math.min(lateMilestones.length, 3); i++) {
     mod += applyRule(rules, 'mp_late', appliedRules)
   }
+  if (lateMilestones.length === 0) applyRule(rules, 'mp_ok', appliedRules)
 
-  // Milestones no prazo: nenhum atrasado
-  if (lateMilestones.length === 0) {
-    applyRule(rules, 'mp_ok', appliedRules) // 0 pts, entra para indicar estado
-  }
+  // tarefa_atrasada: milestone_tasks com due_date vencida e não concluídas
+  const hasOverdueTask = activeMilestones
+    .filter(m => m.status !== 'done')
+    .some(m => (m.milestone_tasks ?? []).some(t => !t.done && t.due_date && t.due_date < todayStr))
+  if (hasOverdueTask) mod += applyRule(rules, 'tarefa_atrasada', appliedRules)
 
   return { score: clamp(20 + mod, 0, 20), appliedRules }
 }

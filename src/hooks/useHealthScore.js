@@ -11,6 +11,7 @@ const FULL_CLIENT_SELECT = `
   contact_links(*, contacts(*, contact_phones(*))),
   activities(*, responsible:profiles(id,name), contacts(id,name)),
   milestones(*, milestone_tasks(*)),
+  projects(id, status, end_date, milestones(id, title, due_date, status, milestone_tasks(id, done, due_date))),
   client_usage(*),
   client_support(*),
   client_catalog_history(*, catalog_items(type))
@@ -30,7 +31,7 @@ async function fetchClientArrays(clientId) {
   const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const activityCutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-  const [usageRes, supportRes, activitiesRes, milestonesRes, historyRes] = await Promise.all([
+  const [usageRes, supportRes, activitiesRes, milestonesRes, historyRes, projectsRes] = await Promise.all([
     supabase
       .from('client_usage')
       .select('ref_month, os_created, active_users')
@@ -48,13 +49,17 @@ async function fetchClientArrays(clientId) {
       .gte('activity_date', activityCutoff),
     supabase
       .from('milestones')
-      .select('id, title, due_date, status')
+      .select('id, title, due_date, status, milestone_tasks(id, done, due_date)')
       .eq('client_id', clientId),
     supabase
       .from('client_catalog_history')
       .select('catalog_item_id, status_novo, status_anterior, changed_at, catalog_items(type)')
       .eq('client_id', clientId)
       .order('changed_at', { ascending: false }),
+    supabase
+      .from('projects')
+      .select('id, status, end_date, milestones(id, title, due_date, status, milestone_tasks(id, done, due_date))')
+      .eq('client_id', clientId),
   ])
 
   if (usageRes.error)      console.error('[fetchClientArrays] client_usage error:', usageRes.error)
@@ -62,6 +67,7 @@ async function fetchClientArrays(clientId) {
   if (activitiesRes.error) console.error('[fetchClientArrays] activities error:', activitiesRes.error)
   if (milestonesRes.error) console.error('[fetchClientArrays] milestones error:', milestonesRes.error)
   if (historyRes.error)    console.error('[fetchClientArrays] catalog_history error:', historyRes.error)
+  if (projectsRes.error)   console.error('[fetchClientArrays] projects error:', projectsRes.error)
 
   return {
     client_usage:           usageRes.data      ?? [],
@@ -69,6 +75,7 @@ async function fetchClientArrays(clientId) {
     activities:             activitiesRes.data ?? [],
     milestones:             milestonesRes.data ?? [],
     client_catalog_history: historyRes.data    ?? [],
+    projects:               projectsRes.data   ?? [],
   }
 }
 
