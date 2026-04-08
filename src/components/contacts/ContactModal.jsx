@@ -7,11 +7,6 @@ import { maskPhoneInput, stripPhone, formatPhone } from '../../lib/formatPhone'
 
 const EMPTY = { name: '', cargo: '', email: '', linkedin: '', notes: '' }
 
-const STATUS_OPTIONS = [
-  { value: 'Alto',  label: '🟢 Alto'  },
-  { value: 'Médio', label: '🟡 Médio' },
-  { value: 'Baixo', label: '🔴 Baixo' },
-]
 
 export function ContactModal({ contact, onClose, defaultClientId }) {
   const isEdit = !!contact
@@ -153,10 +148,7 @@ export function ContactModal({ contact, onClose, defaultClientId }) {
                   <option>Usuário</option>
                   <option>Técnico</option>
                 </select>
-                <select value={lk.engajamento} onChange={e => setLink(i, 'engajamento', e.target.value)} className="input-base w-28">
-                  {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
-                <label className="flex items-center gap-1 text-xs text-text-secondary cursor-pointer">
+<label className="flex items-center gap-1 text-xs text-text-secondary cursor-pointer">
                   <input type="checkbox" checked={lk.champion} onChange={e => setLink(i, 'champion', e.target.checked)} className="accent-donc-amber" />
                   ⭐
                 </label>
