@@ -178,23 +178,41 @@ export async function fetchContactsByCompany(freshdeskCompanyId) {
  * @returns {{ tickets, contacts, newContacts }}
  */
 export async function syncCompanySupport(clientId, month) {
-  // 1. Busca freshdesk_company_id do cliente
+  // 1. Busca IDs Freshdesk do cliente
   const { data: client, error: cErr } = await supabase
     .from('clients')
-    .select('freshdesk_company_id, name')
+    .select('freshdesk_company_id, freshdesk_company_ids, name')
     .eq('id', clientId)
     .single()
   if (cErr || !client) throw new Error('Cliente não encontrado')
-  if (!client.freshdesk_company_id) throw new Error(`"${client.name}" não tem ID Freshdesk configurado`)
 
-  const companyId = client.freshdesk_company_id
+  // Prioriza freshdesk_company_ids (array); fallback para freshdesk_company_id singular
+  const companyIds = client.freshdesk_company_ids?.length
+    ? client.freshdesk_company_ids
+    : client.freshdesk_company_id
+      ? [client.freshdesk_company_id]
+      : null
+  if (!companyIds) throw new Error(`"${client.name}" não tem ID Freshdesk configurado`)
 
-  // 2. Busca em paralelo: tickets, contatos e grupos
-  const [tickets, fdContacts, groupsMap] = await Promise.all([
-    fetchTicketsByCompany(companyId, month),
-    fetchContactsByCompany(companyId),
+  // 2. Busca em paralelo: tickets e contatos para cada ID, mais grupos
+  const [ticketArrays, contactArrays, groupsMap] = await Promise.all([
+    Promise.all(companyIds.map(id => fetchTicketsByCompany(id, month))),
+    Promise.all(companyIds.map(id => fetchContactsByCompany(id))),
     getGroupsMap(),
   ])
+
+  // Soma tickets de todos os IDs
+  const tickets = ticketArrays.flat()
+
+  // Mescla contatos deduplicando por e-mail (preserva primeiro encontrado)
+  const contactMap = new Map()
+  for (const batch of contactArrays) {
+    for (const c of batch) {
+      const key = c.email?.toLowerCase()
+      if (key && !contactMap.has(key)) contactMap.set(key, c)
+    }
+  }
+  const fdContacts = [...contactMap.values()]
 
   // 3. Processa tickets
   const supportData = processTicketsToSupport(tickets, clientId, month, groupsMap)
