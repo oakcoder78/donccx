@@ -311,25 +311,30 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8393A5' }}>
             MRR do portfólio
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0, marginTop: 8 }}>
-            <div>
-              <span style={{ fontSize: 16, fontWeight: 600, color: '#d3da47' }}>R$ </span>
-              <span style={{ fontSize: 40, fontWeight: 700, color: '#d3da47', lineHeight: 1 }}>{mrrNum}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 12, minWidth: 0 }}>
+            {/* Coluna esquerda — MRR principal + empresas ativas */}
+            <div style={{ flexShrink: 0 }}>
+              <div>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#d3da47' }}>R$ </span>
+                <span style={{ fontSize: 38, fontWeight: 700, color: '#d3da47', lineHeight: 1 }}>{mrrNum}</span>
+              </div>
+              <div style={{ fontSize: 12, color: '#8393A5', marginTop: 6 }}>
+                {clients.length} empresa{clients.length !== 1 ? 's' : ''} ativa{clients.length !== 1 ? 's' : ''}
+              </div>
             </div>
-            <div style={{ width: 1, height: '60%', backgroundColor: 'rgba(211,218,71,0.25)', alignSelf: 'center', margin: '0 16px', flexShrink: 0 }} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+            {/* Separador vertical */}
+            <div style={{ width: 1, height: 40, backgroundColor: 'rgba(211,218,71,0.25)', alignSelf: 'center', flexShrink: 0, margin: '0 16px' }} />
+            {/* Coluna direita — ARR e Em Atraso */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', minWidth: 0, flex: 1 }}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 10, color: '#8393A5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>ARR</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: '#d3da47' }}>R$ {arrNum}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#d3da47', whiteSpace: 'nowrap' }}>R$ {arrNum}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 10, color: '#8393A5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Em Atraso</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: mrrAtrasado > 0 ? '#f09595' : '#d3da47' }}>R$ {mrrAtrasadoNum}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: mrrAtrasado > 0 ? '#f09595' : '#d3da47', whiteSpace: 'nowrap' }}>R$ {mrrAtrasadoNum}</div>
               </div>
             </div>
-          </div>
-          <div style={{ fontSize: 12, color: '#8393A5', marginTop: 8 }}>
-            {clients.length} empresa{clients.length !== 1 ? 's' : ''} ativa{clients.length !== 1 ? 's' : ''}
           </div>
         </div>
 
