@@ -412,47 +412,6 @@ export function ClientSubProjetos({ client }) {
         </div>
       </Modal>
 
-      {/* Modal: Confirmação tarefas em aberto */}
-      <Modal
-        isOpen={showConfirmMs}
-        onClose={() => setShowConfirmMs(false)}
-        title="Milestone com tarefas em aberto"
-        maxWidth="max-w-sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-text-secondary">
-            Este milestone tem{' '}
-            <span className="font-semibold text-text-primary">{pendingOpenTasks.length}</span>{' '}
-            tarefa{pendingOpenTasks.length !== 1 ? 's' : ''} em aberto. Milestones com tarefas pendentes
-            podem impactar o Health Score do cliente. Como deseja prosseguir?
-          </p>
-          <div className="flex flex-col gap-2 pt-1">
-            <Button
-              onClick={confirmConcluirTodas}
-              disabled={updateMilestone.isPending || toggleTask.isPending}
-              className="w-full justify-center"
-            >
-              Concluir todas as tarefas e salvar
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={confirmSalvarAssim}
-              disabled={updateMilestone.isPending}
-              className="w-full justify-center"
-            >
-              Salvar assim mesmo
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setShowConfirmMs(false)}
-              className="w-full justify-center"
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       {/* Modal: Milestone */}
       <Modal
         isOpen={showMsModal}
@@ -519,6 +478,47 @@ export function ClientSubProjetos({ client }) {
               disabled={!msForm.title.trim() || createMilestone.isPending || updateMilestone.isPending}
             >
               Salvar
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Confirmação tarefas em aberto — renderizado após o modal de milestone para z-index superior */}
+      <Modal
+        isOpen={showConfirmMs}
+        onClose={() => setShowConfirmMs(false)}
+        title="Milestone com tarefas em aberto"
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            Este milestone tem{' '}
+            <span className="font-semibold text-text-primary">{pendingOpenTasks.length}</span>{' '}
+            tarefa{pendingOpenTasks.length !== 1 ? 's' : ''} em aberto. Milestones com tarefas pendentes
+            podem impactar o Health Score do cliente. Como deseja prosseguir?
+          </p>
+          <div className="flex flex-col gap-2 pt-1">
+            <Button
+              onClick={confirmConcluirTodas}
+              disabled={updateMilestone.isPending || toggleTask.isPending}
+              className="w-full justify-center"
+            >
+              Concluir todas as tarefas e salvar
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={confirmSalvarAssim}
+              disabled={updateMilestone.isPending}
+              className="w-full justify-center"
+            >
+              Salvar assim mesmo
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowConfirmMs(false)}
+              className="w-full justify-center"
+            >
+              Cancelar
             </Button>
           </div>
         </div>
