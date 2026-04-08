@@ -155,7 +155,7 @@ export default function ActivitiesPage() {
         <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
           className="px-3 py-1.5 text-xs border border-border-secondary rounded-md bg-bg-primary hover:border-text-tertiary transition-colors">
           <option value="">Todos os clientes</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {clients.map(c => <option key={c.id} value={c.id}>{c.fantasy_name || c.name}</option>)}
         </select>
 
         <select value={respFilter} onChange={e => setRespFilter(e.target.value)}
@@ -219,7 +219,7 @@ function ActivityItem({ activity: a, onClick }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-text-primary">{a.title || a.description}</p>
         <p className="text-xs text-text-tertiary truncate">
-          {a.type} · {a.client?.name} · {a.activity_date} · {a.responsible?.name}
+          {a.type} · <span className="font-semibold text-donc-sky">{a.client?.fantasy_name || a.client?.name}</span> · {a.activity_date} · {a.responsible?.name}
         </p>
         {a.description && a.title && (
           <p className="text-xs text-text-tertiary mt-0.5 truncate">{a.description}</p>

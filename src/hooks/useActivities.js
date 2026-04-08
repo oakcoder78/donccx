@@ -9,7 +9,7 @@ export function useActivities(filters = {}, options = {}) {
     queryFn: async () => {
       let q = supabase
         .from('activities')
-        .select(`*, client:clients(id,name), contact:contacts(id,name), responsible:profiles(id,name), activity_attachments(*)`)
+        .select(`*, client:clients(id,name,fantasy_name), contact:contacts(id,name), responsible:profiles(id,name), activity_attachments(*)`)
         .order('activity_date', { ascending: false })
         .order('created_at', { ascending: false })
 

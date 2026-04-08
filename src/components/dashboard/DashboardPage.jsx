@@ -221,8 +221,11 @@ export default function DashboardPage() {
     return !last || last < ago30Str
   })
   const renovacao30  = clients.filter(c => c.contract_renewal && c.contract_renewal >= todayStr && c.contract_renewal <= in30Str)
-  const mrrTotal     = clients.reduce((s, c) => s + (c.mrr || 0), 0)
-  const mrrNum       = mrrTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  const mrrTotal       = clients.reduce((s, c) => s + (c.mrr || 0), 0)
+  const mrrNum         = mrrTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  const arrNum         = (mrrTotal * 12).toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  const mrrAtrasado    = clients.filter(c => (c.delay_days || 0) > 0).reduce((s, c) => s + (c.mrr || 0), 0)
+  const mrrAtrasadoNum = mrrAtrasado.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
 
   const tasksDue     = myTasks.filter(a => a.due_date && a.due_date <= todayStr)
   const tasksToday   = tasksDue.filter(a => a.due_date === todayStr)
@@ -308,9 +311,21 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8393A5' }}>
             MRR do portfólio
           </div>
-          <div style={{ marginTop: 8 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, color: '#d3da47' }}>R$ </span>
-            <span style={{ fontSize: 40, fontWeight: 700, color: '#d3da47', lineHeight: 1 }}>{mrrNum}</span>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+            <div>
+              <span style={{ fontSize: 16, fontWeight: 600, color: '#d3da47' }}>R$ </span>
+              <span style={{ fontSize: 40, fontWeight: 700, color: '#d3da47', lineHeight: 1 }}>{mrrNum}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', paddingBottom: 3 }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: '#8393A5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>ARR</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#d3da47' }}>R$ {arrNum}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: '#8393A5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>Em Atraso</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: mrrAtrasado > 0 ? '#f09595' : '#d3da47' }}>R$ {mrrAtrasadoNum}</div>
+              </div>
+            </div>
           </div>
           <div style={{ fontSize: 12, color: '#8393A5', marginTop: 8 }}>
             {clients.length} empresa{clients.length !== 1 ? 's' : ''} ativa{clients.length !== 1 ? 's' : ''}
@@ -410,7 +425,7 @@ export default function DashboardPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {c.name}
+                            {c.fantasy_name || c.name}
                           </span>
                           {c.abc_class && (
                             <span style={{
@@ -494,9 +509,9 @@ export default function DashboardPage() {
                       <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.title || a.description}
                       </div>
-                      {a.client?.name && (
+                      {(a.client?.fantasy_name || a.client?.name) && (
                         <div style={{ fontSize: 11, color: '#888780', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {a.client.name}
+                          {a.client.fantasy_name || a.client.name}
                         </div>
                       )}
                     </div>
@@ -541,7 +556,7 @@ export default function DashboardPage() {
                       style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
                     >
                       <div style={{ width: 110, fontSize: 12, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {c.name}
+                        {c.fantasy_name || c.name}
                       </div>
                       <div style={{ flex: 1, height: 5, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${Math.min(100, score)}%`, backgroundColor: color, borderRadius: 3 }} />

@@ -542,7 +542,7 @@ function PendingCard({ record, onAction }) {
         {/* Header */}
         <div className="px-4 py-3 bg-bg-secondary border-b border-border-tertiary flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <span className="font-semibold text-text-primary text-sm truncate">{record.client?.name}</span>
+            <span className="font-semibold text-text-primary text-sm truncate">{record.client?.fantasy_name || record.client?.name}</span>
             <span className="text-xs text-text-tertiary flex-shrink-0">{fmtMonth(record.ref_month)}</span>
             {totalNew > 0 && (
               <span className="text-xs bg-donc-sky/15 text-donc-sky rounded px-1.5 py-0.5 flex-shrink-0">
