@@ -90,7 +90,7 @@ export async function fetchTicketsByCompany(freshdeskCompanyId, month) {
   let page = 1
   while (page <= 20) {
     const data = await fdGet('/tickets', {
-      company_id: String(freshdeskCompanyId),
+      company_id: String(Number(freshdeskCompanyId)),
       per_page: '100',
       page: String(page),
       include: 'stats',
@@ -156,7 +156,7 @@ export async function fetchContactsByCompany(freshdeskCompanyId) {
   let page = 1
   while (page <= 10) {
     const data = await fdGet('/contacts', {
-      company_id: String(freshdeskCompanyId),
+      company_id: String(Number(freshdeskCompanyId)),
       per_page: '100',
       page: String(page),
     })
