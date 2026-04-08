@@ -56,6 +56,8 @@ export function useMilestoneMutations(clientId) {
     qc.invalidateQueries({ queryKey: ['milestones', clientId] })
     qc.invalidateQueries({ queryKey: ['milestones_all'] })
     qc.invalidateQueries({ queryKey: ['client', clientId] })
+    qc.invalidateQueries({ queryKey: ['projects', clientId] })
+    qc.invalidateQueries({ queryKey: ['projects_all'] })
   }
 
   const createMilestone = useMutation({

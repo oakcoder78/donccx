@@ -23,7 +23,7 @@ const EMPTY_PROJ = {
   title: '', description: '', responsible_id: '',
   start_date: '', end_date: '', status: 'em_andamento',
 }
-const EMPTY_MS = { title: '', due_date: '', status: 'planejado' }
+const EMPTY_MS = { title: '', description: '', responsible_id: '', due_date: '', status: 'planejado' }
 
 function formatDate(d) {
   if (!d) return null
@@ -111,15 +111,25 @@ export function ClientSubProjetos({ client }) {
   function openEditMs(m) {
     setEditMs(m)
     setMsProjectId(m.project_id)
-    setMsForm({ title: m.title, due_date: m.due_date || '', status: m.status })
+    setMsForm({
+      title:          m.title,
+      description:    m.description    || '',
+      responsible_id: m.responsible_id || '',
+      due_date:       m.due_date       || '',
+      status:         m.status,
+    })
     setShowMsModal(true)
   }
 
   async function handleSaveMs() {
+    const payload = { ...msForm }
+    if (!payload.responsible_id) delete payload.responsible_id
+    if (!payload.description)    delete payload.description
+    if (!payload.due_date)       delete payload.due_date
     if (editMs) {
-      await updateMilestone.mutateAsync({ id: editMs.id, ...msForm })
+      await updateMilestone.mutateAsync({ id: editMs.id, ...payload })
     } else {
-      await createMilestone.mutateAsync({ ...msForm, project_id: msProjectId })
+      await createMilestone.mutateAsync({ ...payload, project_id: msProjectId })
     }
     setShowMsModal(false)
   }
@@ -386,6 +396,28 @@ export function ClientSubProjetos({ client }) {
               onChange={e => setMsForm(p => ({ ...p, title: e.target.value }))}
               className="input-base w-full"
             />
+          </div>
+          <div>
+            <label className="label-sm">Descrição</label>
+            <textarea
+              value={msForm.description}
+              onChange={e => setMsForm(p => ({ ...p, description: e.target.value }))}
+              className="input-base w-full resize-none"
+              rows={2}
+            />
+          </div>
+          <div>
+            <label className="label-sm">Responsável</label>
+            <select
+              value={msForm.responsible_id}
+              onChange={e => setMsForm(p => ({ ...p, responsible_id: e.target.value }))}
+              className="input-base w-full"
+            >
+              <option value="">— Selecionar —</option>
+              {profiles.map(pr => (
+                <option key={pr.id} value={pr.id}>{pr.name}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="label-sm">Data Prevista</label>
