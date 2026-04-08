@@ -311,12 +311,13 @@ export default function DashboardPage() {
           <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#8393A5' }}>
             MRR do portfólio
           </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8, marginTop: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0, marginTop: 8 }}>
             <div>
               <span style={{ fontSize: 16, fontWeight: 600, color: '#d3da47' }}>R$ </span>
               <span style={{ fontSize: 40, fontWeight: 700, color: '#d3da47', lineHeight: 1 }}>{mrrNum}</span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end', paddingBottom: 3 }}>
+            <div style={{ width: 1, height: '60%', backgroundColor: 'rgba(211,218,71,0.25)', alignSelf: 'center', margin: '0 16px', flexShrink: 0 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 10, color: '#8393A5', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>ARR</div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: '#d3da47' }}>R$ {arrNum}</div>
