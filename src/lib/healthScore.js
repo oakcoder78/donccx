@@ -51,16 +51,12 @@ function calcUso(client, rules) {
 
   // Tendência OS
   const osChg = avg3OS > 0 ? ((cur.os_created ?? 0) - avg3OS) / avg3OS : 0
-  console.log('[calcUso] OS — cur:', cur.os_created, '| avg3:', avg3OS.toFixed(2), '| chg:', (osChg * 100).toFixed(1) + '%',
-    '→ regra:', osChg > 0.35 ? 'os_up' : osChg < -0.35 ? 'os_down' : 'os_stable')
   if (osChg > 0.35)       mod += applyRule(rules, 'os_up',     appliedRules)
   else if (osChg < -0.35) mod += applyRule(rules, 'os_down',   appliedRules)
   else                    mod += applyRule(rules, 'os_stable',  appliedRules)
 
   // Tendência usuários ativos
   const userChg = avg3Users > 0 ? ((cur.active_users ?? 0) - avg3Users) / avg3Users : 0
-  console.log('[calcUso] Users — cur:', cur.active_users, '| avg3:', avg3Users.toFixed(2), '| chg:', (userChg * 100).toFixed(1) + '%',
-    '→ regra:', userChg > 0.35 ? 'usr_up' : userChg < -0.35 ? 'usr_down' : 'usr_stable')
   if (userChg > 0.35)       mod += applyRule(rules, 'usr_up',    appliedRules)
   else if (userChg < -0.35) mod += applyRule(rules, 'usr_down',  appliedRules)
   else                      mod += applyRule(rules, 'usr_stable', appliedRules)
@@ -145,7 +141,6 @@ function calcRelacionamento(client, rules) {
   let mod = 0
 
   const links = client.contact_links ?? []
-  console.log('[calcRelacionamento] contact_links:', links)
 
   // Decisor
   const hasDecisor = links.some(l => l.papel?.toLowerCase() === 'decisor')

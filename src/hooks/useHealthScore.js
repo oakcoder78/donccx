@@ -85,25 +85,6 @@ export async function recalculateAndSave(client, rules) {
 
   const enrichedClient = { ...client, ...freshArrays }
 
-  console.log('[recalculateAndSave] rules recebidas:', effectiveRules?.length, effectiveRules)
-  console.log('[recalculateAndSave] client_usage:', enrichedClient.client_usage)
-  console.log('[recalculateAndSave] client_support:', enrichedClient.client_support)
-  console.log('[recalculateAndSave] activities:', enrichedClient.activities)
-  console.log('[recalculateAndSave] milestones:', enrichedClient.milestones)
-  console.log('[recalculateAndSave] client info:', {
-    id: enrichedClient.id,
-    contract_active: enrichedClient.contract_active,
-    delay_days: enrichedClient.delay_days,
-    stage: enrichedClient.stage?.name,
-    golive: enrichedClient.golive,
-    contact_links_count: enrichedClient.contact_links?.length,
-    catalog_history_count: enrichedClient.client_catalog_history?.length,
-  })
-
-  if (!effectiveRules?.length) {
-    console.warn('[recalculateAndSave] AVISO: rules vazio — score retornará 20 em todas as dimensões')
-  }
-
   const scores = calculateHealthScore(enrichedClient, effectiveRules)
 
   const { error } = await supabase
