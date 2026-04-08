@@ -23,29 +23,88 @@ async function fetchRules() {
 }
 
 /**
+ * Busca do banco os arrays necessários para o cálculo do health score.
+ * Não depende do estado do React Query cache.
+ */
+async function fetchClientArrays(clientId) {
+  const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const activityCutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  const [usageRes, supportRes, activitiesRes, milestonesRes, historyRes] = await Promise.all([
+    supabase
+      .from('client_usage')
+      .select('ref_month, os_created, active_users')
+      .eq('client_id', clientId)
+      .order('ref_month', { ascending: false }),
+    supabase
+      .from('client_support')
+      .select('ref_month, tickets_opened, tickets_resolved, sla_first_response')
+      .eq('client_id', clientId)
+      .order('ref_month', { ascending: false }),
+    supabase
+      .from('activities')
+      .select('type, activity_date')
+      .eq('client_id', clientId)
+      .gte('activity_date', activityCutoff),
+    supabase
+      .from('milestones')
+      .select('id, title, due_date, status')
+      .eq('client_id', clientId),
+    supabase
+      .from('client_catalog_history')
+      .select('catalog_item_id, status_novo, status_anterior, changed_at, catalog_items(type)')
+      .eq('client_id', clientId)
+      .order('changed_at', { ascending: false }),
+  ])
+
+  if (usageRes.error)      console.error('[fetchClientArrays] client_usage error:', usageRes.error)
+  if (supportRes.error)    console.error('[fetchClientArrays] client_support error:', supportRes.error)
+  if (activitiesRes.error) console.error('[fetchClientArrays] activities error:', activitiesRes.error)
+  if (milestonesRes.error) console.error('[fetchClientArrays] milestones error:', milestonesRes.error)
+  if (historyRes.error)    console.error('[fetchClientArrays] catalog_history error:', historyRes.error)
+
+  return {
+    client_usage:           usageRes.data      ?? [],
+    client_support:         supportRes.data    ?? [],
+    activities:             activitiesRes.data ?? [],
+    milestones:             milestonesRes.data ?? [],
+    client_catalog_history: historyRes.data    ?? [],
+  }
+}
+
+/**
  * Calcula o health score a partir do objeto cliente e persiste no banco.
+ * Busca os arrays de dados diretamente do banco para garantir dados frescos.
  * Se rules não for fornecido, busca do banco automaticamente.
  */
 export async function recalculateAndSave(client, rules) {
-  const effectiveRules = rules ?? await fetchRules()
-  console.log('[recalculateAndSave] rules recebidas:', effectiveRules)
-  console.log('[recalculateAndSave] client recebido:', {
-    id: client?.id,
-    contract_active: client?.contract_active,
-    delay_days: client?.delay_days,
-    stage: client?.stage,
-    golive: client?.golive,
-    client_usage_count: client?.client_usage?.length,
-    client_support_count: client?.client_support?.length,
-    contact_links_count: client?.contact_links?.length,
-    activities_count: client?.activities?.length,
-    milestones_count: client?.milestones?.length,
-    catalog_history_count: client?.client_catalog_history?.length,
+  const [effectiveRules, freshArrays] = await Promise.all([
+    rules != null ? Promise.resolve(rules) : fetchRules(),
+    fetchClientArrays(client.id),
+  ])
+
+  const enrichedClient = { ...client, ...freshArrays }
+
+  console.log('[recalculateAndSave] rules recebidas:', effectiveRules?.length, effectiveRules)
+  console.log('[recalculateAndSave] client_usage:', enrichedClient.client_usage)
+  console.log('[recalculateAndSave] activities:', enrichedClient.activities)
+  console.log('[recalculateAndSave] client info:', {
+    id: enrichedClient.id,
+    contract_active: enrichedClient.contract_active,
+    delay_days: enrichedClient.delay_days,
+    stage: enrichedClient.stage?.name,
+    golive: enrichedClient.golive,
+    contact_links_count: enrichedClient.contact_links?.length,
+    milestones_count: enrichedClient.milestones?.length,
+    client_support_count: enrichedClient.client_support?.length,
+    catalog_history_count: enrichedClient.client_catalog_history?.length,
   })
+
   if (!effectiveRules?.length) {
-    console.warn('[recalculateAndSave] AVISO: rules vazio ou não carregado — score retornará 20 em todas as dimensões')
+    console.warn('[recalculateAndSave] AVISO: rules vazio — score retornará 20 em todas as dimensões')
   }
-  const scores = calculateHealthScore(client, effectiveRules)
+
+  const scores = calculateHealthScore(enrichedClient, effectiveRules)
 
   const { error } = await supabase
     .from('clients')
