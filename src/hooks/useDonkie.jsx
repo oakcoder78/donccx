@@ -30,7 +30,22 @@ function useDonkieConfig() {
   })
 }
 
-// ─── Busca dados leves do cliente pela rota ──────────────────
+// ─── Helpers de data ─────────────────────────────────────────
+function refMonths() {
+  const now = new Date()
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prv = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`
+  return [cur, prv]
+}
+
+function fmtDate(iso) {
+  if (!iso) return null
+  const d = new Date(iso)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+// ─── Busca dados enriquecidos do cliente pela rota ───────────
 function useRouteClientData(pathname) {
   const match = pathname.match(/^\/empresas\/(\d+)/)
   const clientId = match ? parseInt(match[1], 10) : null
@@ -41,11 +56,42 @@ function useRouteClientData(pathname) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, name, fantasy_name, health_total, health_uso, health_suporte, health_relacionamento, health_financeiro, health_projeto, stage:stages(name)')
+        .select(`
+          id, name, fantasy_name,
+          health_total, health_uso, health_suporte,
+          health_relacionamento, health_financeiro, health_projeto,
+          stage:stages(name),
+          activities(type, title, activity_date),
+          client_support(tickets_opened, tickets_resolved, sla_first_response, ref_month),
+          projects(title, status)
+        `)
         .eq('id', clientId)
         .single()
       if (error) { console.error('[useDonkie] client ctx:', error); return null }
-      return data
+
+      // Pós-processa: ordena e filtra no client (sem round-trips extras)
+      const [curMonth, prvMonth] = refMonths()
+
+      const activities = (data.activities ?? [])
+        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+        .slice(0, 3)
+
+      const lastActivityDate = activities[0]?.activity_date ?? null
+
+      const support = (data.client_support ?? [])
+        .filter(s => s.ref_month === curMonth || s.ref_month === prvMonth)
+        .sort((a, b) => b.ref_month.localeCompare(a.ref_month))[0] ?? null
+
+      const activeProjects = (data.projects ?? [])
+        .filter(p => p.status !== 'concluido' && p.status !== 'suspenso')
+
+      return {
+        ...data,
+        _activities:      activities,
+        _lastActivityDate: lastActivityDate,
+        _support:         support,
+        _activeProjects:  activeProjects,
+      }
     },
     staleTime: 60 * 1000,
     retry: 0,
@@ -64,11 +110,13 @@ function buildRouteContext(pathname, clientData) {
   }
 
   if (/^\/empresas\/\d+/.test(pathname) && clientData) {
-    const cn  = clientData.fantasy_name || clientData.name
-    const hs  = clientData.health_total ?? 0
-    const st  = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
-    const stageName = clientData.stage?.name || null
-    return (
+    const cn       = clientData.fantasy_name || clientData.name
+    const hs       = clientData.health_total ?? 0
+    const st       = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
+    const stageName = clientData.stage?.name ?? null
+
+    // Health block
+    let ctx =
       `Usuário está na ficha de ${cn}. ` +
       `Health Score total: ${hs} (${st}). ` +
       `Dimensões: Uso ${clientData.health_uso ?? 0}/20, ` +
@@ -77,7 +125,38 @@ function buildRouteContext(pathname, clientData) {
       `Financeiro ${clientData.health_financeiro ?? 0}/20, ` +
       `Projeto ${clientData.health_projeto ?? 0}/20.` +
       (stageName ? ` Estágio: ${stageName}.` : '')
-    )
+
+    // Últimas atividades
+    const acts = clientData._activities ?? []
+    if (acts.length > 0) {
+      const actStr = acts
+        .map(a => `${a.type} — ${a.title}${a.activity_date ? ` (${fmtDate(a.activity_date)})` : ''}`)
+        .join('; ')
+      ctx += ` Últimas atividades: ${actStr}.`
+    }
+
+    // Último contato
+    if (clientData._lastActivityDate) {
+      ctx += ` Último contato: ${fmtDate(clientData._lastActivityDate)}.`
+    }
+
+    // Suporte último mês
+    const sup = clientData._support
+    if (sup) {
+      const sla = sup.sla_first_response != null ? ` SLA 1ª resposta: ${sup.sla_first_response} min.` : ''
+      ctx +=
+        ` Suporte (${sup.ref_month}): ${sup.tickets_opened ?? 0} tickets abertos, ` +
+        `${sup.tickets_resolved ?? 0} resolvidos.${sla}`
+    }
+
+    // Projetos ativos
+    const projs = clientData._activeProjects ?? []
+    if (projs.length > 0) {
+      const projStr = projs.map(p => `${p.title} (${p.status})`).join('; ')
+      ctx += ` Projetos ativos: ${projStr}.`
+    }
+
+    return ctx
   }
 
   if (pathname === '/projetos') {
@@ -177,7 +256,6 @@ export function DonkieProvider({ children }) {
     if (!content.trim() && !imageBase64) return
     if (isLoading) return
 
-    // Monta conteúdo da mensagem do usuário (com ou sem imagem)
     const userContent = imageBase64
       ? [
           { type: 'image', source: { type: 'base64', media_type: imageMime || 'image/jpeg', data: imageBase64 } },
@@ -191,7 +269,7 @@ export function DonkieProvider({ children }) {
     setIsLoading(true)
 
     try {
-      // routeClientData tem precedência sobre clientData manual
+      // routeClientData (automático) tem precedência sobre clientData manual
       const activeClientData = routeClientData || clientData
       const routeCtx   = buildRouteContext(location.pathname, activeClientData)
       const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
@@ -221,7 +299,7 @@ export function DonkieProvider({ children }) {
       const data = await response.json()
 
       if (!response.ok) throw new Error(data.error?.message || data.error || `HTTP ${response.status}`)
-      if (data?.error) throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
+      if (data?.error)  throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
 
       const assistantText = data.content?.[0]?.text ?? ''
       const assistantMsg  = { role: 'assistant', content: assistantText }
@@ -250,9 +328,9 @@ export function DonkieProvider({ children }) {
     setConvId(null)
   }, [])
 
-  const open   = useCallback(() => setIsOpen(true),       [])
-  const close  = useCallback(() => setIsOpen(false),      [])
-  const toggle = useCallback(() => setIsOpen(o => !o),    [])
+  const open   = useCallback(() => setIsOpen(true),    [])
+  const close  = useCallback(() => setIsOpen(false),   [])
+  const toggle = useCallback(() => setIsOpen(o => !o), [])
 
   return (
     <DonkieContext.Provider value={{
