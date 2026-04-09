@@ -30,13 +30,22 @@ function useDonkieConfig() {
   })
 }
 
-// ─── Helpers de data ─────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────
 function refMonths() {
-  const now = new Date()
-  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const prv = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`
-  return [cur, prv]
+  const now  = new Date()
+  const cur  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const pd   = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prev = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}`
+  const pd2  = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+  const prev2 = `${pd2.getFullYear()}-${String(pd2.getMonth() + 1).padStart(2, '0')}`
+  return [cur, prev, prev2]
+}
+
+function monthLabel(refMonth) {
+  if (!refMonth) return ''
+  const [year, month] = refMonth.split('-')
+  const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+  return `${months[parseInt(month, 10) - 1]}/${year.slice(2)}`
 }
 
 function fmtDate(iso) {
@@ -45,52 +54,92 @@ function fmtDate(iso) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+function fmtMrr(v) {
+  if (v == null || v === 0) return 'N/D'
+  return `R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function fmtPct(v) {
+  if (v == null) return 'N/D'
+  return `${Math.round(v)}%`
+}
+
 // ─── Busca dados enriquecidos do cliente pela rota ───────────
 function useRouteClientData(pathname) {
-  const match = pathname.match(/^\/empresas\/(\d+)/)
+  const match    = pathname.match(/^\/empresas\/(\d+)/)
   const clientId = match ? parseInt(match[1], 10) : null
 
   return useQuery({
     queryKey: ['donkie_client_ctx', clientId],
-    enabled: !!clientId,
-    queryFn: async () => {
+    enabled:  !!clientId,
+    queryFn:  async () => {
       const { data, error } = await supabase
         .from('clients')
         .select(`
-          id, name, fantasy_name,
+          id, name, fantasy_name, abc_class, mrr,
           health_total, health_uso, health_suporte,
           health_relacionamento, health_financeiro, health_projeto,
           stage:stages(name),
-          activities(type, title, activity_date),
-          client_support(tickets_opened, tickets_resolved, sla_first_response, ref_month),
-          projects(title, status)
+          segment:segments(name),
+          activities(type, title, activity_date, description),
+          client_support(tickets_opened, tickets_resolved, n1_pct, n2_pct, n3_pct, sla_first_response, ref_month),
+          client_usage(os_created, active_users, ref_month),
+          contact_links(role, contacts(id, name))
         `)
         .eq('id', clientId)
         .single()
       if (error) { console.error('[useDonkie] client ctx:', error); return null }
 
-      // Pós-processa: ordena e filtra no client (sem round-trips extras)
-      const [curMonth, prvMonth] = refMonths()
+      const [curMonth, prevMonth, prev2Month] = refMonths()
 
+      // Últimas 5 atividades
       const activities = (data.activities ?? [])
         .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
-        .slice(0, 3)
+        .slice(0, 5)
 
       const lastActivityDate = activities[0]?.activity_date ?? null
 
+      // Suporte: mês atual ou anterior, mais recente primeiro
       const support = (data.client_support ?? [])
-        .filter(s => s.ref_month === curMonth || s.ref_month === prvMonth)
+        .filter(s => s.ref_month === curMonth || s.ref_month === prevMonth)
         .sort((a, b) => b.ref_month.localeCompare(a.ref_month))[0] ?? null
 
+      // Uso: últimos 2 meses disponíveis
+      const usages = (data.client_usage ?? [])
+        .filter(u => u.ref_month === curMonth || u.ref_month === prevMonth || u.ref_month === prev2Month)
+        .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
+        .slice(0, 2)
+
+      // Variação de OS mês a mês
+      const curUsage  = usages[0] ?? null
+      const prevUsage = usages[1] ?? null
+      const osVariation = (curUsage && prevUsage && prevUsage.os_created)
+        ? Math.round(((curUsage.os_created - prevUsage.os_created) / prevUsage.os_created) * 100)
+        : null
+
+      // Projetos ativos
       const activeProjects = (data.projects ?? [])
         .filter(p => p.status !== 'concluido' && p.status !== 'suspenso')
 
+      // Decisores e Champions
+      const keyContacts = (data.contact_links ?? [])
+        .filter(cl => {
+          const r = (cl.role ?? '').toLowerCase()
+          return r.includes('decisor') || r.includes('champion')
+        })
+        .map(cl => ({ name: cl.contacts?.name, role: cl.role }))
+        .filter(c => c.name)
+
       return {
         ...data,
-        _activities:      activities,
+        _activities:       activities,
         _lastActivityDate: lastActivityDate,
-        _support:         support,
-        _activeProjects:  activeProjects,
+        _support:          support,
+        _curUsage:         curUsage,
+        _prevUsage:        prevUsage,
+        _osVariation:      osVariation,
+        _activeProjects:   activeProjects,
+        _keyContacts:      keyContacts,
       }
     },
     staleTime: 60 * 1000,
@@ -110,67 +159,84 @@ function buildRouteContext(pathname, clientData) {
   }
 
   if (/^\/empresas\/\d+/.test(pathname) && clientData) {
-    const cn       = clientData.fantasy_name || clientData.name
-    const hs       = clientData.health_total ?? 0
-    const st       = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
+    const cn        = clientData.fantasy_name || clientData.name
+    const hs        = clientData.health_total ?? 0
+    const st        = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
     const stageName = clientData.stage?.name ?? null
+    const segName   = clientData.segment?.name ?? null
 
-    // Health block
-    let ctx =
-      `Usuário está na ficha de ${cn}. ` +
-      `Health Score total: ${hs} (${st}). ` +
-      `Dimensões: Uso ${clientData.health_uso ?? 0}/20, ` +
-      `Suporte ${clientData.health_suporte ?? 0}/20, ` +
-      `Relacionamento ${clientData.health_relacionamento ?? 0}/20, ` +
-      `Financeiro ${clientData.health_financeiro ?? 0}/20, ` +
-      `Projeto ${clientData.health_projeto ?? 0}/20.` +
-      (stageName ? ` Estágio: ${stageName}.` : '')
+    // Linha 1 — identificação
+    const abc = clientData.abc_class ? `ABC ${clientData.abc_class}` : null
+    const parts1 = [
+      `Cliente: ${cn}`,
+      abc,
+      segName ? `Segmento: ${segName}` : null,
+      `MRR: ${fmtMrr(clientData.mrr)}`,
+    ].filter(Boolean)
+    let ctx = parts1.join(' | ')
 
-    // Últimas atividades
+    // Linha 2 — health
+    ctx += `\nHealth Score: ${hs}/100 (${st})` +
+      ` — Uso ${clientData.health_uso ?? 0}` +
+      `, Suporte ${clientData.health_suporte ?? 0}` +
+      `, Relacionamento ${clientData.health_relacionamento ?? 0}` +
+      `, Financeiro ${clientData.health_financeiro ?? 0}` +
+      `, Projeto ${clientData.health_projeto ?? 0}` +
+      (stageName ? ` | Estágio: ${stageName}` : '')
+
+    // Linha 3 — operação (uso)
+    const cu = clientData._curUsage
+    if (cu) {
+      const varStr = clientData._osVariation != null
+        ? ` (${clientData._osVariation > 0 ? '+' : ''}${clientData._osVariation}% vs mês anterior)`
+        : ''
+      const osUser = (cu.os_created && cu.active_users)
+        ? ` | ${Math.round(cu.os_created / cu.active_users)} OS/usuário`
+        : ''
+      ctx += `\nOperação (${monthLabel(cu.ref_month)}): ${cu.os_created ?? 'N/D'} OS criadas${varStr} | ${cu.active_users ?? 'N/D'} usuários ativos${osUser}`
+    }
+
+    // Linha 4 — suporte
+    const sup = clientData._support
+    if (sup) {
+      const sla = sup.sla_first_response != null ? ` | SLA 1ª resp: ${sup.sla_first_response}min` : ''
+      ctx += `\nSuporte (${monthLabel(sup.ref_month)}): ${sup.tickets_opened ?? 0} tickets | ${sup.tickets_resolved ?? 0} resolvidos` +
+        ` | N1: ${fmtPct(sup.n1_pct)} N2: ${fmtPct(sup.n2_pct)} N3: ${fmtPct(sup.n3_pct)}${sla}`
+    }
+
+    // Linha 5 — decisores/champions
+    const kc = clientData._keyContacts ?? []
+    if (kc.length > 0) {
+      ctx += `\nDecisores/Champions: ${kc.map(c => `${c.name} (${c.role})`).join(', ')}`
+    }
+
+    // Linha 6 — últimas atividades
     const acts = clientData._activities ?? []
     if (acts.length > 0) {
       const actStr = acts
-        .map(a => `${a.type} — ${a.title}${a.activity_date ? ` (${fmtDate(a.activity_date)})` : ''}`)
+        .map(a => `${a.type} — ${a.title}${a.activity_date ? ` — ${fmtDate(a.activity_date)}` : ''}`)
         .join('; ')
-      ctx += ` Últimas atividades: ${actStr}.`
+      ctx += `\nÚltimas atividades: ${actStr}`
     }
 
-    // Último contato
-    if (clientData._lastActivityDate) {
-      ctx += ` Último contato: ${fmtDate(clientData._lastActivityDate)}.`
-    }
-
-    // Suporte último mês
-    const sup = clientData._support
-    if (sup) {
-      const sla = sup.sla_first_response != null ? ` SLA 1ª resposta: ${sup.sla_first_response} min.` : ''
-      ctx +=
-        ` Suporte (${sup.ref_month}): ${sup.tickets_opened ?? 0} tickets abertos, ` +
-        `${sup.tickets_resolved ?? 0} resolvidos.${sla}`
-    }
-
-    // Projetos ativos
+    // Linha 7 — projetos ativos
     const projs = clientData._activeProjects ?? []
     if (projs.length > 0) {
-      const projStr = projs.map(p => `${p.title} (${p.status})`).join('; ')
-      ctx += ` Projetos ativos: ${projStr}.`
+      ctx += `\nProjetos ativos: ${projs.map(p => `${p.title} (${p.status})`).join('; ')}`
+    }
+
+    // Linha 8 — último contato
+    if (clientData._lastActivityDate) {
+      ctx += `\nÚltimo contato: ${fmtDate(clientData._lastActivityDate)}`
     }
 
     return ctx
   }
 
-  if (pathname === '/projetos') {
-    return 'Usuário está na visão global do Kanban de Projetos.'
-  }
-  if (pathname === '/atividades') {
-    return 'Usuário está na lista de Atividades.'
-  }
-  if (pathname === '/contatos') {
-    return 'Usuário está na lista de Contatos.'
-  }
-  if (pathname === '/configuracoes') {
-    return 'Usuário está nas Configurações do sistema.'
-  }
+  if (pathname === '/projetos')      return 'Usuário está na visão global do Kanban de Projetos.'
+  if (pathname === '/atividades')    return 'Usuário está na lista de Atividades.'
+  if (pathname === '/contatos')      return 'Usuário está na lista de Contatos.'
+  if (pathname === '/configuracoes') return 'Usuário está nas Configurações do sistema.'
   return `Usuário está em ${pathname}.`
 }
 
@@ -187,7 +253,7 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
     : ''
 
   const routeCtx = routeContext
-    ? `\n\nContexto da tela: ${routeContext}`
+    ? `\n\nContexto da tela:\n${routeContext}`
     : ''
 
   return config.system_prompt + userCtx + routeCtx + modeInstruction
@@ -196,23 +262,21 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
 // ─── Provider ────────────────────────────────────────────────
 export function DonkieProvider({ children }) {
   const { profile } = useAuth()
-  const location = useLocation()
-  const { data: config } = useDonkieConfig()
+  const location    = useLocation()
+  const { data: config }          = useDonkieConfig()
   const { data: routeClientData } = useRouteClientData(location.pathname)
 
   const [isOpen,     setIsOpen]    = useState(false)
   const [messages,   setMessages]  = useState([])
   const [mode,       setMode]      = useState('discussao')
   const [isLoading,  setIsLoading] = useState(false)
-  const [clientData, setClientData] = useState(null)  // override manual (legado)
+  const [clientData, setClientData] = useState(null)
   const [convId,     setConvId]    = useState(null)
 
-  // Modo default do config
   useEffect(() => {
     if (config?.default_mode) setMode(config.default_mode)
   }, [config?.default_mode])
 
-  // Limpa conversa quando muda de rota
   const prevPath = useRef(location.pathname)
   useEffect(() => {
     if (prevPath.current !== location.pathname) {
@@ -221,15 +285,14 @@ export function DonkieProvider({ children }) {
     }
   }, [location.pathname])
 
-  // ── Salva conversa no Supabase (debounced) ────────────────
+  // ── Salva conversa (debounced) ────────────────────────────
   const saveTimer = useRef(null)
   const saveConversation = useCallback((msgs, cid) => {
     if (!profile?.id || msgs.length === 0) return
     clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
-      const clientIdMatch = location.pathname.match(/^\/empresas\/(\d+)/)
-      const clientIdNum   = clientIdMatch ? parseInt(clientIdMatch[1], 10) : null
-
+      const m           = location.pathname.match(/^\/empresas\/(\d+)/)
+      const clientIdNum = m ? parseInt(m[1], 10) : null
       if (cid) {
         await supabase
           .from('donkie_conversations')
@@ -238,12 +301,7 @@ export function DonkieProvider({ children }) {
       } else {
         const { data } = await supabase
           .from('donkie_conversations')
-          .insert({
-            user_id:   profile.id,
-            client_id: clientIdNum,
-            route:     location.pathname,
-            messages:  msgs,
-          })
+          .insert({ user_id: profile.id, client_id: clientIdNum, route: location.pathname, messages: msgs })
           .select('id')
           .single()
         if (data?.id) setConvId(data.id)
@@ -263,21 +321,16 @@ export function DonkieProvider({ children }) {
         ]
       : content
 
-    const userMsg = { role: 'user', content: userContent }
-    const newMessages = [...messages, userMsg]
+    const newMessages = [...messages, { role: 'user', content: userContent }]
     setMessages(newMessages)
     setIsLoading(true)
 
     try {
-      // routeClientData (automático) tem precedência sobre clientData manual
-      const activeClientData = routeClientData || clientData
-      const routeCtx   = buildRouteContext(location.pathname, activeClientData)
-      const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
+      const activeClient = routeClientData || clientData
+      const routeCtx     = buildRouteContext(location.pathname, activeClient)
+      const systemText   = buildSystemPrompt(config, profile, routeCtx, mode)
 
-      const apiMessages = newMessages.map(m => ({
-        role:    m.role,
-        content: m.content,
-      }))
+      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }))
 
       const { data: { session } } = await supabase.auth.getSession()
       const response = await fetch(
@@ -302,8 +355,7 @@ export function DonkieProvider({ children }) {
       if (data?.error)  throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
 
       const assistantText = data.content?.[0]?.text ?? ''
-      const assistantMsg  = { role: 'assistant', content: assistantText }
-      const finalMessages = [...newMessages, assistantMsg]
+      const finalMessages = [...newMessages, { role: 'assistant', content: assistantText }]
 
       setMessages(finalMessages)
       saveConversation(finalMessages, convId)
@@ -319,15 +371,8 @@ export function DonkieProvider({ children }) {
     }
   }, [messages, isLoading, config, profile, location.pathname, routeClientData, clientData, mode, convId, saveConversation])
 
-  const toggleMode = useCallback(() => {
-    setMode(m => m === 'discussao' ? 'implementacao' : 'discussao')
-  }, [])
-
-  const clearConversation = useCallback(() => {
-    setMessages([])
-    setConvId(null)
-  }, [])
-
+  const toggleMode       = useCallback(() => setMode(m => m === 'discussao' ? 'implementacao' : 'discussao'), [])
+  const clearConversation = useCallback(() => { setMessages([]); setConvId(null) }, [])
   const open   = useCallback(() => setIsOpen(true),    [])
   const close  = useCallback(() => setIsOpen(false),   [])
   const toggle = useCallback(() => setIsOpen(o => !o), [])
