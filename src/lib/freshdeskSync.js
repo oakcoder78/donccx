@@ -127,16 +127,22 @@ export function processTicketsToSupport(tickets, clientId, month, groupsMap = {}
   const tickets_opened   = tickets.length
   const tickets_resolved = tickets.filter(t => t.status === 4 || t.status === 5).length
 
-  // Média do tempo até a primeira resposta em minutos
+  // Média do tempo até a primeira resposta em minutos.
+  // Prefere o campo first_response_time (segundos desde criação) retornado diretamente
+  // pelo endpoint de tickets; cai de volta para diff de timestamps se ausente.
   const responseTimes = tickets
-    .filter(t => t.stats?.first_responded_at)
     .map(t => {
-      const created   = new Date(t.created_at).getTime()
-      const responded = new Date(t.stats.first_responded_at).getTime()
-      return Math.round((responded - created) / 60000)
+      if (typeof t.first_response_time === 'number' && t.first_response_time > 0) {
+        return Math.round(t.first_response_time / 60)
+      }
+      if (t.stats?.first_responded_at) {
+        const created   = new Date(t.created_at).getTime()
+        const responded = new Date(t.stats.first_responded_at).getTime()
+        return Math.round((responded - created) / 60000)
+      }
+      return null
     })
-    // Ignora negativos (dado corrompido), zero e acima de 480 min (8h — distorcem a média)
-    .filter(ms => ms >= 1 && ms <= 480)
+    .filter(ms => ms !== null && ms >= 1 && ms <= 480)
 
   const sla_first_response = responseTimes.length
     ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)

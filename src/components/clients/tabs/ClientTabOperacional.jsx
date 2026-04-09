@@ -5,6 +5,7 @@ import { ClientSubOnboarding } from './operacional/ClientSubOnboarding'
 import { ClientSubUso } from './operacional/ClientSubUso'
 import { ClientSubProjetos } from './operacional/ClientSubProjetos'
 import { ClientSubSuporte } from './operacional/ClientSubSuporte'
+import { ClientSubRelatorios } from './operacional/ClientSubRelatorios'
 import { RegistrarDadosModal } from './operacional/RegistrarDadosModal'
 import { Button } from '../../ui/Button'
 
@@ -14,6 +15,7 @@ const SUBS = [
   { key: 'uso',        label: 'Uso'        },
   { key: 'projetos',   label: 'Projetos'   },
   { key: 'suporte',    label: 'Suporte'    },
+  { key: 'relatorios', label: 'Relatórios' },
 ]
 
 export function ClientTabOperacional({ client }) {
@@ -33,7 +35,7 @@ export function ClientTabOperacional({ client }) {
     <div>
       {/* Header: sub-tabs + action button */}
       <div className="flex items-center justify-between mb-5 gap-4">
-        <div className="flex gap-1 bg-bg-tertiary p-1 rounded-md w-fit">
+        <div className="flex gap-1 bg-bg-tertiary p-1 rounded-md w-fit flex-wrap">
           {SUBS.map(s => (
             <button
               key={s.key}
@@ -61,6 +63,7 @@ export function ClientTabOperacional({ client }) {
       {sub === 'uso'        && <ClientSubUso        client={client} onEdit={setModalMonth} />}
       {sub === 'projetos'   && <ClientSubProjetos   client={client} />}
       {sub === 'suporte'    && <ClientSubSuporte    client={client} onEdit={setModalMonth} />}
+      {sub === 'relatorios' && <ClientSubRelatorios client={client} />}
 
       {modalMonth !== null && (
         <RegistrarDadosModal

@@ -17,6 +17,8 @@ import ActivitiesPage from './components/activities/ActivitiesPage'
 import ProjectsPage from './components/projects/ProjectsPage'
 import SettingsPage from './components/settings/SettingsPage'
 import FreshdeskPendingPage from './pages/FreshdeskPendingPage'
+import ReportEditorPage from './pages/ReportEditorPage'
+import ReportPublicPage from './pages/ReportPublicPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -74,7 +76,10 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* Public routes */}
+      {/* Rota pública do RMC — sem autenticação, sem Navbar */}
+      <Route path="/r/:token" element={<ReportPublicPage />} />
+
+      {/* Public auth routes */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<AuthRedirect />}>
         <Route path="/login" element={<LoginPage />} />
@@ -86,6 +91,8 @@ function AppRoutes() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/empresas" element={<ClientsPage />} />
         <Route path="/empresas/:id" element={<ClientDetail />} />
+        {/* Editor de relatório — fullscreen, sem padding extra do AppLayout */}
+        <Route path="/empresas/:clientId/relatorios/:reportId/editar" element={<ReportEditorPage />} />
         {/* Legacy redirects */}
         <Route path="/clientes" element={<Navigate to="/empresas" replace />} />
         <Route path="/clientes/:id" element={<Navigate to="/empresas" replace />} />
