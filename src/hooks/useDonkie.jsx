@@ -76,15 +76,14 @@ function useRouteClientData(pathname) {
       const { data, error } = await supabase
         .from('clients')
         .select(`
-          id, name, fantasy_name, abc_class, mrr,
+          id, name, fantasy_name, abc_class, mrr, segment,
           health_total, health_uso, health_suporte,
           health_relacionamento, health_financeiro, health_projeto,
           stage:stages(name),
-          segment:segments(name),
           activities(type, title, activity_date, description),
           client_support(tickets_opened, tickets_resolved, n1_pct, n2_pct, n3_pct, sla_first_response, ref_month),
           client_usage(os_created, active_users, ref_month),
-          contact_links(role, contacts(id, name)),
+          contact_links(papel, champion, contacts(id, name)),
           projects(title, status)
         `)
         .eq('id', clientId)
@@ -124,11 +123,11 @@ function useRouteClientData(pathname) {
 
       // Decisores e Champions
       const keyContacts = (data.contact_links ?? [])
-        .filter(cl => {
-          const r = (cl.role ?? '').toLowerCase()
-          return r.includes('decisor') || r.includes('champion')
-        })
-        .map(cl => ({ name: cl.contacts?.name, role: cl.role }))
+        .filter(cl => cl.papel === 'Decisor' || cl.champion === true)
+        .map(cl => ({
+          name: cl.contacts?.name,
+          role: cl.papel === 'Decisor' ? 'Decisor' : 'Champion',
+        }))
         .filter(c => c.name)
 
       return {
@@ -164,7 +163,7 @@ function buildRouteContext(pathname, clientData) {
     const hs        = clientData.health_total ?? 0
     const st        = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
     const stageName = clientData.stage?.name ?? null
-    const segName   = clientData.segment?.name ?? null
+    const segName   = clientData.segment ?? null
 
     // Linha 1 — identificação
     const abc = clientData.abc_class ? `ABC ${clientData.abc_class}` : null
