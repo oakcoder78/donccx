@@ -35,7 +35,11 @@
       "Bash(node -e ':*)",
       "Bash(node scripts/freshdesk-map-companies.js --apply)",
       "Bash(node scripts/freshdesk-sync.js 2026-03)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(grep -E \"\\\\.\\(jsx|js|ts|tsx\\)$\")",
+      "Bash(grep -n \"create table.*projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
+      "Bash(cat /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
+      "Bash(grep -B 5 \"INSERT INTO projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)"
     ]
   }
 }
