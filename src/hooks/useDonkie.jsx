@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -30,29 +30,56 @@ function useDonkieConfig() {
   })
 }
 
+// ─── Busca dados leves do cliente pela rota ──────────────────
+function useRouteClientData(pathname) {
+  const match = pathname.match(/^\/empresas\/(\d+)/)
+  const clientId = match ? parseInt(match[1], 10) : null
+
+  return useQuery({
+    queryKey: ['donkie_client_ctx', clientId],
+    enabled: !!clientId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, fantasy_name, health_total, health_uso, health_suporte, health_relacionamento, health_financeiro, health_projeto, stage:stages(name)')
+        .eq('id', clientId)
+        .single()
+      if (error) { console.error('[useDonkie] client ctx:', error); return null }
+      return data
+    },
+    staleTime: 60 * 1000,
+    retry: 0,
+  })
+}
+
 // ─── Monta contexto de rota ──────────────────────────────────
 function buildRouteContext(pathname, clientData) {
   if (pathname === '/dashboard') {
     return 'Usuário está na Dashboard — visão geral da carteira de clientes.'
   }
+
   if (/^\/empresas\/\d+\/relatorios\/.+\/editar/.test(pathname)) {
     const cn = clientData?.fantasy_name || clientData?.name || 'cliente'
     return `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
   }
+
   if (/^\/empresas\/\d+/.test(pathname) && clientData) {
     const cn  = clientData.fantasy_name || clientData.name
     const hs  = clientData.health_total ?? 0
     const st  = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
+    const stageName = clientData.stage?.name || null
     return (
       `Usuário está na ficha de ${cn}. ` +
-      `Health Score: ${hs} (${st}). ` +
-      `Dimensões — Uso: ${clientData.health_uso ?? 0}, ` +
-      `Suporte: ${clientData.health_suporte ?? 0}, ` +
-      `Relacionamento: ${clientData.health_relacionamento ?? 0}, ` +
-      `Financeiro: ${clientData.health_financeiro ?? 0}, ` +
-      `Projeto: ${clientData.health_projeto ?? 0}.`
+      `Health Score total: ${hs} (${st}). ` +
+      `Dimensões: Uso ${clientData.health_uso ?? 0}/20, ` +
+      `Suporte ${clientData.health_suporte ?? 0}/20, ` +
+      `Relacionamento ${clientData.health_relacionamento ?? 0}/20, ` +
+      `Financeiro ${clientData.health_financeiro ?? 0}/20, ` +
+      `Projeto ${clientData.health_projeto ?? 0}/20.` +
+      (stageName ? ` Estágio: ${stageName}.` : '')
     )
   }
+
   if (pathname === '/projetos') {
     return 'Usuário está na visão global do Kanban de Projetos.'
   }
@@ -92,13 +119,14 @@ export function DonkieProvider({ children }) {
   const { profile } = useAuth()
   const location = useLocation()
   const { data: config } = useDonkieConfig()
+  const { data: routeClientData } = useRouteClientData(location.pathname)
 
-  const [isOpen,    setIsOpen]    = useState(false)
-  const [messages,  setMessages]  = useState([])
-  const [mode,      setMode]      = useState('discussao')
-  const [isLoading, setIsLoading] = useState(false)
-  const [clientData, setClientData] = useState(null)
-  const [convId,    setConvId]    = useState(null)
+  const [isOpen,     setIsOpen]    = useState(false)
+  const [messages,   setMessages]  = useState([])
+  const [mode,       setMode]      = useState('discussao')
+  const [isLoading,  setIsLoading] = useState(false)
+  const [clientData, setClientData] = useState(null)  // override manual (legado)
+  const [convId,     setConvId]    = useState(null)
 
   // Modo default do config
   useEffect(() => {
@@ -110,7 +138,6 @@ export function DonkieProvider({ children }) {
   useEffect(() => {
     if (prevPath.current !== location.pathname) {
       prevPath.current = location.pathname
-      // Mantém histórico mas reseta o context_id
       setConvId(null)
     }
   }, [location.pathname])
@@ -164,10 +191,11 @@ export function DonkieProvider({ children }) {
     setIsLoading(true)
 
     try {
-      const routeCtx   = buildRouteContext(location.pathname, clientData)
+      // routeClientData tem precedência sobre clientData manual
+      const activeClientData = routeClientData || clientData
+      const routeCtx   = buildRouteContext(location.pathname, activeClientData)
       const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
 
-      // Converte para formato da API (garante que text-only são strings)
       const apiMessages = newMessages.map(m => ({
         role:    m.role,
         content: m.content,
@@ -204,15 +232,14 @@ export function DonkieProvider({ children }) {
 
     } catch (err) {
       console.error('[useDonkie] sendMessage error:', err)
-      const errMsg = {
+      setMessages(prev => [...prev, {
         role:    'assistant',
         content: `⚠️ Erro ao conectar com o Donkie: ${err.message}`,
-      }
-      setMessages(prev => [...prev, errMsg])
+      }])
     } finally {
       setIsLoading(false)
     }
-  }, [messages, isLoading, config, profile, location.pathname, clientData, mode, convId, saveConversation])
+  }, [messages, isLoading, config, profile, location.pathname, routeClientData, clientData, mode, convId, saveConversation])
 
   const toggleMode = useCallback(() => {
     setMode(m => m === 'discussao' ? 'implementacao' : 'discussao')
@@ -223,9 +250,9 @@ export function DonkieProvider({ children }) {
     setConvId(null)
   }, [])
 
-  const open  = useCallback(() => setIsOpen(true),  [])
-  const close = useCallback(() => setIsOpen(false), [])
-  const toggle = useCallback(() => setIsOpen(o => !o), [])
+  const open   = useCallback(() => setIsOpen(true),       [])
+  const close  = useCallback(() => setIsOpen(false),      [])
+  const toggle = useCallback(() => setIsOpen(o => !o),    [])
 
   return (
     <DonkieContext.Provider value={{
@@ -233,7 +260,8 @@ export function DonkieProvider({ children }) {
       messages, isLoading,
       mode, toggleMode,
       sendMessage, clearConversation,
-      clientData, setClientData,
+      clientData: routeClientData || clientData,
+      setClientData,
       config,
     }}>
       {children}
