@@ -1,70 +1,41 @@
-/**
- * donkie-chat — Supabase Edge Function
- *
- * Proxia chamadas à API Anthropic para o assistente Donkie.
- * Requer secret configurado no projeto Supabase:
- *   ANTHROPIC_API_KEY
- *
- * Autentica o usuário via Bearer token antes de encaminhar.
- */
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
-// @ts-ignore
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-
-const cors = {
+const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-
-  const json = (body: unknown, status = 200) =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { ...cors, 'Content-Type': 'application/json' },
-    })
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
 
   try {
-    // ── Autenticação ──────────────────────────────────────────
-    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
-    if (!token) return json({ error: 'Unauthorized' }, 401)
+    const { system, messages } = await req.json()
 
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
-
-    const { data: { user }, error: authErr } = await admin.auth.getUser(token)
-    if (authErr || !user) return json({ error: 'Invalid token' }, 401)
-
-    // ── Parse body ────────────────────────────────────────────
-    const body = await req.json()
-
-    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')
-    if (!anthropicKey) {
-      console.error('donkie-chat: ANTHROPIC_API_KEY não configurada')
-      return json({ error: 'AI not configured on server' }, 500)
-    }
-
-    // ── Encaminha para Anthropic ──────────────────────────────
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': anthropicKey,
+        'x-api-key': Deno.env.get('ANTHROPIC_API_KEY') ?? '',
         'anthropic-version': '2023-06-01',
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system,
+        messages,
+      }),
     })
 
-    const data = await anthropicRes.json().catch(() => ({ error: 'Invalid response from AI' }))
-    return json(data, anthropicRes.status)
-
-  } catch (err) {
-    console.error('donkie-chat:', err)
-    return json({ error: String(err) }, 500)
+    const data = await response.json()
+    return new Response(JSON.stringify(data), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
   }
 })
