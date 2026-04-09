@@ -173,26 +173,17 @@ export function DonkieProvider({ children }) {
         content: m.content,
       }))
 
-      const headers = { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }
-      if (import.meta.env.VITE_ANTHROPIC_API_KEY) {
-        headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_API_KEY
-      }
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
+      const { data, error: fnError } = await supabase.functions.invoke('donkie-chat', {
+        body: {
           model:      'claude-sonnet-4-20250514',
           max_tokens: 1000,
           system:     systemText,
           messages:   apiMessages,
-        }),
+        },
       })
 
-      const data = await res.json()
-
-      if (!res.ok || data.error) {
-        throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
-      }
+      if (fnError) throw new Error(fnError.message || 'Erro na Edge Function')
+      if (data?.error) throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
 
       const assistantText = data.content?.[0]?.text ?? ''
       const assistantMsg  = { role: 'assistant', content: assistantText }
