@@ -5,22 +5,23 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { UserEditModal } from '../ui/UserEditModal'
 
 const navLinks = [
-  { to: '/dashboard', label: 'Dashboard' },
-  { to: '/empresas', label: 'Empresas' },
-  { to: '/contatos', label: 'Contatos' },
-  { to: '/atividades', label: 'Atividades' },
-  { to: '/projetos', label: 'Projetos' },
+  { to: '/dashboard',    label: 'Dashboard'  },
+  { to: '/empresas',     label: 'Empresas'   },
+  { to: '/contatos',     label: 'Contatos'   },
+  { to: '/atividades',   label: 'Atividades' },
+  { to: '/projetos',     label: 'Projetos'   },
 ]
-
 
 export function Navbar() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { canViewSettings } = usePermissions()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [showProfile, setShowProfile] = useState(false)
+  const [showProfile,  setShowProfile]  = useState(false)
 
-  const links = canViewSettings ? [...navLinks, { to: '/configuracoes', label: 'Config.' }] : navLinks
+  const links = canViewSettings
+    ? [...navLinks, { to: '/configuracoes', label: 'Config.' }]
+    : navLinks
 
   async function handleSignOut() {
     await signOut()
@@ -82,19 +83,24 @@ export function Navbar() {
           {dropdownOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-44 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-20 py-1">
+              <div className="absolute right-0 top-full mt-1 w-48 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-20 py-1">
                 <button
                   onClick={() => { setDropdownOpen(false); setShowProfile(true) }}
                   className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
                 >
                   Minha conta
                 </button>
+                <div className="border-t border-border-tertiary my-1" />
                 <button
                   onClick={handleSignOut}
                   className="w-full text-left px-3 py-2 text-sm text-donc-red hover:bg-bg-secondary transition-colors"
                 >
                   Sair
                 </button>
+                {/* Versão — movida do canto da tela para cá */}
+                <div className="px-3 py-1.5 text-[10px] text-text-tertiary border-t border-border-tertiary mt-1 font-mono">
+                  v · {__COMMIT_HASH__}
+                </div>
               </div>
             </>
           )}

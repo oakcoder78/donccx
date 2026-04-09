@@ -6,17 +6,19 @@ import { SettingsStages } from './SettingsStages'
 import { SettingsUsers } from './SettingsUsers'
 import { SettingsLogs } from './SettingsLogs'
 import { SettingsFreshdesk } from './SettingsFreshdesk'
+import { SettingsDonkie } from './SettingsDonkie'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
 
 const BASE_MENU = [
-  { key: 'health',     icon: '❤️',  label: 'Health Score' },
-  { key: 'catalog',    icon: '📦',  label: 'Catálogos' },
-  { key: 'segments',   icon: '🏷️',  label: 'Segmentos' },
-  { key: 'stages',     icon: '🔄',  label: 'Estágios' },
-  { key: 'users',      icon: '👥',  label: 'Usuários' },
-  { key: 'logs',       icon: '📋',  label: 'Auditoria' },
-  { key: 'freshdesk',  icon: '🎧',  label: 'Freshdesk', adminOnly: true },
+  { key: 'health',    icon: '❤️',  label: 'Health Score' },
+  { key: 'catalog',   icon: '📦',  label: 'Catálogos' },
+  { key: 'segments',  icon: '🏷️',  label: 'Segmentos' },
+  { key: 'stages',    icon: '🔄',  label: 'Estágios' },
+  { key: 'users',     icon: '👥',  label: 'Usuários' },
+  { key: 'logs',      icon: '📋',  label: 'Auditoria' },
+  { key: 'freshdesk', icon: '🎧',  label: 'Freshdesk',  adminOnly: true },
+  { key: 'donkie',    icon: '🤖',  label: 'Donkie',     adminOnly: true },
 ]
 
 export default function SettingsPage() {
@@ -62,6 +64,7 @@ export default function SettingsPage() {
         {section === 'users'     && <SettingsUsers />}
         {section === 'logs'      && canManageUsers && <SettingsLogs />}
         {section === 'freshdesk' && isAdmin && <SettingsFreshdesk />}
+        {section === 'donkie'    && isAdmin && <SettingsDonkie />}
       </main>
     </div>
   )
