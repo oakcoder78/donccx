@@ -173,16 +173,26 @@ export function DonkieProvider({ children }) {
         content: m.content,
       }))
 
-      const { data, error: fnError } = await supabase.functions.invoke('donkie-chat', {
-        body: {
-          model:      'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system:     systemText,
-          messages:   apiMessages,
-        },
-      })
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/donkie-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            model:      'claude-sonnet-4-20250514',
+            max_tokens: 1000,
+            system:     systemText,
+            messages:   apiMessages,
+          }),
+        }
+      )
+      const data = await response.json()
 
-      if (fnError) throw new Error(fnError.message || 'Erro na Edge Function')
+      if (!response.ok) throw new Error(data.error?.message || data.error || `HTTP ${response.status}`)
       if (data?.error) throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
 
       const assistantText = data.content?.[0]?.text ?? ''
