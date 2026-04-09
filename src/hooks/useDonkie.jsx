@@ -84,7 +84,8 @@ function useRouteClientData(pathname) {
           activities(type, title, activity_date, description),
           client_support(tickets_opened, tickets_resolved, n1_pct, n2_pct, n3_pct, sla_first_response, ref_month),
           client_usage(os_created, active_users, ref_month),
-          contact_links(role, contacts(id, name))
+          contact_links(role, contacts(id, name)),
+          projects(title, status)
         `)
         .eq('id', clientId)
         .single()
@@ -119,7 +120,7 @@ function useRouteClientData(pathname) {
 
       // Projetos ativos
       const activeProjects = (data.projects ?? [])
-        .filter(p => p.status !== 'concluido' && p.status !== 'suspenso')
+        .filter(p => p.status !== 'concluido' && p.status !== 'suspenso' && p.status !== 'cancelado')
 
       // Decisores e Champions
       const keyContacts = (data.contact_links ?? [])
@@ -253,10 +254,10 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
     : ''
 
   const routeCtx = routeContext
-    ? `\n\nContexto da tela:\n${routeContext}`
+    ? `\n\nCONTEXTO ATUAL:\n${routeContext}`
     : ''
 
-  return config.system_prompt + userCtx + routeCtx + modeInstruction
+  return config.system_prompt + userCtx + modeInstruction + routeCtx
 }
 
 // ─── Provider ────────────────────────────────────────────────
