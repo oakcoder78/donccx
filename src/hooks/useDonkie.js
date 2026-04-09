@@ -173,23 +173,20 @@ export function DonkieProvider({ children }) {
         content: m.content,
       }))
 
-      const token = (await supabase.auth.getSession()).data.session?.access_token
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/donkie-chat`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            model:      'claude-sonnet-4-5',
-            max_tokens: 1024,
-            system:     systemText,
-            messages:   apiMessages,
-          }),
-        }
-      )
+      const headers = { 'Content-Type': 'application/json', 'anthropic-version': '2023-06-01' }
+      if (import.meta.env.VITE_ANTHROPIC_API_KEY) {
+        headers['x-api-key'] = import.meta.env.VITE_ANTHROPIC_API_KEY
+      }
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model:      'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system:     systemText,
+          messages:   apiMessages,
+        }),
+      })
 
       const data = await res.json()
 
@@ -208,7 +205,7 @@ export function DonkieProvider({ children }) {
       console.error('[useDonkie] sendMessage error:', err)
       const errMsg = {
         role:    'assistant',
-        content: `⚠️ Erro ao conectar com o Donkie: ${err.message}. Verifique se a Edge Function está implantada e o secret ANTHROPIC_API_KEY configurado.`,
+        content: `⚠️ Erro ao conectar com o Donkie: ${err.message}`,
       }
       setMessages(prev => [...prev, errMsg])
     } finally {
