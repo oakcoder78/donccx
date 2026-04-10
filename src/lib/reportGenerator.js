@@ -1,18 +1,36 @@
 /**
- * reportGenerator.js
- * Gera HTML standalone para o RMC (Relatório Mensal do Cliente)
- * Navy #173557 · Lime #d3da47 · Sky #59c2ed
+ * reportGenerator.js — RMC Sistema de Design
+ * Arquitetura de "slides" com design system completo.
+ * Navy #173557 · Navy-deep #0e2240 · Lime #d3da47 · Sky #59c2ed
  */
 
-const NAVY = '#173557'
-const LIME = '#d3da47'
-const SKY  = '#59c2ed'
+// ── Design tokens ─────────────────────────────────────────────
+const C = {
+  navy:      '#173557',
+  navyDeep:  '#0e2240',
+  lime:      '#d3da47',
+  sky:       '#59c2ed',
+  bg:        '#fafbfc',
+  card:      '#ffffff',
+  text:      '#2d3748',
+  textLight: '#718096',
+  border:    '#e2e8f0',
+  green:     '#38a169',
+  yellow:    '#d69e2e',
+  red:       '#e53e3e',
+}
+
+const ACCENT = {
+  sky:   C.sky,
+  lime:  C.lime,
+  navy:  C.navy,
+  green: C.green,
+}
 
 const MONTH_NAMES = [
   '', 'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
 ]
-
 const MONTH_SHORT = [
   '', 'Jan','Fev','Mar','Abr','Mai','Jun',
   'Jul','Ago','Set','Out','Nov','Dez',
@@ -20,359 +38,525 @@ const MONTH_SHORT = [
 
 export function periodLabel(period) {
   if (!period) return ''
-  const [year, month] = period.split('-')
-  return `${MONTH_NAMES[parseInt(month, 10)]} ${year}`
+  const [y, m] = period.split('-')
+  return `${MONTH_NAMES[parseInt(m, 10)]} ${y}`
 }
 
-function monthShort(period) {
+function mShort(period) {
   if (!period) return ''
-  const [, month] = period.split('-')
-  return MONTH_SHORT[parseInt(month, 10)]
+  return MONTH_SHORT[parseInt(period.split('-')[1], 10)]
 }
 
-// Suporta formato antigo (string) e novo ({ content, enabled })
-function getContent(sec) {
-  if (!sec) return ''
-  if (typeof sec === 'string') return sec
-  return sec.content ?? ''
+function prevMonthStr(period) {
+  const [y, m] = period.split('-').map(Number)
+  const d = new Date(y, m - 2, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-function isEnabled(sec) {
-  if (!sec) return false
-  if (typeof sec === 'string') return !!sec.trim()
-  return sec.enabled !== false
+// ── Seções padrão ─────────────────────────────────────────────
+export function defaultSections() {
+  return [
+    { id: 'escala',          type: 'escala',          title: 'Escala da Operação',   enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'suporte',         type: 'suporte',         title: 'Suporte',              enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'projetos',        type: 'projetos',        title: 'Projetos',             enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'health_score',    type: 'health_score',    title: 'Health Score',         enabled: true, content: {},             extras: [] },
+    { id: 'destaques',       type: 'destaques',       title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
+    { id: 'contexto',        type: 'contexto',        title: 'Contexto Externo',     enabled: true, content: { text: '' },   extras: [] },
+    { id: 'proximos_passos', type: 'proximos_passos', title: 'Próximos Passos',      enabled: true, content: { items: [] },  extras: [] },
+  ]
 }
 
-function textToHTML(text) {
-  if (!text || !text.trim()) return ''
-  return text
-    .split('\n')
-    .filter(l => l.trim())
-    .map(l => `<p style="margin:0 0 10px 0;line-height:1.7;color:#374151;">${l.trim()}</p>`)
-    .join('')
+/** Migra formato antigo (object) para array de seções */
+export function normalizeSections(raw) {
+  if (Array.isArray(raw)) return raw
+  if (!raw || typeof raw !== 'object') return defaultSections()
+
+  // Formato legado: { escala: { content, enabled }, ... }
+  const defs = defaultSections()
+  const keyMap = {
+    escala: 'callout', suporte: 'callout', projetos: 'callout',
+    destaques: 'callout', contexto: 'text', proximos_passos: null,
+  }
+  return defs.map(def => {
+    const old = raw[def.id]
+    if (!old) return def
+    const enabled = typeof old === 'object' ? old.enabled !== false : true
+    const text    = typeof old === 'string' ? old : (old.content ?? '')
+    const field   = keyMap[def.id]
+    const content = field ? { ...def.content, [field]: text } : def.content
+    return { ...def, enabled, content }
+  })
 }
 
-function sectionWrapper(icon, title, bodyHTML, accent = NAVY) {
-  if (!bodyHTML || !bodyHTML.trim()) return ''
+// ── Componentes HTML reutilizáveis ────────────────────────────
+
+function kpiCard({ label, value, sublabel, delta, deltaType, accentColor }) {
+  const accent = ACCENT[accentColor] ?? C.sky
+  const dBg    = deltaType === 'up'   ? '#f0fff4' : deltaType === 'down' ? '#fff5f5' : '#ebf8ff'
+  const dColor = deltaType === 'up'   ? '#276749' : deltaType === 'down' ? '#9b2c2c' : '#2b6cb0'
+  const dIcon  = deltaType === 'up'   ? '▲' : deltaType === 'down' ? '▼' : '≈'
+
+  const sublabelH = sublabel
+    ? `<div style="font-size:11px;color:${C.textLight};margin-top:4px;">${sublabel}</div>` : ''
+  const deltaH = delta
+    ? `<div style="display:inline-flex;align-items:center;gap:3px;margin-top:8px;padding:2px 8px;border-radius:999px;background:${dBg};color:${dColor};font-size:11px;font-weight:700;">${dIcon} ${delta}</div>` : ''
+
   return `
-  <div style="
-    background:#ffffff;border-radius:12px;padding:28px 32px;margin-bottom:20px;
-    box-shadow:0 1px 6px rgba(0,0,0,0.07);border-left:4px solid ${accent};
-    break-inside:avoid;page-break-inside:avoid;
-  ">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-      <span style="font-size:22px;line-height:1;">${icon}</span>
-      <h2 style="margin:0;font-size:15px;font-weight:800;color:${NAVY};text-transform:uppercase;letter-spacing:0.8px;">${title}</h2>
-    </div>
-    <div style="font-size:14px;">${bodyHTML}</div>
+  <div style="background:${C.card};border-radius:10px;border:1px solid ${C.border};border-top:3px solid ${accent};padding:16px 20px;">
+    <div style="font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${label}</div>
+    <div style="font-size:2.2rem;font-weight:800;color:${C.text};line-height:1;">${value ?? '—'}</div>
+    ${sublabelH}${deltaH}
   </div>`
 }
 
-function sectionBlock(icon, title, section, accent = NAVY) {
-  if (!isEnabled(section)) return ''
-  const body = textToHTML(getContent(section))
-  if (!body) return ''
-  return sectionWrapper(icon, title, body, accent)
+function kpiGrid(cards, cols = 3) {
+  if (!cards?.length) return ''
+  return `<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:12px;margin-bottom:24px;">${cards.join('')}</div>`
 }
 
-// ── Escala: bullets + gráfico de barras SVG ────────────────────
-function escalaBlock(section, usageHistory = []) {
-  if (!isEnabled(section)) return ''
-  const textBody = textToHTML(getContent(section))
-  const chartSVG = buildOsBarChart(usageHistory)
-  const body = textBody + chartSVG
-  if (!body.trim()) return ''
-  return sectionWrapper('📈', 'Escala da Operação', body, SKY)
+function calloutBlock(text, color = C.sky) {
+  if (!text?.trim()) return ''
+  const bg = color === C.green ? '#f0fff4' : color === C.yellow ? '#fffff0' : color === C.red ? '#fff5f5' : '#ebf8ff'
+  const paras = text.split('\n').filter(l => l.trim())
+    .map(l => `<p style="margin:0 0 6px 0;font-size:13.5px;line-height:1.7;color:${C.text};">${l.trim()}</p>`).join('')
+  return `<div style="border-left:4px solid ${color};background:${bg};border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0;">${paras}</div>`
 }
 
-function buildOsBarChart(usageHistory) {
-  if (!usageHistory || usageHistory.length === 0) return ''
-  const sorted = [...usageHistory]
+function subTitle(text) {
+  return `<div style="display:flex;align-items:center;gap:10px;margin:20px 0 12px;">
+    <div style="width:4px;height:20px;background:${C.lime};border-radius:2px;flex-shrink:0;"></div>
+    <span style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:1.2px;">${text}</span>
+  </div>`
+}
+
+function barH(items) {
+  // Horizontal bar chart: [{label, value, color}]
+  if (!items?.length) return ''
+  const max = Math.max(...items.map(d => d.value ?? 0), 1)
+  return `<div style="margin:12px 0;">${items.map(d => `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+      <span style="width:40px;font-size:12px;font-weight:700;color:${C.textLight};flex-shrink:0;">${d.label}</span>
+      <div style="flex:1;background:${C.border};border-radius:999px;height:8px;overflow:hidden;">
+        <div style="background:${d.color ?? C.sky};width:${Math.round((d.value / max) * 100)}%;height:100%;border-radius:999px;"></div>
+      </div>
+      <span style="width:36px;text-align:right;font-size:12px;font-weight:600;color:${C.text};flex-shrink:0;">${d.value}%</span>
+    </div>`).join('')}</div>`
+}
+
+function resolBar(pct) {
+  const color = pct >= 90 ? C.green : pct >= 70 ? C.yellow : C.red
+  const label = pct >= 90 ? 'Excelente' : pct >= 70 ? 'Atenção' : 'Crítico'
+  return `<div style="margin:16px 0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <span style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.5px;">Taxa de Resolução</span>
+      <span style="font-size:14px;font-weight:800;color:${color};">${pct}% · ${label}</span>
+    </div>
+    <div style="background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
+      <div style="background:${color};width:${Math.min(pct, 100)}%;height:100%;border-radius:999px;"></div>
+    </div>
+  </div>`
+}
+
+function barChartV(usageHistory, period) {
+  const sorted = [...(usageHistory ?? [])]
     .filter(u => u.os_created != null)
     .sort((a, b) => a.ref_month.localeCompare(b.ref_month))
-    .slice(-4)
-  if (sorted.length === 0) return ''
+    .slice(-12)
+  if (!sorted.length) return ''
 
   const maxVal = Math.max(...sorted.map(u => u.os_created), 1)
-  const svgW = 480
-  const chartH = 90
-  const topPad = 24
-  const bottomPad = 28
-  const svgH = chartH + topPad + bottomPad
-  const barW = 70
-  const gap = (svgW - sorted.length * barW) / (sorted.length + 1)
-  const lastIdx = sorted.length - 1
+  const svgW = 700
+  const chartH = 140
+  const topP = 24, botP = 26
+  const svgH = chartH + topP + botP
+  const n = sorted.length
+  const barW = Math.floor((svgW - 40) / n * 0.62)
+  const gap  = Math.floor((svgW - 40 - n * barW) / (n + 1))
 
   const bars = sorted.map((u, i) => {
-    const x = gap + i * (barW + gap)
-    const h = Math.round((u.os_created / maxVal) * chartH)
-    const y = topPad + (chartH - h)
-    const color = i === lastIdx ? LIME : SKY
-    const opacity = i === lastIdx ? '1' : '0.6'
+    const x = 20 + gap + i * (barW + gap)
+    const h = Math.max(2, Math.round((u.os_created / maxVal) * chartH))
+    const y = topP + (chartH - h)
+    const isCur = u.ref_month === period
     return `
-      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${color}" opacity="${opacity}"/>
-      <text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="11" font-weight="700" fill="${NAVY}" font-family="sans-serif">${u.os_created}</text>
-      <text x="${x + barW / 2}" y="${topPad + chartH + 18}" text-anchor="middle" font-size="11" fill="#64748b" font-family="sans-serif">${monthShort(u.ref_month)}</text>`
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3"
+        fill="${isCur ? C.lime : C.sky}" opacity="${isCur ? 1 : 0.7}"/>
+      <text x="${x + barW / 2}" y="${y - 5}" text-anchor="middle" font-size="10" font-weight="700"
+        fill="${C.text}" font-family="sans-serif">${u.os_created}</text>
+      <text x="${x + barW / 2}" y="${topP + chartH + 16}" text-anchor="middle" font-size="10"
+        fill="${C.textLight}" font-family="sans-serif">${mShort(u.ref_month)}</text>`
   }).join('')
 
-  return `
-  <div style="margin-top:20px;">
-    <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;">O.S. Criadas — Últimos Meses</div>
-    <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:${svgW}px;display:block;overflow:visible;">${bars}</svg>
+  return `<div style="margin-top:24px;">
+    <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">O.S. Criadas — Histórico</div>
+    <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="display:block;overflow:visible;">${bars}</svg>
   </div>`
 }
 
-// ── Suporte: números grandes + barra de progresso ──────────────
-function suporteBlock(section, supportRaw = null) {
-  if (!isEnabled(section)) return ''
-  const raw = supportRaw || {}
+function nextStepsList(items) {
+  if (!items?.length) return `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum próximo passo adicionado.</p>`
+  const tagStyle = {
+    'Donc':     { bg: '#ebf8ff', color: '#2b6cb0' },
+    'Cliente':  { bg: '#f0fff4', color: '#276749' },
+    'Conjunto': { bg: '#faf5ff', color: '#553c9a' },
+  }
+  return `<div style="display:flex;flex-direction:column;gap:16px;">${items.map((item, i) => {
+    const t = tagStyle[item.tag] ?? { bg: '#f7fafc', color: '#4a5568' }
+    return `
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div style="width:30px;height:30px;border-radius:50%;background:${C.navy};color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i + 1}</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:${C.text};margin-bottom:3px;">${item.title || ''}</div>
+        ${item.description ? `<div style="font-size:13px;color:${C.textLight};">${item.description}</div>` : ''}
+        ${item.tag ? `<span style="display:inline-block;margin-top:5px;padding:2px 8px;border-radius:999px;background:${t.bg};color:${t.color};font-size:10px;font-weight:700;">${item.tag}</span>` : ''}
+      </div>
+    </div>`
+  }).join('')}</div>`
+}
+
+function timelineList(items) {
+  if (!items?.length) return `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum destaque adicionado.</p>`
+  return `<div style="display:flex;flex-direction:column;gap:20px;">${items.map(item => `
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div style="width:40px;height:40px;border-radius:50%;background:#f7fafc;border:2px solid ${C.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${item.emoji || '⭐'}</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;color:${C.text};margin-bottom:3px;">${item.title || ''}</div>
+        ${item.description ? `<div style="font-size:13px;color:${C.textLight};line-height:1.6;">${item.description}</div>` : ''}
+      </div>
+    </div>`).join('')}</div>`
+}
+
+function extrasRow(extras) {
+  if (!extras?.length) return ''
+  const cols = Math.min(extras.length, 4)
+  return kpiGrid(extras.map(e => kpiCard({
+    label: e.label, value: e.value, sublabel: e.sublabel,
+    delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky',
+  })), cols)
+}
+
+// ── Slide wrapper ─────────────────────────────────────────────
+function slide(icon, title, body, clientName, period, pageNum) {
+  return `
+  <div class="slide" style="background:${C.bg};border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow:hidden;margin-bottom:24px;break-inside:avoid;page-break-inside:avoid;">
+    <div style="background:${C.navyDeep};padding:14px 32px;display:flex;align-items:center;gap:12px;">
+      <span style="font-size:18px;">${icon}</span>
+      <h2 style="margin:0;font-size:15px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:1px;flex:1;">${title}</h2>
+    </div>
+    <div style="padding:28px 32px 24px;">${body}</div>
+    <div style="padding:9px 32px;border-top:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:11px;color:${C.textLight};">${clientName}</span>
+      <span style="font-size:11px;color:${C.textLight};">Página ${pageNum}</span>
+      <span style="font-size:11px;color:${C.textLight};">${periodLabel(period)}</span>
+    </div>
+  </div>`
+}
+
+// ── Slide: Capa (sempre incluída) ─────────────────────────────
+function slideCapa(client, report, csm) {
+  const clientName = client?.fantasy_name || client?.name || '—'
+  const logoUrl    = client?.logo_url || null
+  const csmName    = csm?.name  || '—'
+  const csmEmail   = csm?.email || ''
+  const per        = periodLabel(report?.period)
+  const mrr        = client?.mrr ?? null
+  const abc        = client?.abc_class ?? null
+  const seg        = client?.segment ?? null
+
+  const avatar = logoUrl
+    ? `<img src="${logoUrl}" alt="${clientName}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.25);" />`
+    : `<div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15);border:3px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;">${clientName.charAt(0).toUpperCase()}</div>`
+
+  const infoItems = [
+    seg  ? { k: 'Segmento',   v: seg }  : null,
+    abc  ? { k: 'Classe ABC', v: abc }  : null,
+    mrr != null ? { k: 'MRR', v: `R$ ${Number(mrr).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}` } : null,
+  ].filter(Boolean)
+
+  const infoH = infoItems.length ? `
+  <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;">
+    ${infoItems.map(i => `
+    <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 16px;">
+      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">${i.k}</div>
+      <div style="font-size:14px;font-weight:700;color:#fff;margin-top:2px;">${i.v}</div>
+    </div>`).join('')}
+  </div>` : ''
+
+  return `
+  <div class="slide cover-slide" style="background:${C.navyDeep};border-radius:12px;padding:48px 40px;margin-bottom:24px;position:relative;overflow:hidden;break-inside:avoid;page-break-inside:avoid;">
+    <div style="position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:${C.sky};opacity:0.05;pointer-events:none;"></div>
+    <div style="position:absolute;bottom:-100px;left:-60px;width:300px;height:300px;border-radius:50%;background:${C.lime};opacity:0.05;pointer-events:none;"></div>
+
+    <div style="display:inline-flex;align-items:center;gap:6px;background:${C.lime};color:${C.navyDeep};font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-bottom:28px;">
+      📋 Relatório Mensal do Cliente
+    </div>
+
+    <div style="display:flex;align-items:center;gap:20px;position:relative;z-index:1;">
+      ${avatar}
+      <div>
+        <h1 style="margin:0;font-size:2rem;font-weight:800;color:#fff;line-height:1.2;">${clientName}</h1>
+        <div style="font-size:1.1rem;font-weight:600;color:${C.sky};margin-top:6px;">${per}</div>
+      </div>
+    </div>
+
+    ${infoH}
+
+    <div style="display:inline-flex;align-items:center;gap:14px;margin-top:28px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
+      <div style="width:40px;height:40px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">CSM Responsável</div>
+        <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
+        ${csmEmail ? `<div style="font-size:12px;color:${C.lime};">${csmEmail}</div>` : ''}
+      </div>
+    </div>
+  </div>`
+}
+
+// ── Slides de seções ──────────────────────────────────────────
+
+function slideEscala(sec, usageHistory, period, clientName, p) {
+  const cur  = usageHistory.find(u => u.ref_month === period)
+  const prev = usageHistory.find(u => u.ref_month === prevMonthStr(period))
+
+  function delta(cur, prev) {
+    if (cur == null || prev == null || prev === 0) return { d: null, t: 'neutral' }
+    const pct = Math.round(((cur - prev) / prev) * 100)
+    return { d: `${pct >= 0 ? '+' : ''}${pct}% vs anterior`, t: pct >= 0 ? 'up' : 'down' }
+  }
+  const du = delta(cur?.active_users, prev?.active_users)
+  const dos = delta(cur?.os_created, prev?.os_created)
+
+  const autoCards = []
+  if (cur?.active_users != null)
+    autoCards.push(kpiCard({ label: 'Usuários Ativos', value: cur.active_users, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
+  if (cur?.os_created != null)
+    autoCards.push(kpiCard({ label: 'O.S. Criadas', value: cur.os_created, sublabel: 'mês atual', delta: dos.d, deltaType: dos.t, accentColor: 'lime' }))
+
+  const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky' }))]
+
+  const body = `
+    ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 2), 4)) : ''}
+    ${calloutBlock(sec.content?.callout, C.sky)}
+    ${barChartV(usageHistory, period)}`
+
+  return slide('📈', 'Escala da Operação', body, clientName, period, p)
+}
+
+function slideSuporte(sec, supportRaw, clientName, period, p) {
+  const raw = supportRaw ?? {}
   const opened   = raw.tickets_opened    ?? null
   const resolved = raw.tickets_resolved  ?? null
   const sla      = raw.sla_first_response ?? null
-  const n1       = raw.n1_pct ?? null
-  const n2       = raw.n2_pct ?? null
-  const n3       = raw.n3_pct ?? null
+  const n1 = raw.n1_pct ?? null
+  const n2 = raw.n2_pct ?? null
+  const n3 = raw.n3_pct ?? null
+  const resRate = opened != null && resolved != null && opened > 0
+    ? Math.round((resolved / opened) * 100) : null
 
-  const resRate = (opened != null && resolved != null && opened > 0)
-    ? Math.round((resolved / opened) * 100)
-    : null
+  const autoCards = [
+    kpiCard({ label: 'Tickets Abertos',    value: opened,   sublabel: 'mês atual', accentColor: 'navy' }),
+    kpiCard({ label: 'Tickets Resolvidos', value: resolved, sublabel: 'mês atual', accentColor: 'green' }),
+    kpiCard({ label: 'SLA 1ª Resp. (min)', value: sla,      sublabel: 'média',     accentColor: 'sky' }),
+    kpiCard({ label: 'Taxa de Resolução',  value: resRate != null ? `${resRate}%` : null,
+      sublabel: 'mês atual', accentColor: resRate != null && resRate >= 90 ? 'green' : 'lime' }),
+  ]
+  const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky' }))]
 
-  const rateColor = resRate === null ? '#94a3b8'
-    : resRate >= 90 ? '#22c55e'
-    : resRate >= 70 ? '#f59e0b'
-    : '#ef4444'
+  const n1n2n3 = [
+    n1 != null ? { label: 'N1', value: n1, color: C.green  } : null,
+    n2 != null ? { label: 'N2', value: n2, color: C.yellow } : null,
+    n3 != null ? { label: 'N3', value: n3, color: C.red    } : null,
+  ].filter(Boolean)
 
-  function metricCard(value, label, color) {
-    return `
-    <div style="flex:1;text-align:center;padding:16px 8px;background:#f8fafc;border-radius:10px;">
-      <div style="font-size:48px;font-weight:800;color:${color};line-height:1.1;margin-bottom:4px;">${value !== null ? value : '—'}</div>
-      <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">${label}</div>
-    </div>`
-  }
+  const body = `
+    ${kpiGrid(allCards, Math.min(allCards.length, 4))}
+    ${resRate !== null ? resolBar(resRate) : ''}
+    ${n1n2n3.length ? subTitle('Breakdown por Nível') + barH(n1n2n3) : ''}
+    ${calloutBlock(sec.content?.callout, C.navy)}`
 
-  const metricsHTML = `
-  <div style="display:flex;gap:12px;margin-bottom:20px;">
-    ${metricCard(opened, 'Tickets Abertos', NAVY)}
-    ${metricCard(resolved, 'Tickets Resolvidos', '#2563eb')}
-    ${metricCard(sla, 'SLA 1ª Resposta (min)', '#6366f1')}
-  </div>`
-
-  const progressHTML = resRate !== null ? `
-  <div style="margin-bottom:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;">Taxa de Resolução</span>
-      <span style="font-size:13px;font-weight:800;color:${rateColor};">${resRate}%</span>
-    </div>
-    <div style="background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
-      <div style="background:${rateColor};width:${Math.min(resRate, 100)}%;height:100%;border-radius:999px;"></div>
-    </div>
-  </div>` : ''
-
-  const n1n2n3 = (n1 != null || n2 != null || n3 != null) ? `
-  <div style="font-size:12px;color:#64748b;margin-top:8px;">
-    ${n1 != null ? `<span style="margin-right:16px;">N1: <strong>${n1}%</strong></span>` : ''}
-    ${n2 != null ? `<span style="margin-right:16px;">N2: <strong>${n2}%</strong></span>` : ''}
-    ${n3 != null ? `<span>N3 (escalados): <strong>${n3}%</strong></span>` : ''}
-  </div>` : ''
-
-  const textBody = textToHTML(getContent(section))
-  const extra = textBody ? `<div style="margin-top:16px;">${textBody}</div>` : ''
-  const body = metricsHTML + progressHTML + n1n2n3 + extra
-
-  return sectionWrapper('🎫', 'Suporte', body, NAVY)
+  return slide('🎫', 'Suporte', body, clientName, period, p)
 }
 
-// ── Health Score: card + dimensões ────────────────────────────
-function healthScoreBlock(section, healthData = null) {
-  if (!isEnabled(section)) return ''
+function slideProjetos(sec, projects, clientName, period, p) {
+  const ativos = (projects ?? []).filter(pr => pr.status !== 'concluido' && pr.status !== 'suspenso')
 
-  if (!healthData || healthData.health_total == null) {
-    const body = '<p style="color:#94a3b8;font-style:italic;font-size:13px;">Dados de Health Score não disponíveis.</p>'
-    return sectionWrapper('💚', 'Health Score', body, '#22c55e')
+  const projList = ativos.length === 0
+    ? `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum projeto ativo no momento.</p>`
+    : ativos.map(pr => {
+        const ms   = pr.milestones ?? []
+        const done = ms.filter(m => m.status === 'done').length
+        const pct  = ms.length ? Math.round((done / ms.length) * 100) : null
+        const sc   = pr.status === 'active' ? C.green : C.yellow
+        return `
+        <div style="background:${C.card};border-radius:8px;border:1px solid ${C.border};padding:14px 18px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:14px;font-weight:700;color:${C.text};">${pr.title}</span>
+            <span style="padding:2px 8px;border-radius:999px;background:${sc}20;color:${sc};font-size:10px;font-weight:700;text-transform:uppercase;">${pr.status}</span>
+          </div>
+          ${pct !== null ? `
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;background:${C.border};border-radius:999px;height:6px;overflow:hidden;">
+              <div style="background:${C.navy};width:${pct}%;height:100%;border-radius:999px;"></div>
+            </div>
+            <span style="font-size:11px;font-weight:700;color:${C.textLight};flex-shrink:0;">${done}/${ms.length} (${pct}%)</span>
+          </div>` : ''}
+          ${pr.end_date ? `<div style="font-size:11px;color:${C.textLight};margin-top:5px;">Prazo: ${new Date(pr.end_date + 'T00:00:00').toLocaleDateString('pt-BR')}</div>` : ''}
+        </div>`
+      }).join('')
+
+  const body = `
+    ${(sec.extras ?? []).length ? extrasRow(sec.extras) : ''}
+    ${subTitle('Projetos Ativos')}
+    ${projList}
+    ${calloutBlock(sec.content?.callout, '#6366f1')}`
+
+  return slide('🗂️', 'Projetos', body, clientName, period, p)
+}
+
+function slideHealthScore(sec, healthData, clientName, period, p) {
+  if (!healthData?.health_total == null && !healthData) {
+    return slide('💚', 'Health Score',
+      `<p style="color:${C.textLight};font-style:italic;">Dados de Health Score não disponíveis.</p>`,
+      clientName, period, p)
   }
 
-  const total = healthData.health_total
-  const status = total >= 75
-    ? { label: 'Saudável', color: '#22c55e' }
-    : total >= 50
-      ? { label: 'Atenção', color: '#f59e0b' }
-      : { label: 'Risco', color: '#ef4444' }
+  const hs = healthData ?? {}
+  const total  = hs.health_total ?? null
+  const status = total === null ? { label: 'Sem dados', color: C.textLight }
+    : total >= 75 ? { label: 'Saudável', color: C.green }
+    : total >= 50 ? { label: 'Atenção',  color: C.yellow }
+    : { label: 'Risco', color: C.red }
 
   const dims = [
-    { label: 'Uso',            key: 'health_uso',            color: SKY       },
+    { label: 'Uso',            key: 'health_uso',            color: C.sky    },
     { label: 'Suporte',        key: 'health_suporte',        color: '#6366f1' },
-    { label: 'Relacionamento', key: 'health_relacionamento', color: '#f59e0b' },
-    { label: 'Financeiro',     key: 'health_financeiro',     color: '#10b981' },
+    { label: 'Relacionamento', key: 'health_relacionamento', color: C.yellow },
+    { label: 'Financeiro',     key: 'health_financeiro',     color: C.green  },
     { label: 'Projeto',        key: 'health_projeto',        color: '#ec4899' },
   ]
 
-  const scoreCard = `
-  <div style="text-align:center;padding:24px 0 20px;border-bottom:1px solid #f1f5f9;margin-bottom:20px;">
-    <div style="font-size:72px;font-weight:800;color:${status.color};line-height:1;">${total}</div>
-    <div style="font-size:16px;font-weight:700;color:${status.color};margin-top:4px;">${status.label}</div>
-    <div style="font-size:11px;color:#94a3b8;margin-top:2px;">Health Score</div>
-  </div>`
+  const scoreBox = total !== null ? `
+  <div style="background:${C.navyDeep};border-radius:12px;padding:28px 32px;display:flex;align-items:center;gap:32px;margin-bottom:24px;">
+    <div style="text-align:center;flex-shrink:0;">
+      <div style="font-size:5rem;font-weight:800;color:${C.lime};line-height:1;">${total}</div>
+      <div style="font-size:14px;font-weight:700;color:${status.color};margin-top:4px;">${status.label}</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px;">/ 100</div>
+    </div>
+    <div style="flex:1;">
+      ${dims.map(d => {
+        const val = hs[d.key] ?? null
+        const pct = val !== null ? Math.min(val * 5, 100) : 0
+        return `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+          <span style="width:110px;font-size:12px;color:rgba(255,255,255,0.7);">${d.label}</span>
+          <div style="flex:1;background:rgba(255,255,255,0.1);border-radius:999px;height:6px;overflow:hidden;">
+            <div style="background:${d.color};width:${pct}%;height:100%;border-radius:999px;"></div>
+          </div>
+          <span style="width:40px;text-align:right;font-size:12px;font-weight:700;color:#fff;">${val !== null ? val + '/20' : '—'}</span>
+        </div>`
+      }).join('')}
+    </div>
+  </div>` : `<p style="color:${C.textLight};font-style:italic;margin-bottom:20px;">Dados de health score não disponíveis.</p>`
 
-  const dimsHTML = dims.map(d => {
-    const val = healthData[d.key] ?? null
-    const pct = val !== null ? Math.min(val, 100) : 0
-    return `
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-      <div style="width:120px;font-size:12px;color:#374151;">${d.label}</div>
-      <div style="flex:1;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
-        <div style="background:${d.color};width:${pct}%;height:100%;border-radius:999px;"></div>
-      </div>
-      <div style="width:30px;text-align:right;font-size:12px;font-weight:700;color:#374151;">${val !== null ? val : '—'}</div>
-    </div>`
-  }).join('')
+  const dimCards = dims.map(d => kpiCard({
+    label: d.label,
+    value: hs[d.key] != null ? `${hs[d.key]}/20` : '—',
+    accentColor: d.key === 'health_uso' ? 'sky' : d.key === 'health_financeiro' ? 'green' : 'navy',
+  }))
 
-  return sectionWrapper('💚', 'Health Score', scoreCard + `<div>${dimsHTML}</div>`, '#22c55e')
+  return slide('💚', 'Health Score',
+    scoreBox + kpiGrid(dimCards, 5),
+    clientName, period, p)
 }
 
-// ── Evolução do Health Score: linha SVG ───────────────────────
-function healthEvolutionBlock(section, healthHistory = []) {
-  if (!isEnabled(section)) return ''
-
-  const hasHistory = healthHistory && healthHistory.length > 1
-
-  if (!hasHistory) {
-    const body = '<p style="text-align:center;color:#94a3b8;font-size:13px;font-style:italic;padding:20px 0;">Histórico em construção — dados acumulam a partir deste mês.</p>'
-    return sectionWrapper('📊', 'Evolução do Health Score', body, LIME)
-  }
-
-  const sorted = [...healthHistory]
-    .sort((a, b) => a.ref_month.localeCompare(b.ref_month))
-    .slice(-8)
-  const n = sorted.length
-  const svgW = 500
-  const padL = 36, padR = 16, padT = 20, padB = 28
-  const plotW = svgW - padL - padR
-  const plotH = 100
-
-  function px(i) { return padL + (n === 1 ? plotW / 2 : (i * plotW) / (n - 1)) }
-  function py(score) { return padT + plotH - (score / 100) * plotH }
-
-  const points = sorted.map((h, i) => `${px(i)},${py(h.health_total)}`).join(' ')
-
-  const dots = sorted.map((h, i) => `
-    <circle cx="${px(i)}" cy="${py(h.health_total)}" r="4" fill="${LIME}" stroke="${NAVY}" stroke-width="1.5"/>
-    <text x="${px(i)}" y="${py(h.health_total) - 8}" text-anchor="middle" font-size="10" font-weight="700" fill="${LIME}" font-family="sans-serif">${h.health_total}</text>`).join('')
-
-  const xLabels = sorted.map((h, i) => `
-    <text x="${px(i)}" y="${padT + plotH + padB - 4}" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.6)" font-family="sans-serif">${monthShort(h.ref_month)}</text>`).join('')
-
-  const grid = [25, 50, 75].map(v => `
-    <line x1="${padL}" y1="${py(v)}" x2="${svgW - padR}" y2="${py(v)}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-    <text x="${padL - 4}" y="${py(v) + 4}" text-anchor="end" font-size="9" fill="rgba(255,255,255,0.4)" font-family="sans-serif">${v}</text>`).join('')
-
-  const svgH = padT + plotH + padB
+function slideDestaques(sec, clientName, period, p) {
   const body = `
-  <div style="background:${NAVY};border-radius:10px;padding:16px;margin-top:4px;">
-    <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:${svgW}px;display:block;overflow:visible;">
-      ${grid}
-      <polyline points="${points}" fill="none" stroke="${LIME}" stroke-width="2.5" stroke-linejoin="round"/>
-      ${dots}
-      ${xLabels}
-    </svg>
-  </div>`
-
-  return sectionWrapper('📊', 'Evolução do Health Score', body, LIME)
+    ${timelineList(sec.content?.items ?? [])}
+    ${calloutBlock(sec.content?.callout, C.yellow)}`
+  return slide('⭐', 'Destaques do Período', body, clientName, period, p)
 }
 
-// ── Seções customizadas ───────────────────────────────────────
-function customSectionBlock(sec) {
-  if (!isEnabled(sec)) return ''
-  const { label = 'Seção', type = 'text', content = '', chartTitle = '' } = sec
-
-  let body = ''
-  if (type === 'text') {
-    body = textToHTML(content)
-    if (!body) return ''
-  } else if (type === 'image') {
-    if (!content) return ''
-    body = `<img src="${content}" alt="${label}" style="max-width:100%;border-radius:8px;display:block;" />`
-  } else if (type === 'chart') {
-    body = buildCustomBarChart(content, chartTitle)
-    if (!body) return ''
-  }
-
-  return sectionWrapper('📌', label, body, '#8b5cf6')
+function slideContexto(sec, clientName, period, p) {
+  const text  = sec.content?.text ?? ''
+  const lines = text.split('\n').filter(l => l.trim())
+    .map(l => `<p style="margin:0 0 10px 0;line-height:1.7;color:${C.text};font-size:14px;">${l.trim()}</p>`).join('')
+  const body = `
+    ${(sec.extras ?? []).length ? extrasRow(sec.extras) : ''}
+    ${lines || `<p style="color:${C.textLight};font-style:italic;">Nenhum contexto adicionado.</p>`}`
+  return slide('🌐', 'Contexto Externo', body, clientName, period, p)
 }
 
-function buildCustomBarChart(csvContent, title = '') {
-  if (!csvContent || !csvContent.trim()) {
-    return '<p style="text-align:center;color:#94a3b8;font-size:13px;font-style:italic;padding:20px 0;">Gráfico personalizado — adicione dados no formato CSV (Label,Valor)</p>'
-  }
+function slideProximosPassos(sec, clientName, period, p) {
+  return slide('🎯', 'Próximos Passos',
+    nextStepsList(sec.content?.items ?? []),
+    clientName, period, p)
+}
 
-  const data = csvContent.trim().split('\n')
-    .map(l => l.trim()).filter(Boolean)
-    .map(l => { const p = l.split(','); return { label: (p[0] ?? '').trim(), value: parseFloat((p[1] ?? '0').trim()) || 0 } })
-    .filter(d => d.label)
+function slideCustomText(sec, clientName, period, p) {
+  const lines = (sec.content?.text ?? '').split('\n').filter(l => l.trim())
+    .map(l => `<p style="margin:0 0 10px 0;line-height:1.7;color:${C.text};font-size:14px;">${l.trim()}</p>`).join('')
+  const body = `${lines}${calloutBlock(sec.content?.callout, C.sky)}`
+  return slide('📄', sec.title || 'Seção', body, clientName, period, p)
+}
 
-  if (data.length === 0) return ''
+function slideCustomImage(sec, clientName, period, p) {
+  const url     = sec.content?.imageUrl ?? ''
+  const caption = sec.content?.caption  ?? ''
+  const body = url
+    ? `<div style="text-align:center;">
+        <img src="${url}" alt="${sec.title}" style="max-width:100%;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.08);" />
+        ${caption ? `<p style="font-size:12px;color:${C.textLight};margin-top:10px;">${caption}</p>` : ''}
+       </div>`
+    : `<p style="color:${C.textLight};font-style:italic;">Nenhuma imagem adicionada.</p>`
+  return slide('🖼️', sec.title || 'Imagem', body, clientName, period, p)
+}
 
-  const maxVal = Math.max(...data.map(d => d.value), 1)
-  const n = data.length
-  const svgW = 480
-  const barW = Math.max(30, Math.min(70, Math.floor((svgW - 40) / n) - 10))
-  const gap = (svgW - n * barW) / (n + 1)
-  const chartH = 90
-  const topPad = 24
-  const bottomPad = 28
-  const svgH = chartH + topPad + bottomPad
-
-  const bars = data.map((d, i) => {
-    const x = gap + i * (barW + gap)
-    const h = Math.round((d.value / maxVal) * chartH)
-    const y = topPad + (chartH - h)
-    return `
-      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="#8b5cf6" opacity="0.8"/>
-      <text x="${x + barW / 2}" y="${y - 6}" text-anchor="middle" font-size="11" font-weight="700" fill="${NAVY}" font-family="sans-serif">${d.value}</text>
-      <text x="${x + barW / 2}" y="${topPad + chartH + 18}" text-anchor="middle" font-size="10" fill="#64748b" font-family="sans-serif">${d.label}</text>`
-  }).join('')
-
-  return `
-  ${title ? `<div style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px;">${title}</div>` : ''}
-  <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="max-width:${svgW}px;display:block;overflow:visible;">${bars}</svg>`
+function slideCustomMetrics(sec, clientName, period, p) {
+  const extras = sec.extras ?? []
+  const body = `
+    ${extras.length ? extrasRow(extras) : `<p style="color:${C.textLight};font-style:italic;">Nenhuma métrica adicionada.</p>`}
+    ${calloutBlock(sec.content?.callout, C.sky)}`
+  return slide('📊', sec.title || 'Métricas', body, clientName, period, p)
 }
 
 // ── EXPORT PRINCIPAL ──────────────────────────────────────────
 /**
  * @param {object} client
- * @param {object} report — { title, period, sections }
+ * @param {object} report — { title, period, sections[] }
  * @param {object|null} csm
- * @param {object} extraData — { usageHistory, supportRaw, healthData, healthHistory }
+ * @param {object} extraData — { usageHistory, supportRaw, healthData, projects }
  */
 export function generateReportHTML(client, report, csm, extraData = {}) {
-  const { sections = {}, title = 'Relatório Mensal', period = '' } = report || {}
-  const { usageHistory = [], supportRaw = null, healthData = null, healthHistory = [] } = extraData
+  const { sections: rawSecs = [], period = '', title = 'Relatório Mensal' } = report || {}
+  const { usageHistory = [], supportRaw = null, healthData = null, projects = [] } = extraData
 
+  const sections   = normalizeSections(rawSecs)
   const clientName = client?.fantasy_name || client?.name || '—'
-  const logoUrl    = client?.logo_url || null
-  const csmName    = csm?.name  || '—'
-  const csmEmail   = csm?.email || ''
-  const per        = periodLabel(period)
   const genDate    = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
-  const logoHTML = logoUrl
-    ? `<img src="${logoUrl}" alt="${clientName}" style="width:72px;height:72px;object-fit:contain;border-radius:10px;background:rgba(255,255,255,0.15);padding:8px;flex-shrink:0;" />`
-    : `<div style="width:72px;height:72px;border-radius:10px;flex-shrink:0;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#fff;">${clientName.charAt(0).toUpperCase()}</div>`
+  const capa = slideCapa(client, report, csm)
 
-  const custom = sections._custom ?? []
-
-  const sectionsHTML = [
-    escalaBlock(sections.escala, usageHistory),
-    suporteBlock(sections.suporte, supportRaw),
-    sectionBlock('🗂️', 'Projetos',             sections.projetos,        '#6366f1'),
-    sectionBlock('⭐', 'Destaques do Período',  sections.destaques,       '#e67e22'),
-    sectionBlock('🌐', 'Contexto Externo',      sections.contexto,        '#f59e0b'),
-    sectionBlock('🎯', 'Próximos Passos',       sections.proximos_passos, '#10b981'),
-    healthScoreBlock(sections.health_score, healthData),
-    healthEvolutionBlock(sections.health_evolucao, healthHistory),
-    ...custom.map(sec => customSectionBlock(sec)),
-  ].filter(Boolean).join('\n')
-
-  const emptySections = !sectionsHTML.trim()
+  let pageNum = 2
+  const slidesHTML = sections
+    .filter(s => s.enabled !== false)
+    .map(s => {
+      const p = pageNum++
+      if (s.type === 'escala')          return slideEscala(s, usageHistory, period, clientName, p)
+      if (s.type === 'suporte')         return slideSuporte(s, supportRaw, clientName, period, p)
+      if (s.type === 'projetos')        return slideProjetos(s, projects, clientName, period, p)
+      if (s.type === 'health_score')    return slideHealthScore(s, healthData, clientName, period, p)
+      if (s.type === 'destaques')       return slideDestaques(s, clientName, period, p)
+      if (s.type === 'contexto')        return slideContexto(s, clientName, period, p)
+      if (s.type === 'proximos_passos') return slideProximosPassos(s, clientName, period, p)
+      if (s.type === 'custom-text')     return slideCustomText(s, clientName, period, p)
+      if (s.type === 'custom-image')    return slideCustomImage(s, clientName, period, p)
+      if (s.type === 'custom-metrics')  return slideCustomMetrics(s, clientName, period, p)
+      return ''
+    })
+    .filter(Boolean)
+    .join('\n')
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -384,50 +568,28 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
+    :root{--navy:#173557;--navy-deep:#0e2240;--lime:#d3da47;--sky:#59c2ed;--bg:#fafbfc;--card:#fff;--text:#2d3748;--text-light:#718096;--border:#e2e8f0;--green:#38a169;--yellow:#d69e2e;--red:#e53e3e;}
     *{box-sizing:border-box;margin:0;padding:0;}
-    body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f1f5f9;color:#1e293b;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-    .wrap{max-width:820px;margin:0 auto;padding:28px 20px 40px;}
-    @media print{body{background:#fff;}.wrap{padding:0;}.no-print{display:none!important;}}
+    body{font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .wrap{max-width:860px;margin:0 auto;padding:28px 20px 48px;}
+    .slide{page-break-inside:avoid;break-inside:avoid;}
+    @media print{
+      body{background:#fff;}
+      .wrap{padding:0;max-width:100%;}
+      .slide{page-break-after:always;break-after:page;min-height:190mm;}
+      .cover-slide{page-break-after:always;break-after:page;}
+      .no-print{display:none!important;}
+    }
   </style>
 </head>
 <body>
 <div class="wrap">
-
-  <!-- Capa -->
-  <div style="background:linear-gradient(140deg,${NAVY} 0%,#1a4a82 60%,#1a3d6e 100%);border-radius:14px;padding:40px 36px;margin-bottom:20px;position:relative;overflow:hidden;">
-    <div style="position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none;"></div>
-    <div style="position:absolute;bottom:-60px;left:-40px;width:180px;height:180px;border-radius:50%;background:${LIME}18;pointer-events:none;"></div>
-    <div style="position:relative;z-index:1;">
-      <div style="display:flex;align-items:center;gap:18px;margin-bottom:32px;">
-        ${logoHTML}
-        <div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;color:${LIME};text-transform:uppercase;margin-bottom:6px;">Relatório Mensal do Cliente</div>
-          <h1 style="font-size:24px;font-weight:800;color:#fff;line-height:1.2;margin-bottom:4px;">${clientName}</h1>
-          <div style="font-size:15px;font-weight:500;color:rgba(255,255,255,0.7);">${per}</div>
-        </div>
-      </div>
-      <div style="display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
-        <div style="width:38px;height:38px;border-radius:50%;background:${LIME};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:${NAVY};">${csmName.charAt(0).toUpperCase()}</div>
-        <div>
-          <div style="font-size:11px;color:rgba(255,255,255,0.55);margin-bottom:2px;">CSM Responsável</div>
-          <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
-          ${csmEmail ? `<div style="font-size:12px;color:${LIME};">${csmEmail}</div>` : ''}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Seções -->
-  ${emptySections
-    ? `<div style="text-align:center;padding:60px 20px;color:#94a3b8;font-size:14px;background:#fff;border-radius:12px;border:2px dashed #e2e8f0;">Nenhum conteúdo adicionado ainda.</div>`
-    : sectionsHTML}
-
-  <!-- Rodapé -->
+  ${capa}
+  ${slidesHTML || `<div style="text-align:center;padding:60px 20px;color:#94a3b8;font-size:14px;background:#fff;border-radius:12px;border:2px dashed #e2e8f0;">Nenhuma seção habilitada.</div>`}
   <div style="text-align:center;padding:24px 16px 0;border-top:1px solid #e2e8f0;margin-top:12px;">
-    <div style="font-size:13px;font-weight:800;color:${NAVY};letter-spacing:0.5px;margin-bottom:3px;">Powered by doncCX</div>
+    <div style="font-size:13px;font-weight:800;color:#173557;letter-spacing:.5px;margin-bottom:3px;">Powered by doncCX</div>
     <div style="font-size:11px;color:#94a3b8;">Gerado em ${genDate}</div>
   </div>
-
 </div>
 </body>
 </html>`
