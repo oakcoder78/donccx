@@ -10,6 +10,13 @@ import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { PageSpinner } from '../components/ui/Spinner'
 import toast from 'react-hot-toast'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 // ── Helpers ──────────────────────────────────────────────────
 function getLast12Months(period) {
@@ -201,6 +208,21 @@ export default function ReportEditorPage() {
 
   function getSec(id) { return sections.find(s => s.id === id) }
 
+  // ── Drag-and-drop reorder ────────────────────────────────
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  function handleDragEnd(event) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setSections(prev => {
+      const oldIndex = prev.findIndex(s => s.id === active.id)
+      const newIndex = prev.findIndex(s => s.id === over.id)
+      const next = arrayMove(prev, oldIndex, newIndex)
+      updateReport.mutate({ id: reportId, sections: next })
+      return next
+    })
+  }
+
   // ── Add custom section ───────────────────────────────────
   function addCustomSection() {
     if (!newTitle.trim()) return
@@ -311,26 +333,20 @@ export default function ReportEditorPage() {
             Seções
           </div>
           <div className="flex-1 overflow-y-auto py-1">
-            {sections.map(s => (
-              <div key={s.id} className="group relative">
-                <button
-                  onClick={() => setActiveId(s.id)}
-                  className={`w-full flex items-center gap-1.5 px-2.5 py-2 text-left transition-colors ${
-                    activeId === s.id ? 'bg-donc-navy text-white' : 'text-text-secondary hover:bg-bg-tertiary'
-                  } ${!s.enabled ? 'opacity-40' : ''}`}
-                >
-                  <span className="text-xs flex-shrink-0">{SECTION_ICONS[s.type] ?? '📌'}</span>
-                  <span className="text-[11px] leading-tight truncate flex-1">{s.title}</span>
-                </button>
-                {isCustom && s.id === activeId && (
-                  <button
-                    onClick={() => deleteSection(s.id)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-red-500 text-xs opacity-0 group-hover:opacity-100"
-                    title="Remover"
-                  >×</button>
-                )}
-              </div>
-            ))}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                {sections.map(s => (
+                  <SortableSidebarItem
+                    key={s.id}
+                    sec={s}
+                    isActive={activeId === s.id}
+                    showDelete={isCustom && s.id === activeId}
+                    onSelect={() => setActiveId(s.id)}
+                    onDelete={() => deleteSection(s.id)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
           <div className="p-2 border-t border-border-tertiary">
             <button
@@ -421,6 +437,41 @@ export default function ReportEditorPage() {
             </div>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ── SortableSidebarItem ───────────────────────────────────────
+function SortableSidebarItem({ sec, isActive, showDelete, onSelect, onDelete }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sec.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+  return (
+    <div ref={setNodeRef} style={style} className="group relative">
+      <button
+        onClick={onSelect}
+        className={`w-full flex items-center gap-1.5 px-2.5 py-2 text-left transition-colors ${
+          isActive ? 'bg-donc-navy text-white' : 'text-text-secondary hover:bg-bg-tertiary'
+        } ${!sec.enabled ? 'opacity-40' : ''}`}
+      >
+        <span
+          {...attributes} {...listeners}
+          className="flex-shrink-0 text-[10px] leading-none cursor-grab opacity-0 group-hover:opacity-50 hover:!opacity-100 select-none"
+          onClick={e => e.stopPropagation()}
+        >⋮⋮</span>
+        <span className="text-xs flex-shrink-0">{SECTION_ICONS[sec.type] ?? '📌'}</span>
+        <span className="text-[11px] leading-tight truncate flex-1">{sec.title}</span>
+      </button>
+      {showDelete && (
+        <button
+          onClick={onDelete}
+          className="absolute right-1 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-red-500 text-xs opacity-0 group-hover:opacity-100"
+          title="Remover"
+        >×</button>
       )}
     </div>
   )

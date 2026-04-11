@@ -253,34 +253,29 @@ function slide(icon, title, body, clientName, period, pageNum) {
 }
 
 // ── Slide: Capa (sempre incluída) ─────────────────────────────
-function slideCapa(client, report, csm) {
+function slideCapa(client, report, csm, teamContacts) {
   const clientName = client?.fantasy_name || client?.name || '—'
   const logoUrl    = client?.logo_url || null
   const csmName    = csm?.name  || '—'
   const csmEmail   = csm?.email || ''
   const per        = periodLabel(report?.period)
-  const mrr        = client?.mrr ?? null
-  const abc        = client?.abc_class ?? null
-  const seg        = client?.segment ?? null
 
   const avatar = logoUrl
     ? `<img src="${logoUrl}" alt="${clientName}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.25);" />`
     : `<div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15);border:3px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;">${clientName.charAt(0).toUpperCase()}</div>`
 
-  const infoItems = [
-    seg  ? { k: 'Segmento',   v: seg }  : null,
-    abc  ? { k: 'Classe ABC', v: abc }  : null,
-    mrr != null ? { k: 'MRR', v: `R$ ${Number(mrr).toLocaleString('pt-BR', { minimumFractionDigits: 0 })}` } : null,
-  ].filter(Boolean)
-
-  const infoH = infoItems.length ? `
-  <div style="display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;">
-    ${infoItems.map(i => `
-    <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:8px;padding:10px 16px;">
-      <div style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;">${i.k}</div>
-      <div style="font-size:14px;font-weight:700;color:#fff;margin-top:2px;">${i.v}</div>
-    </div>`).join('')}
-  </div>` : ''
+  const teamCard = (teamContacts ?? []).length ? `
+    <div style="display:inline-flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
+      <div style="width:40px;height:40px;border-radius:50%;background:${C.sky};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};margin-top:2px;">👥</div>
+      <div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Equipe do Cliente</div>
+        ${(teamContacts ?? []).map(tc => `
+          <div style="margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;color:#fff;">${tc.contacts?.name || '—'}</div>
+            <div style="font-size:11px;color:${C.sky};margin-top:1px;">${tc.papel || ''}${tc.champion && tc.papel !== 'Champion' ? (tc.papel ? ' · ⭐ Champion' : '⭐ Champion') : ''}</div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''
 
   return `
   <div class="slide cover-slide" style="background:${C.navyDeep};border-radius:12px;padding:48px 40px;margin-bottom:24px;position:relative;overflow:hidden;break-inside:avoid;page-break-inside:avoid;">
@@ -288,7 +283,7 @@ function slideCapa(client, report, csm) {
     <div style="position:absolute;bottom:-100px;left:-60px;width:300px;height:300px;border-radius:50%;background:${C.lime};opacity:0.05;pointer-events:none;"></div>
 
     <div style="display:inline-flex;align-items:center;gap:6px;background:${C.lime};color:${C.navyDeep};font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-bottom:28px;">
-      📋 Relatório Mensal do Cliente
+      📋 Relatório de Análise Mensal
     </div>
 
     <div style="display:flex;align-items:center;gap:20px;position:relative;z-index:1;">
@@ -299,15 +294,16 @@ function slideCapa(client, report, csm) {
       </div>
     </div>
 
-    ${infoH}
-
-    <div style="display:inline-flex;align-items:center;gap:14px;margin-top:28px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
-      <div style="width:40px;height:40px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
-      <div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">CSM Responsável</div>
-        <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
-        ${csmEmail ? `<div style="font-size:12px;color:${C.lime};">${csmEmail}</div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:12px;margin-top:28px;">
+      <div style="display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
+        <div style="width:40px;height:40px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
+        <div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">CSM Responsável</div>
+          <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
+          ${csmEmail ? `<div style="font-size:12px;color:${C.lime};">${csmEmail}</div>` : ''}
+        </div>
       </div>
+      ${teamCard}
     </div>
   </div>`
 }
@@ -536,7 +532,10 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
   const clientName = client?.fantasy_name || client?.name || '—'
   const genDate    = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
-  const capa = slideCapa(client, report, csm)
+  const teamContacts = (client?.contact_links ?? [])
+    .filter(l => l.papel === 'Decisor' || l.champion === true)
+
+  const capa = slideCapa(client, report, csm, teamContacts)
 
   let pageNum = 2
   const slidesHTML = sections
