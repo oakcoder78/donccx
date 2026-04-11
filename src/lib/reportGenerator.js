@@ -343,8 +343,8 @@ function slideCapa(client, report, csm, capaContent) {
         </div>
       </div>
 
-      <!-- Cards: CSM + equipe — alinhados à direita abaixo do nome -->
-      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
+      <!-- Cards: CSM + equipe — coluna à direita abaixo do nome -->
+      <div style="display:flex;flex-direction:column;gap:12px;align-items:flex-end;">
         <div style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
           <div style="width:36px;height:36px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
           <div>
