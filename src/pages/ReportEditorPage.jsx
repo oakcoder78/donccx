@@ -280,15 +280,12 @@ export default function ReportEditorPage() {
     if (!allowed.includes(file.type)) { toast.error('Use PNG, JPG ou SVG.'); return }
     setUploadingImg(sectionId)
     try {
-      // Verificar se bucket existe, criar se não existir
-      const { data: buckets } = await supabase.storage.listBuckets()
-      const bucketExists = buckets?.some(b => b.name === 'report-images')
-      if (!bucketExists) {
-        await supabase.storage.createBucket('report-images', { public: true })
-      }
-      const ext  = file.name.split('.').pop()
-      const path = `${clientId}/${sectionId}.${ext}`
-      const { error } = await supabase.storage.from('report-images').upload(path, file, { upsert: true })
+      const ext    = file.name.split('.').pop().toLowerCase().replace('jpeg', 'jpg')
+      const rnd    = Math.random().toString(36).slice(2, 8)
+      const path   = `${clientId}/${Date.now()}_${rnd}.${ext}`
+      const { error } = await supabase.storage
+        .from('report-images')
+        .upload(path, file, { upsert: false, contentType: file.type })
       if (error) throw error
       const { data } = supabase.storage.from('report-images').getPublicUrl(path)
       updateContent(sectionId, 'imageUrl', data.publicUrl)
@@ -710,7 +707,7 @@ function SectionEditor({
 // ── Capa Editor ───────────────────────────────────────────────
 function CapaEditor({ content, client, onContent, onUpdateSection }) {
   const [teamSelect, setTeamSelect] = useState('')
-  const [freeContact, setFreeContact] = useState({ name: '', role: '' })
+  const [freeContact, setFreeContact] = useState({ name: '', email: '' })
 
   const clientTeam = content.clientTeam ?? []
   const subtitle   = content.subtitle ?? ''
@@ -720,25 +717,30 @@ function CapaEditor({ content, client, onContent, onUpdateSection }) {
     l => l.papel === 'Decisor' || l.champion === true
   )
 
-  function handleAddFromList() {
-    if (!teamSelect) return
-    const link = contactOptions.find(l => String(l.id) === String(teamSelect))
-    if (!link) return
-    const name = link.contacts?.name || '—'
-    const role = link.papel || 'Champion'
-    onContent('clientTeam', [...clientTeam, { name, role }])
-    setTeamSelect('')
-  }
-
-  function handleAddFree() {
-    if (!freeContact.name.trim()) return
-    onContent('clientTeam', [...clientTeam, { name: freeContact.name.trim(), role: freeContact.role.trim() }])
-    setFreeContact({ name: '', role: '' })
+  function handleAdd() {
+    if (teamSelect) {
+      // Prioridade: contato selecionado no select
+      const link = contactOptions.find(l => String(l.id) === String(teamSelect))
+      if (!link) return
+      const name  = link.contacts?.name  || '—'
+      const email = link.contacts?.email || link.contacts?.contact_emails?.[0]?.email || ''
+      onContent('clientTeam', [...clientTeam, { name, email }])
+      setTeamSelect('')
+    } else if (freeContact.name.trim()) {
+      // Contato manual
+      onContent('clientTeam', [...clientTeam, {
+        name:  freeContact.name.trim(),
+        email: freeContact.email.trim(),
+      }])
+      setFreeContact({ name: '', email: '' })
+    }
   }
 
   function handleRemoveMember(idx) {
     onContent('clientTeam', clientTeam.filter((_, i) => i !== idx))
   }
+
+  const canAdd = !!teamSelect || !!freeContact.name.trim()
 
   return (
     <div className="flex flex-col gap-4">
@@ -763,63 +765,57 @@ function CapaEditor({ content, client, onContent, onUpdateSection }) {
           <div key={idx} className="flex items-center justify-between bg-bg-secondary rounded-md px-3 py-2 mb-1.5 border border-border-tertiary">
             <div className="min-w-0">
               <span className="text-xs font-semibold text-text-primary truncate block">{tc.name}</span>
-              <span className="text-xs text-text-tertiary">{tc.role}</span>
+              {tc.email && <span className="text-xs text-text-tertiary">{tc.email}</span>}
             </div>
             <button onClick={() => handleRemoveMember(idx)} className="text-text-tertiary hover:text-red-500 text-sm ml-2 flex-shrink-0">×</button>
           </div>
         ))}
 
-        {/* Adicionar da lista */}
+        {/* Selecionar da lista */}
         {contactOptions.length > 0 && (
-          <div className="mb-3">
-            <label className="text-xs text-text-tertiary block mb-1">Adicionar da lista</label>
-            <div className="flex gap-2">
-              <select
-                value={teamSelect}
-                onChange={e => setTeamSelect(e.target.value)}
-                className="input-base text-xs flex-1"
-              >
-                <option value="">Selecionar contato…</option>
-                {contactOptions.map(l => (
-                  <option key={l.id} value={l.id}>
-                    {l.contacts?.name || '—'} ({l.papel || 'Champion'})
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={handleAddFromList}
-                disabled={!teamSelect}
-                className="text-xs px-3 py-1.5 rounded-md bg-donc-navy text-white font-semibold disabled:opacity-40"
-              >+</button>
-            </div>
+          <div className="mb-2">
+            <label className="text-xs text-text-tertiary block mb-1">Da lista de contatos</label>
+            <select
+              value={teamSelect}
+              onChange={e => setTeamSelect(e.target.value)}
+              className="input-base text-xs w-full"
+            >
+              <option value="">Selecionar contato…</option>
+              {contactOptions.map(l => (
+                <option key={l.id} value={l.id}>
+                  {l.contacts?.name || '—'} · {l.papel || 'Champion'}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
-        {/* Adicionar manualmente */}
-        <div>
-          <label className="text-xs text-text-tertiary block mb-1">Adicionar manualmente</label>
-          <div className="flex gap-2 mb-2">
+        {/* Campos manuais */}
+        <div className="mb-2">
+          <label className="text-xs text-text-tertiary block mb-1">Ou adicionar manualmente</label>
+          <div className="flex flex-col gap-1.5">
             <input
               type="text"
               placeholder="Nome"
               value={freeContact.name}
               onChange={e => setFreeContact(f => ({ ...f, name: e.target.value }))}
-              className="input-base text-xs flex-1"
+              className="input-base text-xs"
             />
             <input
-              type="text"
-              placeholder="Cargo/Papel"
-              value={freeContact.role}
-              onChange={e => setFreeContact(f => ({ ...f, role: e.target.value }))}
-              className="input-base text-xs flex-1"
+              type="email"
+              placeholder="E-mail"
+              value={freeContact.email}
+              onChange={e => setFreeContact(f => ({ ...f, email: e.target.value }))}
+              className="input-base text-xs"
             />
           </div>
-          <button
-            onClick={handleAddFree}
-            disabled={!freeContact.name.trim()}
-            className="w-full text-xs py-1.5 rounded-md bg-donc-navy text-white font-semibold disabled:opacity-40"
-          >Adicionar</button>
         </div>
+
+        <button
+          onClick={handleAdd}
+          disabled={!canAdd}
+          className="w-full text-xs py-1.5 rounded-md bg-donc-navy text-white font-semibold disabled:opacity-40"
+        >+ Adicionar à equipe</button>
       </div>
     </div>
   )
@@ -1053,29 +1049,51 @@ function TimelineEditor({ items, onAdd, onUpdate, onRemove }) {
 function PassosEditor({ items, onAdd, onUpdate, onRemove }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider">Próximos Passos</span>
         <button onClick={onAdd} className="text-xs font-semibold text-donc-navy hover:underline">+ Adicionar</button>
       </div>
       {items.map((item, i) => (
-        <div key={item.id} className="bg-bg-secondary rounded-lg p-3 border border-border-tertiary mb-2">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="text-xs font-bold text-text-tertiary w-4 flex-shrink-0">{i + 1}.</span>
-            <input value={item.title} onChange={e => onUpdate(item.id, { title: e.target.value })}
-              placeholder="Título do passo" className="input-base text-sm flex-1" />
-            <select value={item.tag} onChange={e => onUpdate(item.id, { tag: e.target.value })}
-              className="input-base text-xs w-28 flex-shrink-0">
-              {TAGS.map(t => <option key={t}>{t}</option>)}
-            </select>
-            <button onClick={() => onRemove(item.id)} className="text-text-tertiary hover:text-red-500 text-sm flex-shrink-0">×</button>
+        <div key={item.id} className="bg-bg-secondary rounded-lg border border-border-tertiary mb-2 overflow-hidden">
+          {/* Cabeçalho do item */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-border-tertiary bg-bg-tertiary/40">
+            <span className="w-5 h-5 rounded-full bg-donc-navy text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+              {i + 1}
+            </span>
+            <input
+              value={item.title ?? ''}
+              onChange={e => onUpdate(item.id, { title: e.target.value })}
+              placeholder="Título do passo…"
+              className="input-base text-xs flex-1 min-w-0"
+            />
+            <button
+              onClick={() => onRemove(item.id)}
+              className="text-text-tertiary hover:text-red-500 text-base leading-none flex-shrink-0 ml-1"
+            >×</button>
           </div>
-          <textarea value={item.description} onChange={e => onUpdate(item.id, { description: e.target.value })}
-            rows={2} placeholder="Descrição (opcional)" className="input-base text-sm w-full resize-none" />
-          <p className="text-[10px] text-text-tertiary mt-1">Use **texto** para negrito, *texto* para itálico.</p>
+          {/* Corpo do item */}
+          <div className="px-3 py-2 flex flex-col gap-2">
+            <select
+              value={item.tag ?? 'Donc'}
+              onChange={e => onUpdate(item.id, { tag: e.target.value })}
+              className="input-base text-xs w-full"
+            >
+              {TAGS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <textarea
+              value={item.description ?? ''}
+              onChange={e => onUpdate(item.id, { description: e.target.value })}
+              rows={2}
+              placeholder="Descrição (opcional)…"
+              className="input-base text-xs w-full resize-none"
+            />
+          </div>
         </div>
       ))}
       {!items.length && (
-        <p className="text-xs text-text-tertiary text-center py-3">Nenhum passo adicionado.</p>
+        <p className="text-xs text-text-tertiary text-center py-4 border border-dashed border-border-tertiary rounded-lg">
+          Nenhum passo adicionado.
+        </p>
       )}
     </div>
   )

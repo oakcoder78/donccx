@@ -311,48 +311,46 @@ function slideCapa(client, report, csm, capaContent) {
     : `<div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15);border:3px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;">${clientName.charAt(0).toUpperCase()}</div>`
 
   const teamCard = clientTeam.length ? `
-    <div style="display:inline-flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
-      <div style="width:40px;height:40px;border-radius:50%;background:${C.sky};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};margin-top:2px;">👥</div>
+    <div style="display:flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
+      <div style="width:36px;height:36px;border-radius:50%;background:${C.sky};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:15px;color:${C.navyDeep};margin-top:1px;">👥</div>
       <div>
-        <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Equipe do Cliente</div>
+        <div style="font-size:10px;color:${C.sky};text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;font-weight:700;">Equipe do Cliente</div>
         ${clientTeam.map(tc => `
           <div style="margin-bottom:6px;">
             <div style="font-size:13px;font-weight:700;color:#fff;">${tc.name || '—'}</div>
-            <div style="font-size:11px;color:${C.sky};margin-top:1px;">${tc.role || ''}</div>
+            ${tc.email ? `<div style="font-size:11px;color:rgba(255,255,255,0.55);margin-top:1px;">${tc.email}</div>` : ''}
           </div>`).join('')}
       </div>
     </div>` : ''
 
   return `
-  <div class="slide cover-slide" style="background:${C.navyDeep};border-radius:12px;padding:48px 40px;margin-bottom:24px;position:relative;overflow:hidden;break-inside:avoid;page-break-inside:avoid;">
+  <div class="slide cover-slide" style="background:${C.navyDeep};border-radius:12px;padding:44px 40px 40px;margin-bottom:24px;position:relative;overflow:hidden;break-inside:avoid;page-break-inside:avoid;min-height:280px;">
     <div style="position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:${C.sky};opacity:0.05;pointer-events:none;"></div>
     <div style="position:absolute;bottom:-100px;left:-60px;width:300px;height:300px;border-radius:50%;background:${C.lime};opacity:0.05;pointer-events:none;"></div>
 
-    <div style="display:inline-flex;align-items:center;gap:6px;background:${C.lime};color:${C.navyDeep};font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-bottom:28px;">
-      📋 Relatório de Análise Mensal
-    </div>
+    <div style="position:relative;z-index:1;">
+      <div style="display:inline-flex;align-items:center;gap:6px;background:${C.lime};color:${C.navyDeep};font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-bottom:24px;">
+        📋 Relatório de Análise Mensal
+      </div>
 
-    <div style="display:flex;gap:40px;align-items:flex-start;position:relative;z-index:1;">
-      <!-- Lado esquerdo -->
-      <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;">
-          ${avatar}
-          <div>
-            <h1 style="margin:0;font-size:2rem;font-weight:800;color:#fff;line-height:1.2;">${clientName}</h1>
-            <div style="font-size:1.1rem;font-weight:600;color:${C.sky};margin-top:6px;">${per}</div>
-            ${subtitle ? `<div style="font-size:13px;font-weight:400;color:${C.sky};margin-top:4px;">${subtitle}</div>` : ''}
-          </div>
+      <!-- Nome e período -->
+      <div style="display:flex;align-items:center;gap:20px;margin-bottom:${clientTeam.length ? '28px' : '20px'};">
+        ${avatar}
+        <div>
+          <h1 style="margin:0;font-size:2rem;font-weight:800;color:#fff;line-height:1.2;">${clientName}</h1>
+          <div style="font-size:1.05rem;font-weight:600;color:${C.sky};margin-top:6px;">${per}</div>
+          ${subtitle ? `<div style="font-size:13px;font-weight:400;color:${C.sky};margin-top:4px;opacity:0.85;">${subtitle}</div>` : ''}
         </div>
       </div>
 
-      <!-- Lado direito -->
-      <div style="display:flex;flex-direction:column;gap:12px;min-width:260px;">
-        <div style="display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
-          <div style="width:40px;height:40px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
+      <!-- Cards: CSM + equipe — alinhados à direita abaixo do nome -->
+      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
           <div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">CSM Responsável</div>
-            <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
-            ${csmEmail ? `<div style="font-size:12px;color:${C.lime};">${csmEmail}</div>` : ''}
+            <div style="font-size:10px;color:${C.sky};text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;font-weight:700;">CSM Responsável</div>
+            <div style="font-size:13px;font-weight:700;color:#fff;">${csmName}</div>
+            ${csmEmail ? `<div style="font-size:11px;color:rgba(255,255,255,0.55);">${csmEmail}</div>` : ''}
           </div>
         </div>
         ${teamCard}
