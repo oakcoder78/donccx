@@ -32,16 +32,21 @@ function getLast12Months(period) {
 function uid() { return `c${Date.now()}${Math.random().toString(36).slice(2, 6)}` }
 
 const SECTION_ICONS = {
-  escala: '📈', suporte: '🎫', projetos: '🗂️', health_score: '💚',
+  capa: '📋', escala: '📈', suporte: '🎫', projetos: '🗂️', health_score: '💚',
   destaques: '⭐', contexto: '🌐', proximos_passos: '🎯',
-  'custom-text': '📄', 'custom-image': '🖼️', 'custom-metrics': '📊',
+  'custom-text': '📄', 'custom-image': '🖼️', 'custom-metrics': '📊', 'custom-bars': '📊',
 }
 
 const TAG_COLORS = {
-  'Donc':     'bg-blue-100 text-blue-700',
-  'Cliente':  'bg-green-100 text-green-700',
-  'Conjunto': 'bg-purple-100 text-purple-700',
+  'Donc':         'bg-blue-100 text-blue-700',
+  'Cliente':      'bg-green-100 text-green-700',
+  'Conjunto':     'bg-purple-100 text-purple-700',
+  'Oportunidade': 'bg-yellow-100 text-yellow-800',
+  'A discutir':   'bg-orange-100 text-orange-700',
+  'Em espera':    'bg-slate-100 text-slate-600',
 }
+
+const TAGS = ['Donc', 'Cliente', 'Conjunto', 'Oportunidade', 'A discutir', 'Em espera']
 
 // ────────────────────────────────────────────────────────────
 export default function ReportEditorPage() {
@@ -56,7 +61,7 @@ export default function ReportEditorPage() {
 
   // ── Sections (array) ────────────────────────────────────
   const [sections, setSections] = useState([])
-  const [activeId, setActiveId] = useState('escala')
+  const [activeId, setActiveId] = useState('capa')
 
   // ── Dados externos ──────────────────────────────────────
   const [usageHistory, setUsageHistory] = useState([])
@@ -78,7 +83,7 @@ export default function ReportEditorPage() {
   const [extraDraft,    setExtraDraft]    = useState(blankExtra())
 
   function blankExtra() {
-    return { label: '', value: '', sublabel: '', delta: '', deltaType: 'neutral', accentColor: 'sky' }
+    return { label: '', value: '', sublabel: '', delta: '', deltaType: 'neutral', accentColor: 'sky', highlighted: false }
   }
 
   // ── Effect: load sections ────────────────────────────────
@@ -86,7 +91,7 @@ export default function ReportEditorPage() {
     if (!report) return
     const secs = normalizeSections(report.sections ?? [])
     setSections(secs)
-    setActiveId(secs[0]?.id ?? 'escala')
+    setActiveId(secs[0]?.id ?? 'capa')
   }, [report?.id])
 
   // ── Effect: fetch usage/support data ────────────────────
@@ -181,6 +186,11 @@ export default function ReportEditorPage() {
       ? { ...s, extras: (s.extras ?? []).filter(e => e.id !== extraId) }
       : s))
   }
+  function editExtra(sectionId, extraId, changes) {
+    setSections(prev => prev.map(s => s.id === sectionId
+      ? { ...s, extras: (s.extras ?? []).map(e => e.id === extraId ? { ...e, ...changes } : e) }
+      : s))
+  }
 
   // ── Timeline (Destaques) helpers ─────────────────────────
   function addDestaque(id) {
@@ -206,6 +216,22 @@ export default function ReportEditorPage() {
     updateContent(id, 'items', (getSec(id)?.content?.items ?? []).filter(it => it.id !== itemId))
   }
 
+  // ── Custom bars helpers ───────────────────────────────────
+  function addBarsItem(sectionId) {
+    const sec = getSec(sectionId)
+    const items = sec?.content?.items ?? []
+    updateContent(sectionId, 'items', [...items, { id: uid(), label: '', value: '', color: 'sky' }])
+  }
+  function updateBarsItem(sectionId, itemId, changes) {
+    const sec = getSec(sectionId)
+    const items = (sec?.content?.items ?? []).map(it => it.id === itemId ? { ...it, ...changes } : it)
+    updateContent(sectionId, 'items', items)
+  }
+  function removeBarsItem(sectionId, itemId) {
+    const sec = getSec(sectionId)
+    updateContent(sectionId, 'items', (sec?.content?.items ?? []).filter(it => it.id !== itemId))
+  }
+
   function getSec(id) { return sections.find(s => s.id === id) }
 
   // ── Drag-and-drop reorder ────────────────────────────────
@@ -227,9 +253,12 @@ export default function ReportEditorPage() {
   function addCustomSection() {
     if (!newTitle.trim()) return
     const id  = uid()
+    let content = { text: '', callout: '' }
+    if (newType === 'custom-image') content = { imageUrl: '', caption: '' }
+    if (newType === 'custom-bars') content = { items: [], callout: '' }
     const sec = {
       id, type: newType, title: newTitle.trim(), enabled: true,
-      content: newType === 'custom-image' ? { imageUrl: '', caption: '' } : { text: '', callout: '' },
+      content,
       extras: [],
     }
     setSections(prev => [...prev, sec])
@@ -241,7 +270,7 @@ export default function ReportEditorPage() {
 
   function deleteSection(id) {
     setSections(prev => prev.filter(s => s.id !== id))
-    if (activeId === id) setActiveId(sections.find(s => s.id !== id)?.id ?? 'escala')
+    if (activeId === id) setActiveId(sections.find(s => s.id !== id)?.id ?? 'capa')
   }
 
   // ── Image upload ─────────────────────────────────────────
@@ -251,6 +280,12 @@ export default function ReportEditorPage() {
     if (!allowed.includes(file.type)) { toast.error('Use PNG, JPG ou SVG.'); return }
     setUploadingImg(sectionId)
     try {
+      // Verificar se bucket existe, criar se não existir
+      const { data: buckets } = await supabase.storage.listBuckets()
+      const bucketExists = buckets?.some(b => b.name === 'report-images')
+      if (!bucketExists) {
+        await supabase.storage.createBucket('report-images', { public: true })
+      }
       const ext  = file.name.split('.').pop()
       const path = `${clientId}/${sectionId}.${ext}`
       const { error } = await supabase.storage.from('report-images').upload(path, file, { upsert: true })
@@ -293,7 +328,12 @@ export default function ReportEditorPage() {
   const isPublished = report.status === 'published'
   const clientName  = client.fantasy_name || client.name
   const activeSec   = getSec(activeId)
-  const isCustom    = activeSec && ['custom-text','custom-image','custom-metrics'].includes(activeSec.type)
+  // capa nunca é deletável; custom types são deletáveis
+  const isCustom    = activeSec && ['custom-text','custom-image','custom-metrics','custom-bars'].includes(activeSec.type)
+
+  // Seções arrastáveis = todas exceto capa
+  const draggableSections = sections.filter(s => s.type !== 'capa')
+  const capaSection = sections.find(s => s.type === 'capa')
 
   // ── Render ───────────────────────────────────────────────
   return (
@@ -329,13 +369,34 @@ export default function ReportEditorPage() {
 
         {/* ── Sidebar de seções (160px) ── */}
         <div className="w-[160px] flex-shrink-0 border-r border-border-tertiary bg-bg-secondary flex flex-col overflow-hidden">
-          <div className="px-3 py-2 text-[10px] font-bold text-text-tertiary uppercase tracking-wider border-b border-border-tertiary">
-            Seções
+          <div className="px-3 py-2 text-[10px] font-bold text-text-tertiary uppercase tracking-wider border-b border-border-tertiary flex items-center justify-between">
+            <span>Seções</span>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="text-donc-navy hover:text-donc-navy/70 font-bold text-sm leading-none"
+              title="Nova seção"
+            >+</button>
           </div>
           <div className="flex-1 overflow-y-auto py-1">
+            {/* Seção capa: fixa no topo, não arrastável */}
+            {capaSection && (
+              <div className="group relative">
+                <button
+                  onClick={() => setActiveId(capaSection.id)}
+                  className={`w-full flex items-center gap-1.5 px-2.5 py-2 text-left transition-colors ${
+                    activeId === capaSection.id ? 'bg-donc-navy text-white' : 'text-text-secondary hover:bg-bg-tertiary'
+                  }`}
+                >
+                  <span className="text-xs flex-shrink-0">{SECTION_ICONS['capa']}</span>
+                  <span className="text-[11px] leading-tight truncate flex-1">{capaSection.title}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Seções arrastáveis */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={sections.map(s => s.id)} strategy={verticalListSortingStrategy}>
-                {sections.map(s => (
+              <SortableContext items={draggableSections.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                {draggableSections.map(s => (
                   <SortableSidebarItem
                     key={s.id}
                     sec={s}
@@ -348,12 +409,6 @@ export default function ReportEditorPage() {
               </SortableContext>
             </DndContext>
           </div>
-          <div className="p-2 border-t border-border-tertiary">
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="w-full text-[11px] font-semibold text-donc-navy hover:bg-bg-tertiary rounded px-2 py-1.5 transition-colors text-left"
-            >+ Nova Seção</button>
-          </div>
         </div>
 
         {/* ── Editor (320px) ── */}
@@ -362,17 +417,20 @@ export default function ReportEditorPage() {
             {activeSec && (
               <SectionEditor
                 sec={activeSec}
+                client={client}
                 healthData={healthData}
                 uploadingImg={uploadingImg}
                 addingExtra={addingExtra}
                 extraDraft={extraDraft}
                 onToggle={() => toggleEnabled(activeSec.id)}
                 onContent={(k, v) => updateContent(activeSec.id, k, v)}
+                onSubtitle={v => updateSection(activeSec.id, { subtitle: v })}
                 onAddExtra={() => { setAddingExtra(activeSec.id); setExtraDraft(blankExtra()) }}
                 onExtraDraft={setExtraDraft}
                 onConfirmExtra={() => confirmExtra(activeSec.id)}
                 onCancelExtra={() => setAddingExtra(null)}
                 onRemoveExtra={extraId => removeExtra(activeSec.id, extraId)}
+                onEditExtra={(extraId, changes) => editExtra(activeSec.id, extraId, changes)}
                 onAddDestaque={() => addDestaque(activeSec.id)}
                 onUpdateDestaque={(itemId, ch) => updateDestaque(activeSec.id, itemId, ch)}
                 onRemoveDestaque={itemId => removeDestaque(activeSec.id, itemId)}
@@ -380,6 +438,10 @@ export default function ReportEditorPage() {
                 onUpdatePasso={(itemId, ch) => updatePasso(activeSec.id, itemId, ch)}
                 onRemovePasso={itemId => removePasso(activeSec.id, itemId)}
                 onImageUpload={file => handleImageUpload(file, activeSec.id)}
+                onAddBarsItem={() => addBarsItem(activeSec.id)}
+                onUpdateBarsItem={(itemId, ch) => updateBarsItem(activeSec.id, itemId, ch)}
+                onRemoveBarsItem={itemId => removeBarsItem(activeSec.id, itemId)}
+                onUpdateSection={changes => updateSection(activeSec.id, changes)}
               />
             )}
           </div>
@@ -429,6 +491,7 @@ export default function ReportEditorPage() {
                 <option value="custom-text">Texto</option>
                 <option value="custom-image">Imagem</option>
                 <option value="custom-metrics">Métricas</option>
+                <option value="custom-bars">Categorias</option>
               </select>
             </div>
             <div className="flex gap-2">
@@ -479,33 +542,70 @@ function SortableSidebarItem({ sec, isActive, showDelete, onSelect, onDelete }) 
 
 // ── SectionEditor ─────────────────────────────────────────────
 function SectionEditor({
-  sec, healthData, uploadingImg,
+  sec, client, healthData, uploadingImg,
   addingExtra, extraDraft,
-  onToggle, onContent,
-  onAddExtra, onExtraDraft, onConfirmExtra, onCancelExtra, onRemoveExtra,
+  onToggle, onContent, onSubtitle,
+  onAddExtra, onExtraDraft, onConfirmExtra, onCancelExtra, onRemoveExtra, onEditExtra,
   onAddDestaque, onUpdateDestaque, onRemoveDestaque,
   onAddPasso, onUpdatePasso, onRemovePasso,
   onImageUpload,
+  onAddBarsItem, onUpdateBarsItem, onRemoveBarsItem,
+  onUpdateSection,
 }) {
   const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics'].includes(sec.type)
-  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics'].includes(sec.type)
+  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score'].includes(sec.type)
   const isAdding    = addingExtra === sec.id
+  const isCapa      = sec.type === 'capa'
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toggle + título */}
-      <div className="flex items-center justify-between">
-        <div className={`flex items-center gap-2 text-sm font-semibold ${sec.enabled ? 'text-text-primary' : 'text-text-tertiary'}`}>
-          <span>{SECTION_ICONS[sec.type] ?? '📌'}</span>
-          <span>{sec.title}</span>
+      {/* Toggle + título (não mostrar para capa) */}
+      {!isCapa && (
+        <div className="flex items-center justify-between">
+          <div className={`flex items-center gap-2 text-sm font-semibold ${sec.enabled ? 'text-text-primary' : 'text-text-tertiary'}`}>
+            <span>{SECTION_ICONS[sec.type] ?? '📌'}</span>
+            <span>{sec.title}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-text-tertiary">{sec.enabled ? 'Incluída' : 'Excluída'}</span>
+            <Toggle enabled={sec.enabled} onToggle={onToggle} />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-text-tertiary">{sec.enabled ? 'Incluída' : 'Excluída'}</span>
-          <Toggle enabled={sec.enabled} onToggle={onToggle} />
-        </div>
-      </div>
+      )}
 
-      <div className={sec.enabled ? '' : 'opacity-40 pointer-events-none'}>
+      {/* Título da seção capa */}
+      {isCapa && (
+        <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+          <span>{SECTION_ICONS['capa']}</span>
+          <span>Capa</span>
+        </div>
+      )}
+
+      {/* Subtítulo por seção (para todas exceto capa — capa tem seu próprio campo) */}
+      {!isCapa && (
+        <div>
+          <label className="text-xs text-text-tertiary block mb-1">Subtítulo da seção</label>
+          <input
+            type="text"
+            value={sec.subtitle ?? ''}
+            onChange={e => onSubtitle(e.target.value)}
+            placeholder="Subtítulo opcional…"
+            className="input-base w-full text-sm"
+          />
+        </div>
+      )}
+
+      <div className={!isCapa && !sec.enabled ? 'opacity-40 pointer-events-none' : ''}>
+
+        {/* ── Editor da capa ── */}
+        {isCapa && (
+          <CapaEditor
+            content={sec.content ?? { subtitle: '', clientTeam: [] }}
+            client={client}
+            onContent={onContent}
+            onUpdateSection={onUpdateSection}
+          />
+        )}
 
         {/* ── Corpo por tipo ── */}
         {sec.type === 'health_score' && <HealthPreview healthData={healthData} />}
@@ -529,23 +629,29 @@ function SectionEditor({
         )}
 
         {sec.type === 'contexto' && (
-          <textarea
-            value={sec.content?.text ?? ''}
-            onChange={e => onContent('text', e.target.value)}
-            rows={8}
-            placeholder="Texto do contexto externo…"
-            className="input-base w-full resize-none text-sm leading-relaxed"
-          />
+          <>
+            <textarea
+              value={sec.content?.text ?? ''}
+              onChange={e => onContent('text', e.target.value)}
+              rows={8}
+              placeholder="Texto do contexto externo…"
+              className="input-base w-full resize-none text-sm leading-relaxed"
+            />
+            <p className="text-[10px] text-text-tertiary mt-1">Use **texto** para negrito, *texto* para itálico. Quebras de linha são respeitadas.</p>
+          </>
         )}
 
         {sec.type === 'custom-text' && (
-          <textarea
-            value={sec.content?.text ?? ''}
-            onChange={e => onContent('text', e.target.value)}
-            rows={10}
-            placeholder="Texto da seção…"
-            className="input-base w-full resize-none text-sm leading-relaxed"
-          />
+          <>
+            <textarea
+              value={sec.content?.text ?? ''}
+              onChange={e => onContent('text', e.target.value)}
+              rows={10}
+              placeholder="Texto da seção…"
+              className="input-base w-full resize-none text-sm leading-relaxed"
+            />
+            <p className="text-[10px] text-text-tertiary mt-1">Use **texto** para negrito, *texto* para itálico. Quebras de linha são respeitadas.</p>
+          </>
         )}
 
         {sec.type === 'custom-image' && (
@@ -558,8 +664,17 @@ function SectionEditor({
           />
         )}
 
+        {sec.type === 'custom-bars' && (
+          <BarsEditor
+            items={sec.content?.items ?? []}
+            onAdd={onAddBarsItem}
+            onUpdate={onUpdateBarsItem}
+            onRemove={onRemoveBarsItem}
+          />
+        )}
+
         {/* Callout analítico */}
-        {showCallout && sec.type !== 'custom-image' && (
+        {showCallout && sec.type !== 'custom-image' && sec.type !== 'capa' && (
           <div>
             <label className="text-xs text-text-tertiary block mb-1">Análise / Nota</label>
             <textarea
@@ -569,6 +684,7 @@ function SectionEditor({
               placeholder="Texto analítico que aparece em destaque no relatório…"
               className="input-base w-full resize-none text-sm leading-relaxed"
             />
+            <p className="text-[10px] text-text-tertiary mt-1">Use **texto** para negrito, *texto* para itálico. Quebras de linha são respeitadas.</p>
           </div>
         )}
 
@@ -583,8 +699,127 @@ function SectionEditor({
             onConfirm={onConfirmExtra}
             onCancel={onCancelExtra}
             onRemove={onRemoveExtra}
+            onEditExtra={onEditExtra}
           />
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Capa Editor ───────────────────────────────────────────────
+function CapaEditor({ content, client, onContent, onUpdateSection }) {
+  const [teamSelect, setTeamSelect] = useState('')
+  const [freeContact, setFreeContact] = useState({ name: '', role: '' })
+
+  const clientTeam = content.clientTeam ?? []
+  const subtitle   = content.subtitle ?? ''
+
+  // Contatos do cliente que são Decisor ou champion
+  const contactOptions = (client?.contact_links ?? []).filter(
+    l => l.papel === 'Decisor' || l.champion === true
+  )
+
+  function handleAddFromList() {
+    if (!teamSelect) return
+    const link = contactOptions.find(l => String(l.id) === String(teamSelect))
+    if (!link) return
+    const name = link.contacts?.name || '—'
+    const role = link.papel || 'Champion'
+    onContent('clientTeam', [...clientTeam, { name, role }])
+    setTeamSelect('')
+  }
+
+  function handleAddFree() {
+    if (!freeContact.name.trim()) return
+    onContent('clientTeam', [...clientTeam, { name: freeContact.name.trim(), role: freeContact.role.trim() }])
+    setFreeContact({ name: '', role: '' })
+  }
+
+  function handleRemoveMember(idx) {
+    onContent('clientTeam', clientTeam.filter((_, i) => i !== idx))
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Subtítulo da capa */}
+      <div>
+        <label className="text-xs text-text-tertiary block mb-1">Subtítulo da capa</label>
+        <input
+          type="text"
+          value={subtitle}
+          onChange={e => onContent('subtitle', e.target.value)}
+          placeholder="Ex: Apresentação mensal de resultados…"
+          className="input-base w-full text-sm"
+        />
+      </div>
+
+      {/* Equipe do cliente */}
+      <div>
+        <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Equipe do Cliente</span>
+
+        {/* Lista existente */}
+        {clientTeam.map((tc, idx) => (
+          <div key={idx} className="flex items-center justify-between bg-bg-secondary rounded-md px-3 py-2 mb-1.5 border border-border-tertiary">
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-text-primary truncate block">{tc.name}</span>
+              <span className="text-xs text-text-tertiary">{tc.role}</span>
+            </div>
+            <button onClick={() => handleRemoveMember(idx)} className="text-text-tertiary hover:text-red-500 text-sm ml-2 flex-shrink-0">×</button>
+          </div>
+        ))}
+
+        {/* Adicionar da lista */}
+        {contactOptions.length > 0 && (
+          <div className="mb-3">
+            <label className="text-xs text-text-tertiary block mb-1">Adicionar da lista</label>
+            <div className="flex gap-2">
+              <select
+                value={teamSelect}
+                onChange={e => setTeamSelect(e.target.value)}
+                className="input-base text-xs flex-1"
+              >
+                <option value="">Selecionar contato…</option>
+                {contactOptions.map(l => (
+                  <option key={l.id} value={l.id}>
+                    {l.contacts?.name || '—'} ({l.papel || 'Champion'})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleAddFromList}
+                disabled={!teamSelect}
+                className="text-xs px-3 py-1.5 rounded-md bg-donc-navy text-white font-semibold disabled:opacity-40"
+              >+</button>
+            </div>
+          </div>
+        )}
+
+        {/* Adicionar manualmente */}
+        <div>
+          <label className="text-xs text-text-tertiary block mb-1">Adicionar manualmente</label>
+          <div className="flex gap-2 mb-2">
+            <input
+              type="text"
+              placeholder="Nome"
+              value={freeContact.name}
+              onChange={e => setFreeContact(f => ({ ...f, name: e.target.value }))}
+              className="input-base text-xs flex-1"
+            />
+            <input
+              type="text"
+              placeholder="Cargo/Papel"
+              value={freeContact.role}
+              onChange={e => setFreeContact(f => ({ ...f, role: e.target.value }))}
+              className="input-base text-xs flex-1"
+            />
+          </div>
+          <button
+            onClick={handleAddFree}
+            disabled={!freeContact.name.trim()}
+            className="w-full text-xs py-1.5 rounded-md bg-donc-navy text-white font-semibold disabled:opacity-40"
+          >Adicionar</button>
+        </div>
       </div>
     </div>
   )
@@ -643,7 +878,10 @@ function HealthPreview({ healthData }) {
 }
 
 // ── Extras editor ─────────────────────────────────────────────
-function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onConfirm, onCancel, onRemove }) {
+function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onConfirm, onCancel, onRemove, onEditExtra }) {
+  const [editingExtraId, setEditingExtraId] = useState(null)
+  const [editDraft, setEditDraft] = useState({})
+
   const accentOpts = [
     { v: 'sky', l: 'Sky' }, { v: 'lime', l: 'Lime' },
     { v: 'navy', l: 'Navy' }, { v: 'green', l: 'Green' },
@@ -651,6 +889,16 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
   const deltaOpts = [
     { v: 'neutral', l: '≈ Neutro' }, { v: 'up', l: '▲ Alta' }, { v: 'down', l: '▼ Baixa' },
   ]
+
+  function startEdit(e) {
+    setEditingExtraId(e.id)
+    setEditDraft({ ...e })
+  }
+  function saveEdit() {
+    onEditExtra(editingExtraId, editDraft)
+    setEditingExtraId(null)
+    setEditDraft({})
+  }
 
   return (
     <div>
@@ -666,12 +914,61 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
 
       {/* Existing extras */}
       {extras.map(e => (
-        <div key={e.id} className="flex items-center justify-between bg-bg-secondary rounded-md px-3 py-2 mb-1.5 border border-border-tertiary">
-          <div className="min-w-0">
-            <span className="text-xs font-semibold text-text-primary truncate block">{e.label}</span>
-            <span className="text-xs text-text-tertiary">{e.value}{e.sublabel ? ` · ${e.sublabel}` : ''}</span>
-          </div>
-          <button onClick={() => onRemove(e.id)} className="text-text-tertiary hover:text-red-500 text-sm ml-2 flex-shrink-0">×</button>
+        <div key={e.id} className="bg-bg-secondary rounded-md px-3 py-2 mb-1.5 border border-border-tertiary">
+          {editingExtraId === e.id ? (
+            <div>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <input placeholder="Label *" value={editDraft.label ?? ''}
+                  onChange={ev => setEditDraft(d => ({ ...d, label: ev.target.value }))}
+                  className="input-base text-xs col-span-2" />
+                <input placeholder="Valor *" value={editDraft.value ?? ''}
+                  onChange={ev => setEditDraft(d => ({ ...d, value: ev.target.value }))}
+                  className="input-base text-xs" />
+                <input placeholder="Sublabel" value={editDraft.sublabel ?? ''}
+                  onChange={ev => setEditDraft(d => ({ ...d, sublabel: ev.target.value }))}
+                  className="input-base text-xs" />
+                <input placeholder="Delta" value={editDraft.delta ?? ''}
+                  onChange={ev => setEditDraft(d => ({ ...d, delta: ev.target.value }))}
+                  className="input-base text-xs" />
+                <select value={editDraft.deltaType ?? 'neutral'}
+                  onChange={ev => setEditDraft(d => ({ ...d, deltaType: ev.target.value }))}
+                  className="input-base text-xs">
+                  {deltaOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+                <select value={editDraft.accentColor ?? 'sky'}
+                  onChange={ev => setEditDraft(d => ({ ...d, accentColor: ev.target.value }))}
+                  className="input-base text-xs col-span-2">
+                  {accentOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center gap-2 mb-2">
+                <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+                  <input type="checkbox" checked={editDraft.highlighted ?? false}
+                    onChange={ev => setEditDraft(d => ({ ...d, highlighted: ev.target.checked }))}
+                    className="rounded" />
+                  Destaque navy
+                </label>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setEditingExtraId(null)}
+                  className="flex-1 text-xs py-1.5 rounded-md border border-border-secondary text-text-tertiary hover:bg-bg-tertiary">Cancelar</button>
+                <button onClick={saveEdit}
+                  className="flex-1 text-xs py-1.5 rounded-md bg-donc-navy text-white font-semibold">Salvar</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between">
+              <div className="min-w-0">
+                <span className="text-xs font-semibold text-text-primary truncate block">{e.label}</span>
+                <span className="text-xs text-text-tertiary">{e.value}{e.sublabel ? ` · ${e.sublabel}` : ''}</span>
+                {e.highlighted && <span className="text-[10px] text-donc-navy font-semibold">★ Destaque</span>}
+              </div>
+              <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                <button onClick={() => startEdit(e)} className="text-text-tertiary hover:text-donc-navy text-sm" title="Editar">✏️</button>
+                <button onClick={() => onRemove(e.id)} className="text-text-tertiary hover:text-red-500 text-sm">×</button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
 
@@ -701,6 +998,14 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
               className="input-base text-xs col-span-2">
               {accentOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
             </select>
+          </div>
+          <div className="flex items-center gap-2 mb-2">
+            <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+              <input type="checkbox" checked={draft.highlighted ?? false}
+                onChange={e => onDraftChange({ ...draft, highlighted: e.target.checked })}
+                className="rounded" />
+              Destaque navy
+            </label>
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel} className="flex-1 text-xs py-1.5 rounded-md border border-border-secondary text-text-tertiary hover:bg-bg-tertiary">Cancelar</button>
@@ -734,6 +1039,7 @@ function TimelineEditor({ items, onAdd, onUpdate, onRemove }) {
           </div>
           <textarea value={item.description} onChange={e => onUpdate(item.id, { description: e.target.value })}
             rows={2} placeholder="Descrição (opcional)" className="input-base text-sm w-full resize-none" />
+          <p className="text-[10px] text-text-tertiary mt-1">Use **texto** para negrito, *texto* para itálico.</p>
         </div>
       ))}
       {!items.length && (
@@ -758,19 +1064,52 @@ function PassosEditor({ items, onAdd, onUpdate, onRemove }) {
             <input value={item.title} onChange={e => onUpdate(item.id, { title: e.target.value })}
               placeholder="Título do passo" className="input-base text-sm flex-1" />
             <select value={item.tag} onChange={e => onUpdate(item.id, { tag: e.target.value })}
-              className="input-base text-xs w-24 flex-shrink-0">
-              <option>Donc</option>
-              <option>Cliente</option>
-              <option>Conjunto</option>
+              className="input-base text-xs w-28 flex-shrink-0">
+              {TAGS.map(t => <option key={t}>{t}</option>)}
             </select>
             <button onClick={() => onRemove(item.id)} className="text-text-tertiary hover:text-red-500 text-sm flex-shrink-0">×</button>
           </div>
           <textarea value={item.description} onChange={e => onUpdate(item.id, { description: e.target.value })}
             rows={2} placeholder="Descrição (opcional)" className="input-base text-sm w-full resize-none" />
+          <p className="text-[10px] text-text-tertiary mt-1">Use **texto** para negrito, *texto* para itálico.</p>
         </div>
       ))}
       {!items.length && (
         <p className="text-xs text-text-tertiary text-center py-3">Nenhum passo adicionado.</p>
+      )}
+    </div>
+  )
+}
+
+// ── Bars editor (custom-bars) ─────────────────────────────────
+function BarsEditor({ items, onAdd, onUpdate, onRemove }) {
+  const colorOptions = [
+    { v: 'sky', l: 'Sky' }, { v: 'navy', l: 'Navy' }, { v: 'lime', l: 'Lime' },
+    { v: 'green', l: 'Green' }, { v: 'yellow', l: 'Yellow' }, { v: 'red', l: 'Red' },
+  ]
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider">Categorias</span>
+        <button onClick={onAdd} className="text-xs font-semibold text-donc-navy hover:underline">+ Adicionar categoria</button>
+      </div>
+      {items.map(item => (
+        <div key={item.id} className="bg-bg-secondary rounded-lg p-3 border border-border-tertiary mb-2">
+          <div className="flex gap-2 mb-2">
+            <input value={item.label} onChange={e => onUpdate(item.id, { label: e.target.value })}
+              placeholder="Categoria" className="input-base text-xs flex-1" />
+            <input type="number" value={item.value} onChange={e => onUpdate(item.id, { value: e.target.value })}
+              placeholder="Valor" className="input-base text-xs w-20" />
+            <button onClick={() => onRemove(item.id)} className="text-text-tertiary hover:text-red-500 text-sm">×</button>
+          </div>
+          <select value={item.color ?? 'sky'} onChange={e => onUpdate(item.id, { color: e.target.value })}
+            className="input-base text-xs w-full">
+            {colorOptions.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+          </select>
+        </div>
+      ))}
+      {!items.length && (
+        <p className="text-xs text-text-tertiary text-center py-3">Nenhuma categoria adicionada.</p>
       )}
     </div>
   )

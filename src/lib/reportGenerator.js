@@ -56,19 +56,30 @@ function prevMonthStr(period) {
 // ── Seções padrão ─────────────────────────────────────────────
 export function defaultSections() {
   return [
-    { id: 'escala',          type: 'escala',          title: 'Escala da Operação',   enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'suporte',         type: 'suporte',         title: 'Suporte',              enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'projetos',        type: 'projetos',        title: 'Projetos',             enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'health_score',    type: 'health_score',    title: 'Health Score',         enabled: true, content: {},             extras: [] },
-    { id: 'destaques',       type: 'destaques',       title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
-    { id: 'contexto',        type: 'contexto',        title: 'Contexto Externo',     enabled: true, content: { text: '' },   extras: [] },
-    { id: 'proximos_passos', type: 'proximos_passos', title: 'Próximos Passos',      enabled: true, content: { items: [] },  extras: [] },
+    { id: 'capa',           type: 'capa',           title: 'Capa',              enabled: true, content: { subtitle: '', clientTeam: [] }, extras: [] },
+    { id: 'escala',         type: 'escala',         title: 'Escala da Operação',enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'suporte',        type: 'suporte',        title: 'Suporte',           enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'projetos',       type: 'projetos',       title: 'Projetos',          enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'health_score',   type: 'health_score',   title: 'Health Score',      enabled: true, content: {},             extras: [] },
+    { id: 'destaques',      type: 'destaques',      title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
+    { id: 'contexto',       type: 'contexto',       title: 'Contexto Externo',  enabled: true, content: { text: '' },   extras: [] },
+    { id: 'proximos_passos',type: 'proximos_passos',title: 'Próximos Passos',   enabled: true, content: { items: [] },  extras: [] },
   ]
 }
 
 /** Migra formato antigo (object) para array de seções */
 export function normalizeSections(raw) {
-  if (Array.isArray(raw)) return raw
+  if (Array.isArray(raw)) {
+    // Verificar se já tem seção capa; se não, inserir no início
+    const hasCapa = raw.some(s => s.id === 'capa')
+    if (!hasCapa) {
+      return [
+        { id: 'capa', type: 'capa', title: 'Capa', enabled: true, content: { subtitle: '', clientTeam: [] }, extras: [] },
+        ...raw,
+      ]
+    }
+    return raw
+  }
   if (!raw || typeof raw !== 'object') return defaultSections()
 
   // Formato legado: { escala: { content, enabled }, ... }
@@ -78,6 +89,7 @@ export function normalizeSections(raw) {
     destaques: 'callout', contexto: 'text', proximos_passos: null,
   }
   return defs.map(def => {
+    if (def.id === 'capa') return def
     const old = raw[def.id]
     if (!old) return def
     const enabled = typeof old === 'object' ? old.enabled !== false : true
@@ -88,13 +100,38 @@ export function normalizeSections(raw) {
   })
 }
 
+// ── Utilidade de texto rico ───────────────────────────────────
+function richText(text) {
+  if (!text) return ''
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/\n/g, '<br>')
+}
+
 // ── Componentes HTML reutilizáveis ────────────────────────────
 
-function kpiCard({ label, value, sublabel, delta, deltaType, accentColor }) {
+function kpiCard({ label, value, sublabel, delta, deltaType, accentColor, highlighted }) {
   const accent = ACCENT[accentColor] ?? C.sky
   const dBg    = deltaType === 'up'   ? '#f0fff4' : deltaType === 'down' ? '#fff5f5' : '#ebf8ff'
   const dColor = deltaType === 'up'   ? '#276749' : deltaType === 'down' ? '#9b2c2c' : '#2b6cb0'
   const dIcon  = deltaType === 'up'   ? '▲' : deltaType === 'down' ? '▼' : '≈'
+
+  if (highlighted) {
+    const sublabelH = sublabel
+      ? `<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;">${sublabel}</div>` : ''
+    const deltaH = delta
+      ? `<div style="display:inline-flex;align-items:center;gap:3px;margin-top:8px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);font-size:11px;font-weight:700;">${dIcon} ${delta}</div>` : ''
+    return `
+    <div style="background:${C.navyDeep};border-radius:10px;border:1px solid rgba(255,255,255,0.1);padding:16px 20px;">
+      <div style="font-size:10px;font-weight:700;color:${C.sky};text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">${label}</div>
+      <div style="font-size:2.2rem;font-weight:800;color:${C.lime};line-height:1;">${value ?? '—'}</div>
+      ${sublabelH}${deltaH}
+    </div>`
+  }
 
   const sublabelH = sublabel
     ? `<div style="font-size:11px;color:${C.textLight};margin-top:4px;">${sublabel}</div>` : ''
@@ -117,9 +154,9 @@ function kpiGrid(cards, cols = 3) {
 function calloutBlock(text, color = C.sky) {
   if (!text?.trim()) return ''
   const bg = color === C.green ? '#f0fff4' : color === C.yellow ? '#fffff0' : color === C.red ? '#fff5f5' : '#ebf8ff'
-  const paras = text.split('\n').filter(l => l.trim())
-    .map(l => `<p style="margin:0 0 6px 0;font-size:13.5px;line-height:1.7;color:${C.text};">${l.trim()}</p>`).join('')
-  return `<div style="border-left:4px solid ${color};background:${bg};border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0;">${paras}</div>`
+  return `<div style="border-left:4px solid ${color};background:${bg};border-radius:0 8px 8px 0;padding:14px 18px;margin:16px 0;">
+    <p style="margin:0;font-size:13.5px;line-height:1.7;color:${C.text};">${richText(text.trim())}</p>
+  </div>`
 }
 
 function subTitle(text) {
@@ -196,9 +233,12 @@ function barChartV(usageHistory, period) {
 function nextStepsList(items) {
   if (!items?.length) return `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum próximo passo adicionado.</p>`
   const tagStyle = {
-    'Donc':     { bg: '#ebf8ff', color: '#2b6cb0' },
-    'Cliente':  { bg: '#f0fff4', color: '#276749' },
-    'Conjunto': { bg: '#faf5ff', color: '#553c9a' },
+    'Donc':         { bg: '#ebf8ff', color: '#2b6cb0' },
+    'Cliente':      { bg: '#f0fff4', color: '#276749' },
+    'Conjunto':     { bg: '#faf5ff', color: '#553c9a' },
+    'Oportunidade': { bg: '#fffbeb', color: '#92400e' },
+    'A discutir':   { bg: '#fff7ed', color: '#9a3412' },
+    'Em espera':    { bg: '#f1f5f9', color: '#475569' },
   }
   return `<div style="display:flex;flex-direction:column;gap:16px;">${items.map((item, i) => {
     const t = tagStyle[item.tag] ?? { bg: '#f7fafc', color: '#4a5568' }
@@ -207,7 +247,7 @@ function nextStepsList(items) {
       <div style="width:30px;height:30px;border-radius:50%;background:${C.navy};color:#fff;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i + 1}</div>
       <div>
         <div style="font-size:14px;font-weight:700;color:${C.text};margin-bottom:3px;">${item.title || ''}</div>
-        ${item.description ? `<div style="font-size:13px;color:${C.textLight};">${item.description}</div>` : ''}
+        ${item.description ? `<div style="font-size:13px;color:${C.textLight};">${richText(item.description)}</div>` : ''}
         ${item.tag ? `<span style="display:inline-block;margin-top:5px;padding:2px 8px;border-radius:999px;background:${t.bg};color:${t.color};font-size:10px;font-weight:700;">${item.tag}</span>` : ''}
       </div>
     </div>`
@@ -221,7 +261,7 @@ function timelineList(items) {
       <div style="width:40px;height:40px;border-radius:50%;background:#f7fafc;border:2px solid ${C.border};display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">${item.emoji || '⭐'}</div>
       <div>
         <div style="font-size:14px;font-weight:700;color:${C.text};margin-bottom:3px;">${item.title || ''}</div>
-        ${item.description ? `<div style="font-size:13px;color:${C.textLight};line-height:1.6;">${item.description}</div>` : ''}
+        ${item.description ? `<div style="font-size:13px;color:${C.textLight};line-height:1.6;">${richText(item.description)}</div>` : ''}
       </div>
     </div>`).join('')}</div>`
 }
@@ -232,16 +272,20 @@ function extrasRow(extras) {
   return kpiGrid(extras.map(e => kpiCard({
     label: e.label, value: e.value, sublabel: e.sublabel,
     delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky',
+    highlighted: e.highlighted ?? false,
   })), cols)
 }
 
 // ── Slide wrapper ─────────────────────────────────────────────
-function slide(icon, title, body, clientName, period, pageNum) {
+function slide(icon, title, body, clientName, period, pageNum, subtitle) {
   return `
   <div class="slide" style="background:${C.bg};border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow:hidden;margin-bottom:24px;break-inside:avoid;page-break-inside:avoid;">
     <div style="background:${C.navyDeep};padding:14px 32px;display:flex;align-items:center;gap:12px;">
       <span style="font-size:18px;">${icon}</span>
-      <h2 style="margin:0;font-size:15px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:1px;flex:1;">${title}</h2>
+      <div style="flex:1;">
+        <h2 style="margin:0;font-size:15px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:1px;">${title}</h2>
+        ${subtitle ? `<div style="font-size:11px;font-weight:400;color:rgba(255,255,255,0.55);margin-top:3px;letter-spacing:.3px;">${subtitle}</div>` : ''}
+      </div>
     </div>
     <div style="padding:28px 32px 24px;">${body}</div>
     <div style="padding:9px 32px;border-top:1px solid ${C.border};display:flex;justify-content:space-between;align-items:center;">
@@ -253,26 +297,28 @@ function slide(icon, title, body, clientName, period, pageNum) {
 }
 
 // ── Slide: Capa (sempre incluída) ─────────────────────────────
-function slideCapa(client, report, csm, teamContacts) {
+function slideCapa(client, report, csm, capaContent) {
   const clientName = client?.fantasy_name || client?.name || '—'
   const logoUrl    = client?.logo_url || null
   const csmName    = csm?.name  || '—'
   const csmEmail   = csm?.email || ''
   const per        = periodLabel(report?.period)
+  const subtitle   = capaContent?.subtitle ?? ''
+  const clientTeam = capaContent?.clientTeam ?? []
 
   const avatar = logoUrl
     ? `<img src="${logoUrl}" alt="${clientName}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.25);" />`
     : `<div style="width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.15);border:3px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:800;color:#fff;">${clientName.charAt(0).toUpperCase()}</div>`
 
-  const teamCard = (teamContacts ?? []).length ? `
+  const teamCard = clientTeam.length ? `
     <div style="display:inline-flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
       <div style="width:40px;height:40px;border-radius:50%;background:${C.sky};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};margin-top:2px;">👥</div>
       <div>
         <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;">Equipe do Cliente</div>
-        ${(teamContacts ?? []).map(tc => `
+        ${clientTeam.map(tc => `
           <div style="margin-bottom:6px;">
-            <div style="font-size:13px;font-weight:700;color:#fff;">${tc.contacts?.name || '—'}</div>
-            <div style="font-size:11px;color:${C.sky};margin-top:1px;">${tc.papel || ''}${tc.champion && tc.papel !== 'Champion' ? (tc.papel ? ' · ⭐ Champion' : '⭐ Champion') : ''}</div>
+            <div style="font-size:13px;font-weight:700;color:#fff;">${tc.name || '—'}</div>
+            <div style="font-size:11px;color:${C.sky};margin-top:1px;">${tc.role || ''}</div>
           </div>`).join('')}
       </div>
     </div>` : ''
@@ -286,24 +332,31 @@ function slideCapa(client, report, csm, teamContacts) {
       📋 Relatório de Análise Mensal
     </div>
 
-    <div style="display:flex;align-items:center;gap:20px;position:relative;z-index:1;">
-      ${avatar}
-      <div>
-        <h1 style="margin:0;font-size:2rem;font-weight:800;color:#fff;line-height:1.2;">${clientName}</h1>
-        <div style="font-size:1.1rem;font-weight:600;color:${C.sky};margin-top:6px;">${per}</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:12px;margin-top:28px;">
-      <div style="display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
-        <div style="width:40px;height:40px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
-        <div>
-          <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">CSM Responsável</div>
-          <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
-          ${csmEmail ? `<div style="font-size:12px;color:${C.lime};">${csmEmail}</div>` : ''}
+    <div style="display:flex;gap:40px;align-items:flex-start;position:relative;z-index:1;">
+      <!-- Lado esquerdo -->
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:20px;margin-bottom:16px;">
+          ${avatar}
+          <div>
+            <h1 style="margin:0;font-size:2rem;font-weight:800;color:#fff;line-height:1.2;">${clientName}</h1>
+            <div style="font-size:1.1rem;font-weight:600;color:${C.sky};margin-top:6px;">${per}</div>
+            ${subtitle ? `<div style="font-size:13px;font-weight:400;color:${C.sky};margin-top:4px;">${subtitle}</div>` : ''}
+          </div>
         </div>
       </div>
-      ${teamCard}
+
+      <!-- Lado direito -->
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:260px;">
+        <div style="display:inline-flex;align-items:center;gap:14px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 18px;">
+          <div style="width:40px;height:40px;border-radius:50%;background:${C.lime};flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:${C.navyDeep};">${csmName.charAt(0).toUpperCase()}</div>
+          <div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:2px;">CSM Responsável</div>
+            <div style="font-size:14px;font-weight:700;color:#fff;">${csmName}</div>
+            ${csmEmail ? `<div style="font-size:12px;color:${C.lime};">${csmEmail}</div>` : ''}
+          </div>
+        </div>
+        ${teamCard}
+      </div>
     </div>
   </div>`
 }
@@ -322,21 +375,22 @@ function slideEscala(sec, usageHistory, period, clientName, p) {
   const du = delta(cur?.active_users, prev?.active_users)
   const dos = delta(cur?.os_created, prev?.os_created)
 
+  // OS Criadas primeiro, Usuários Ativos segundo
   const autoCards = []
-  if (cur?.active_users != null)
-    autoCards.push(kpiCard({ label: 'Usuários Ativos', value: cur.active_users, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
   if (cur?.os_created != null)
     autoCards.push(kpiCard({ label: 'O.S. Criadas', value: cur.os_created, sublabel: 'mês atual', delta: dos.d, deltaType: dos.t, accentColor: 'lime' }))
+  if (cur?.active_users != null)
+    autoCards.push(kpiCard({ label: 'Usuários Ativos', value: cur.active_users, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
 
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
-    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky' }))]
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false }))]
 
   const body = `
     ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 2), 4)) : ''}
     ${calloutBlock(sec.content?.callout, C.sky)}
     ${barChartV(usageHistory, period)}`
 
-  return slide('📈', 'Escala da Operação', body, clientName, period, p)
+  return slide('📈', 'Escala da Operação', body, clientName, period, p, sec.subtitle)
 }
 
 function slideSuporte(sec, supportRaw, clientName, period, p) {
@@ -358,7 +412,7 @@ function slideSuporte(sec, supportRaw, clientName, period, p) {
       sublabel: 'mês atual', accentColor: resRate != null && resRate >= 90 ? 'green' : 'lime' }),
   ]
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
-    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky' }))]
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false }))]
 
   const n1n2n3 = [
     n1 != null ? { label: 'N1', value: n1, color: C.green  } : null,
@@ -372,7 +426,7 @@ function slideSuporte(sec, supportRaw, clientName, period, p) {
     ${n1n2n3.length ? subTitle('Breakdown por Nível') + barH(n1n2n3) : ''}
     ${calloutBlock(sec.content?.callout, C.navy)}`
 
-  return slide('🎫', 'Suporte', body, clientName, period, p)
+  return slide('🎫', 'Suporte', body, clientName, period, p, sec.subtitle)
 }
 
 function slideProjetos(sec, projects, clientName, period, p) {
@@ -408,14 +462,14 @@ function slideProjetos(sec, projects, clientName, period, p) {
     ${projList}
     ${calloutBlock(sec.content?.callout, '#6366f1')}`
 
-  return slide('🗂️', 'Projetos', body, clientName, period, p)
+  return slide('🗂️', 'Projetos', body, clientName, period, p, sec.subtitle)
 }
 
 function slideHealthScore(sec, healthData, clientName, period, p) {
   if (!healthData?.health_total == null && !healthData) {
     return slide('💚', 'Health Score',
       `<p style="color:${C.textLight};font-style:italic;">Dados de Health Score não disponíveis.</p>`,
-      clientName, period, p)
+      clientName, period, p, sec.subtitle)
   }
 
   const hs = healthData ?? {}
@@ -456,45 +510,36 @@ function slideHealthScore(sec, healthData, clientName, period, p) {
     </div>
   </div>` : `<p style="color:${C.textLight};font-style:italic;margin-bottom:20px;">Dados de health score não disponíveis.</p>`
 
-  const dimCards = dims.map(d => kpiCard({
-    label: d.label,
-    value: hs[d.key] != null ? `${hs[d.key]}/20` : '—',
-    accentColor: d.key === 'health_uso' ? 'sky' : d.key === 'health_financeiro' ? 'green' : 'navy',
-  }))
-
   return slide('💚', 'Health Score',
-    scoreBox + kpiGrid(dimCards, 5),
-    clientName, period, p)
+    scoreBox + calloutBlock(sec.content?.callout, C.sky),
+    clientName, period, p, sec.subtitle)
 }
 
 function slideDestaques(sec, clientName, period, p) {
   const body = `
     ${timelineList(sec.content?.items ?? [])}
     ${calloutBlock(sec.content?.callout, C.yellow)}`
-  return slide('⭐', 'Destaques do Período', body, clientName, period, p)
+  return slide('⭐', 'Destaques do Período', body, clientName, period, p, sec.subtitle)
 }
 
 function slideContexto(sec, clientName, period, p) {
   const text  = sec.content?.text ?? ''
-  const lines = text.split('\n').filter(l => l.trim())
-    .map(l => `<p style="margin:0 0 10px 0;line-height:1.7;color:${C.text};font-size:14px;">${l.trim()}</p>`).join('')
   const body = `
     ${(sec.extras ?? []).length ? extrasRow(sec.extras) : ''}
-    ${lines || `<p style="color:${C.textLight};font-style:italic;">Nenhum contexto adicionado.</p>`}`
-  return slide('🌐', 'Contexto Externo', body, clientName, period, p)
+    ${text ? `<div style="line-height:1.7;color:${C.text};font-size:14px;">${richText(text)}</div>` : `<p style="color:${C.textLight};font-style:italic;">Nenhum contexto adicionado.</p>`}`
+  return slide('🌐', 'Contexto Externo', body, clientName, period, p, sec.subtitle)
 }
 
 function slideProximosPassos(sec, clientName, period, p) {
   return slide('🎯', 'Próximos Passos',
     nextStepsList(sec.content?.items ?? []),
-    clientName, period, p)
+    clientName, period, p, sec.subtitle)
 }
 
 function slideCustomText(sec, clientName, period, p) {
-  const lines = (sec.content?.text ?? '').split('\n').filter(l => l.trim())
-    .map(l => `<p style="margin:0 0 10px 0;line-height:1.7;color:${C.text};font-size:14px;">${l.trim()}</p>`).join('')
-  const body = `${lines}${calloutBlock(sec.content?.callout, C.sky)}`
-  return slide('📄', sec.title || 'Seção', body, clientName, period, p)
+  const text = sec.content?.text ?? ''
+  const body = `${text ? `<div style="line-height:1.7;color:${C.text};font-size:14px;">${richText(text)}</div>` : ''}${calloutBlock(sec.content?.callout, C.sky)}`
+  return slide('📄', sec.title || 'Seção', body, clientName, period, p, sec.subtitle)
 }
 
 function slideCustomImage(sec, clientName, period, p) {
@@ -506,7 +551,7 @@ function slideCustomImage(sec, clientName, period, p) {
         ${caption ? `<p style="font-size:12px;color:${C.textLight};margin-top:10px;">${caption}</p>` : ''}
        </div>`
     : `<p style="color:${C.textLight};font-style:italic;">Nenhuma imagem adicionada.</p>`
-  return slide('🖼️', sec.title || 'Imagem', body, clientName, period, p)
+  return slide('🖼️', sec.title || 'Imagem', body, clientName, period, p, sec.subtitle)
 }
 
 function slideCustomMetrics(sec, clientName, period, p) {
@@ -514,7 +559,41 @@ function slideCustomMetrics(sec, clientName, period, p) {
   const body = `
     ${extras.length ? extrasRow(extras) : `<p style="color:${C.textLight};font-style:italic;">Nenhuma métrica adicionada.</p>`}
     ${calloutBlock(sec.content?.callout, C.sky)}`
-  return slide('📊', sec.title || 'Métricas', body, clientName, period, p)
+  return slide('📊', sec.title || 'Métricas', body, clientName, period, p, sec.subtitle)
+}
+
+function slideCustomBars(sec, clientName, period, p) {
+  const items = sec.content?.items ?? []
+  const maxVal = Math.max(...items.map(i => Number(i.value) || 0), 1)
+  const total = items.reduce((s, i) => s + (Number(i.value) || 0), 0)
+  const colorMap = {
+    navy: C.navy, sky: C.sky, lime: C.lime,
+    green: C.green, yellow: C.yellow, red: C.red,
+  }
+  const barsHTML = items.length
+    ? items.map(item => {
+        const pct = Math.round(((Number(item.value) || 0) / maxVal) * 100)
+        const color = colorMap[item.color] ?? C.sky
+        return `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <span style="min-width:280px;font-size:13px;color:${C.text};font-weight:500;">${item.label || ''}</span>
+          <div style="flex:1;background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
+            <div style="background:${color};width:${pct}%;height:100%;border-radius:999px;"></div>
+          </div>
+          <span style="min-width:40px;text-align:right;font-size:13px;font-weight:700;color:${C.text};">${item.value ?? ''}</span>
+        </div>`
+      }).join('')
+    : `<p style="color:${C.textLight};font-style:italic;">Nenhuma categoria adicionada.</p>`
+
+  const headerBadge = items.length
+    ? ` <span style="background:${C.sky};color:#fff;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:700;margin-left:8px;">${items.length} categorias · Total: ${total}</span>`
+    : ''
+
+  const body = `
+    ${barsHTML}
+    ${calloutBlock(sec.content?.callout, C.sky)}`
+
+  return slide('📊', (sec.title || 'Categorias') + headerBadge, body, clientName, period, p, sec.subtitle)
 }
 
 // ── EXPORT PRINCIPAL ──────────────────────────────────────────
@@ -532,14 +611,15 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
   const clientName = client?.fantasy_name || client?.name || '—'
   const genDate    = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
 
-  const teamContacts = (client?.contact_links ?? [])
-    .filter(l => l.papel === 'Decisor' || l.champion === true)
+  // Ler seção capa do array de sections
+  const capaSection = sections.find(s => s.type === 'capa')
+  const capaContent = capaSection?.content ?? { subtitle: '', clientTeam: [] }
 
-  const capa = slideCapa(client, report, csm, teamContacts)
+  const capa = slideCapa(client, report, csm, capaContent)
 
   let pageNum = 2
   const slidesHTML = sections
-    .filter(s => s.enabled !== false)
+    .filter(s => s.type !== 'capa' && s.enabled !== false)
     .map(s => {
       const p = pageNum++
       if (s.type === 'escala')          return slideEscala(s, usageHistory, period, clientName, p)
@@ -552,6 +632,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
       if (s.type === 'custom-text')     return slideCustomText(s, clientName, period, p)
       if (s.type === 'custom-image')    return slideCustomImage(s, clientName, period, p)
       if (s.type === 'custom-metrics')  return slideCustomMetrics(s, clientName, period, p)
+      if (s.type === 'custom-bars')     return slideCustomBars(s, clientName, period, p)
       return ''
     })
     .filter(Boolean)
