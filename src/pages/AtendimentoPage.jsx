@@ -442,7 +442,7 @@ function Step3({ data, onBack, onSuccess }) {
       const contactName = data.contact?.name || data.uncatContact?.name || ''
 
       // Payload do ticket — campos opcionais só incluídos se tiverem valor válido
-      const ticketPayload: Record<string, unknown> = {
+      const ticketPayload = {
         subject:     form.subject.trim(),
         description: form.description.trim() || form.subject.trim(),
         priority:    fdPrio,
