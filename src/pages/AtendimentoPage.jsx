@@ -98,7 +98,7 @@ function Step1({ data, onChange, onNext }) {
     setLoadingContacts(true)
     supabase
       .from('contact_links')
-      .select('contact_id, papel, contacts(id, name, email, contact_phones(phone, is_primary))')
+      .select('contact_id, papel, contacts(id, name, email, contact_phones(number, type))')
       .eq('client_id', data.client.id)
       .then(({ data: links, error }) => {
         if (error) console.error('[AtendimentoPage] contacts query:', error)
