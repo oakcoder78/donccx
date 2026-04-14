@@ -4,6 +4,7 @@ import {
   Tooltip, Legend, Filler
 } from 'chart.js'
 import { useClientSupport, useClientSupportMutations } from '../../../../hooks/useClient'
+import { calcSupportPercentages } from '../../../../lib/supportUtils'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
@@ -112,9 +113,9 @@ export function ClientSubSuporte({ client, onEdit }) {
                     <td className="px-4 py-2.5 text-right text-text-secondary">{u.n1_pct ?? '—'}</td>
                     <td className="px-4 py-2.5 text-right text-text-secondary">{u.n2_pct ?? '—'}</td>
                     <td className="px-4 py-2.5 text-right text-text-secondary">{u.n3_pct ?? '—'}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcPct(u.n1_pct, u.tickets_resolved))}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcPct(u.n2_pct, u.tickets_resolved))}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcPct(u.n3_pct, u.tickets_resolved))}</td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcSupportPercentages(u.n1_pct, u.n2_pct, u.n3_pct).pct1)}</td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcSupportPercentages(u.n1_pct, u.n2_pct, u.n3_pct).pct2)}</td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{fmtPct(calcSupportPercentages(u.n1_pct, u.n2_pct, u.n3_pct).pct3)}</td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button
