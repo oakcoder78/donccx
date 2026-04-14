@@ -272,7 +272,7 @@ export default function DashboardPage() {
             <select
               value={selectedCsm}
               onChange={e => setSelectedCsm(e.target.value)}
-              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%', fontSize: 0 }}
+              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%', fontSize: 0, color: '#173557', backgroundColor: '#fff' }}
             >
               <option value="">Todos os CSMs</option>
               {csmList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
