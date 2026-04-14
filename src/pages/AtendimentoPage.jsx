@@ -97,11 +97,19 @@ function Step1({ data, onChange, onNext }) {
     if (!data.client) { setContacts([]); return }
     setLoadingContacts(true)
     supabase
-      .from('contact_links')
-      .select('papel, contacts(id, name, email, contact_phones(phone, is_primary))')
-      .eq('client_id', data.client.id)
-      .then(({ data: links }) => {
-        setContacts((links || []).map(l => ({ ...l.contacts, papel: l.papel })))
+      .from('contacts')
+      .select('id, name, email, contact_phones(phone, is_primary), contact_links!inner(papel, client_id)')
+      .eq('contact_links.client_id', data.client.id)
+      .order('name')
+      .then(({ data: rows, error }) => {
+        if (error) console.error('[AtendimentoPage] contacts query:', error)
+        setContacts((rows || []).map(c => ({
+          id:    c.id,
+          name:  c.name,
+          email: c.email,
+          contact_phones: c.contact_phones,
+          papel: c.contact_links?.[0]?.papel || '',
+        })))
         setLoadingContacts(false)
       })
   }, [data.client])

@@ -1,18 +1,17 @@
 /**
  * openrouter-proxy — Supabase Edge Function
  *
- * Proxia chamadas para OpenRouter (google/gemini-2.0-flash-exp)
- * sem expor a chave de API ao browser.
+ * Proxia chamadas para OpenRouter sem expor a chave de API ao browser.
+ * O JWT do usuário é validado pelo gateway do Supabase automaticamente.
+ * Aqui apenas verificamos que o header Authorization está presente.
  *
- * Requer secret configurado no projeto Supabase:
- *   OPENROUTER_API_KEY
+ * Secret necessário: OPENROUTER_API_KEY
  *
- * Body esperado: { messages: ChatMessage[], model?: string }
+ * Body: { messages: ChatMessage[], model?: string }
  */
 
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -31,18 +30,8 @@ serve(async (req) => {
     })
 
   try {
-    // ── Auth ────────────────────────────────────────────────────────────────
-    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
-    if (!token) return json({ error: 'Unauthorized' }, 401)
-
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
-
-    const { data: { user }, error: authErr } = await admin.auth.getUser(token)
-    if (authErr || !user) return json({ error: 'Invalid token' }, 401)
+    // ── Auth — apenas verifica presença do header; o gateway já validou o JWT ──
+    if (!req.headers.get('Authorization')) return json({ error: 'Unauthorized' }, 401)
 
     // ── Parse body ──────────────────────────────────────────────────────────
     const body = await req.json()
@@ -60,7 +49,6 @@ serve(async (req) => {
     }
 
     // ── Forward para OpenRouter ─────────────────────────────────────────────
-    const payload = { model, messages }
     console.log('openrouter-proxy: POST', model, '| messages:', messages.length)
 
     const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -71,7 +59,7 @@ serve(async (req) => {
         'HTTP-Referer': 'https://donccx.donc.com.br',
         'X-Title': 'doncCX',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ model, messages }),
     })
 
     console.log('openrouter-proxy: response', orRes.status)
