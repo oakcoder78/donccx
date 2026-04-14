@@ -9,18 +9,33 @@
 import { supabase } from './supabaseClient'
 import { getFreshdeskConfig } from './freshdeskConfig'
 
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp'
+const DEFAULT_MODEL     = 'meta-llama/llama-3.3-70b-instruct:free'
+const LEGACY_MODEL      = 'openrouter/free'   // migração: substituir pelo novo padrão
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 /**
  * Retorna o modelo OpenRouter configurado pelo admin,
  * ou o modelo padrão como fallback.
+ * Se o modelo salvo for o legado 'openrouter/free', migra automaticamente.
  */
 export async function getModel() {
   try {
     const config = await getFreshdeskConfig('ai_config')
-    return config?.model || DEFAULT_MODEL
+    const stored = config?.model
+
+    // Migra modelo legado para o novo padrão sem sobrescrever configuração personalizada
+    if (stored === LEGACY_MODEL) {
+      await supabase
+        .from('freshdesk_config')
+        .upsert(
+          { key: 'ai_config', data: { model: DEFAULT_MODEL }, updated_at: new Date().toISOString() },
+          { onConflict: 'key' },
+        )
+      return DEFAULT_MODEL
+    }
+
+    return stored || DEFAULT_MODEL
   } catch {
     return DEFAULT_MODEL
   }

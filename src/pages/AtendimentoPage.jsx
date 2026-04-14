@@ -446,13 +446,25 @@ function Step2({ data, onChange, onNext, onBack }) {
   )
 }
 
+// ── Wrapper de campo — definido fora de qualquer componente para evitar
+//    recriação a cada render e perda de foco nos inputs ─────────────────────
+function Field({ label, children }) {
+  return (
+    <div style={S.fieldBox}>
+      <label style={S.label}>{label}</label>
+      {children}
+    </div>
+  )
+}
+
 // ── STEP 3: Revisão e criação do ticket ──────────────────────────────────────
-function Step3({ data, onBack, onSuccess }) {
-  const [groups,        setGroups]       = useState([])
-  const [agents,        setAgents]       = useState([])
-  const [creating,      setCreating]     = useState(false)
+function Step3({ data, onChange, onBack, onSuccess }) {
+  const [groups,        setGroups]        = useState([])
+  const [agents,        setAgents]        = useState([])
+  const [creating,      setCreating]      = useState(false)
+  const [regenerating,  setRegenerating]  = useState(false)
   const [createdTicket, setCreatedTicket] = useState(null)
-  const [ticketError,   setTicketError]  = useState(null)
+  const [ticketError,   setTicketError]   = useState(null)
 
   const ai = data.aiResult || {}
 
@@ -518,7 +530,7 @@ function Step3({ data, onBack, onSuccess }) {
         description: form.description.trim() || form.subject.trim(),
         priority:    fdPrio,
         status:      Number(form.status),
-        source:      13,      // 13 = WhatsApp (Freshdesk API v2)
+        source:      7,       // 7 = Chat (Freshdesk API v2)
         tags:        ['whatsapp'],
         type:        form.type,
       }
@@ -582,6 +594,39 @@ function Step3({ data, onBack, onSuccess }) {
     }
   }
 
+  async function handleRegenerate() {
+    if (!data.text?.trim() && !(data.images || []).length) {
+      toast.error('Sem conteúdo para re-analisar. Volte ao Step 2 e adicione texto ou imagens.')
+      return
+    }
+    setRegenerating(true)
+    try {
+      const result = await analyzeWhatsApp({ text: data.text, images: data.images || [] })
+      onChange({ aiResult: result })
+      // Atualiza form com novo resultado da IA
+      const newType = TICKET_TYPES.find(t =>
+        t.toLowerCase() === (result.suggested_type || '').toLowerCase()
+      ) || TICKET_TYPES[0]
+      const newCategory = CATEGORIES.includes(result.suggested_category) ? result.suggested_category : ''
+      setForm(p => ({
+        ...p,
+        subject:     result.subject     || p.subject,
+        description: result.description || p.description,
+        first_reply: result.first_reply || p.first_reply,
+        type:        newType,
+        priority:    result.suggested_priority || p.priority,
+        status:      result.suggested_status === 4 ? 4 : 2,
+        category:    newCategory,
+        group_id:    result.suggested_group_id ? String(result.suggested_group_id) : p.group_id,
+      }))
+      toast.success('Campos atualizados com novo resultado da IA')
+    } catch (e) {
+      toast.error(e.message || 'Erro ao re-analisar com IA')
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
   // ── Tela de sucesso ─────────────────────────────────────────────────────
   if (createdTicket) {
     return (
@@ -600,14 +645,6 @@ function Step3({ data, onBack, onSuccess }) {
       </div>
     )
   }
-
-  // ── Labels e inputs reutilizados ────────────────────────────────────────
-  const Field = ({ label, children }) => (
-    <div style={S.fieldBox}>
-      <label style={S.label}>{label}</label>
-      {children}
-    </div>
-  )
 
   const summary = {
     client:  data.client?.fantasy_name || data.client?.name || '',
@@ -724,15 +761,23 @@ function Step3({ data, onBack, onSuccess }) {
 
       {/* Ações */}
       <div style={{ display: 'flex', gap: 12, marginTop: 28, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button onClick={onBack} disabled={creating} style={S.btnSecondary}>← Voltar</button>
+        <button onClick={onBack} disabled={creating || regenerating} style={S.btnSecondary}>← Voltar</button>
+        <button
+          onClick={handleRegenerate}
+          disabled={creating || regenerating}
+          style={S.btnSky(creating || regenerating)}
+          title="Re-analisa o conteúdo do Step 2 com IA e atualiza os campos"
+        >
+          {regenerating ? '⏳ Gerando...' : '🔄 Gerar novamente com IA'}
+        </button>
         <button
           onClick={handleCreate}
-          disabled={creating || !form.subject.trim()}
+          disabled={creating || regenerating || !form.subject.trim()}
           style={{
             flex: 1, minWidth: 200, padding: '13px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, border: 'none',
-            cursor: creating || !form.subject.trim() ? 'not-allowed' : 'pointer',
-            backgroundColor: creating || !form.subject.trim() ? '#e8e7e3' : '#173557',
-            color: creating || !form.subject.trim() ? '#888780' : '#fff',
+            cursor: creating || regenerating || !form.subject.trim() ? 'not-allowed' : 'pointer',
+            backgroundColor: creating || regenerating || !form.subject.trim() ? '#e8e7e3' : '#173557',
+            color: creating || regenerating || !form.subject.trim() ? '#888780' : '#fff',
             transition: 'all 0.15s',
           }}
         >
@@ -777,7 +822,7 @@ export default function AtendimentoPage() {
 
         {step === 1 && <Step1 data={data} onChange={update} onNext={() => setStep(2)} />}
         {step === 2 && <Step2 data={data} onChange={update} onNext={() => setStep(3)} onBack={() => setStep(1)} />}
-        {step === 3 && <Step3 data={data} onBack={() => setStep(2)} onSuccess={reset} />}
+        {step === 3 && <Step3 data={data} onChange={update} onBack={() => setStep(2)} onSuccess={reset} />}
       </div>
     </div>
   )
