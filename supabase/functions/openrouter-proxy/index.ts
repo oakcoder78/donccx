@@ -2,11 +2,9 @@
  * openrouter-proxy — Supabase Edge Function
  *
  * Proxia chamadas para OpenRouter sem expor a chave de API ao browser.
- * O JWT do usuário é validado pelo gateway do Supabase automaticamente.
- * Aqui apenas verificamos que o header Authorization está presente.
+ * Autenticação delegada inteiramente ao gateway do Supabase.
  *
  * Secret necessário: OPENROUTER_API_KEY
- *
  * Body: { messages: ChatMessage[], model?: string }
  */
 
@@ -30,8 +28,9 @@ serve(async (req) => {
     })
 
   try {
-    // ── Auth — apenas verifica presença do header; o gateway já validou o JWT ──
-    if (!req.headers.get('Authorization')) return json({ error: 'Unauthorized' }, 401)
+    // Loga se o header existe — sem nenhuma validação ou rejeição por auth
+    const authHeader = req.headers.get('Authorization')
+    console.log('openrouter-proxy: Authorization header present:', !!authHeader)
 
     // ── Parse body ──────────────────────────────────────────────────────────
     const body = await req.json()
