@@ -385,7 +385,7 @@ function Step3({ data, onBack, onSuccess }) {
     subject:     ai.subject     || '',
     description: ai.description || '',
     first_reply: ai.first_reply || '',
-    type:        ai.suggested_type || '',
+    type:        '',   // preenchido após carregar typeChoices válidas do Freshdesk
     priority:    ai.suggested_priority || 'medium',
     status:      2,
     group_id:    '',
@@ -409,7 +409,14 @@ function Step3({ data, onBack, onSuccess }) {
       setAgents(agts)
 
       const typeField = fields.find(f => f.name === 'ticket_type' || f.field_type === 'default_ticket_type')
-      if (typeField?.choices) setTypeChoices(typeField.choices)
+      const choices = typeField?.choices || []
+      if (choices.length) {
+        setTypeChoices(choices)
+        // Pré-selecionar o tipo sugerido pela IA apenas se for uma opção válida no Freshdesk
+        const suggested = ai.suggested_type || ''
+        const match = choices.find(c => c.toLowerCase() === suggested.toLowerCase())
+        if (match) setForm(p => ({ ...p, type: match }))
+      }
 
       // Sugerir grupo pelo hint da IA
       if (ai.suggested_group_hint && grps.length) {
@@ -434,8 +441,8 @@ function Step3({ data, onBack, onSuccess }) {
       // Nome do contato para fallback sem email
       const contactName = data.contact?.name || data.uncatContact?.name || ''
 
-      // Payload do ticket — email é o campo principal do requester no Freshdesk
-      const ticketPayload = {
+      // Payload do ticket — campos opcionais só incluídos se tiverem valor válido
+      const ticketPayload: Record<string, unknown> = {
         subject:     form.subject.trim(),
         description: form.description.trim() || form.subject.trim(),
         priority:    fdPrio,
@@ -443,9 +450,12 @@ function Step3({ data, onBack, onSuccess }) {
         source:      7,       // 7 = Chat (mais próximo de WhatsApp na API Freshdesk v2)
         tags:        ['whatsapp'],
       }
-      if (form.email.trim())              ticketPayload.email        = form.email.trim()
-      if (contactName && !form.email)     ticketPayload.name         = contactName
-      if (form.type)                      ticketPayload.type         = form.type
+      // Requester: email preferido; name só se não houver email
+      const emailVal = form.email?.trim()
+      if (emailVal)                       ticketPayload.email        = emailVal
+      else if (contactName)               ticketPayload.name         = contactName
+      // Campos opcionais — omitir completamente se vazios/não selecionados
+      if (form.type?.trim())              ticketPayload.type         = form.type.trim()
       if (form.group_id)                  ticketPayload.group_id     = Number(form.group_id)
       if (form.agent_id)                  ticketPayload.responder_id = Number(form.agent_id)
 
