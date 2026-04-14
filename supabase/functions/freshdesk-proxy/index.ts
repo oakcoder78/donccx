@@ -6,7 +6,7 @@
  *   FRESHDESK_API_KEY
  *   FRESHDESK_DOMAIN   (ex: donc)
  *
- * Body esperado: { path: string, params?: Record<string, string> }
+ * Body esperado: { path: string, method?: string, body?: object, params?: Record<string, string> }
  */
 
 // @ts-ignore
@@ -40,10 +40,10 @@ serve(async (req) => {
     if (authErr || !user) return json({ error: 'Invalid token' }, 401)
 
     const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-    if (!['admin', 'manager'].includes(profile?.role ?? '')) return json({ error: 'Forbidden' }, 403)
+    if (!['admin', 'manager', 'analyst'].includes(profile?.role ?? '')) return json({ error: 'Forbidden' }, 403)
 
     // ── Parse body ──────────────────────────────────────────────────────────
-    const { path, params = {} } = await req.json()
+    const { path, params = {}, method = 'GET', body: fdBody } = await req.json()
     if (!path || typeof path !== 'string') return json({ error: '"path" is required' }, 400)
 
     const domain = Deno.env.get('FRESHDESK_DOMAIN')
@@ -60,14 +60,21 @@ serve(async (req) => {
     const url = `https://${domain}/api/v2${path}${qs}`
     const authHeader = 'Basic ' + btoa(`${apiKey}:X`)
 
-    console.log('freshdesk-proxy: GET', url, '| auth prefix:', authHeader.slice(0, 12) + '...')
+    const httpMethod = (method ?? 'GET').toUpperCase()
+    console.log('freshdesk-proxy:', httpMethod, url)
 
-    const fdRes = await fetch(url, {
+    const fetchOptions: RequestInit = {
+      method: httpMethod,
       headers: {
         Authorization: authHeader,
         'Content-Type': 'application/json',
       },
-    })
+    }
+    if (fdBody && ['POST', 'PUT', 'PATCH'].includes(httpMethod)) {
+      fetchOptions.body = JSON.stringify(fdBody)
+    }
+
+    const fdRes = await fetch(url, fetchOptions)
 
     console.log('freshdesk-proxy: response', fdRes.status, path)
     const data = await fdRes.json().catch(() => null)

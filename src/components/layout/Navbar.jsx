@@ -4,12 +4,17 @@ import { useAuth } from '../../contexts/AuthContext'
 import { usePermissions } from '../../hooks/usePermissions'
 import { UserEditModal } from '../ui/UserEditModal'
 
-const navLinks = [
-  { to: '/dashboard',    label: 'Dashboard'  },
-  { to: '/empresas',     label: 'Empresas'   },
-  { to: '/contatos',     label: 'Contatos'   },
-  { to: '/atividades',   label: 'Atividades' },
-  { to: '/projetos',     label: 'Projetos'   },
+const mainNavLinks = [
+  { to: '/dashboard',    label: 'Dashboard'   },
+  { to: '/empresas',     label: 'Empresas'    },
+  { to: '/contatos',     label: 'Contatos'    },
+  { to: '/atividades',   label: 'Atividades'  },
+  { to: '/projetos',     label: 'Projetos'    },
+  { to: '/atendimento',  label: 'Atendimento' },
+]
+
+const analystNavLinks = [
+  { to: '/atendimento',  label: 'Atendimento' },
 ]
 
 export function Navbar() {
@@ -19,9 +24,13 @@ export function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [showProfile,  setShowProfile]  = useState(false)
 
-  const links = canViewSettings
-    ? [...navLinks, { to: '/configuracoes', label: 'Config.' }]
-    : navLinks
+  const isAnalyst = profile?.role === 'analyst'
+
+  const links = isAnalyst
+    ? analystNavLinks
+    : canViewSettings
+      ? [...mainNavLinks, { to: '/configuracoes', label: 'Configurações' }]
+      : mainNavLinks
 
   async function handleSignOut() {
     await signOut()
@@ -97,7 +106,6 @@ export function Navbar() {
                 >
                   Sair
                 </button>
-                {/* Versão — movida do canto da tela para cá */}
                 <div className="px-3 py-1.5 text-[10px] text-text-tertiary border-t border-border-tertiary mt-1 font-mono">
                   v · {__COMMIT_HASH__}
                 </div>

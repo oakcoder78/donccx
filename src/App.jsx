@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -21,6 +21,7 @@ import SettingsPage from './components/settings/SettingsPage'
 import FreshdeskPendingPage from './pages/FreshdeskPendingPage'
 import ReportEditorPage from './pages/ReportEditorPage'
 import ReportPublicPage from './pages/ReportPublicPage'
+import AtendimentoPage from './pages/AtendimentoPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -50,10 +51,15 @@ function AppLayout() {
 
 function PrivateRoute() {
   const { user, profile, loading } = useAuth()
+  const location = useLocation()
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
   if (profile?.status === 'pending') return <PendingPage status="pending" />
   if (profile?.status === 'blocked') return <PendingPage status="blocked" />
+  // Analyst só pode acessar /atendimento
+  if (profile?.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
+    return <Navigate to="/atendimento" replace />
+  }
   return <AppLayout />
 }
 
@@ -66,7 +72,10 @@ function AdminRoute() {
 function AuthRedirect() {
   const { user, profile, loading } = useAuth()
   if (loading) return null
-  if (user && profile?.status === 'active') return <Navigate to="/dashboard" replace />
+  if (user && profile?.status === 'active') {
+    // Analyst vai direto para /atendimento ao fazer login
+    return <Navigate to={profile?.role === 'analyst' ? '/atendimento' : '/dashboard'} replace />
+  }
   return <Outlet />
 }
 
@@ -95,16 +104,17 @@ function AppRoutes() {
 
       {/* Protected routes — dentro do AppLayout (Navbar + Donkie) */}
       <Route element={<PrivateRoute />}>
+        <Route path="/atendimento" element={<AtendimentoPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/empresas" element={<ClientsPage />} />
         <Route path="/empresas/:id" element={<ClientDetail />} />
         <Route path="/empresas/:clientId/relatorios/:reportId/editar" element={<ReportEditorPage />} />
         {/* Legacy redirects */}
-        <Route path="/clientes"    element={<Navigate to="/empresas" replace />} />
+        <Route path="/clientes"     element={<Navigate to="/empresas" replace />} />
         <Route path="/clientes/:id" element={<Navigate to="/empresas" replace />} />
-        <Route path="/contatos"    element={<ContactsPage />} />
-        <Route path="/atividades"  element={<ActivitiesPage />} />
-        <Route path="/projetos"    element={<ProjectsPage />} />
+        <Route path="/contatos"     element={<ContactsPage />} />
+        <Route path="/atividades"   element={<ActivitiesPage />} />
+        <Route path="/projetos"     element={<ProjectsPage />} />
 
         <Route element={<AdminRoute />}>
           <Route path="/configuracoes" element={<SettingsPage />} />
@@ -124,7 +134,6 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
           <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
-          {/* VersionBadge removido — versão agora aparece no dropdown do perfil */}
         </BrowserRouter>
       </AuthProvider>
     </QueryClientProvider>

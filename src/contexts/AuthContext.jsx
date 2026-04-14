@@ -53,6 +53,7 @@ export function AuthProvider({ children }) {
     loading,
     isAdmin: profile?.role === 'admin',
     isManager: profile?.role === 'manager' || profile?.role === 'admin',
+    isAnalyst: profile?.role === 'analyst',
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signInWithGoogle: () => supabase.auth.signInWithOAuth({
       provider: 'google',
