@@ -73,6 +73,7 @@ function Step1({ data, onChange, onNext }) {
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [contacts,        setContacts]        = useState([])
   const [uncatContact,    setUncatContact]    = useState(data.uncatContact || { name: '', email: '', phone: '' })
+  const [emailOverride,   setEmailOverride]   = useState(data.emailOverride || '')
   const debounceRef = useRef(null)
 
   // Busca clientes ao digitar
@@ -243,6 +244,22 @@ function Step1({ data, onChange, onNext }) {
         </div>
       )}
 
+      {/* Aviso: contato sem email — necessário para criar ticket no Freshdesk */}
+      {data.contact && !data.contact.email && (
+        <div style={{ padding: '10px 14px', backgroundColor: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 7, marginBottom: 14 }}>
+          <p style={{ fontSize: 12, color: '#92400e', margin: '0 0 8px', fontWeight: 500 }}>
+            ⚠️ O contato selecionado não tem e-mail cadastrado. O Freshdesk requer e-mail para criar o ticket.
+          </p>
+          <input
+            value={emailOverride}
+            onChange={e => { setEmailOverride(e.target.value); onChange({ emailOverride: e.target.value }) }}
+            placeholder="Informe o e-mail para o ticket (opcional)"
+            type="email"
+            style={{ ...S.input, backgroundColor: '#fff' }}
+          />
+        </div>
+      )}
+
       <div style={{ marginTop: 24 }}>
         <button onClick={onNext} disabled={!canProceed} style={S.btnPrimary(!canProceed)}>
           Próximo →
@@ -357,6 +374,13 @@ function Step3({ data, onBack, onSuccess }) {
   const [ticketError,  setTicketError]  = useState(null)
 
   const ai = data.aiResult || {}
+
+  // Email do requester: contato cadastrado > override informado no Step 1 > contato não cadastrado
+  const contactEmail = data.contact?.email
+    || data.emailOverride
+    || data.uncatContact?.email
+    || ''
+
   const [form, setForm] = useState({
     subject:     ai.subject     || '',
     description: ai.description || '',
@@ -366,6 +390,7 @@ function Step3({ data, onBack, onSuccess }) {
     status:      2,
     group_id:    '',
     agent_id:    '',
+    email:       contactEmail,
   })
 
   function set(field, value) { setForm(p => ({ ...p, [field]: value })) }
@@ -406,28 +431,26 @@ function Step3({ data, onBack, onSuccess }) {
       const fnUrl  = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/freshdesk-proxy`
       const fdPrio = PRIORITIES.find(p => p.value === form.priority)?.fd || 2
 
-      // Informações do contato
-      const contact  = data.contact
-      const uncat    = data.uncatContact || {}
-      const email    = contact?.email || uncat.email
-      const name     = contact?.name  || uncat.name
-      const phone    = uncat.phone
+      // Nome do contato para fallback sem email
+      const contactName = data.contact?.name || data.uncatContact?.name || ''
 
-      // Payload do ticket
+      // Payload do ticket — email é o campo principal do requester no Freshdesk
       const ticketPayload = {
         subject:     form.subject.trim(),
         description: form.description.trim() || form.subject.trim(),
         priority:    fdPrio,
         status:      Number(form.status),
-        source:      7,           // Chat (mais próximo de WhatsApp na API Freshdesk)
+        source:      7,       // 7 = Chat (mais próximo de WhatsApp na API Freshdesk v2)
         tags:        ['whatsapp'],
       }
-      if (email)          ticketPayload.email           = email
-      if (name && !email) ticketPayload.name            = name
-      if (phone)          ticketPayload.phone           = phone
-      if (form.type)      ticketPayload.type            = form.type
-      if (form.group_id)  ticketPayload.group_id        = Number(form.group_id)
-      if (form.agent_id)  ticketPayload.responder_id    = Number(form.agent_id)
+      if (form.email.trim())              ticketPayload.email        = form.email.trim()
+      if (contactName && !form.email)     ticketPayload.name         = contactName
+      if (form.type)                      ticketPayload.type         = form.type
+      if (form.group_id)                  ticketPayload.group_id     = Number(form.group_id)
+      if (form.agent_id)                  ticketPayload.responder_id = Number(form.agent_id)
+
+      // ── LOG DIAGNÓSTICO ──────────────────────────────────────────────────
+      console.log('[AtendimentoPage] POST /tickets payload:', JSON.stringify(ticketPayload, null, 2))
 
       // POST: criar ticket
       const createRes = await fetch(fnUrl, {
@@ -436,11 +459,21 @@ function Step3({ data, onBack, onSuccess }) {
         body: JSON.stringify({ path: '/tickets', method: 'POST', body: ticketPayload }),
       })
       const created = await createRes.json()
-      if (!createRes.ok) throw new Error(created?.message || created?.description || `Erro ${createRes.status}`)
+
+      // ── LOG DIAGNÓSTICO ──────────────────────────────────────────────────
+      console.log('[AtendimentoPage] Freshdesk response status:', createRes.status)
+      console.log('[AtendimentoPage] Freshdesk response body:', JSON.stringify(created, null, 2))
+
+      if (!createRes.ok) {
+        const errMsg = created?.message || created?.description
+          || (created?.errors ? JSON.stringify(created.errors) : null)
+          || `Erro ${createRes.status}`
+        throw new Error(errMsg)
+      }
 
       // POST: adicionar reply com a primeira resposta
       if (form.first_reply.trim() && created.id) {
-        await fetch(fnUrl, {
+        const replyRes = await fetch(fnUrl, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -449,6 +482,8 @@ function Step3({ data, onBack, onSuccess }) {
             body:   { body: form.first_reply.trim() },
           }),
         })
+        const replyData = await replyRes.json()
+        console.log('[AtendimentoPage] reply response:', replyRes.status, JSON.stringify(replyData, null, 2))
       }
 
       setCreatedTicket(created)
@@ -523,6 +558,21 @@ function Step3({ data, onBack, onSuccess }) {
 
         {/* Coluna direita — metadados + resumo */}
         <div>
+          <Field label="E-mail do Requester">
+            <input
+              value={form.email}
+              onChange={e => set('email', e.target.value)}
+              type="email"
+              placeholder="email@empresa.com"
+              style={{ ...S.input, borderColor: !form.email.trim() ? '#fbbf24' : '#d4d3ce' }}
+            />
+            {!form.email.trim() && (
+              <p style={{ fontSize: 11, color: '#92400e', margin: '4px 0 0' }}>
+                ⚠️ O e-mail é obrigatório para criar o ticket no Freshdesk.
+              </p>
+            )}
+          </Field>
+
           {typeChoices.length > 0 && (
             <Field label="Tipo">
               <select value={form.type} onChange={e => set('type', e.target.value)} style={S.input}>
