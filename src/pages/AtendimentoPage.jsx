@@ -15,6 +15,9 @@ const TICKET_TYPES = [
   'Outro assunto',
 ]
 
+// ── Categorias do produto ─────────────────────────────────────────────────────
+const CATEGORIES = ['Aplicativo Donc', 'Web Admin', 'Integração', 'Outro']
+
 // ── Prioridades ───────────────────────────────────────────────────────────────
 const PRIORITIES = [
   { value: 'low',    label: 'Baixa',   fd: 1 },
@@ -83,15 +86,18 @@ function Step1({ data, onChange, onNext }) {
   const [clientResults,   setClientResults]   = useState([])
   const [loadingContacts, setLoadingContacts] = useState(false)
   const [contacts,        setContacts]        = useState([])
+  const [contactSearch,   setContactSearch]   = useState('')
+  const [contactOpen,     setContactOpen]     = useState(false)
   const [uncatContact,    setUncatContact]    = useState(data.uncatContact || { name: '', email: '', phone: '' })
   const [emailOverride,   setEmailOverride]   = useState(data.emailOverride || '')
-  const debounceRef = useRef(null)
+  const clientDebounceRef  = useRef(null)
+  const contactDropdownRef = useRef(null)
 
   // Busca clientes ao digitar
   useEffect(() => {
     if (!clientSearch.trim() || data.client) { setClientResults([]); return }
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
+    clearTimeout(clientDebounceRef.current)
+    clientDebounceRef.current = setTimeout(async () => {
       const { data: rows } = await supabase
         .from('clients')
         .select('id, name, fantasy_name')
@@ -101,13 +107,14 @@ function Step1({ data, onChange, onNext }) {
         .limit(8)
       setClientResults(rows || [])
     }, 280)
-    return () => clearTimeout(debounceRef.current)
+    return () => clearTimeout(clientDebounceRef.current)
   }, [clientSearch, data.client])
 
   // Carrega contatos do cliente selecionado
   useEffect(() => {
     if (!data.client) { setContacts([]); return }
     setLoadingContacts(true)
+    setContactSearch('')
     supabase
       .from('contact_links')
       .select('contact_id, papel, contacts(id, name, email, contact_phones(number, type))')
@@ -119,6 +126,17 @@ function Step1({ data, onChange, onNext }) {
       })
   }, [data.client])
 
+  // Fecha dropdown de contato ao clicar fora
+  useEffect(() => {
+    function handleClick(e) {
+      if (contactDropdownRef.current && !contactDropdownRef.current.contains(e.target)) {
+        setContactOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
   function selectClient(c) {
     setClientSearch(c.fantasy_name || c.name)
     setClientResults([])
@@ -128,7 +146,19 @@ function Step1({ data, onChange, onNext }) {
   function clearClient() {
     setClientSearch('')
     setClientResults([])
+    setContactSearch('')
     onChange({ client: null, contact: null, useUncatContact: false })
+  }
+
+  function selectContact(c) {
+    setContactSearch(c.name)
+    setContactOpen(false)
+    onChange({ contact: c, useUncatContact: false })
+  }
+
+  function clearContact() {
+    setContactSearch('')
+    onChange({ contact: null, useUncatContact: false })
   }
 
   function handleUncatChange(field, value) {
@@ -136,6 +166,11 @@ function Step1({ data, onChange, onNext }) {
     setUncatContact(next)
     onChange({ uncatContact: next })
   }
+
+  // Filtra contatos pelo texto digitado
+  const filteredContacts = contactSearch.trim()
+    ? contacts.filter(c => c.name?.toLowerCase().includes(contactSearch.toLowerCase()))
+    : contacts
 
   const canProceed = data.client && (
     data.contact ||
@@ -181,7 +216,7 @@ function Step1({ data, onChange, onNext }) {
         )}
       </div>
 
-      {/* Contatos do cliente */}
+      {/* Busca de contato */}
       {data.client && (
         <div style={S.fieldBox}>
           <label style={S.label}>Contato *</label>
@@ -189,44 +224,70 @@ function Step1({ data, onChange, onNext }) {
             <p style={{ fontSize: 13, color: '#888780' }}>Carregando contatos...</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {contacts.map(c => {
-                const selected = data.contact?.id === c.id
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => onChange({ contact: c, useUncatContact: false })}
-                    style={{
-                      padding: '9px 12px', borderRadius: 7, cursor: 'pointer', transition: 'all 0.12s',
-                      border: `1px solid ${selected ? '#173557' : '#d4d3ce'}`,
-                      backgroundColor: selected ? '#173557' : '#fff',
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    }}
-                    onMouseEnter={e => { if (!selected) e.currentTarget.style.backgroundColor = '#f7f7f5' }}
-                    onMouseLeave={e => { if (!selected) e.currentTarget.style.backgroundColor = '#fff' }}
-                  >
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: selected ? '#fff' : '#1a1a18', margin: 0 }}>{c.name}</p>
-                      {c.email && <p style={{ fontSize: 11, color: selected ? '#d3da47' : '#888780', margin: 0 }}>{c.email}</p>}
+              {/* Campo de busca com dropdown */}
+              {!data.contact && !data.useUncatContact && (
+                <div style={{ position: 'relative' }} ref={contactDropdownRef}>
+                  <input
+                    value={contactSearch}
+                    onChange={e => { setContactSearch(e.target.value); setContactOpen(true) }}
+                    onFocus={() => setContactOpen(true)}
+                    placeholder={contacts.length > 0 ? 'Digite para filtrar contatos...' : 'Nenhum contato cadastrado'}
+                    style={S.input}
+                    disabled={contacts.length === 0}
+                  />
+                  {contactOpen && filteredContacts.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #d4d3ce', borderRadius: 7, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', zIndex: 20, marginTop: 2, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
+                      {filteredContacts.map(c => (
+                        <div
+                          key={c.id}
+                          onMouseDown={() => selectContact(c)}
+                          style={{ padding: '9px 12px', cursor: 'pointer', fontSize: 13, color: '#1a1a18', borderBottom: '1px solid #f0f0ee' }}
+                          onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f7f7f5'}
+                          onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}
+                        >
+                          <p style={{ margin: 0, fontWeight: 500 }}>{c.name}</p>
+                          {c.email && <p style={{ margin: 0, fontSize: 11, color: '#888780' }}>{c.email}</p>}
+                          {c.papel && <p style={{ margin: 0, fontSize: 11, color: '#b0afab' }}>{c.papel}</p>}
+                        </div>
+                      ))}
                     </div>
-                    {c.papel && <span style={{ fontSize: 11, color: selected ? 'rgba(255,255,255,0.6)' : '#888780' }}>{c.papel}</span>}
+                  )}
+                  {contactOpen && contactSearch.trim() && filteredContacts.length === 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: '#fff', border: '1px solid #d4d3ce', borderRadius: 7, boxShadow: '0 4px 12px rgba(0,0,0,0.10)', zIndex: 20, marginTop: 2, padding: '10px 12px' }}>
+                      <p style={{ fontSize: 13, color: '#888780', margin: 0 }}>Nenhum contato encontrado</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Contato selecionado */}
+              {data.contact && (
+                <div style={{ padding: '9px 12px', borderRadius: 7, border: '1px solid #173557', backgroundColor: '#173557', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: '#fff', margin: 0 }}>{data.contact.name}</p>
+                    {data.contact.email && <p style={{ fontSize: 11, color: '#d3da47', margin: 0 }}>{data.contact.email}</p>}
+                    {data.contact.papel && <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', margin: 0 }}>{data.contact.papel}</p>}
                   </div>
-                )
-              })}
+                  <button onClick={clearContact} style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}>trocar</button>
+                </div>
+              )}
 
               {/* Contato não cadastrado */}
-              <div
-                onClick={() => onChange({ useUncatContact: !data.useUncatContact, contact: null })}
-                style={{
-                  padding: '9px 12px', borderRadius: 7, cursor: 'pointer',
-                  border: `1px solid ${data.useUncatContact ? '#173557' : '#d4d3ce'}`,
-                  backgroundColor: data.useUncatContact ? '#f0f4f8' : '#fff',
-                  fontSize: 13, color: data.useUncatContact ? '#173557' : '#888780', fontStyle: 'italic',
-                }}
-                onMouseEnter={e => { if (!data.useUncatContact) e.currentTarget.style.backgroundColor = '#f7f7f5' }}
-                onMouseLeave={e => { if (!data.useUncatContact) e.currentTarget.style.backgroundColor = '#fff' }}
-              >
-                + Contato não cadastrado
-              </div>
+              {!data.contact && (
+                <div
+                  onClick={() => onChange({ useUncatContact: !data.useUncatContact, contact: null })}
+                  style={{
+                    padding: '9px 12px', borderRadius: 7, cursor: 'pointer',
+                    border: `1px solid ${data.useUncatContact ? '#173557' : '#d4d3ce'}`,
+                    backgroundColor: data.useUncatContact ? '#f0f4f8' : '#fff',
+                    fontSize: 13, color: data.useUncatContact ? '#173557' : '#888780', fontStyle: 'italic',
+                  }}
+                  onMouseEnter={e => { if (!data.useUncatContact) e.currentTarget.style.backgroundColor = '#f7f7f5' }}
+                  onMouseLeave={e => { if (!data.useUncatContact) e.currentTarget.style.backgroundColor = '#fff' }}
+                >
+                  + Contato não cadastrado
+                </div>
+              )}
 
               {data.useUncatContact && (
                 <div style={{ padding: 12, backgroundColor: '#f7f7f5', borderRadius: 7, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -315,6 +376,11 @@ function Step2({ data, onChange, onNext, onBack }) {
     }
   }
 
+  function handleManual() {
+    onChange({ aiResult: null })
+    onNext()
+  }
+
   return (
     <div style={{ maxWidth: 640 }}>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a18', marginBottom: 20 }}>2. Conteúdo do Atendimento</h2>
@@ -361,28 +427,32 @@ function Step2({ data, onChange, onNext, onBack }) {
         )}
       </div>
 
-      <p style={{ fontSize: 12, color: '#888780', marginBottom: 16 }}>
-        Forneça o texto da conversa, imagens, ou ambos. Pelo menos um é obrigatório.
-      </p>
-
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
         <button onClick={onBack} style={S.btnSecondary}>← Voltar</button>
         <button onClick={handleAnalyze} disabled={!canAnalyze || analyzing} style={S.btnSky(!canAnalyze || analyzing)}>
           {analyzing ? '⏳ Analisando atendimento...' : '🤖 Analisar com IA'}
         </button>
+        <button onClick={handleManual} style={S.btnSecondary} title="Avançar sem análise de IA e preencher manualmente">
+          ✏️ Preencher manualmente
+        </button>
       </div>
+
+      {!canAnalyze && (
+        <p style={{ fontSize: 12, color: '#888780', marginTop: 12 }}>
+          Forneça o texto da conversa ou imagens para análise automática — ou avance diretamente para preencher o ticket manualmente.
+        </p>
+      )}
     </div>
   )
 }
 
 // ── STEP 3: Revisão e criação do ticket ──────────────────────────────────────
 function Step3({ data, onBack, onSuccess }) {
-  const [groups,       setGroups]       = useState([])
-  const [agents,       setAgents]       = useState([])
-  const [typeChoices,  setTypeChoices]  = useState([])
-  const [creating,     setCreating]     = useState(false)
+  const [groups,        setGroups]       = useState([])
+  const [agents,        setAgents]       = useState([])
+  const [creating,      setCreating]     = useState(false)
   const [createdTicket, setCreatedTicket] = useState(null)
-  const [ticketError,  setTicketError]  = useState(null)
+  const [ticketError,   setTicketError]  = useState(null)
 
   const ai = data.aiResult || {}
 
@@ -392,14 +462,26 @@ function Step3({ data, onBack, onSuccess }) {
     || data.uncatContact?.email
     || ''
 
+  // Normaliza suggested_type para um dos valores válidos
+  const matchedType = TICKET_TYPES.find(t =>
+    t.toLowerCase() === (ai.suggested_type || '').toLowerCase()
+  ) || TICKET_TYPES[0]
+
+  // Normaliza suggested_category
+  const matchedCategory = CATEGORIES.includes(ai.suggested_category) ? ai.suggested_category : ''
+
+  // suggested_status: 4 (resolvido) ou 2 (aberto)
+  const initialStatus = ai.suggested_status === 4 ? 4 : 2
+
   const [form, setForm] = useState({
     subject:     ai.subject     || '',
     description: ai.description || '',
     first_reply: ai.first_reply || '',
-    type:        TICKET_TYPES.find(t => t.toLowerCase().includes((ai.suggested_type || '').toLowerCase())) || TICKET_TYPES[0],
+    type:        matchedType,
     priority:    ai.suggested_priority || 'medium',
-    status:      2,
-    group_id:    '',
+    status:      initialStatus,
+    category:    matchedCategory,
+    group_id:    ai.suggested_group_id ? String(ai.suggested_group_id) : '',
     agent_id:    '',
     email:       contactEmail,
   })
@@ -410,23 +492,9 @@ function Step3({ data, onBack, onSuccess }) {
     Promise.all([
       getFreshdeskConfig('groups'),
       getFreshdeskConfig('agents'),
-      getFreshdeskConfig('ticket_fields'),
-    ]).then(([g, a, tf]) => {
-      const grps   = Array.isArray(g)  ? g  : []
-      const agts   = Array.isArray(a)  ? a  : []
-      const fields = Array.isArray(tf) ? tf : []
-
-      setGroups(grps)
-      setAgents(agts)
-
-      // type é fixo — não vem do freshdesk_config
-
-      // Sugerir grupo pelo hint da IA
-      if (ai.suggested_group_hint && grps.length) {
-        const hint  = ai.suggested_group_hint.toLowerCase()
-        const found = grps.find(grp => grp.name?.toLowerCase().includes(hint))
-        if (found) setForm(p => ({ ...p, group_id: String(found.id) }))
-      }
+    ]).then(([g, a]) => {
+      setGroups(Array.isArray(g) ? g : [])
+      setAgents(Array.isArray(a) ? a : [])
     }).catch(() => {})
   }, [])
 
@@ -444,23 +512,30 @@ function Step3({ data, onBack, onSuccess }) {
       // Nome do contato para fallback sem email
       const contactName = data.contact?.name || data.uncatContact?.name || ''
 
-      // Payload do ticket — campos opcionais só incluídos se tiverem valor válido
+      // Payload do ticket
       const ticketPayload = {
         subject:     form.subject.trim(),
         description: form.description.trim() || form.subject.trim(),
         priority:    fdPrio,
         status:      Number(form.status),
-        source:      7,       // 7 = Chat (mais próximo de WhatsApp na API Freshdesk v2)
+        source:      13,      // 13 = WhatsApp (Freshdesk API v2)
         tags:        ['whatsapp'],
+        type:        form.type,
       }
-      // Requester: email preferido; name só se não houver email
+
+      // Requester
       const emailVal = form.email?.trim()
-      if (emailVal)                       ticketPayload.email        = emailVal
-      else if (contactName)               ticketPayload.name         = contactName
-      // type é obrigatório — sempre incluído com o valor selecionado
-      ticketPayload.type = form.type
-      if (form.group_id)                  ticketPayload.group_id     = Number(form.group_id)
-      if (form.agent_id)                  ticketPayload.responder_id = Number(form.agent_id)
+      if (emailVal)      ticketPayload.email        = emailVal
+      else if (contactName) ticketPayload.name      = contactName
+
+      // Grupo e agente
+      if (form.group_id) ticketPayload.group_id     = Number(form.group_id)
+      if (form.agent_id) ticketPayload.responder_id = Number(form.agent_id)
+
+      // Categoria como campo personalizado
+      if (form.category) {
+        ticketPayload.custom_fields = { cf_categoria: form.category }
+      }
 
       // ── LOG DIAGNÓSTICO ──────────────────────────────────────────────────
       console.log('[AtendimentoPage] POST /tickets payload:', JSON.stringify(ticketPayload, null, 2))
@@ -589,6 +664,13 @@ function Step3({ data, onBack, onSuccess }) {
           <Field label="Tipo *">
             <select value={form.type} onChange={e => set('type', e.target.value)} style={S.input}>
               {TICKET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Categoria">
+            <select value={form.category} onChange={e => set('category', e.target.value)} style={S.input}>
+              <option value="">— selecione —</option>
+              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
 
