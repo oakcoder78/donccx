@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
+import { fetchAndSaveFreshdeskConfig } from '../../lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import toast from 'react-hot-toast'
@@ -197,9 +198,22 @@ function MappingSection() {
 function SyncSection() {
   const now          = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  const [month, setMonth]     = useState(defaultMonth)
-  const [syncing, setSyncing] = useState(false)
+  const [month, setMonth]         = useState(defaultMonth)
+  const [syncing, setSyncing]     = useState(false)
   const [lastResult, setLastResult] = useState(null)
+  const [updatingConfig, setUpdatingConfig] = useState(false)
+
+  async function handleUpdateConfig() {
+    setUpdatingConfig(true)
+    try {
+      await fetchAndSaveFreshdeskConfig()
+      toast.success('Configurações do Freshdesk atualizadas (grupos, agentes e campos de ticket)')
+    } catch (e) {
+      toast.error(e.message || 'Erro ao atualizar configurações do Freshdesk')
+    } finally {
+      setUpdatingConfig(false)
+    }
+  }
 
   async function handleSync() {
     setSyncing(true)
@@ -224,6 +238,25 @@ function SyncSection() {
       <p className="text-sm text-text-secondary">
         Busca tickets e contatos do Freshdesk para todas as empresas mapeadas e salva como pendentes para revisão.
       </p>
+
+      {/* Atualizar configurações (grupos, agentes, campos) */}
+      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-text-primary">Configurações do Freshdesk</p>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno (ex.: roteamento de atendimentos).
+          </p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleUpdateConfig}
+          disabled={updatingConfig}
+          className="shrink-0"
+        >
+          {updatingConfig ? '⏳ Atualizando…' : '⚙️ Atualizar Configurações do Freshdesk'}
+        </Button>
+      </div>
 
       <div className="flex items-center gap-3">
         <div>

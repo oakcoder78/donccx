@@ -14,7 +14,7 @@ import toast from 'react-hot-toast'
 
 const statusVariant = { active: 'green', pending: 'amber', blocked: 'red' }
 const statusLabel   = { active: 'Ativo', pending: 'Pendente', blocked: 'Bloqueado' }
-const roleLabel     = { admin: 'Admin', manager: 'Manager', csm: 'CSM' }
+const roleLabel     = { admin: 'Admin', manager: 'Manager', csm: 'CSM', analyst: 'Analyst' }
 
 
 function NewUserModal({ onClose, onCreated }) {
@@ -113,6 +113,7 @@ function NewUserModal({ onClose, onCreated }) {
           <label className="label-sm">Perfil</label>
           <select name="role" value={form.role} onChange={handleChange} className="input-base w-full">
             <option value="csm">CSM</option>
+            <option value="analyst">Analyst</option>
             <option value="manager">CS Manager</option>
             <option value="admin">Admin</option>
           </select>
@@ -201,6 +202,7 @@ export function SettingsUsers() {
                   className="input-base text-xs w-24"
                 >
                   <option value="csm">CSM</option>
+                  <option value="analyst">Analyst</option>
                   <option value="manager">Manager</option>
                   <option value="admin">Admin</option>
                 </select>
