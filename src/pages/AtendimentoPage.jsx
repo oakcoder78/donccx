@@ -4,6 +4,17 @@ import { analyzeWhatsApp } from '../lib/openrouterService'
 import { getFreshdeskConfig } from '../lib/freshdeskConfig'
 import toast from 'react-hot-toast'
 
+// ── Tipos de ticket (valores obrigatórios configurados no Freshdesk) ─────────
+const TICKET_TYPES = [
+  'Tenho uma dúvida',
+  'Preciso de um ajuste',
+  'Encontrei um erro / Bug',
+  'Tenho uma sugestão',
+  'Questão financeira',
+  'Preciso falar com o comercial',
+  'Outro assunto',
+]
+
 // ── Prioridades ───────────────────────────────────────────────────────────────
 const PRIORITIES = [
   { value: 'low',    label: 'Baixa',   fd: 1 },
@@ -385,7 +396,7 @@ function Step3({ data, onBack, onSuccess }) {
     subject:     ai.subject     || '',
     description: ai.description || '',
     first_reply: ai.first_reply || '',
-    type:        '',   // preenchido após carregar typeChoices válidas do Freshdesk
+    type:        TICKET_TYPES.find(t => t.toLowerCase().includes((ai.suggested_type || '').toLowerCase())) || TICKET_TYPES[0],
     priority:    ai.suggested_priority || 'medium',
     status:      2,
     group_id:    '',
@@ -408,15 +419,7 @@ function Step3({ data, onBack, onSuccess }) {
       setGroups(grps)
       setAgents(agts)
 
-      const typeField = fields.find(f => f.name === 'ticket_type' || f.field_type === 'default_ticket_type')
-      const choices = typeField?.choices || []
-      if (choices.length) {
-        setTypeChoices(choices)
-        // Pré-selecionar o tipo sugerido pela IA apenas se for uma opção válida no Freshdesk
-        const suggested = ai.suggested_type || ''
-        const match = choices.find(c => c.toLowerCase() === suggested.toLowerCase())
-        if (match) setForm(p => ({ ...p, type: match }))
-      }
+      // type é fixo — não vem do freshdesk_config
 
       // Sugerir grupo pelo hint da IA
       if (ai.suggested_group_hint && grps.length) {
@@ -454,8 +457,8 @@ function Step3({ data, onBack, onSuccess }) {
       const emailVal = form.email?.trim()
       if (emailVal)                       ticketPayload.email        = emailVal
       else if (contactName)               ticketPayload.name         = contactName
-      // Campos opcionais — omitir completamente se vazios/não selecionados
-      if (form.type?.trim())              ticketPayload.type         = form.type.trim()
+      // type é obrigatório — sempre incluído com o valor selecionado
+      ticketPayload.type = form.type
       if (form.group_id)                  ticketPayload.group_id     = Number(form.group_id)
       if (form.agent_id)                  ticketPayload.responder_id = Number(form.agent_id)
 
@@ -583,14 +586,11 @@ function Step3({ data, onBack, onSuccess }) {
             )}
           </Field>
 
-          {typeChoices.length > 0 && (
-            <Field label="Tipo">
-              <select value={form.type} onChange={e => set('type', e.target.value)} style={S.input}>
-                <option value="">— selecione —</option>
-                {typeChoices.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </Field>
-          )}
+          <Field label="Tipo *">
+            <select value={form.type} onChange={e => set('type', e.target.value)} style={S.input}>
+              {TICKET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
 
           <Field label="Prioridade">
             <select value={form.priority} onChange={e => set('priority', e.target.value)} style={S.input}>

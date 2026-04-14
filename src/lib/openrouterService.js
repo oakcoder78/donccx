@@ -69,7 +69,7 @@ O JSON deve conter exatamente estes campos:
   "subject": "título curto e objetivo do ticket (máx 100 chars)",
   "description": "descrição clara e detalhada do problema na perspectiva do cliente",
   "first_reply": "texto da primeira resposta ou resolução que foi registrada no atendimento",
-  "suggested_type": "tipo do ticket em inglês (Problem, Question, Incident ou Feature Request)",
+  "suggested_type": "tipo do ticket — escolha EXATAMENTE um dos valores: 'Tenho uma dúvida' | 'Preciso de um ajuste' | 'Encontrei um erro / Bug' | 'Tenho uma sugestão' | 'Questão financeira' | 'Preciso falar com o comercial' | 'Outro assunto'",
   "suggested_priority": "low | medium | high | urgent",
   "suggested_group_hint": "palavra-chave ou nome do setor responsável pelo atendimento"
 }
