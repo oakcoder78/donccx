@@ -137,6 +137,7 @@ export default function DashboardPage() {
   const { profile } = useAuth()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
   const [selectedCsm, setSelectedCsm] = useState('')
+  const [csmDropdownOpen, setCsmDropdownOpen] = useState(false)
   const phrase = useMemo(() => PHRASES[Math.floor(Math.random() * PHRASES.length)], [])
 
   const csmFilter = isAdminOrManager
@@ -260,23 +261,41 @@ export default function DashboardPage() {
           <div style={{ fontSize: 13, color: '#888780', marginTop: 3 }}>{dateStr}</div>
         </div>
         {isAdminOrManager && (
-          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', border: '0.5px solid #d4d3ce', borderRadius: 7, cursor: 'pointer', backgroundColor: '#fff', userSelect: 'none' }}>
-            {/* Avatar circular 28px */}
-            <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0efed', fontSize: 11, fontWeight: 700, color: '#173557' }}>
-              {selectedCsmProfile?.avatar_url
-                ? <img src={selectedCsmProfile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
-                : initials(selectedCsmProfile?.name || 'T')}
-            </div>
-            <span style={{ fontSize: 13, color: '#1a1a18' }}>{selectedCsmProfile?.name || 'Todos os CSMs'}</span>
-            <span style={{ fontSize: 10, color: '#888780' }}>▼</span>
-            <select
-              value={selectedCsm}
-              onChange={e => setSelectedCsm(e.target.value)}
-              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%', fontSize: 0, color: '#173557', backgroundColor: '#fff' }}
+          <div style={{ position: 'relative', userSelect: 'none' }}>
+            <div
+              onClick={() => setCsmDropdownOpen(o => !o)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', border: '0.5px solid #d4d3ce', borderRadius: 7, cursor: 'pointer', backgroundColor: '#fff' }}
             >
-              <option value="">Todos os CSMs</option>
-              {csmList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0efed', fontSize: 11, fontWeight: 700, color: '#173557' }}>
+                {selectedCsmProfile?.avatar_url
+                  ? <img src={selectedCsmProfile.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                  : initials(selectedCsmProfile?.name || 'T')}
+              </div>
+              <span style={{ fontSize: 13, color: '#1a1a18' }}>{selectedCsmProfile?.name || 'Todos os CSMs'}</span>
+              <span style={{ fontSize: 10, color: '#888780' }}>{csmDropdownOpen ? '▲' : '▼'}</span>
+            </div>
+            {csmDropdownOpen && (
+              <>
+                <div onClick={() => setCsmDropdownOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, minWidth: 200, backgroundColor: '#fff', border: '0.5px solid #d4d3ce', borderRadius: 7, boxShadow: '0 4px 16px rgba(0,0,0,0.10)', zIndex: 100, overflow: 'hidden' }}>
+                  {[{ id: '', name: 'Todos os CSMs' }, ...csmList].map(p => (
+                    <div
+                      key={p.id}
+                      onClick={() => { setSelectedCsm(p.id); setCsmDropdownOpen(false) }}
+                      style={{
+                        padding: '9px 14px', fontSize: 13, color: '#1a1a18', cursor: 'pointer',
+                        backgroundColor: selectedCsm === p.id ? '#f0efed' : '#fff',
+                        fontWeight: selectedCsm === p.id ? 600 : 400,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f7f7f5'}
+                      onMouseLeave={e => e.currentTarget.style.backgroundColor = selectedCsm === p.id ? '#f0efed' : '#fff'}
+                    >
+                      {p.name}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
