@@ -2,9 +2,10 @@
  * openrouter-proxy — Supabase Edge Function
  *
  * Proxia chamadas para OpenRouter com fallback automático entre modelos.
- * O campo `model` do body recebido é ignorado — usa sempre a ordem de MODELS.
+ * Os modelos são carregados do Supabase (freshdesk_config key='ai_models').
+ * O campo `model` do body recebido é ignorado — usa sempre a lista configurada.
  *
- * Secret necessário: OPENROUTER_API_KEY
+ * Secrets necessários: OPENROUTER_API_KEY, SUPABASE_SERVICE_ROLE_KEY
  * Body: { messages: ChatMessage[] }
  */
 
@@ -16,14 +17,62 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-/** Ordem de fallback: tenta cada modelo em sequência até um responder com sucesso. */
-const MODELS = [
+/** Fallback hardcoded — usado quando Supabase não retornar modelos configurados. */
+const FALLBACK_MODELS = [
   'openai/gpt-oss-20b:free',
   'openrouter/free',
   'nvidia/nemotron-3-super-120b-a12b-20230311:free',
 ]
 
 const TIMEOUT_MS = 15_000
+
+/**
+ * Busca a lista de modelos configurada no Supabase.
+ * Retorna FALLBACK_MODELS se falhar ou estiver vazio.
+ */
+async function loadModels(): Promise<string[]> {
+  try {
+    const sbUrl = Deno.env.get('SUPABASE_URL') ?? 'https://etfeqblaeuhaobefxilp.supabase.co'
+    const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (!sbKey) {
+      console.warn('openrouter-proxy: SUPABASE_SERVICE_ROLE_KEY ausente, usando fallback')
+      return FALLBACK_MODELS
+    }
+
+    const res = await fetch(
+      `${sbUrl}/rest/v1/freshdesk_config?key=eq.ai_models&select=data`,
+      {
+        headers: {
+          apikey:        sbKey,
+          Authorization: `Bearer ${sbKey}`,
+        },
+      },
+    )
+
+    if (!res.ok) {
+      console.warn('openrouter-proxy: falha ao buscar ai_models do Supabase:', res.status)
+      return FALLBACK_MODELS
+    }
+
+    const rows = await res.json()
+    const models: unknown = rows?.[0]?.data?.models
+
+    if (Array.isArray(models) && models.length > 0) {
+      const valid = (models as unknown[]).filter((m): m is string => typeof m === 'string' && m.trim() !== '')
+      if (valid.length > 0) {
+        console.log('openrouter-proxy: modelos carregados do Supabase:', valid)
+        return valid
+      }
+    }
+
+    console.log('openrouter-proxy: ai_models vazio ou inválido, usando fallback')
+    return FALLBACK_MODELS
+
+  } catch (err) {
+    console.warn('openrouter-proxy: erro ao carregar ai_models:', String(err))
+    return FALLBACK_MODELS
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
@@ -54,6 +103,9 @@ serve(async (req) => {
       console.error('openrouter-proxy: OPENROUTER_API_KEY não configurado')
       return json({ error: 'OpenRouter não configurado no servidor (OPENROUTER_API_KEY ausente)' }, 500)
     }
+
+    // ── Carrega modelos do Supabase (com fallback) ──────────────────────────
+    const MODELS = await loadModels()
 
     // ── Loop de fallback entre modelos ──────────────────────────────────────
     for (const model of MODELS) {

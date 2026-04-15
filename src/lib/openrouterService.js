@@ -63,11 +63,13 @@ export async function analyzeWhatsApp({ text = '', images = [] }) {
 
   const model = await getModel()
 
-  // Carrega prompt personalizado (se configurado pelo admin)
+  // Carrega prompt personalizado configurado pelo admin via SettingsAI
+  // Formato armazenado: { prompt: string } — suporta também string legada
   let customPrompt = ''
   try {
     const stored = await getFreshdeskConfig('ai_prompt')
-    if (typeof stored === 'string') customPrompt = stored
+    if (typeof stored?.prompt === 'string')  customPrompt = stored.prompt
+    else if (typeof stored === 'string')     customPrompt = stored  // legado
   } catch { /* ignora */ }
 
   // ── Monta conteúdo multimodal ───────────────────────────────────────────
@@ -126,9 +128,9 @@ Regras críticas:
 - confidence: 0.90+ conversa clara, 0.70-0.89 leve ambiguidade, 0.50-0.69 informações incompletas, <0.50 baixa confiança
 - is_recurring_issue: true se houver frases como "aconteceu de novo", "já aconteceu antes", "continua dando erro"`
 
-  const systemPrompt = customPrompt.trim()
-    ? `${customPrompt.trim()}\n\n---\n\n${jsonInstructions}`
-    : jsonInstructions
+  // Se o admin configurou um prompt personalizado, usa-o integralmente como system prompt.
+  // Caso contrário, usa o prompt hardcoded (jsonInstructions) como fallback.
+  const systemPrompt = customPrompt.trim() || jsonInstructions
 
   const messages = [
     { role: 'system', content: systemPrompt },
