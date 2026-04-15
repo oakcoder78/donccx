@@ -39,7 +39,8 @@
       "Bash(grep -E \"\\\\.\\(jsx|js|ts|tsx\\)$\")",
       "Bash(grep -n \"create table.*projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
       "Bash(cat /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
-      "Bash(grep -B 5 \"INSERT INTO projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)"
+      "Bash(grep -B 5 \"INSERT INTO projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
+      "Bash(node -e \"const p = require\\('./node_modules/tesseract.js/package.json'\\); console.log\\(p.version, p.main\\)\")"
     ]
   }
 }

@@ -343,30 +343,80 @@ function Step1({ data, onChange, onNext }) {
 
 // ── STEP 2: Conteúdo do atendimento ──────────────────────────────────────────
 function Step2({ data, onChange, onNext, onBack }) {
-  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzing,   setAnalyzing]   = useState(false)
+  const [ocrProgress, setOcrProgress] = useState([]) // [{ name, pct, done }]
   const fileInputRef = useRef(null)
 
-  const canAnalyze = (data.text || '').trim().length > 0 || (data.images || []).length > 0
+  const extracting  = ocrProgress.some(p => !p.done)
+  const canAnalyze  = (data.text || '').trim().length > 0
 
-  async function handleAddImages(e) {
-    const files = Array.from(e.target.files || [])
-    const newImgs = await Promise.all(files.map(file => new Promise(resolve => {
-      const reader = new FileReader()
-      reader.onload = ev => resolve({ name: file.name, base64: ev.target.result, preview: ev.target.result })
-      reader.readAsDataURL(file)
-    })))
-    onChange({ images: [...(data.images || []), ...newImgs] })
+  // ── OCR com Tesseract.js (por + eng) ──────────────────────────────────────
+  async function processFiles(files) {
+    const imageFiles = files.filter(f => f.type.startsWith('image/'))
+    if (!imageFiles.length) return
+
+    setOcrProgress(imageFiles.map(f => ({ name: f.name, pct: 0, done: false })))
+
+    const { createWorker } = await import('tesseract.js')
+    const extractedParts = []
+
+    for (let i = 0; i < imageFiles.length; i++) {
+      const file = imageFiles[i]
+      const worker = await createWorker(['por', 'eng'], 1, {
+        logger: m => {
+          if (m.status === 'recognizing text') {
+            setOcrProgress(prev => prev.map((item, idx) =>
+              idx === i ? { ...item, pct: Math.round(m.progress * 100) } : item
+            ))
+          }
+        },
+      })
+      try {
+        const { data: { text } } = await worker.recognize(file)
+        if (text.trim()) extractedParts.push(text.trim())
+      } finally {
+        await worker.terminate()
+        setOcrProgress(prev => prev.map((item, idx) =>
+          idx === i ? { ...item, pct: 100, done: true } : item
+        ))
+      }
+    }
+
+    if (extractedParts.length > 0) {
+      const appended = extractedParts
+        .map(t => `\n\n--- Texto extraído da imagem ---\n${t}`)
+        .join('')
+      onChange({ text: (data.text || '') + appended })
+      toast.success(`Texto extraído de ${extractedParts.length} imagem(ns)`)
+    } else {
+      toast.error('Nenhum texto detectado nas imagens')
+    }
+
+    // Mantém barras visíveis por 800ms antes de limpar
+    setTimeout(() => setOcrProgress([]), 800)
+  }
+
+  function handleFileInput(e) {
+    processFiles(Array.from(e.target.files || []))
     e.target.value = ''
   }
 
-  function removeImage(i) {
-    onChange({ images: (data.images || []).filter((_, idx) => idx !== i) })
+  // Paste de imagem direto no textarea ou na página
+  function handlePaste(e) {
+    const files = Array.from(e.clipboardData?.items || [])
+      .filter(item => item.type.startsWith('image/'))
+      .map(item => item.getAsFile())
+      .filter(Boolean)
+    if (files.length > 0) {
+      e.preventDefault()
+      processFiles(files)
+    }
   }
 
   async function handleAnalyze() {
     setAnalyzing(true)
     try {
-      const result = await analyzeWhatsApp({ text: data.text, images: data.images || [] })
+      const result = await analyzeWhatsApp({ text: data.text })
       onChange({ aiResult: result })
       onNext()
     } catch (e) {
@@ -385,42 +435,66 @@ function Step2({ data, onChange, onNext, onBack }) {
     <div style={{ maxWidth: 640 }}>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a18', marginBottom: 20 }}>2. Conteúdo do Atendimento</h2>
 
-      {/* Textarea conversa */}
+      {/* Textarea conversa — aceita paste de imagens */}
       <div style={S.fieldBox}>
         <label style={S.label}>Conversa do WhatsApp</label>
         <textarea
           value={data.text || ''}
           onChange={e => onChange({ text: e.target.value })}
-          placeholder="Cole aqui o texto da conversa do WhatsApp..."
+          onPaste={handlePaste}
+          placeholder="Cole aqui o texto da conversa do WhatsApp... Você também pode colar imagens diretamente (Ctrl+V)."
           rows={9}
           style={{ ...S.input, resize: 'vertical', lineHeight: 1.5 }}
         />
       </div>
 
-      {/* Upload de imagens */}
+      {/* Área de upload OCR */}
       <div style={S.fieldBox}>
-        <label style={S.label}>Imagens / Prints de Tela</label>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleAddImages} style={{ display: 'none' }} />
+        <label style={S.label}>Imagens / Prints de Tela → OCR</label>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileInput} style={{ display: 'none' }} />
         <div
-          onClick={() => fileInputRef.current?.click()}
-          style={{ border: '2px dashed #d4d3ce', borderRadius: 8, padding: '18px 20px', textAlign: 'center', cursor: 'pointer', backgroundColor: '#fafafa', transition: 'border-color 0.15s' }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = '#59c2ed'}
-          onMouseLeave={e => e.currentTarget.style.borderColor = '#d4d3ce'}
+          onClick={() => { if (!extracting) fileInputRef.current?.click() }}
+          style={{
+            border: `2px dashed ${extracting ? '#59c2ed' : '#d4d3ce'}`,
+            borderRadius: 8, padding: '16px 20px', textAlign: 'center',
+            cursor: extracting ? 'default' : 'pointer',
+            backgroundColor: extracting ? '#f0f9ff' : '#fafafa',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { if (!extracting) e.currentTarget.style.borderColor = '#59c2ed' }}
+          onMouseLeave={e => { if (!extracting) e.currentTarget.style.borderColor = '#d4d3ce' }}
         >
-          <p style={{ fontSize: 13, color: '#888780', margin: 0 }}>📎 Clique para adicionar imagens</p>
-          <p style={{ fontSize: 11, color: '#b0afab', margin: '4px 0 0' }}>PNG, JPG, WebP — múltiplos arquivos aceitos</p>
+          {extracting ? (
+            <p style={{ fontSize: 13, color: '#0369a1', margin: 0 }}>⏳ Extraindo texto via OCR...</p>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: '#888780', margin: 0 }}>📎 Clique para adicionar imagens (OCR automático)</p>
+              <p style={{ fontSize: 11, color: '#b0afab', margin: '4px 0 0' }}>PNG, JPG, WebP · múltiplos arquivos · ou cole com Ctrl+V no campo acima</p>
+            </>
+          )}
         </div>
-        {(data.images || []).length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
-            {(data.images || []).map((img, i) => (
-              <div key={i} style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
-                <img src={img.preview} alt={img.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6, border: '1px solid #e8e7e3' }} />
-                <button
-                  onClick={() => removeImage(i)}
-                  style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', backgroundColor: '#E24B4A', color: '#fff', border: 'none', cursor: 'pointer', fontSize: 12, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  ×
-                </button>
+
+        {/* Barras de progresso por imagem */}
+        {ocrProgress.length > 0 && (
+          <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {ocrProgress.map((item, i) => (
+              <div key={i}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#888780', marginBottom: 3 }}>
+                  <span>
+                    {item.done ? '✓' : '⏳'} Extraindo texto da imagem {i + 1}/{ocrProgress.length}
+                    <span style={{ color: '#b0afab', marginLeft: 6 }}>{item.name}</span>
+                  </span>
+                  <span style={{ fontWeight: 600 }}>{item.pct}%</span>
+                </div>
+                <div style={{ height: 4, backgroundColor: '#e8e7e3', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    width: `${item.pct}%`,
+                    backgroundColor: item.done ? '#1D9E75' : '#59c2ed',
+                    borderRadius: 2,
+                    transition: 'width 0.15s',
+                  }} />
+                </div>
               </div>
             ))}
           </div>
@@ -428,18 +502,18 @@ function Step2({ data, onChange, onNext, onBack }) {
       </div>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button onClick={onBack} style={S.btnSecondary}>← Voltar</button>
-        <button onClick={handleAnalyze} disabled={!canAnalyze || analyzing} style={S.btnSky(!canAnalyze || analyzing)}>
+        <button onClick={onBack} disabled={extracting} style={S.btnSecondary}>← Voltar</button>
+        <button onClick={handleAnalyze} disabled={!canAnalyze || analyzing || extracting} style={S.btnSky(!canAnalyze || analyzing || extracting)}>
           {analyzing ? '⏳ Analisando atendimento...' : '🤖 Analisar com IA'}
         </button>
-        <button onClick={handleManual} style={S.btnSecondary} title="Avançar sem análise de IA e preencher manualmente">
+        <button onClick={handleManual} disabled={extracting} style={S.btnSecondary} title="Avançar sem análise de IA e preencher manualmente">
           ✏️ Preencher manualmente
         </button>
       </div>
 
-      {!canAnalyze && (
+      {!canAnalyze && !extracting && (
         <p style={{ fontSize: 12, color: '#888780', marginTop: 12 }}>
-          Forneça o texto da conversa ou imagens para análise automática — ou avance diretamente para preencher o ticket manualmente.
+          Cole o texto da conversa ou adicione imagens — o texto será extraído automaticamente via OCR.
         </p>
       )}
     </div>
@@ -595,13 +669,13 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   }
 
   async function handleRegenerate() {
-    if (!data.text?.trim() && !(data.images || []).length) {
-      toast.error('Sem conteúdo para re-analisar. Volte ao Step 2 e adicione texto ou imagens.')
+    if (!data.text?.trim()) {
+      toast.error('Sem texto para re-analisar. Volte ao Step 2 e adicione o conteúdo.')
       return
     }
     setRegenerating(true)
     try {
-      const result = await analyzeWhatsApp({ text: data.text, images: data.images || [] })
+      const result = await analyzeWhatsApp({ text: data.text })
       onChange({ aiResult: result })
       // Atualiza form com novo resultado da IA
       const newType = TICKET_TYPES.find(t =>
@@ -811,7 +885,6 @@ const INITIAL_DATA = {
   uncatContact:    { name: '', email: '', phone: '' },
   clientSearch:    '',
   text:            '',
-  images:          [],
   aiResult:        null,
 }
 

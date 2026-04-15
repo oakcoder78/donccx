@@ -44,20 +44,21 @@ export async function getModel() {
 /**
  * Analisa uma conversa de WhatsApp (texto e/ou imagens) usando OpenRouter.
  *
- * @param {{ text?: string, images?: Array<{ base64: string, name: string }> }} param
+ * @param {{ text?: string }} param
  * @returns {Promise<{
  *   subject: string,
  *   description: string,
  *   first_reply: string,
  *   suggested_type: string,
  *   suggested_priority: 'low'|'medium'|'high'|'urgent',
- *   suggested_group_hint: string,
  *   suggested_group_id: number,
  *   suggested_status: 2|4,
  *   suggested_category: string,
+ *   confidence: number,
+ *   is_recurring_issue: boolean,
  * }>}
  */
-export async function analyzeWhatsApp({ text = '', images = [] }) {
+export async function analyzeWhatsApp({ text = '' }) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
 
@@ -72,24 +73,12 @@ export async function analyzeWhatsApp({ text = '', images = [] }) {
     else if (typeof stored === 'string')     customPrompt = stored  // legado
   } catch { /* ignora */ }
 
-  // ── Monta conteúdo multimodal ───────────────────────────────────────────
-  const userContent = []
+  // ── Monta conteúdo — apenas texto (imagens são processadas via OCR antes de chegar aqui) ──
+  if (!text?.trim()) throw new Error('Forneça o texto da conversa para analisar.')
 
-  if (text?.trim()) {
-    userContent.push({ type: 'text', text: `Conversa do WhatsApp:\n\n${text.trim()}` })
-  }
-
-  for (const img of images) {
-    // img.base64 é uma data URL completa: "data:image/jpeg;base64,..."
-    userContent.push({
-      type: 'image_url',
-      image_url: { url: img.base64 },
-    })
-  }
-
-  if (userContent.length === 0) {
-    throw new Error('Forneça texto ou imagens para analisar.')
-  }
+  const userContent = [
+    { type: 'text', text: `Conversa do WhatsApp:\n\n${text.trim()}` },
+  ]
 
   // ── System prompt ───────────────────────────────────────────────────────
   const jsonInstructions = `Você é um assistente de suporte da DONC, empresa de tecnologia que fornece plataforma de gestão de equipes de campo para o varejo brasileiro.
