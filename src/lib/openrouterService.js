@@ -126,6 +126,8 @@ Regras críticas:
     { role: 'user',   content: userContent },
   ]
 
+  console.log('[openrouterService] payload enviado:', JSON.stringify({ model, messages }, null, 2))
+
   // ── Chama openrouter-proxy com retry (até 2 tentativas extras em 404/5xx) ──
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`
   let lastError
