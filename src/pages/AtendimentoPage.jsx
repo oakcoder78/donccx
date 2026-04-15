@@ -652,13 +652,28 @@ function Step3({ data, onChange, onBack, onSuccess }) {
     email:   data.contact?.email || data.uncatContact?.email || '',
   }
 
+  const confidence      = typeof ai.confidence       === 'number' ? ai.confidence       : null
+  const isRecurring     = ai.is_recurring_issue === true
+
   return (
     <div>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a18', marginBottom: 4 }}>3. Revisão e Confirmação</h2>
-      <p style={{ fontSize: 12, color: '#888780', marginBottom: 20 }}>Revise e edite os campos antes de criar o ticket no Freshdesk.</p>
+      <p style={{ fontSize: 12, color: '#888780', marginBottom: 12 }}>Revise e edite os campos antes de criar o ticket no Freshdesk.</p>
+
+      {/* Avisos da IA */}
+      {(confidence !== null && confidence < 0.7) && (
+        <div style={{ padding: '10px 14px', backgroundColor: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 7, marginBottom: 10, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
+          ⚠️ <span>A IA teve baixa confiança nesta análise <strong>({Math.round(confidence * 100)}%)</strong>. Revise os campos com atenção.</span>
+        </div>
+      )}
+      {isRecurring && (
+        <div style={{ padding: '8px 14px', backgroundColor: '#e0f2fe', border: '1px solid #7dd3fc', borderRadius: 7, marginBottom: 10, fontSize: 13, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 8 }}>
+          🔁 <span><strong>Possível problema recorrente</strong> — verificar histórico de tickets do cliente.</span>
+        </div>
+      )}
 
       {ticketError && (
-        <div style={{ padding: '10px 14px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 7, marginBottom: 20, fontSize: 13, color: '#b91c1c' }}>
+        <div style={{ padding: '10px 14px', backgroundColor: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 7, marginBottom: 16, fontSize: 13, color: '#b91c1c' }}>
           ❌ {ticketError}
         </div>
       )}
