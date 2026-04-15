@@ -8,6 +8,7 @@ import { SettingsLogs } from './SettingsLogs'
 import { SettingsFreshdesk } from './SettingsFreshdesk'
 import { SettingsDonkie } from './SettingsDonkie'
 import { SettingsAI } from './SettingsAI'
+import { SettingsDoncAPI } from './SettingsDoncAPI'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -21,6 +22,7 @@ const BASE_MENU = [
   { key: 'freshdesk', icon: '🎧',  label: 'Freshdesk',  adminOnly: true },
   { key: 'donkie',    icon: '🤖',  label: 'Donkie',     adminOnly: true },
   { key: 'ai',        icon: '✨',  label: 'IA',          adminOnly: true },
+  { key: 'donc-api',  icon: '🔌',  label: 'API DONC',   managerOnly: true },
 ]
 
 export default function SettingsPage() {
@@ -28,9 +30,12 @@ export default function SettingsPage() {
   const { isAdmin } = useAuth()
   const [section, setSection] = useState('health')
 
+  const { isManager } = useAuth()
+
   const MENU = BASE_MENU.filter(m => {
     if (m.key === 'logs' && !canManageUsers) return false
     if (m.adminOnly && !isAdmin) return false
+    if (m.managerOnly && !isManager) return false
     return true
   })
 
@@ -67,7 +72,8 @@ export default function SettingsPage() {
         {section === 'logs'      && canManageUsers && <SettingsLogs />}
         {section === 'freshdesk' && isAdmin && <SettingsFreshdesk />}
         {section === 'donkie'    && isAdmin && <SettingsDonkie />}
-        {section === 'ai'        && isAdmin && <SettingsAI />}
+        {section === 'ai'        && isAdmin   && <SettingsAI />}
+        {section === 'donc-api'  && isManager && <SettingsDoncAPI />}
       </main>
     </div>
   )

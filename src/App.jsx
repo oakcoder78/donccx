@@ -19,6 +19,7 @@ import ActivitiesPage from './components/activities/ActivitiesPage'
 import ProjectsPage from './components/projects/ProjectsPage'
 import SettingsPage from './components/settings/SettingsPage'
 import FreshdeskPendingPage from './pages/FreshdeskPendingPage'
+import DoncAPIPendentes from './pages/DoncAPIPendentes'
 import ReportEditorPage from './pages/ReportEditorPage'
 import ReportPublicPage from './pages/ReportPublicPage'
 import AtendimentoPage from './pages/AtendimentoPage'
@@ -119,6 +120,7 @@ function AppRoutes() {
         <Route element={<AdminRoute />}>
           <Route path="/configuracoes" element={<SettingsPage />} />
           <Route path="/config/freshdesk/pendentes" element={<FreshdeskPendingPage />} />
+          <Route path="/config/donc-api/pendentes" element={<DoncAPIPendentes />} />
         </Route>
       </Route>
 
