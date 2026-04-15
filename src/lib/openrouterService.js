@@ -2,44 +2,15 @@
  * openrouterService.js
  *
  * Funções de alto nível para o módulo de atendimento WhatsApp:
- *   - getModel()           — lê modelo configurado em freshdesk_config
- *   - analyzeWhatsApp()    — envia texto + imagens ao OpenRouter e retorna JSON estruturado
+ *   - analyzeWhatsApp()    — envia texto ao OpenRouter e retorna JSON estruturado
+ *
+ * Nota: o modelo é gerenciado pelo openrouter-proxy via ai_models no Supabase.
  */
 
 import { supabase } from './supabaseClient'
 import { getFreshdeskConfig } from './freshdeskConfig'
 
-const DEFAULT_MODEL     = 'meta-llama/llama-3.3-70b-instruct:free'
-const LEGACY_MODEL      = 'openrouter/free'   // migração: substituir pelo novo padrão
-
 const sleep = ms => new Promise(r => setTimeout(r, ms))
-
-/**
- * Retorna o modelo OpenRouter configurado pelo admin,
- * ou o modelo padrão como fallback.
- * Se o modelo salvo for o legado 'openrouter/free', migra automaticamente.
- */
-export async function getModel() {
-  try {
-    const config = await getFreshdeskConfig('ai_config')
-    const stored = config?.model
-
-    // Migra modelo legado para o novo padrão sem sobrescrever configuração personalizada
-    if (stored === LEGACY_MODEL) {
-      await supabase
-        .from('freshdesk_config')
-        .upsert(
-          { key: 'ai_config', data: { model: DEFAULT_MODEL }, updated_at: new Date().toISOString() },
-          { onConflict: 'key' },
-        )
-      return DEFAULT_MODEL
-    }
-
-    return stored || DEFAULT_MODEL
-  } catch {
-    return DEFAULT_MODEL
-  }
-}
 
 /**
  * Analisa uma conversa de WhatsApp (texto e/ou imagens) usando OpenRouter.
@@ -61,8 +32,6 @@ export async function getModel() {
 export async function analyzeWhatsApp({ text = '' }) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
-
-  const model = await getModel()
 
   // Carrega prompt personalizado configurado pelo admin via SettingsAI
   // Formato armazenado: { prompt: string } — suporta também string legada
@@ -126,7 +95,7 @@ Regras críticas:
     { role: 'user',   content: userContent },
   ]
 
-  console.log('[openrouterService] payload enviado:', JSON.stringify({ model, messages }, null, 2))
+  console.log('[openrouterService] payload enviado:', JSON.stringify({ messages }, null, 2))
 
   // ── Chama openrouter-proxy com retry (até 2 tentativas extras em 404/5xx) ──
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`
@@ -143,7 +112,7 @@ Regras críticas:
           Authorization: `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ messages, model }),
+        body: JSON.stringify({ messages }),
       })
     } catch (networkErr) {
       lastError = new Error(`Erro de rede: ${networkErr.message}`)
