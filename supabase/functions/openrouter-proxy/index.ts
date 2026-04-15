@@ -110,6 +110,7 @@ serve(async (req) => {
     // ── Loop de fallback entre modelos ──────────────────────────────────────
     for (const model of MODELS) {
       console.log('Tentando modelo:', model)
+      console.log('openrouter-proxy: body enviado ao OpenRouter:', JSON.stringify({ model, messages: messages.length + ' mensagens' }))
 
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
@@ -138,7 +139,8 @@ serve(async (req) => {
 
       // Ativa fallback em erros transientes
       if (!orRes.ok || [429, 500, 502, 503].includes(orRes.status)) {
-        console.warn('Falha no modelo:', model, orRes.status)
+        const errBody = await orRes.text()
+        console.warn('Falha no modelo:', model, orRes.status, errBody)
         continue  // próximo modelo
       }
 
