@@ -130,7 +130,9 @@ Regras críticas:
           .replace(/^```\s*/,      '')
           .replace(/\s*```$/,      '')
           .trim()
-        return JSON.parse(cleaned)
+        const result = JSON.parse(cleaned)
+        console.log('[openrouterService] resultado IA:', JSON.stringify(result, null, 2))
+        return result
       } catch {
         throw new Error(`Resposta da IA não é JSON válido. Trecho: ${raw.slice(0, 200)}`)
       }
