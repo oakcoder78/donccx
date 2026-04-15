@@ -207,7 +207,6 @@ export default function DashboardPage() {
   const csmList           = profiles
     .filter(p => (p.role === 'csm' || p.role === 'manager') && p.status === 'active')
     .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-  console.log('[Dashboard] csmList:', csmList)
   const selectedCsmProfile = selectedCsm ? csmList.find(p => p.id === selectedCsm) : null
   const dateStr = (() => {
     const s = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })

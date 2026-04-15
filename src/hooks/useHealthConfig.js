@@ -9,13 +9,13 @@ export function useHealthConfig() {
     queryKey: ['health_config'],
     retry: 0,
     queryFn: async () => {
-      const [{ data: config, error: configError }, { data: rules, error: rulesError }] = await Promise.all([
-        supabase.from('health_config').select('*').maybeSingle(),
+      const [{ data: configs, error: configError }, { data: rules, error: rulesError }] = await Promise.all([
+        supabase.from('health_config').select('*').order('id'),
         supabase.from('health_rules').select('*').order('dimension').order('label'),
       ])
       if (configError) console.error('[useHealthConfig] health_config error:', configError)
       if (rulesError) console.error('[useHealthConfig] health_rules error:', rulesError)
-      return { config: config ?? CONFIG_FALLBACK, rules: rules ?? [] }
+      return { config: configs?.[0] ?? CONFIG_FALLBACK, rules: rules ?? [] }
     },
   })
 }

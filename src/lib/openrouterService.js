@@ -154,7 +154,9 @@ Regras críticas:
     if (res.status === 404 || res.status >= 500) {
       const err = await res.json().catch(() => ({}))
       lastError = new Error(err.error || `OpenRouter error ${res.status}`)
-      console.warn(`[openrouterService] tentativa ${attempt + 1} falhou (${res.status}), ${attempt < 2 ? 'tentando novamente...' : 'desistindo.'}`)
+      if (await isDebugEnabled()) {
+        console.warn(`[openrouterService] tentativa ${attempt + 1} falhou (${res.status}), ${attempt < 2 ? 'tentando novamente...' : 'desistindo.'}`)
+      }
       continue
     }
 
