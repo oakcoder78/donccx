@@ -12,6 +12,13 @@ import { getFreshdeskConfig } from './freshdeskConfig'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
+async function isDebugEnabled() {
+  try {
+    const cfg = await getFreshdeskConfig('debug_config')
+    return cfg?.debug_enabled === true
+  } catch { return false }
+}
+
 /**
  * Analisa uma conversa de WhatsApp (texto e/ou imagens) usando OpenRouter.
  *
@@ -95,7 +102,9 @@ Regras críticas:
     { role: 'user',   content: userContent },
   ]
 
-  console.log('[openrouterService] payload enviado:', JSON.stringify({ messages }, null, 2))
+  if (await isDebugEnabled()) {
+    console.log('[openrouterService] payload enviado:', JSON.stringify({ messages }, null, 2))
+  }
 
   // ── Chama openrouter-proxy com retry (até 2 tentativas extras em 404/5xx) ──
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`
@@ -131,7 +140,10 @@ Regras críticas:
           .replace(/\s*```$/,      '')
           .trim()
         const result = JSON.parse(cleaned)
-        console.log('[openrouterService] resultado IA:', JSON.stringify(result, null, 2))
+        if (await isDebugEnabled()) {
+          console.log('[openrouterService] modelo utilizado:', data?.model || 'desconhecido')
+          console.log('[openrouterService] resultado IA:', JSON.stringify(result, null, 2))
+        }
         return result
       } catch {
         throw new Error(`Resposta da IA não é JSON válido. Trecho: ${raw.slice(0, 200)}`)

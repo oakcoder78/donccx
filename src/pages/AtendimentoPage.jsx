@@ -98,12 +98,13 @@ function Step1({ data, onChange, onNext }) {
     if (!clientSearch.trim() || data.client) { setClientResults([]); return }
     clearTimeout(clientDebounceRef.current)
     clientDebounceRef.current = setTimeout(async () => {
+      const term = clientSearch.trim()
       const { data: rows } = await supabase
         .from('clients')
         .select('id, name, fantasy_name')
-        .ilike('name', `%${clientSearch.trim()}%`)
+        .or(`fantasy_name.ilike.%${term}%,name.ilike.%${term}%`)
         .eq('contract_active', true)
-        .order('name')
+        .order('fantasy_name')
         .limit(8)
       setClientResults(rows || [])
     }, 280)
@@ -198,11 +199,14 @@ function Step1({ data, onChange, onNext }) {
                 <div
                   key={c.id}
                   onClick={() => selectClient(c)}
-                  style={{ padding: '9px 12px', cursor: 'pointer', fontSize: 13, color: '#1a1a18' }}
+                  style={{ padding: '9px 12px', cursor: 'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = '#f7f7f5'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = '#fff'}
                 >
-                  {c.fantasy_name || c.name}
+                  <div style={{ fontSize: 13, color: '#1a1a18' }}>{c.fantasy_name || c.name}</div>
+                  {c.fantasy_name && c.name && (
+                    <div style={{ fontSize: 11, color: '#888780', marginTop: 1 }}>{c.name}</div>
+                  )}
                 </div>
               ))}
             </div>
@@ -751,7 +755,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
           body: JSON.stringify({
             path:   `/tickets/${created.id}/reply`,
             method: 'POST',
-            body:   { body: form.first_reply.trim() },
+            body:   { body: form.first_reply.trim().replace(/\n/g, '<br>') },
           }),
         })
         const replyData = await replyRes.json()
