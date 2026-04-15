@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { analyzeWhatsApp } from '../lib/openrouterService'
 import { getFreshdeskConfig } from '../lib/freshdeskConfig'
@@ -401,7 +401,8 @@ function Step2({ data, onChange, onNext, onBack }) {
     e.target.value = ''
   }
 
-  // Paste de imagem direto no textarea ou na página
+  // Paste de imagem — captura globalmente no document para pegar Ctrl+V
+  // independente de qual elemento estiver focado no Step 2
   function handlePaste(e) {
     const files = Array.from(e.clipboardData?.items || [])
       .filter(item => item.type.startsWith('image/'))
@@ -412,6 +413,16 @@ function Step2({ data, onChange, onNext, onBack }) {
       processFiles(files)
     }
   }
+
+  // Ref para manter o handlePaste sempre atualizado sem re-registrar o listener
+  const handlePasteRef = useRef(handlePaste)
+  useEffect(() => { handlePasteRef.current = handlePaste })
+
+  useEffect(() => {
+    function listener(e) { handlePasteRef.current(e) }
+    document.addEventListener('paste', listener)
+    return () => document.removeEventListener('paste', listener)
+  }, [])
 
   async function handleAnalyze() {
     setAnalyzing(true)
@@ -441,7 +452,6 @@ function Step2({ data, onChange, onNext, onBack }) {
         <textarea
           value={data.text || ''}
           onChange={e => onChange({ text: e.target.value })}
-          onPaste={handlePaste}
           placeholder="Cole aqui o texto da conversa do WhatsApp... Você também pode colar imagens diretamente (Ctrl+V)."
           rows={9}
           style={{ ...S.input, resize: 'vertical', lineHeight: 1.5 }}
@@ -531,6 +541,116 @@ function Field({ label, children }) {
   )
 }
 
+// ── Campos do Step 3 isolados em componente separado com estado local ────────
+// memo() garante que re-renders do pai (ex: creating/regenerating) não
+// recriam os inputs — eliminando perda de foco a cada keystroke
+const Step3Fields = memo(function Step3Fields({ initialValues, groups, agents, summary, formRef, patchRef }) {
+  const [form, setForm] = useState(initialValues)
+
+  const set = useCallback((field, value) => setForm(p => ({ ...p, [field]: value })), [])
+
+  // Mantém refs do pai atualizadas a cada render para acesso síncrono em handleCreate/handleRegenerate
+  if (formRef)  formRef.current  = form
+  if (patchRef) patchRef.current = (updates) => setForm(p => ({ ...p, ...updates }))
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '0 28px' }}>
+
+      {/* Coluna esquerda — campos textuais */}
+      <div>
+        <Field label="Assunto *">
+          <input value={form.subject} onChange={e => set('subject', e.target.value)} style={S.input} />
+        </Field>
+
+        <Field label="Descrição do Problema">
+          <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={5} style={{ ...S.input, resize: 'vertical' }} />
+        </Field>
+
+        <Field label="Resposta Registrada no Ticket">
+          <textarea value={form.first_reply} onChange={e => set('first_reply', e.target.value)} rows={5} style={{ ...S.input, resize: 'vertical' }} />
+        </Field>
+      </div>
+
+      {/* Coluna direita — metadados + resumo */}
+      <div>
+        <Field label="E-mail do Requester">
+          <input
+            value={form.email}
+            onChange={e => set('email', e.target.value)}
+            type="email"
+            placeholder="email@empresa.com"
+            style={{ ...S.input, borderColor: !form.email.trim() ? '#fbbf24' : '#d4d3ce' }}
+          />
+          {!form.email.trim() && (
+            <p style={{ fontSize: 11, color: '#92400e', margin: '4px 0 0' }}>
+              ⚠️ O e-mail é obrigatório para criar o ticket no Freshdesk.
+            </p>
+          )}
+        </Field>
+
+        <Field label="Tipo *">
+          <select value={form.type} onChange={e => set('type', e.target.value)} style={S.input}>
+            {TICKET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Categoria">
+          <select value={form.category} onChange={e => set('category', e.target.value)} style={S.input}>
+            <option value="">— selecione —</option>
+            {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Prioridade">
+          <select value={form.priority} onChange={e => set('priority', e.target.value)} style={S.input}>
+            {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </Field>
+
+        <Field label="Status">
+          <select value={form.status} onChange={e => set('status', e.target.value)} style={S.input}>
+            <option value={2}>Aberto</option>
+            <option value={3}>Pendente</option>
+            <option value={4}>Resolvido</option>
+            <option value={5}>Fechado</option>
+          </select>
+        </Field>
+
+        {groups.length > 0 && (
+          <Field label="Grupo">
+            <select value={form.group_id} onChange={e => set('group_id', e.target.value)} style={S.input}>
+              <option value="">— selecione —</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          </Field>
+        )}
+
+        {agents.length > 0 && (
+          <Field label="Agente">
+            <select value={form.agent_id} onChange={e => set('agent_id', e.target.value)} style={S.input}>
+              <option value="">— selecione —</option>
+              {agents.map(a => <option key={a.id} value={a.id}>{a.contact?.name || a.name || `Agente ${a.id}`}</option>)}
+            </select>
+          </Field>
+        )}
+
+        <Field label="Origem">
+          <div style={{ padding: '8px 12px', backgroundColor: '#f7f7f5', borderRadius: 7, fontSize: 13, color: '#888780', border: '1px solid #e8e7e3' }}>
+            📱 WhatsApp
+          </div>
+        </Field>
+
+        {/* Resumo empresa + contato */}
+        <div style={{ padding: '12px 14px', backgroundColor: '#f0f4f8', borderRadius: 8, fontSize: 12, borderLeft: '3px solid #173557', marginTop: 8 }}>
+          <p style={{ fontWeight: 600, color: '#173557', margin: '0 0 4px' }}>🏢 {summary.client}</p>
+          <p style={{ color: '#4a5568', margin: 0 }}>👤 {summary.contact}</p>
+          {summary.email && <p style={{ color: '#888780', margin: '2px 0 0', fontSize: 11 }}>{summary.email}</p>}
+        </div>
+      </div>
+    </div>
+  )
+})
+
 // ── STEP 3: Revisão e criação do ticket ──────────────────────────────────────
 function Step3({ data, onChange, onBack, onSuccess }) {
   const [groups,        setGroups]        = useState([])
@@ -540,39 +660,25 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   const [createdTicket, setCreatedTicket] = useState(null)
   const [ticketError,   setTicketError]   = useState(null)
 
+  // Refs para ler/atualizar o form que vive no Step3Fields (estado local isolado)
+  const formRef  = useRef({})
+  const patchRef = useRef(null)
+
   const ai = data.aiResult || {}
 
-  // Email do requester: contato cadastrado > override informado no Step 1 > contato não cadastrado
-  const contactEmail = data.contact?.email
-    || data.emailOverride
-    || data.uncatContact?.email
-    || ''
-
-  // Normaliza suggested_type para um dos valores válidos
-  const matchedType = TICKET_TYPES.find(t =>
-    t.toLowerCase() === (ai.suggested_type || '').toLowerCase()
-  ) || TICKET_TYPES[0]
-
-  // Normaliza suggested_category
-  const matchedCategory = CATEGORIES.includes(ai.suggested_category) ? ai.suggested_category : ''
-
-  // suggested_status: 4 (resolvido) ou 2 (aberto)
-  const initialStatus = ai.suggested_status === 4 ? 4 : 2
-
-  const [form, setForm] = useState({
+  // Valores iniciais calculados uma vez (ref para estabilidade entre re-renders)
+  const initialValues = useRef({
     subject:     ai.subject     || '',
     description: ai.description || '',
     first_reply: ai.first_reply || '',
-    type:        matchedType,
+    type:        TICKET_TYPES.find(t => t.toLowerCase() === (ai.suggested_type || '').toLowerCase()) || TICKET_TYPES[0],
     priority:    ai.suggested_priority || 'medium',
-    status:      initialStatus,
-    category:    matchedCategory,
+    status:      ai.suggested_status === 4 ? 4 : 2,
+    category:    CATEGORIES.includes(ai.suggested_category) ? ai.suggested_category : '',
     group_id:    ai.suggested_group_id ? String(ai.suggested_group_id) : '',
     agent_id:    '',
-    email:       contactEmail,
-  })
-
-  function set(field, value) { setForm(p => ({ ...p, [field]: value })) }
+    email:       data.contact?.email || data.emailOverride || data.uncatContact?.email || '',
+  }).current
 
   useEffect(() => {
     Promise.all([
@@ -585,7 +691,8 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   }, [])
 
   async function handleCreate() {
-    if (!form.subject.trim()) { toast.error('Assunto é obrigatório'); return }
+    const form = formRef.current
+    if (!form.subject?.trim()) { toast.error('Assunto é obrigatório'); return }
     setCreating(true)
     setTicketError(null)
     try {
@@ -595,38 +702,31 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       const fnUrl  = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/freshdesk-proxy`
       const fdPrio = PRIORITIES.find(p => p.value === form.priority)?.fd || 2
 
-      // Nome do contato para fallback sem email
       const contactName = data.contact?.name || data.uncatContact?.name || ''
 
-      // Payload do ticket
       const ticketPayload = {
         subject:     form.subject.trim(),
         description: form.description.trim() || form.subject.trim(),
         priority:    fdPrio,
         status:      Number(form.status),
-        source:      7,       // 7 = Chat (Freshdesk API v2)
+        source:      7,
         tags:        ['whatsapp'],
         type:        form.type,
       }
 
-      // Requester
       const emailVal = form.email?.trim()
-      if (emailVal)      ticketPayload.email        = emailVal
-      else if (contactName) ticketPayload.name      = contactName
+      if (emailVal)         ticketPayload.email        = emailVal
+      else if (contactName) ticketPayload.name         = contactName
 
-      // Grupo e agente
       if (form.group_id) ticketPayload.group_id     = Number(form.group_id)
       if (form.agent_id) ticketPayload.responder_id = Number(form.agent_id)
 
-      // Categoria como campo personalizado
       if (form.category) {
         ticketPayload.custom_fields = { cf_categoria: form.category }
       }
 
-      // ── LOG DIAGNÓSTICO ──────────────────────────────────────────────────
       console.log('[AtendimentoPage] POST /tickets payload:', JSON.stringify(ticketPayload, null, 2))
 
-      // POST: criar ticket
       const createRes = await fetch(fnUrl, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -634,7 +734,6 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       })
       const created = await createRes.json()
 
-      // ── LOG DIAGNÓSTICO ──────────────────────────────────────────────────
       console.log('[AtendimentoPage] Freshdesk response status:', createRes.status)
       console.log('[AtendimentoPage] Freshdesk response body:', JSON.stringify(created, null, 2))
 
@@ -645,8 +744,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         throw new Error(errMsg)
       }
 
-      // POST: adicionar reply com a primeira resposta
-      if (form.first_reply.trim() && created.id) {
+      if (form.first_reply?.trim() && created.id) {
         const replyRes = await fetch(fnUrl, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -677,22 +775,18 @@ function Step3({ data, onChange, onBack, onSuccess }) {
     try {
       const result = await analyzeWhatsApp({ text: data.text })
       onChange({ aiResult: result })
-      // Atualiza form com novo resultado da IA
-      const newType = TICKET_TYPES.find(t =>
-        t.toLowerCase() === (result.suggested_type || '').toLowerCase()
-      ) || TICKET_TYPES[0]
+      const newType     = TICKET_TYPES.find(t => t.toLowerCase() === (result.suggested_type || '').toLowerCase()) || TICKET_TYPES[0]
       const newCategory = CATEGORIES.includes(result.suggested_category) ? result.suggested_category : ''
-      setForm(p => ({
-        ...p,
-        subject:     result.subject     || p.subject,
-        description: result.description || p.description,
-        first_reply: result.first_reply || p.first_reply,
+      patchRef.current?.({
+        subject:     result.subject     || formRef.current.subject,
+        description: result.description || formRef.current.description,
+        first_reply: result.first_reply || formRef.current.first_reply,
         type:        newType,
-        priority:    result.suggested_priority || p.priority,
+        priority:    result.suggested_priority || formRef.current.priority,
         status:      result.suggested_status === 4 ? 4 : 2,
         category:    newCategory,
-        group_id:    result.suggested_group_id ? String(result.suggested_group_id) : p.group_id,
-      }))
+        group_id:    result.suggested_group_id ? String(result.suggested_group_id) : formRef.current.group_id,
+      })
       toast.success('Campos atualizados com novo resultado da IA')
     } catch (e) {
       toast.error(e.message || 'Erro ao re-analisar com IA')
@@ -726,17 +820,26 @@ function Step3({ data, onChange, onBack, onSuccess }) {
     email:   data.contact?.email || data.uncatContact?.email || '',
   }
 
-  const confidence      = typeof ai.confidence       === 'number' ? ai.confidence       : null
-  const isRecurring     = ai.is_recurring_issue === true
+  const confidence  = typeof ai.confidence      === 'number' ? ai.confidence : null
+  const isRecurring = ai.is_recurring_issue === true
 
   return (
     <div>
       <h2 style={{ fontSize: 16, fontWeight: 600, color: '#1a1a18', marginBottom: 4 }}>3. Revisão e Confirmação</h2>
-      <p style={{ fontSize: 12, color: '#888780', marginBottom: 12 }}>Revise e edite os campos antes de criar o ticket no Freshdesk.</p>
+      <p style={{ fontSize: 12, color: '#888780', marginBottom: 10 }}>Revise e edite os campos antes de criar o ticket no Freshdesk.</p>
+
+      {/* Banner fixo de revisão — sempre visível no Step 3 */}
+      <div style={{
+        padding: '10px 14px', backgroundColor: '#fffbeb', border: '1px solid #fbbf24',
+        borderRadius: 8, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8,
+        fontSize: 13, color: '#92400e',
+      }}>
+        ⚠️ <span>Revise os campos antes de criar o ticket. A IA pode não capturar todas as nuances da conversa.</span>
+      </div>
 
       {/* Avisos da IA */}
       {(confidence !== null && confidence < 0.7) && (
-        <div style={{ padding: '10px 14px', backgroundColor: '#fffbeb', border: '1px solid #fbbf24', borderRadius: 7, marginBottom: 10, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ padding: '10px 14px', backgroundColor: '#fef9c3', border: '1px solid #fbbf24', borderRadius: 7, marginBottom: 10, fontSize: 13, color: '#92400e', display: 'flex', alignItems: 'center', gap: 8 }}>
           ⚠️ <span>A IA teve baixa confiança nesta análise <strong>({Math.round(confidence * 100)}%)</strong>. Revise os campos com atenção.</span>
         </div>
       )}
@@ -752,101 +855,15 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         </div>
       )}
 
-      {/* Layout em 2 colunas no desktop */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '0 28px' }}>
-
-        {/* Coluna esquerda — campos textuais */}
-        <div>
-          <Field label="Assunto *">
-            <input value={form.subject} onChange={e => set('subject', e.target.value)} style={S.input} />
-          </Field>
-
-          <Field label="Descrição do Problema">
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={5} style={{ ...S.input, resize: 'vertical' }} />
-          </Field>
-
-          <Field label="Resposta Registrada no Ticket">
-            <textarea value={form.first_reply} onChange={e => set('first_reply', e.target.value)} rows={5} style={{ ...S.input, resize: 'vertical' }} />
-          </Field>
-        </div>
-
-        {/* Coluna direita — metadados + resumo */}
-        <div>
-          <Field label="E-mail do Requester">
-            <input
-              value={form.email}
-              onChange={e => set('email', e.target.value)}
-              type="email"
-              placeholder="email@empresa.com"
-              style={{ ...S.input, borderColor: !form.email.trim() ? '#fbbf24' : '#d4d3ce' }}
-            />
-            {!form.email.trim() && (
-              <p style={{ fontSize: 11, color: '#92400e', margin: '4px 0 0' }}>
-                ⚠️ O e-mail é obrigatório para criar o ticket no Freshdesk.
-              </p>
-            )}
-          </Field>
-
-          <Field label="Tipo *">
-            <select value={form.type} onChange={e => set('type', e.target.value)} style={S.input}>
-              {TICKET_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </Field>
-
-          <Field label="Categoria">
-            <select value={form.category} onChange={e => set('category', e.target.value)} style={S.input}>
-              <option value="">— selecione —</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </Field>
-
-          <Field label="Prioridade">
-            <select value={form.priority} onChange={e => set('priority', e.target.value)} style={S.input}>
-              {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </Field>
-
-          <Field label="Status">
-            <select value={form.status} onChange={e => set('status', e.target.value)} style={S.input}>
-              <option value={2}>Aberto</option>
-              <option value={3}>Pendente</option>
-              <option value={4}>Resolvido</option>
-              <option value={5}>Fechado</option>
-            </select>
-          </Field>
-
-          {groups.length > 0 && (
-            <Field label="Grupo">
-              <select value={form.group_id} onChange={e => set('group_id', e.target.value)} style={S.input}>
-                <option value="">— selecione —</option>
-                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-            </Field>
-          )}
-
-          {agents.length > 0 && (
-            <Field label="Agente">
-              <select value={form.agent_id} onChange={e => set('agent_id', e.target.value)} style={S.input}>
-                <option value="">— selecione —</option>
-                {agents.map(a => <option key={a.id} value={a.id}>{a.contact?.name || a.name || `Agente ${a.id}`}</option>)}
-              </select>
-            </Field>
-          )}
-
-          <Field label="Origem">
-            <div style={{ padding: '8px 12px', backgroundColor: '#f7f7f5', borderRadius: 7, fontSize: 13, color: '#888780', border: '1px solid #e8e7e3' }}>
-              📱 WhatsApp
-            </div>
-          </Field>
-
-          {/* Resumo empresa + contato */}
-          <div style={{ padding: '12px 14px', backgroundColor: '#f0f4f8', borderRadius: 8, fontSize: 12, borderLeft: '3px solid #173557', marginTop: 8 }}>
-            <p style={{ fontWeight: 600, color: '#173557', margin: '0 0 4px' }}>🏢 {summary.client}</p>
-            <p style={{ color: '#4a5568', margin: 0 }}>👤 {summary.contact}</p>
-            {summary.email && <p style={{ color: '#888780', margin: '2px 0 0', fontSize: 11 }}>{summary.email}</p>}
-          </div>
-        </div>
-      </div>
+      {/* Campos isolados em componente próprio — memo() evita re-render por creating/regenerating */}
+      <Step3Fields
+        initialValues={initialValues}
+        groups={groups}
+        agents={agents}
+        summary={summary}
+        formRef={formRef}
+        patchRef={patchRef}
+      />
 
       {/* Ações */}
       <div style={{ display: 'flex', gap: 12, marginTop: 28, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -861,12 +878,12 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         </button>
         <button
           onClick={handleCreate}
-          disabled={creating || regenerating || !form.subject.trim()}
+          disabled={creating || regenerating}
           style={{
             flex: 1, minWidth: 200, padding: '13px 24px', borderRadius: 8, fontSize: 15, fontWeight: 700, border: 'none',
-            cursor: creating || regenerating || !form.subject.trim() ? 'not-allowed' : 'pointer',
-            backgroundColor: creating || regenerating || !form.subject.trim() ? '#e8e7e3' : '#173557',
-            color: creating || regenerating || !form.subject.trim() ? '#888780' : '#fff',
+            cursor: creating || regenerating ? 'not-allowed' : 'pointer',
+            backgroundColor: creating || regenerating ? '#e8e7e3' : '#173557',
+            color: creating || regenerating ? '#888780' : '#fff',
             transition: 'all 0.15s',
           }}
         >
