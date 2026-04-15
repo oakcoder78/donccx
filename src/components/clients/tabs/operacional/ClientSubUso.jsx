@@ -88,8 +88,8 @@ export function ClientSubUso({ client, onEdit }) {
                 {[...sorted].reverse().map(u => (
                   <tr key={u.ref_month} className="border-t border-border-tertiary hover:bg-bg-secondary transition-colors">
                     <td className="px-4 py-2.5 font-medium text-text-primary">{fmtMonth(u.ref_month)}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{u.os_created.toLocaleString('pt-BR')}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{u.active_users.toLocaleString('pt-BR')}</td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{(u.os_created ?? 0).toLocaleString('pt-BR')}</td>
+                    <td className="px-4 py-2.5 text-right text-text-secondary">{(u.active_users ?? 0).toLocaleString('pt-BR')}</td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <button

@@ -34,16 +34,26 @@ function previousMonthKey(): string {
  * Dado 'YYYY-MM', retorna dataInicio e dataFim no formato esperado pela API DONC.
  * dataInicio = primeiro dia do mês às 00:01
  * dataFim    = último dia do mês às 23:59:59
+ *             (se for o mês corrente, usa hoje às 23:59:59 em vez do último dia do mês)
  */
 function monthBounds(refMonth: string): { dataInicio: string; dataFim: string } {
   const [year, month] = refMonth.split('-').map(Number)
   const firstDay = new Date(Date.UTC(year, month - 1, 1))
-  const lastDay  = new Date(Date.UTC(year, month, 0))   // dia 0 do mês seguinte = último do atual
+
+  const now = new Date()
+  const isCurrentMonth = year === now.getUTCFullYear() && month === (now.getUTCMonth() + 1)
 
   const pad = (n: number) => String(n).padStart(2, '0')
 
   const dataInicio = `${firstDay.getUTCFullYear()}-${pad(firstDay.getUTCMonth() + 1)}-${pad(firstDay.getUTCDate())} 00:01`
-  const dataFim    = `${lastDay.getUTCFullYear()}-${pad(lastDay.getUTCMonth() + 1)}-${pad(lastDay.getUTCDate())} 23:59:59`
+
+  let dataFim: string
+  if (isCurrentMonth) {
+    dataFim = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(now.getUTCDate())} 23:59:59`
+  } else {
+    const lastDay = new Date(Date.UTC(year, month, 0))   // dia 0 do mês seguinte = último do atual
+    dataFim = `${lastDay.getUTCFullYear()}-${pad(lastDay.getUTCMonth() + 1)}-${pad(lastDay.getUTCDate())} 23:59:59`
+  }
 
   return { dataInicio, dataFim }
 }
@@ -144,21 +154,13 @@ serve(async (req) => {
 
         const apiData = await apiRes.json()
 
-        // ── Mapear resposta ───────────────────────────────────────────────────
+        // ── Salvar snapshot (campos calculados só escritos na aprovação CSM) ────
         const usageRow = {
-          client_id:               inst.client_id,
-          ref_month:               refMonth,
-          instance_id:             inst.id,
-          os_created:              apiData?.totalOs           ?? null,
-          active_users:            apiData?.profissionais?.ativos    ?? null,
-          profissionais_inativos:  apiData?.profissionais?.inativos  ?? null,
-          os_finalizadas:          apiData?.osPorStatus?.finalizadas ?? null,
-          os_abertas:              apiData?.osPorStatus?.abertas     ?? null,
-          os_canceladas:           apiData?.osPorStatus?.canceladas  ?? null,
-          unidades:                apiData?.unidades          ?? null,
-          os_por_tipo:             apiData?.osPorTipo         ?? null,
-          donc_snapshot:           apiData,
-          pending:                 true,
+          client_id:     inst.client_id,
+          ref_month:     refMonth,
+          instance_id:   inst.id,
+          donc_snapshot: apiData,
+          pending:       true,
         }
 
         // Upsert com constraint composta client_id + ref_month + instance_id
@@ -169,7 +171,7 @@ serve(async (req) => {
         if (upsertErr) throw new Error(`Upsert falhou: ${upsertErr.message}`)
 
         synced++
-        console.log(`donc-api-sync: OK instância ${inst.contrato_saas_id} — os_created=${usageRow.os_created} active_users=${usageRow.active_users}`)
+        console.log(`donc-api-sync: OK instância ${inst.contrato_saas_id} — snapshot salvo, aguardando aprovação CSM`)
 
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e)
