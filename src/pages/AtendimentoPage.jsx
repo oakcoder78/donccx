@@ -89,7 +89,7 @@ function AnalystHeader({ profile }) {
 
   const photoSize   = isTiny ? 80  : isMobile ? 100 : 170
   const barHeight   = isMobile ? 90 : 130
-  const photoBottom = isMobile ? 20 : 30
+  const photoBottom = isMobile ? 5 : 7
   const photoRight  = isMobile ? 16 : 24
   const padTop      = isMobile ? 20 : 50
   const padRight    = photoSize + 40   // 210px desktop · 140px mobile · 120px tiny
