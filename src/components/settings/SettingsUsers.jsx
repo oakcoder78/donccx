@@ -139,6 +139,9 @@ function ApproveModal({ request, onClose, onDone }) {
       const fnUrl     = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`
       const redirectTo = `${window.location.origin}/primeiro-acesso`
 
+      console.log('[invite-user] session:', !!session, 'token:', session?.access_token?.slice(0, 20))
+      console.log('[invite-user] url:', fnUrl)
+
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
