@@ -92,9 +92,10 @@ function AnalystHeader({ profile }) {
     },
   })
 
-  const name     = profile?.name || ''
-  const gender   = profile?.gender || null
-  const avatar   = profile?.avatar_url || profile?.logo_url || null
+  const fullName  = profile?.name || ''
+  const firstName = fullName.split(' ')[0]
+  const gender    = profile?.gender || null
+  const avatar    = profile?.avatar_url || profile?.logo_url || null
 
   const countLine = countYesterday === null
     ? null
@@ -104,45 +105,48 @@ function AnalystHeader({ profile }) {
 
   return (
     <div style={{
+      position: 'relative',
+      overflow: 'visible',
       backgroundColor: '#173557',
       borderRadius: 14,
-      padding: '20px 24px',
+      height: 70,
+      padding: '0 140px 0 24px',
       marginBottom: 24,
       display: 'flex',
-      alignItems: 'center',
-      gap: 20,
+      flexDirection: 'column',
+      justifyContent: 'center',
     }}>
-      {/* Avatar */}
+      {/* Texto à esquerda */}
+      <div style={{ fontSize: 11, color: '#59c2ed', marginBottom: 2 }}>
+        {greetingByHour()}
+      </div>
+      <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+        {greetingByGender(gender, firstName)}
+      </div>
+      <div style={{ fontSize: 11, color: '#59c2ed', marginTop: 3 }}>
+        {todayLongPT()}
+        {countLine && <span style={{ marginLeft: 10, opacity: 0.85 }}>· {countLine}</span>}
+      </div>
+
+      {/* Avatar à direita vazando */}
       <div style={{
-        width: 60, height: 60, borderRadius: '50%', flexShrink: 0,
+        position: 'absolute',
+        right: 24,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: 90, height: 90,
+        borderRadius: '50%',
         border: '3px solid #d3da47',
         overflow: 'hidden',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         backgroundColor: '#0d2340',
-        fontSize: 20, fontWeight: 700, color: '#d3da47',
+        fontSize: 24, fontWeight: 700, color: '#d3da47',
+        flexShrink: 0,
       }}>
         {avatar
-          ? <img src={avatar} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : initials(name)
+          ? <img src={avatar} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : initials(fullName)
         }
-      </div>
-
-      {/* Texto */}
-      <div>
-        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 2 }}>
-          {greetingByHour()}
-        </div>
-        <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-          {greetingByGender(gender, name)}
-        </div>
-        <div style={{ fontSize: 12, color: '#59c2ed', marginTop: 3 }}>
-          {todayLongPT()}
-        </div>
-        {countLine && (
-          <div style={{ fontSize: 12, color: '#59c2ed', marginTop: 2 }}>
-            {countLine}
-          </div>
-        )}
       </div>
     </div>
   )

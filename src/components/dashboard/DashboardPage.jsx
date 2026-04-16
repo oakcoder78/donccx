@@ -310,23 +310,43 @@ export default function DashboardPage() {
 
         {/* Block 1 — user identity + pills */}
         <div style={{
-          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0, height: '100%', boxSizing: 'border-box',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20,
+          position: 'relative', overflow: 'visible',
+          backgroundColor: '#173557', borderRadius: 12, padding: '20px 130px 20px 24px',
+          minWidth: 0, height: '100%', boxSizing: 'border-box',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 16,
         }}>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <HeroAvatar profile={profile} />
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {greetingByGender(profile?.gender, profile?.name || '')}
-              </div>
-              <div style={{ fontSize: 12, color: '#8393A5', marginTop: 3 }}>{phrase}</div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {greetingByGender(profile?.gender, (profile?.name || '').split(' ')[0])}
             </div>
+            <div style={{ fontSize: 12, color: '#8393A5', marginTop: 3 }}>{phrase}</div>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             <HeroPill label="em risco"    value={emRisco.length}      valueColor="#f09595" />
             <HeroPill label="atrasadas"   value={tasksOverdue.length} valueColor="#FAC775" />
             <HeroPill label="saudáveis"   value={saudaveis.length}    valueColor="#7fd47f" />
+          </div>
+
+          {/* Avatar à direita vazando */}
+          <div style={{
+            position: 'absolute',
+            right: 24,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 90, height: 90,
+            borderRadius: '50%',
+            border: '3px solid #d3da47',
+            overflow: 'hidden',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            backgroundColor: '#0d2340',
+            fontSize: 24, fontWeight: 700, color: '#d3da47',
+            flexShrink: 0,
+          }}>
+            {profile?.avatar_url
+              ? <img src={profile.avatar_url} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : initials(profile?.name)
+            }
           </div>
         </div>
 
