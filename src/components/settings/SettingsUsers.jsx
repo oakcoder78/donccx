@@ -9,7 +9,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { UserEditModal } from '../ui/UserEditModal'
-import { formatPhone, maskPhoneInput, stripPhone } from '../../lib/formatPhone'
+import { formatPhone } from '../../lib/formatPhone'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -18,28 +18,34 @@ const statusLabel   = { active: 'Ativo', pending: 'Pendente', blocked: 'Bloquead
 const roleLabel     = { admin: 'Admin', manager: 'Manager', csm: 'CSM', analyst: 'Analyst' }
 
 
-// ── Modal: criar usuário diretamente (admin) ──────────────────────────────────
-function NewUserModal({ onClose, onCreated }) {
+// ── Modal: convidar usuário por e-mail ───────────────────────────────────────
+function InviteUserModal({ onClose, onDone }) {
   const { logAction } = useAuditLog()
-  const [form, setForm] = useState({
-    name: '', email: '', password: '', role: 'csm',
-    email_secondary: '', phone: '', phone_is_whatsapp: false,
-  })
+  const [form, setForm] = useState({ name: '', email: '', role: 'csm' })
   const [loading, setLoading] = useState(false)
 
   function handleChange(e) {
-    const { name, value, type, checked } = e.target
-    setForm(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    const { name, value } = e.target
+    setForm(prev => ({ ...prev, [name]: value }))
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (form.password.length < 8) { toast.error('Senha deve ter ao menos 8 caracteres'); return }
     setLoading(true)
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) { toast.error('Sessão expirada. Faça login novamente.'); return }
-      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`
+
+      // Inserir profile com status pending
+      const { data: profile, error: insertError } = await supabase
+        .from('profiles')
+        .insert({ name: form.name, email: form.email, role: form.role, status: 'pending' })
+        .select('id')
+        .single()
+      if (insertError) throw new Error(insertError.message)
+
+      // Enviar convite
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`
       const res = await fetch(fnUrl, {
         method: 'POST',
         headers: {
@@ -47,37 +53,32 @@ function NewUserModal({ onClose, onCreated }) {
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role }),
+        body: JSON.stringify({
+          email: form.email,
+          role: form.role,
+          name: form.name,
+          redirectTo: 'https://donccx.vercel.app/primeiro-acesso',
+        }),
       })
       const data = await res.json()
-      if (!res.ok || data?.error) {
-        toast.error(data?.error || data?.message || 'Erro ao criar usuário')
-        return
-      }
+      if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao enviar convite')
 
-      const newUserId = data?.user_id || data?.id
-      if (newUserId) {
-        const extra = {}
-        if (form.email_secondary) extra.email_secondary = form.email_secondary
-        if (form.phone) { extra.phone = stripPhone(form.phone); extra.phone_is_whatsapp = form.phone_is_whatsapp }
-        if (Object.keys(extra).length) {
-          await supabase.from('profiles').update(extra).eq('id', newUserId)
-        }
-      }
+      // Atualizar status para invited
+      await supabase.from('profiles').update({ status: 'invited' }).eq('id', profile.id)
 
-      await logAction('create_user', 'user', newUserId || form.email, form.name, null, { role: form.role, email: form.email })
-      toast.success('Usuário criado com sucesso')
-      onCreated?.()
+      await logAction('invite_user', 'user', profile.id, form.name, null, { role: form.role, email: form.email })
+      toast.success(`Convite enviado para ${form.email}`)
+      onDone?.()
       onClose()
     } catch (err) {
-      toast.error(err.message || 'Erro ao criar usuário')
+      toast.error(err.message || 'Erro ao enviar convite')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Modal isOpen onClose={onClose} title="Novo Usuário" maxWidth="max-w-md">
+    <Modal isOpen onClose={onClose} title="Convidar Usuário" maxWidth="max-w-sm">
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="label-sm">Nome *</label>
@@ -88,35 +89,16 @@ function NewUserModal({ onClose, onCreated }) {
           <input name="email" type="email" value={form.email} onChange={handleChange} required className="input-base w-full" />
         </div>
         <div>
-          <label className="label-sm">E-mail secundário</label>
-          <input name="email_secondary" type="email" value={form.email_secondary} onChange={handleChange} className="input-base w-full" />
-        </div>
-        <div>
-          <label className="label-sm">Telefone</label>
-          <div className="flex items-center gap-2">
-            <input name="phone" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: maskPhoneInput(e.target.value) }))} placeholder="(11) 99999-9999" className="input-base flex-1" />
-            <label className="flex items-center gap-1.5 text-xs text-text-secondary whitespace-nowrap cursor-pointer">
-              <input type="checkbox" name="phone_is_whatsapp" checked={form.phone_is_whatsapp} onChange={handleChange} className="w-3.5 h-3.5 rounded" />
-              WhatsApp
-            </label>
-          </div>
-        </div>
-        <div>
-          <label className="label-sm">Senha * (mín. 8 caracteres)</label>
-          <input name="password" type="password" value={form.password} onChange={handleChange} required minLength={8} className="input-base w-full" />
-        </div>
-        <div>
           <label className="label-sm">Perfil</label>
           <select name="role" value={form.role} onChange={handleChange} className="input-base w-full">
             <option value="csm">CSM</option>
             <option value="analyst">Analyst</option>
-            <option value="manager">CS Manager</option>
-            <option value="admin">Admin</option>
+            <option value="manager">Manager</option>
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={loading}>{loading ? 'Criando...' : 'Criar Usuário'}</Button>
+          <Button type="submit" disabled={loading}>{loading ? 'Enviando...' : 'Enviar Convite'}</Button>
         </div>
       </form>
     </Modal>
@@ -137,10 +119,7 @@ function ApproveModal({ request, onClose, onDone }) {
       if (!session?.access_token) throw new Error('Sessão expirada')
 
       const fnUrl     = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`
-      const redirectTo = `${window.location.origin}/primeiro-acesso`
-
-      console.log('[invite-user] session:', !!session, 'token:', session?.access_token?.slice(0, 20))
-      console.log('[invite-user] url:', fnUrl)
+      const redirectTo = 'https://donccx.vercel.app/primeiro-acesso'
 
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -163,7 +142,7 @@ function ApproveModal({ request, onClose, onDone }) {
       }
 
       await logAction('invite_user', 'user', request.id, request.name, null, { role, email: request.email })
-      toast.success(`Convite enviado para ${request.email}`)
+      toast.success(`Acesso aprovado! Email enviado para ${request.email}`)
       onDone?.()
       onClose()
     } catch (err) {
@@ -205,9 +184,9 @@ export function SettingsUsers() {
   const { data: profiles = [], isLoading, refetch } = useProfiles()
   const { updateStatus, updateRole } = useProfilesMutations()
   const { canManageUsers } = usePermissions()
-  const [showNewUser, setShowNewUser]       = useState(false)
-  const [editingUser, setEditingUser]       = useState(null)
-  const [approvingRequest, setApprovingRequest] = useState(null)  // { ...request, _source }
+  const [showInviteUser, setShowInviteUser]   = useState(false)
+  const [editingUser, setEditingUser]         = useState(null)
+  const [approvingRequest, setApprovingRequest] = useState(null)
 
   // Solicitações de acesso pendentes (novo fluxo)
   const { data: accessRequests = [], refetch: refetchAR } = useQuery({
@@ -236,9 +215,6 @@ export function SettingsUsers() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold text-text-primary">👥 Usuários</h2>
-        {canManageUsers && (
-          <Button size="sm" onClick={() => setShowNewUser(true)}>+ Novo Usuário</Button>
-        )}
       </div>
 
       {/* ── Solicitações pendentes ─────────────────────────────────────── */}
@@ -287,7 +263,7 @@ export function SettingsUsers() {
                 <Avatar name={p.name} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-text-primary">{p.name}</p>
-                  <p className="text-xs text-text-tertiary">{p.email} · legado</p>
+                  <p className="text-xs text-text-tertiary">{p.email}</p>
                 </div>
                 {canManageUsers && (
                   <div className="flex gap-2">
@@ -301,7 +277,11 @@ export function SettingsUsers() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'blocked', name: p.name })}
+                      onClick={async () => {
+                        await supabase.from('profiles').update({ status: 'rejected' }).eq('id', p.id)
+                        refetch()
+                        toast.success('Solicitação rejeitada')
+                      }}
                     >
                       Rejeitar
                     </Button>
@@ -338,7 +318,12 @@ export function SettingsUsers() {
 
       {/* ── Todos os usuários ativos/bloqueados ───────────────────────── */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-text-primary mb-3">Todos os usuários</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-text-primary">Todos os usuários</h3>
+          {canManageUsers && (
+            <Button size="sm" onClick={() => setShowInviteUser(true)}>+ Convidar Usuário</Button>
+          )}
+        </div>
         <div className="space-y-2">
           {rest.map(p => (
             <div key={p.id} className="flex items-center gap-3 py-2 border-b border-border-tertiary last:border-0">
@@ -385,7 +370,7 @@ export function SettingsUsers() {
       </div>
 
       {/* ── Modais ────────────────────────────────────────────────────── */}
-      {showNewUser && <NewUserModal onClose={() => setShowNewUser(false)} onCreated={refetchAll} />}
+      {showInviteUser && <InviteUserModal onClose={() => setShowInviteUser(false)} onDone={refetchAll} />}
       {editingUser && (
         <UserEditModal
           profile={editingUser}
