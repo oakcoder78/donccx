@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
@@ -31,29 +31,12 @@ const PHRASES = [
 
 const ABC_COLORS = { A: '#1D9E75', B: '#BA7517', C: '#E24B4A' }
 
-// ─── Responsive hook ─────────────────────────────────────────────────────────
-function useWindowWidth() {
-  const [width, setWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1024))
-  useEffect(() => {
-    function onResize() { setWidth(window.innerWidth) }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-  return width
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Bom dia'
   if (h < 18) return 'Boa tarde'
   return 'Boa noite'
-}
-
-function greetingByGender(gender, name) {
-  if (gender === 'masculino') return `Bem-vindo, ${name}!`
-  if (gender === 'feminino')  return `Bem-vinda, ${name}!`
-  return `Olá, ${name}!`
 }
 
 function initials(name = '') {
@@ -156,17 +139,6 @@ export default function DashboardPage() {
   const [selectedCsm, setSelectedCsm] = useState('')
   const [csmDropdownOpen, setCsmDropdownOpen] = useState(false)
   const phrase = useMemo(() => PHRASES[Math.floor(Math.random() * PHRASES.length)], [])
-
-  // Responsividade do hero
-  const w        = useWindowWidth()
-  const isMobile = w < 640
-  const isTiny   = w < 380
-  const photoSize   = isTiny ? 80  : isMobile ? 100 : 170
-  const barHeight   = isMobile ? 90 : 130
-  const photoBottom = isMobile ? 20 : 30
-  const photoRight  = isMobile ? 16 : 24
-  const padTop      = isMobile ? 20 : 50
-  const padRight    = photoSize + 40
 
   const csmFilter = isAdminOrManager
     ? (selectedCsm ? { csm_id: selectedCsm } : {})
@@ -328,49 +300,27 @@ export default function DashboardPage() {
       </div>
 
       {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      {/* wrapper: acomoda transbordamento superior da foto */}
-      <div style={{ overflow: 'visible', paddingTop: padTop }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr)', gap: 12, alignItems: 'stretch' }}>
 
         {/* Block 1 — user identity + pills */}
         <div style={{
-          position: 'relative', overflow: 'visible',
-          backgroundColor: '#173557', borderRadius: 12,
-          paddingLeft: 24, paddingRight: padRight, paddingTop: 20, paddingBottom: 20,
-          minWidth: 0, height: barHeight, boxSizing: 'border-box',
-          display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 16,
+          backgroundColor: '#173557', borderRadius: 12, padding: 24, minWidth: 0, height: '100%', boxSizing: 'border-box',
+          display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20,
         }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {greetingByGender(profile?.gender, (profile?.name || '').split(' ')[0])}
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <HeroAvatar profile={profile} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
+              <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {profile?.name}
+              </div>
+              <div style={{ fontSize: 12, color: '#8393A5', marginTop: 3 }}>{phrase}</div>
             </div>
-            {!isTiny && <div style={{ fontSize: 12, color: '#8393A5', marginTop: 3 }}>{phrase}</div>}
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             <HeroPill label="em risco"    value={emRisco.length}      valueColor="#f09595" />
             <HeroPill label="atrasadas"   value={tasksOverdue.length} valueColor="#FAC775" />
             <HeroPill label="saudáveis"   value={saudaveis.length}    valueColor="#7fd47f" />
-          </div>
-
-          {/* Foto à direita transbordando para cima */}
-          <div style={{
-            position: 'absolute',
-            right: photoRight,
-            bottom: photoBottom,
-            width: photoSize, height: photoSize,
-            borderRadius: '50%',
-            border: '3px solid #d3da47',
-            overflow: 'hidden',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backgroundColor: '#0d2340',
-            fontSize: Math.round(photoSize * 0.28), fontWeight: 700, color: '#d3da47',
-            flexShrink: 0,
-          }}>
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              : initials(profile?.name)
-            }
           </div>
         </div>
 
@@ -422,7 +372,6 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
-      </div>{/* /hero wrapper overflow:visible */}
 
       {/* ── MÉTRICAS ─────────────────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
