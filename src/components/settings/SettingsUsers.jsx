@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useProfiles, useProfilesMutations } from '../../hooks/useProfiles'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuditLog } from '../../hooks/useAuditLog'
@@ -17,6 +18,7 @@ const statusLabel   = { active: 'Ativo', pending: 'Pendente', blocked: 'Bloquead
 const roleLabel     = { admin: 'Admin', manager: 'Manager', csm: 'CSM', analyst: 'Analyst' }
 
 
+// ── Modal: criar usuário diretamente (admin) ──────────────────────────────────
 function NewUserModal({ onClose, onCreated }) {
   const { logAction } = useAuditLog()
   const [form, setForm] = useState({
@@ -52,7 +54,6 @@ function NewUserModal({ onClose, onCreated }) {
         return
       }
 
-      // Save extra fields if user_id returned
       const newUserId = data?.user_id || data?.id
       if (newUserId) {
         const extra = {}
@@ -94,13 +95,7 @@ function NewUserModal({ onClose, onCreated }) {
           <div className="flex items-center gap-2">
             <input name="phone" value={form.phone} onChange={e => setForm(p => ({ ...p, phone: maskPhoneInput(e.target.value) }))} placeholder="(11) 99999-9999" className="input-base flex-1" />
             <label className="flex items-center gap-1.5 text-xs text-text-secondary whitespace-nowrap cursor-pointer">
-              <input
-                type="checkbox"
-                name="phone_is_whatsapp"
-                checked={form.phone_is_whatsapp}
-                onChange={handleChange}
-                className="w-3.5 h-3.5 rounded"
-              />
+              <input type="checkbox" name="phone_is_whatsapp" checked={form.phone_is_whatsapp} onChange={handleChange} className="w-3.5 h-3.5 rounded" />
               WhatsApp
             </label>
           </div>
@@ -128,17 +123,109 @@ function NewUserModal({ onClose, onCreated }) {
 }
 
 
+// ── Modal: aprovar solicitação e enviar convite ───────────────────────────────
+function ApproveModal({ request, onClose, onDone }) {
+  const { logAction } = useAuditLog()
+  const [role, setRole]     = useState('csm')
+  const [loading, setLoading] = useState(false)
+
+  async function handleConfirm() {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error('Sessão expirada')
+
+      const fnUrl     = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`
+      const redirectTo = `${window.location.origin}/primeiro-acesso`
+
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: request.email, role, name: request.name, redirectTo }),
+      })
+      const data = await res.json()
+      if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao enviar convite')
+
+      // Marcar solicitação como invited (vem de access_requests) ou atualizar profile
+      if (request._source === 'access_requests') {
+        await supabase.from('access_requests').update({ status: 'invited' }).eq('id', request.id)
+      } else {
+        // Perfil pendente legado — atualiza role + status
+        await supabase.from('profiles').update({ role, status: 'invited' }).eq('id', request.id)
+      }
+
+      await logAction('invite_user', 'user', request.id, request.name, null, { role, email: request.email })
+      toast.success(`Convite enviado para ${request.email}`)
+      onDone?.()
+      onClose()
+    } catch (err) {
+      toast.error(err.message || 'Erro ao enviar convite')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Modal isOpen onClose={onClose} title="Aprovar e Convidar" maxWidth="max-w-sm">
+      <div className="space-y-4">
+        <p className="text-sm text-text-secondary">
+          Selecione o perfil para <strong className="text-text-primary">{request.name}</strong> e envie o convite por e-mail para{' '}
+          <span className="font-mono text-xs">{request.email}</span>.
+        </p>
+        <div>
+          <label className="label-sm">Perfil</label>
+          <select value={role} onChange={e => setRole(e.target.value)} className="input-base w-full">
+            <option value="csm">CSM</option>
+            <option value="analyst">Analyst</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
+        <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="button" disabled={loading} onClick={handleConfirm}>
+            {loading ? 'Enviando...' : 'Enviar Convite'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+
+// ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsUsers() {
   const { data: profiles = [], isLoading, refetch } = useProfiles()
   const { updateStatus, updateRole } = useProfilesMutations()
   const { canManageUsers } = usePermissions()
-  const [showNewUser, setShowNewUser] = useState(false)
-  const [editingUser, setEditingUser] = useState(null)
+  const [showNewUser, setShowNewUser]       = useState(false)
+  const [editingUser, setEditingUser]       = useState(null)
+  const [approvingRequest, setApprovingRequest] = useState(null)  // { ...request, _source }
+
+  // Solicitações de acesso pendentes (novo fluxo)
+  const { data: accessRequests = [], refetch: refetchAR } = useQuery({
+    queryKey: ['access_requests', 'pending'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('access_requests')
+        .select('*')
+        .in('status', ['pending'])
+        .order('created_at', { ascending: false })
+      return data || []
+    },
+  })
+
+  function refetchAll() { refetch(); refetchAR() }
 
   if (isLoading) return <PageSpinner />
 
-  const pending = profiles.filter(p => p.status === 'pending')
-  const rest    = profiles.filter(p => p.status !== 'pending')
+  const pendingProfiles = profiles.filter(p => p.status === 'pending')
+  const invitedProfiles = profiles.filter(p => p.status === 'invited')
+  const rest            = profiles.filter(p => p.status !== 'pending' && p.status !== 'invited')
+
+  const hasPending = accessRequests.length > 0 || pendingProfiles.length > 0
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -149,22 +236,70 @@ export function SettingsUsers() {
         )}
       </div>
 
-      {/* Pending approvals */}
-      {pending.length > 0 && (
+      {/* ── Solicitações pendentes ─────────────────────────────────────── */}
+      {hasPending && (
         <div className="bg-donc-amber/10 border border-donc-amber/30 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-donc-amber mb-3">Aguardando aprovação ({pending.length})</h3>
+          <h3 className="text-sm font-semibold text-donc-amber mb-3">
+            Aguardando aprovação ({accessRequests.length + pendingProfiles.length})
+          </h3>
           <div className="space-y-2">
-            {pending.map(p => (
+            {/* Novas solicitações via access_requests */}
+            {accessRequests.map(req => (
+              <div key={req.id} className="flex items-center gap-3 bg-bg-primary rounded-md p-3">
+                <Avatar name={req.name} size="md" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary">{req.name}</p>
+                  <p className="text-xs text-text-tertiary">{req.email}</p>
+                </div>
+                {canManageUsers && (
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="green"
+                      onClick={() => setApprovingRequest({ ...req, _source: 'access_requests' })}
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={async () => {
+                        await supabase.from('access_requests').update({ status: 'rejected' }).eq('id', req.id)
+                        refetchAR()
+                        toast.success('Solicitação rejeitada')
+                      }}
+                    >
+                      Rejeitar
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {/* Perfis pendentes legados */}
+            {pendingProfiles.map(p => (
               <div key={p.id} className="flex items-center gap-3 bg-bg-primary rounded-md p-3">
                 <Avatar name={p.name} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-text-primary">{p.name}</p>
-                  <p className="text-xs text-text-tertiary">{p.email} · {roleLabel[p.role]}</p>
+                  <p className="text-xs text-text-tertiary">{p.email} · legado</p>
                 </div>
                 {canManageUsers && (
                   <div className="flex gap-2">
-                    <Button size="sm" variant="green" onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'active', name: p.name })}>Aprovar</Button>
-                    <Button size="sm" variant="danger" onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'blocked', name: p.name })}>Rejeitar</Button>
+                    <Button
+                      size="sm"
+                      variant="green"
+                      onClick={() => setApprovingRequest({ ...p, _source: 'profiles' })}
+                    >
+                      Aprovar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'blocked', name: p.name })}
+                    >
+                      Rejeitar
+                    </Button>
                   </div>
                 )}
               </div>
@@ -173,7 +308,30 @@ export function SettingsUsers() {
         </div>
       )}
 
-      {/* All users */}
+      {/* ── Convites enviados ──────────────────────────────────────────── */}
+      {invitedProfiles.length > 0 && (
+        <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-text-primary mb-3">
+            Convites enviados ({invitedProfiles.length})
+          </h3>
+          <div className="space-y-2">
+            {invitedProfiles.map(p => (
+              <div key={p.id} className="flex items-center gap-3 py-2 border-b border-border-tertiary last:border-0">
+                <Avatar name={p.name} size="md" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-text-primary">{p.name}</p>
+                  <p className="text-xs text-text-tertiary">{p.email} · {roleLabel[p.role] || '—'}</p>
+                </div>
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-donc-sky/15 text-donc-sky whitespace-nowrap">
+                  Convite enviado
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Todos os usuários ativos/bloqueados ───────────────────────── */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
         <h3 className="text-sm font-semibold text-text-primary mb-3">Todos os usuários</h3>
         <div className="space-y-2">
@@ -188,7 +346,7 @@ export function SettingsUsers() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text-primary">{p.name}</p>
                 <p className="text-xs text-text-tertiary">{p.email}</p>
-                {(p.phone) && (
+                {p.phone && (
                   <p className="text-xs text-text-tertiary">
                     {formatPhone(p.phone)}{p.phone_is_whatsapp ? ' · WhatsApp' : ''}
                   </p>
@@ -221,14 +379,22 @@ export function SettingsUsers() {
         </div>
       </div>
 
-      {showNewUser && <NewUserModal onClose={() => setShowNewUser(false)} onCreated={refetch} />}
+      {/* ── Modais ────────────────────────────────────────────────────── */}
+      {showNewUser && <NewUserModal onClose={() => setShowNewUser(false)} onCreated={refetchAll} />}
       {editingUser && (
         <UserEditModal
           profile={editingUser}
           email={editingUser.email}
           title="Editar Usuário"
           onClose={() => setEditingUser(null)}
-          onSaved={refetch}
+          onSaved={refetchAll}
+        />
+      )}
+      {approvingRequest && (
+        <ApproveModal
+          request={approvingRequest}
+          onClose={() => setApprovingRequest(null)}
+          onDone={refetchAll}
         />
       )}
     </div>

@@ -6,6 +6,7 @@ import { Navbar } from './components/layout/Navbar'
 import { DonkieProvider } from './hooks/useDonkie'
 import { DonkiePanel } from './components/donkie/DonkiePanel'
 import { DonkieButton } from './components/donkie/DonkieButton'
+import { useFeatureFlags } from './hooks/useFeatureFlags'
 
 import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
@@ -23,6 +24,7 @@ import DoncAPIPendentes from './pages/DoncAPIPendentes'
 import ReportEditorPage from './pages/ReportEditorPage'
 import ReportPublicPage from './pages/ReportPublicPage'
 import AtendimentoPage from './pages/AtendimentoPage'
+import PrimeiroAcesso from './pages/PrimeiroAcesso'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -36,7 +38,20 @@ const qc = new QueryClient({
   },
 })
 
-// Layout autenticado — inclui Navbar + Donkie
+// Renderiza o Donkie apenas se a feature flag estiver habilitada para o perfil do usuário
+function DonkieGuard() {
+  const { profile } = useAuth()
+  const { isEnabled } = useFeatureFlags()
+  if (!isEnabled('donkie', profile?.role)) return null
+  return (
+    <>
+      <DonkiePanel />
+      <DonkieButton />
+    </>
+  )
+}
+
+// Layout autenticado — inclui Navbar + Donkie (condicional via feature flag)
 function AppLayout() {
   return (
     <DonkieProvider>
@@ -44,8 +59,7 @@ function AppLayout() {
         <Navbar />
         <Outlet />
       </div>
-      <DonkiePanel />
-      <DonkieButton />
+      <DonkieGuard />
     </DonkieProvider>
   )
 }
@@ -55,8 +69,23 @@ function PrivateRoute() {
   const location = useLocation()
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
+
+  // Usuário autenticado sem perfil ainda (veio do link de convite)
+  if (!profile && location.pathname !== '/primeiro-acesso') {
+    return <Navigate to="/primeiro-acesso" replace />
+  }
+
   if (profile?.status === 'pending') return <PendingPage status="pending" />
   if (profile?.status === 'blocked') return <PendingPage status="blocked" />
+
+  // Usuário convidado que ainda não completou o primeiro acesso
+  if (profile?.status === 'invited' && location.pathname !== '/primeiro-acesso') {
+    return <Navigate to="/primeiro-acesso" replace />
+  }
+
+  // /primeiro-acesso não usa AppLayout (sem Navbar)
+  if (location.pathname === '/primeiro-acesso') return <Outlet />
+
   // Analyst só pode acessar /atendimento
   if (profile?.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
     return <Navigate to="/atendimento" replace />
@@ -105,6 +134,7 @@ function AppRoutes() {
 
       {/* Protected routes — dentro do AppLayout (Navbar + Donkie) */}
       <Route element={<PrivateRoute />}>
+        <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
         <Route path="/atendimento" element={<AtendimentoPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/empresas" element={<ClientsPage />} />

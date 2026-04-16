@@ -10,12 +10,13 @@ import { SettingsDonkie } from './SettingsDonkie'
 import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
 import { SettingsMinhaConta } from './SettingsMinhaConta'
+import { SettingsFeatureFlags } from './SettingsFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
 
 const BASE_MENU = [
-  { key: 'minha-conta', icon: '👤',  label: 'Minha Conta' },
-  { key: 'health',    icon: '❤️',  label: 'Health Score' },
+  { key: 'minha-conta',    icon: '👤',  label: 'Minha Conta' },
+  { key: 'health',         icon: '❤️',  label: 'Health Score' },
   { key: 'catalog',   icon: '📦',  label: 'Catálogos'   },
   { key: 'segments',  icon: '🏷️',  label: 'Segmentos'   },
   { key: 'stages',    icon: '🔄',  label: 'Estágios'    },
@@ -24,7 +25,8 @@ const BASE_MENU = [
   { key: 'freshdesk', icon: '🎧',  label: 'Freshdesk',  adminOnly: true },
   { key: 'donkie',    icon: '🤖',  label: 'Donkie',     adminOnly: true },
   { key: 'ai',        icon: '✨',  label: 'IA',          adminOnly: true },
-  { key: 'donc-api',  icon: '🔌',  label: 'API DONC',   managerOnly: true },
+  { key: 'donc-api',  icon: '🔌',  label: 'API DONC',        managerOnly: true },
+  { key: 'features',  icon: '🚩',  label: 'Funcionalidades', adminOnly: true  },
 ]
 
 export default function SettingsPage() {
@@ -77,6 +79,7 @@ export default function SettingsPage() {
         {section === 'donkie'    && isAdmin && <SettingsDonkie />}
         {section === 'ai'        && isAdmin   && <SettingsAI />}
         {section === 'donc-api'  && isManager && <SettingsDoncAPI />}
+        {section === 'features'  && isAdmin   && <SettingsFeatureFlags />}
       </main>
     </div>
   )

@@ -1,0 +1,794 @@
+{
+  "name": "donccx",
+  "type": "directory",
+  "children": [
+    {
+      "name": ".vercel",
+      "type": "directory",
+      "children": [
+        {
+          "name": "project.json",
+          "type": "file"
+        },
+        {
+          "name": "README.txt",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "scripts",
+      "type": "directory",
+      "children": [
+        {
+          "name": "freshdesk-map-companies.js",
+          "type": "file"
+        },
+        {
+          "name": "freshdesk-mapping.json",
+          "type": "file"
+        },
+        {
+          "name": "freshdesk-sync.js",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "src",
+      "type": "directory",
+      "children": [
+        {
+          "name": "components",
+          "type": "directory",
+          "children": [
+            {
+              "name": "activities",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "ActivitiesPage.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "ActivityDetailModal.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "ActivityModal.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "clients",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "tabs",
+                  "type": "directory",
+                  "children": [
+                    {
+                      "name": "operacional",
+                      "type": "directory",
+                      "children": [
+                        {
+                          "name": "ClientSubDados.jsx",
+                          "type": "file"
+                        },
+                        {
+                          "name": "ClientSubOnboarding.jsx",
+                          "type": "file"
+                        },
+                        {
+                          "name": "ClientSubProjetos.jsx",
+                          "type": "file"
+                        },
+                        {
+                          "name": "ClientSubRelatorios.jsx",
+                          "type": "file"
+                        },
+                        {
+                          "name": "ClientSubSuporte.jsx",
+                          "type": "file"
+                        },
+                        {
+                          "name": "ClientSubUso.jsx",
+                          "type": "file"
+                        },
+                        {
+                          "name": "RegistrarDadosModal.jsx",
+                          "type": "file"
+                        }
+                      ]
+                    },
+                    {
+                      "name": "ClientTabActivities.jsx",
+                      "type": "file"
+                    },
+                    {
+                      "name": "ClientTabContatos.jsx",
+                      "type": "file"
+                    },
+                    {
+                      "name": "ClientTabHealth.jsx",
+                      "type": "file"
+                    },
+                    {
+                      "name": "ClientTabOperacional.jsx",
+                      "type": "file"
+                    },
+                    {
+                      "name": "ClientTabOverview.jsx",
+                      "type": "file"
+                    }
+                  ]
+                },
+                {
+                  "name": "ClientDetail.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "ClientForm.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "ClientsPage.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "contacts",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "ContactModal.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "ContactPanel.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "ContactsPage.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "dashboard",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "BrazilMap.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "DashboardPage.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "donkie",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "DonkieButton.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "DonkiePanel.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "layout",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "Navbar.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "projects",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "ProjectsPage.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "settings",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "SettingsAI.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsCatalog.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsDoncAPI.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsDonkie.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsFreshdesk.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsHealth.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsLogs.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsPage.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsSegments.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsStages.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "SettingsUsers.jsx",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "ui",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "Avatar.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "Badge.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "Button.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "Card.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "HealthBar.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "Modal.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "PageHeader.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "Spinner.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "StagePill.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "UserEditModal.jsx",
+                  "type": "file"
+                },
+                {
+                  "name": "VersionBadge.jsx",
+                  "type": "file"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "contexts",
+          "type": "directory",
+          "children": [
+            {
+              "name": "AuthContext.jsx",
+              "type": "file"
+            }
+          ]
+        },
+        {
+          "name": "hooks",
+          "type": "directory",
+          "children": [
+            {
+              "name": "useActivities.js",
+              "type": "file"
+            },
+            {
+              "name": "useAuditLog.js",
+              "type": "file"
+            },
+            {
+              "name": "useCatalog.js",
+              "type": "file"
+            },
+            {
+              "name": "useClient.js",
+              "type": "file"
+            },
+            {
+              "name": "useClientReports.js",
+              "type": "file"
+            },
+            {
+              "name": "useClients.js",
+              "type": "file"
+            },
+            {
+              "name": "useContacts.js",
+              "type": "file"
+            },
+            {
+              "name": "useDonkie.jsx",
+              "type": "file"
+            },
+            {
+              "name": "useHealthConfig.js",
+              "type": "file"
+            },
+            {
+              "name": "useHealthScore.js",
+              "type": "file"
+            },
+            {
+              "name": "useMilestones.js",
+              "type": "file"
+            },
+            {
+              "name": "useModulePricing.js",
+              "type": "file"
+            },
+            {
+              "name": "usePermissions.js",
+              "type": "file"
+            },
+            {
+              "name": "useProfiles.js",
+              "type": "file"
+            },
+            {
+              "name": "useProjects.js",
+              "type": "file"
+            },
+            {
+              "name": "useSegments.js",
+              "type": "file"
+            },
+            {
+              "name": "useStages.js",
+              "type": "file"
+            }
+          ]
+        },
+        {
+          "name": "lib",
+          "type": "directory",
+          "children": [
+            {
+              "name": "billing.js",
+              "type": "file"
+            },
+            {
+              "name": "formatPhone.js",
+              "type": "file"
+            },
+            {
+              "name": "freshdeskConfig.js",
+              "type": "file"
+            },
+            {
+              "name": "freshdeskSync.js",
+              "type": "file"
+            },
+            {
+              "name": "healthScore.js",
+              "type": "file"
+            },
+            {
+              "name": "openrouterService.js",
+              "type": "file"
+            },
+            {
+              "name": "reportGenerator.js",
+              "type": "file"
+            },
+            {
+              "name": "supabaseClient.js",
+              "type": "file"
+            },
+            {
+              "name": "supportUtils.js",
+              "type": "file"
+            }
+          ]
+        },
+        {
+          "name": "pages",
+          "type": "directory",
+          "children": [
+            {
+              "name": "AtendimentoPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "DoncAPIPendentes.jsx",
+              "type": "file"
+            },
+            {
+              "name": "FreshdeskPendingPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "LoginPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "PendingPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "ReportEditorPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "ReportPublicPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "ResetPasswordPage.jsx",
+              "type": "file"
+            },
+            {
+              "name": "SolicitarAcessoPage.jsx",
+              "type": "file"
+            }
+          ]
+        },
+        {
+          "name": "App.jsx",
+          "type": "file"
+        },
+        {
+          "name": "index.css",
+          "type": "file"
+        },
+        {
+          "name": "main.jsx",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": "supabase",
+      "type": "directory",
+      "children": [
+        {
+          "name": ".temp",
+          "type": "directory",
+          "children": [
+            {
+              "name": "cli-latest",
+              "type": "file"
+            },
+            {
+              "name": "gotrue-version",
+              "type": "file"
+            },
+            {
+              "name": "pooler-url",
+              "type": "file"
+            },
+            {
+              "name": "postgres-version",
+              "type": "file"
+            },
+            {
+              "name": "project-ref",
+              "type": "file"
+            },
+            {
+              "name": "rest-version",
+              "type": "file"
+            },
+            {
+              "name": "storage-migration",
+              "type": "file"
+            },
+            {
+              "name": "storage-version",
+              "type": "file"
+            }
+          ]
+        },
+        {
+          "name": "functions",
+          "type": "directory",
+          "children": [
+            {
+              "name": "create-user",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.ts",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "donc-api-sync",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.ts",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "donkie-chat",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.ts",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "freshdesk-proxy",
+              "type": "directory",
+              "children": [
+                {
+                  "name": ".env",
+                  "type": "file"
+                },
+                {
+                  "name": "index.ts",
+                  "type": "file"
+                }
+              ]
+            },
+            {
+              "name": "openrouter-proxy",
+              "type": "directory",
+              "children": [
+                {
+                  "name": "index.ts",
+                  "type": "file"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "migrations",
+          "type": "directory",
+          "children": [
+            {
+              "name": "001_initial.sql",
+              "type": "file"
+            },
+            {
+              "name": "002_fix_rls.sql",
+              "type": "file"
+            },
+            {
+              "name": "003_seed_health_config.sql",
+              "type": "file"
+            },
+            {
+              "name": "004_freshdesk_integration.sql",
+              "type": "file"
+            },
+            {
+              "name": "005_contact_emails.sql",
+              "type": "file"
+            },
+            {
+              "name": "006_sync_catalog_from_module_pricing.sql",
+              "type": "file"
+            },
+            {
+              "name": "007_client_catalog_status.sql",
+              "type": "file"
+            },
+            {
+              "name": "008_client_catalog_history.sql",
+              "type": "file"
+            },
+            {
+              "name": "008b_client_catalog_history_seed.sql",
+              "type": "file"
+            },
+            {
+              "name": "009_health_rules_v2.sql",
+              "type": "file"
+            },
+            {
+              "name": "010_health_calculated_at.sql",
+              "type": "file"
+            },
+            {
+              "name": "011_projects.sql",
+              "type": "file"
+            },
+            {
+              "name": "012_milestone_fields.sql",
+              "type": "file"
+            },
+            {
+              "name": "013_fix_papel_tecnico.sql",
+              "type": "file"
+            },
+            {
+              "name": "014_freshdesk_multi_ids.sql",
+              "type": "file"
+            },
+            {
+              "name": "015_client_reports.sql",
+              "type": "file"
+            },
+            {
+              "name": "016_donkie.sql",
+              "type": "file"
+            },
+            {
+              "name": "016b_donkie_prompt.sql",
+              "type": "file"
+            },
+            {
+              "name": "017_unique_name_constraints.sql",
+              "type": "file"
+            },
+            {
+              "name": "018_analyst_role.sql",
+              "type": "file"
+            },
+            {
+              "name": "019_freshdesk_config.sql",
+              "type": "file"
+            },
+            {
+              "name": "020_donc_api_integration.sql",
+              "type": "file"
+            }
+          ]
+        },
+        {
+          "name": "config.toml",
+          "type": "file"
+        },
+        {
+          "name": "fix_rls_policies.sql",
+          "type": "file"
+        }
+      ]
+    },
+    {
+      "name": ".env.example",
+      "type": "file"
+    },
+    {
+      "name": ".env.local",
+      "type": "file"
+    },
+    {
+      "name": ".gitignore",
+      "type": "file"
+    },
+    {
+      "name": "CLAUDE.md",
+      "type": "file"
+    },
+    {
+      "name": "client_secret_947552296513-ncc9jn1g4ghje3j4itps7nbm0i4ppv75.apps.googleusercontent.com.json",
+      "type": "file"
+    },
+    {
+      "name": "error.txt",
+      "type": "file"
+    },
+    {
+      "name": "generateTree.js",
+      "type": "file"
+    },
+    {
+      "name": "generateTree.mjs",
+      "type": "file"
+    },
+    {
+      "name": "index.html",
+      "type": "file"
+    },
+    {
+      "name": "LICENSE",
+      "type": "file"
+    },
+    {
+      "name": "OAuthClient.jpg",
+      "type": "file"
+    },
+    {
+      "name": "package-lock.json",
+      "type": "file"
+    },
+    {
+      "name": "package.json",
+      "type": "file"
+    },
+    {
+      "name": "postcss.config.js",
+      "type": "file"
+    },
+    {
+      "name": "README.md",
+      "type": "file"
+    },
+    {
+      "name": "STORAGE_SETUP.md",
+      "type": "file"
+    },
+    {
+      "name": "supabase_windows_amd64.tar.gz",
+      "type": "file"
+    },
+    {
+      "name": "supabase.exe",
+      "type": "file"
+    },
+    {
+      "name": "tailwind.config.js",
+      "type": "file"
+    },
+    {
+      "name": "test_fs.js",
+      "type": "file"
+    },
+    {
+      "name": "test.txt",
+      "type": "file"
+    },
+    {
+      "name": "testTree.js",
+      "type": "file"
+    },
+    {
+      "name": "vercel.json",
+      "type": "file"
+    },
+    {
+      "name": "vite.config.js",
+      "type": "file"
+    }
+  ]
+}
