@@ -870,7 +870,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
 
       const createRes = await fetch(fnUrl, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${token}`, 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: '/tickets', method: 'POST', body: ticketPayload }),
       })
       const created = await createRes.json()
@@ -888,7 +888,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       if (form.first_reply?.trim() && created.id) {
         const replyRes = await fetch(fnUrl, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${token}`, 'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             path:   `/tickets/${created.id}/reply`,
             method: 'POST',

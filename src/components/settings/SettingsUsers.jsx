@@ -44,6 +44,7 @@ function NewUserModal({ onClose, onCreated }) {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ name: form.name, email: form.email, password: form.password, role: form.role }),
@@ -142,6 +143,7 @@ function ApproveModal({ request, onClose, onDone }) {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email: request.email, role, name: request.name, redirectTo }),
