@@ -70,8 +70,30 @@ function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 }
 
+// ── Hook responsivo ──────────────────────────────────────────────────────────
+function useWindowWidth() {
+  const [width, setWidth] = useState(() => (typeof window !== 'undefined' ? window.innerWidth : 1024))
+  useEffect(() => {
+    function onResize() { setWidth(window.innerWidth) }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return width
+}
+
 // ── Header personalizado do analista ─────────────────────────────────────────
 function AnalystHeader({ profile }) {
+  const w        = useWindowWidth()
+  const isMobile = w < 640
+  const isTiny   = w < 380
+
+  const photoSize   = isTiny ? 80  : isMobile ? 100 : 170
+  const barHeight   = isMobile ? 90 : 130
+  const photoBottom = isMobile ? 20 : 30
+  const photoRight  = isMobile ? 16 : 24
+  const padTop      = isMobile ? 20 : 50
+  const padRight    = photoSize + 40   // 210px desktop · 140px mobile · 120px tiny
+
   // Contagem de atendimentos de ontem
   const { data: countYesterday = null } = useQuery({
     queryKey: ['whatsapp_tickets_yesterday', profile?.id],
@@ -104,49 +126,57 @@ function AnalystHeader({ profile }) {
       : `Você registrou ${countYesterday} atendimento${countYesterday !== 1 ? 's' : ''} ontem.`
 
   return (
-    <div style={{
-      position: 'relative',
-      overflow: 'visible',
-      backgroundColor: '#173557',
-      borderRadius: 14,
-      height: 70,
-      padding: '0 140px 0 24px',
-      marginBottom: 24,
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-    }}>
-      {/* Texto à esquerda */}
-      <div style={{ fontSize: 11, color: '#59c2ed', marginBottom: 2 }}>
-        {greetingByHour()}
-      </div>
-      <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-        {greetingByGender(gender, firstName)}
-      </div>
-      <div style={{ fontSize: 11, color: '#59c2ed', marginTop: 3 }}>
-        {todayLongPT()}
-        {countLine && <span style={{ marginLeft: 10, opacity: 0.85 }}>· {countLine}</span>}
-      </div>
-
-      {/* Avatar à direita vazando */}
+    // wrapper: cria espaço para a foto transbordar acima
+    <div style={{ overflow: 'visible', paddingTop: padTop, marginBottom: 24 }}>
       <div style={{
-        position: 'absolute',
-        right: 24,
-        top: '50%',
-        transform: 'translateY(-50%)',
-        width: 90, height: 90,
-        borderRadius: '50%',
-        border: '3px solid #d3da47',
-        overflow: 'hidden',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backgroundColor: '#0d2340',
-        fontSize: 24, fontWeight: 700, color: '#d3da47',
-        flexShrink: 0,
+        position: 'relative',
+        overflow: 'visible',
+        backgroundColor: '#173557',
+        borderRadius: 14,
+        height: barHeight,
+        paddingLeft: 24,
+        paddingRight: padRight,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
       }}>
-        {avatar
-          ? <img src={avatar} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          : initials(fullName)
-        }
+        {/* Texto à esquerda */}
+        <div style={{ fontSize: 11, color: '#59c2ed', marginBottom: 2 }}>
+          {greetingByHour()}
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+          {greetingByGender(gender, firstName)}
+        </div>
+        {!isTiny && (
+          <div style={{ fontSize: 11, color: '#59c2ed', marginTop: 3 }}>
+            {todayLongPT()}
+            {countLine && <span style={{ marginLeft: 10, opacity: 0.85 }}>· {countLine}</span>}
+          </div>
+        )}
+        {isTiny && countLine && (
+          <div style={{ fontSize: 11, color: '#59c2ed', marginTop: 3 }}>{countLine}</div>
+        )}
+
+        {/* Foto à direita transbordando para cima */}
+        <div style={{
+          position: 'absolute',
+          right: photoRight,
+          bottom: photoBottom,
+          width: photoSize,
+          height: photoSize,
+          borderRadius: '50%',
+          border: '3px solid #d3da47',
+          overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          backgroundColor: '#0d2340',
+          fontSize: Math.round(photoSize * 0.28), fontWeight: 700, color: '#d3da47',
+          flexShrink: 0,
+        }}>
+          {avatar
+            ? <img src={avatar} alt={fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            : initials(fullName)
+          }
+        </div>
       </div>
     </div>
   )
