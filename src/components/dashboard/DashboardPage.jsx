@@ -39,6 +39,12 @@ function greeting() {
   return 'Boa noite'
 }
 
+function greetingByGender(gender, name) {
+  if (gender === 'masculino') return `Bem-vindo, ${name}!`
+  if (gender === 'feminino')  return `Bem-vinda, ${name}!`
+  return `Olá, ${name}!`
+}
+
 function initials(name = '') {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 }
@@ -312,7 +318,7 @@ export default function DashboardPage() {
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12, color: '#8393A5' }}>{greeting()},</div>
               <div style={{ fontSize: 20, fontWeight: 600, color: '#fff', lineHeight: 1.2, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {profile?.name}
+                {greetingByGender(profile?.gender, profile?.name || '')}
               </div>
               <div style={{ fontSize: 12, color: '#8393A5', marginTop: 3 }}>{phrase}</div>
             </div>

@@ -9,10 +9,12 @@ import { SettingsFreshdesk } from './SettingsFreshdesk'
 import { SettingsDonkie } from './SettingsDonkie'
 import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
+import { SettingsMinhaConta } from './SettingsMinhaConta'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
 
 const BASE_MENU = [
+  { key: 'minha-conta', icon: '👤',  label: 'Minha Conta' },
   { key: 'health',    icon: '❤️',  label: 'Health Score' },
   { key: 'catalog',   icon: '📦',  label: 'Catálogos'   },
   { key: 'segments',  icon: '🏷️',  label: 'Segmentos'   },
@@ -28,7 +30,7 @@ const BASE_MENU = [
 export default function SettingsPage() {
   const { canManageUsers } = usePermissions()
   const { isAdmin } = useAuth()
-  const [section, setSection] = useState('health')
+  const [section, setSection] = useState('minha-conta')
 
   const { isManager } = useAuth()
 
@@ -64,6 +66,7 @@ export default function SettingsPage() {
 
       {/* Content */}
       <main className="flex-1 p-6">
+        {section === 'minha-conta' && <SettingsMinhaConta />}
         {section === 'health'    && <SettingsHealth />}
         {section === 'catalog'   && <SettingsCatalog />}
         {section === 'segments'  && <SettingsSegments />}

@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { analyzeWhatsApp } from '../lib/openrouterService'
 import { getFreshdeskConfig } from '../lib/freshdeskConfig'
+import { useAuth } from '../contexts/AuthContext'
+import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
 // ── Tipos de ticket (valores obrigatórios configurados no Freshdesk) ─────────
@@ -43,6 +45,107 @@ const S = {
     backgroundColor: disabled ? '#e8e7e3' : '#59c2ed',
     color: disabled ? '#888780' : '#fff',
   }),
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function greetingByHour() {
+  const h = new Date().getHours()
+  if (h >= 5  && h < 12) return 'Bom dia'
+  if (h >= 12 && h < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
+
+function greetingByGender(gender, name) {
+  if (gender === 'masculino') return `Bem-vindo, ${name}!`
+  if (gender === 'feminino')  return `Bem-vinda, ${name}!`
+  return `Olá, ${name}!`
+}
+
+function todayLongPT() {
+  const s = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+function initials(name = '') {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
+}
+
+// ── Header personalizado do analista ─────────────────────────────────────────
+function AnalystHeader({ profile }) {
+  // Contagem de atendimentos de ontem
+  const { data: countYesterday = null } = useQuery({
+    queryKey: ['whatsapp_tickets_yesterday', profile?.id],
+    enabled: !!profile?.id,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      const yStr = yesterday.toISOString().slice(0, 10)
+      const { count, error } = await supabase
+        .from('whatsapp_tickets')
+        .select('*', { count: 'exact', head: true })
+        .eq('analyst_id', profile.id)
+        .gte('created_at', yStr + 'T00:00:00.000Z')
+        .lte('created_at', yStr + 'T23:59:59.999Z')
+      if (error) return 0
+      return count || 0
+    },
+  })
+
+  const name     = profile?.name || ''
+  const gender   = profile?.gender || null
+  const avatar   = profile?.avatar_url || profile?.logo_url || null
+
+  const countLine = countYesterday === null
+    ? null
+    : countYesterday === 0
+      ? 'Nenhum atendimento registrado ontem.'
+      : `Você registrou ${countYesterday} atendimento${countYesterday !== 1 ? 's' : ''} ontem.`
+
+  return (
+    <div style={{
+      backgroundColor: '#173557',
+      borderRadius: 14,
+      padding: '20px 24px',
+      marginBottom: 24,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 20,
+    }}>
+      {/* Avatar */}
+      <div style={{
+        width: 60, height: 60, borderRadius: '50%', flexShrink: 0,
+        border: '3px solid #d3da47',
+        overflow: 'hidden',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: '#0d2340',
+        fontSize: 20, fontWeight: 700, color: '#d3da47',
+      }}>
+        {avatar
+          ? <img src={avatar} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          : initials(name)
+        }
+      </div>
+
+      {/* Texto */}
+      <div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 2 }}>
+          {greetingByHour()}
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+          {greetingByGender(gender, name)}
+        </div>
+        <div style={{ fontSize: 12, color: '#59c2ed', marginTop: 3 }}>
+          {todayLongPT()}
+        </div>
+        {countLine && (
+          <div style={{ fontSize: 12, color: '#59c2ed', marginTop: 2 }}>
+            {countLine}
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }
 
 // ── Indicador de progresso ────────────────────────────────────────────────────
@@ -762,6 +865,25 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         console.log('[AtendimentoPage] reply response:', replyRes.status, JSON.stringify(replyData, null, 2))
       }
 
+      // Salva registro em whatsapp_tickets
+      try {
+        const { data: { session: sess } } = await supabase.auth.getSession()
+        if (sess?.user?.id) {
+          const refMonth = new Date().toISOString().slice(0, 7) // 'YYYY-MM'
+          const ticketRow = {
+            analyst_id:          sess.user.id,
+            client_id:           data.client.id,
+            freshdesk_ticket_id: created.id || null,
+            subject:             form.subject.trim(),
+            ref_month:           refMonth,
+          }
+          if (data.contact?.id) ticketRow.contact_id = data.contact.id
+          await supabase.from('whatsapp_tickets').insert(ticketRow)
+        }
+      } catch (_) {
+        // Falha silenciosa — não bloqueia o fluxo principal
+      }
+
       setCreatedTicket(created)
     } catch (e) {
       setTicketError(e.message || 'Erro ao criar ticket')
@@ -910,6 +1032,7 @@ const INITIAL_DATA = {
 }
 
 export default function AtendimentoPage() {
+  const { profile } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState(INITIAL_DATA)
 
@@ -919,6 +1042,8 @@ export default function AtendimentoPage() {
 
   return (
     <div style={{ padding: '24px 24px 48px', maxWidth: 900, margin: '0 auto' }}>
+      <AnalystHeader profile={profile} />
+
       <div style={{ marginBottom: 4 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18', margin: 0 }}>📱 Atendimento WhatsApp</h1>
         <p style={{ fontSize: 13, color: '#888780', margin: '4px 0 0' }}>
