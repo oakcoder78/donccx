@@ -191,6 +191,16 @@ export function SettingsDoncAPI() {
   const [syncClientId,  setSyncClientId] = useState('')   // '' = todos
   const [syncing,       setSyncing]      = useState(false)
   const [syncResult,    setSyncResult]   = useState(null)
+  const [pendingCount,  setPendingCount] = useState(0)
+
+  const loadPendingCount = useCallback(async () => {
+    const { count } = await supabase
+      .from('client_usage')
+      .select('id', { count: 'exact', head: true })
+      .eq('pending', true)
+      .not('instance_id', 'is', null)
+    setPendingCount(count ?? 0)
+  }, [])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -208,7 +218,7 @@ export function SettingsDoncAPI() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { loadData() }, [loadData])
+  useEffect(() => { loadData(); loadPendingCount() }, [loadData, loadPendingCount])
 
   // Clientes que têm instâncias (para o dropdown de sync)
   const clientsWithInst = clients.filter(c => (instMap[c.id]?.length ?? 0) > 0)
@@ -269,6 +279,7 @@ export function SettingsDoncAPI() {
       if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
       setSyncResult(result)
       toast.success(`Sincronizado: ${result.synced} instância(s)`)
+      loadPendingCount()
     } catch (e) {
       toast.error(e.message)
     } finally {
@@ -307,6 +318,28 @@ export function SettingsDoncAPI() {
             onRemove={handleRemoveInstance}
           />
         ))}
+      </div>
+
+      {/* ── Ver registros pendentes ── */}
+      <div style={{ marginBottom: 20 }}>
+        <button
+          onClick={() => navigate('/config/donc-api/pendentes')}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600,
+            border: '1px solid #e8e7e3', cursor: 'pointer',
+            backgroundColor: '#fff', color: '#1a1a18',
+          }}
+        >
+          📋 Ver registros pendentes
+          <span style={{
+            fontSize: 12, fontWeight: 700, padding: '2px 9px', borderRadius: 10,
+            backgroundColor: pendingCount > 0 ? '#59c2ed' : '#e8e7e3',
+            color: pendingCount > 0 ? '#fff' : '#888780',
+          }}>
+            {pendingCount}
+          </span>
+        </button>
       </div>
 
       {/* ── Seção Sincronização Manual ── */}

@@ -161,8 +161,8 @@ function CompareRow({ label, current, proposed }) {
   return (
     <tr className="border-t border-border-tertiary">
       <td className="px-3 py-2 text-xs text-text-tertiary">{label}</td>
-      <td className="px-3 py-2 text-sm text-right text-text-secondary">{current ?? '—'}</td>
-      <td className={`px-3 py-2 text-sm text-right font-medium ${changed ? 'text-donc-sky' : 'text-text-secondary'}`}>
+      <td className="px-3 py-2 text-sm text-right text-text-secondary" style={{ width: 90 }}>{current ?? '—'}</td>
+      <td className={`px-3 py-2 text-sm text-right font-medium ${changed ? 'text-donc-sky' : 'text-text-secondary'}`} style={{ width: 100 }}>
         {proposed ?? '—'}
       </td>
     </tr>
@@ -535,32 +535,37 @@ function PendingCard({ record, onAction }) {
   return (
     <>
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-        {/* Header */}
-        <div className="px-4 py-3 bg-bg-secondary border-b border-border-tertiary flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0 flex-wrap">
-            <span className="font-semibold text-text-primary text-sm truncate">{record.client?.fantasy_name || record.client?.name}</span>
-            <span className="text-xs text-text-tertiary flex-shrink-0">{fmtMonth(record.ref_month)}</span>
+        {/* Header navy */}
+        <div style={{ backgroundColor: '#173557', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
+            <span style={{ fontWeight: 600, color: '#fff', fontSize: 14 }}>{record.client?.fantasy_name || record.client?.name}</span>
+            <span style={{ fontSize: 11, backgroundColor: '#59c2ed', color: '#173557', fontWeight: 700, padding: '2px 8px', borderRadius: 4, flexShrink: 0 }}>{fmtMonth(record.ref_month)}</span>
             {totalNew > 0 && (
-              <span className="text-xs bg-donc-sky/15 text-donc-sky rounded px-1.5 py-0.5 flex-shrink-0">
+              <span style={{ fontSize: 11, backgroundColor: 'rgba(89,194,237,0.25)', color: '#fff', borderRadius: 4, padding: '2px 8px', flexShrink: 0 }}>
                 +{totalNew} contato{totalNew !== 1 ? 's' : ''}{dupLabel}
               </span>
             )}
             {unresolvedCount > 0 && (
-              <span className="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5 flex-shrink-0">
+              <span style={{ fontSize: 11, backgroundColor: '#fde68a', color: '#92400e', borderRadius: 4, padding: '2px 8px', flexShrink: 0 }}>
                 ⚠️ {unresolvedCount} duplicata{unresolvedCount !== 1 ? 's' : ''} pendente{unresolvedCount !== 1 ? 's' : ''}
               </span>
             )}
           </div>
-          <div className="flex gap-2 flex-shrink-0">
-            <Button size="sm" variant="green"     onClick={() => act('approve')} disabled={busy}>Aprovar</Button>
-            <Button size="sm" variant="secondary" onClick={() => act('merge')}   disabled={busy}>Mesclar</Button>
-            <Button size="sm" variant="danger"    onClick={() => act('reject')}  disabled={busy}>Rejeitar</Button>
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button disabled={busy} onClick={() => act('approve')} style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: busy ? '#ccc' : '#d3da47', color: busy ? '#888' : '#173557' }}>Aprovar</button>
+            <button disabled={busy} onClick={() => act('merge')}   style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: busy ? '#ccc' : '#59c2ed', color: busy ? '#888' : '#173557' }}>Mesclar</button>
+            <button disabled={busy} onClick={() => act('reject')}  style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 500, border: '1px solid rgba(255,255,255,0.4)', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: 'transparent', color: '#fff' }}>Rejeitar</button>
           </div>
         </div>
 
         <div className="p-4">
           {/* Comparação de métricas */}
-          <table className="w-full text-sm mb-3">
+          <table className="w-full text-sm mb-3" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 'auto' }} />
+              <col style={{ width: 90 }} />
+              <col style={{ width: 100 }} />
+            </colgroup>
             <thead>
               <tr className="bg-bg-secondary">
                 <th className="text-left px-3 py-1.5 text-xs font-medium text-text-tertiary">Campo</th>

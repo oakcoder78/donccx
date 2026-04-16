@@ -16,6 +16,13 @@ function fmtNum(v) {
   return Number(v).toLocaleString('pt-BR')
 }
 
+function isCurrentMonth(refMonth) {
+  if (!refMonth) return false
+  const now = new Date()
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return refMonth === cur
+}
+
 // ── Campos comparados em ordem ─────────────────────────────────────────────────
 const COMPARE_FIELDS = [
   { key: 'os_created',              label: 'OS criadas'             },
@@ -46,12 +53,11 @@ function CmpCell({ current, next }) {
   let color = '#888780'
   let arrow = null
   if (next !== null && next !== undefined && current !== null && current !== undefined) {
-    if (next > current) { color = '#16a34a'; arrow = '▲' }
+    if (next > current)      { color = '#16a34a'; arrow = '▲' }
     else if (next < current) { color = '#dc2626'; arrow = '▼' }
-    else { color = '#888780' }
   }
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
       <span style={{ fontSize: 13, fontWeight: 600, color }}>{fmtNum(next)}</span>
       {arrow && <span style={{ fontSize: 10, color }}>{arrow}</span>}
     </div>
@@ -60,8 +66,8 @@ function CmpCell({ current, next }) {
 
 // ── Card de um registro pendente ───────────────────────────────────────────────
 function PendingCard({ row, onAction, dismissing }) {
-  const snap   = row.donc_snapshot
-  const apiVals = snapshotValues(snap)
+  const snap       = row.donc_snapshot
+  const apiVals    = snapshotValues(snap)
   const os_por_tipo = snap?.osPorTipo ?? row.os_por_tipo ?? null
 
   const [acting, setActing] = useState(null)
@@ -74,6 +80,7 @@ function PendingCard({ row, onAction, dismissing }) {
 
   const instLabel = row.client_donc_instances?.label ?? `ID ${row.instance_id}`
   const refLabel  = fmtMonth(row.ref_month)
+  const isPartial = isCurrentMonth(row.ref_month)
 
   return (
     <div
@@ -82,26 +89,39 @@ function PendingCard({ row, onAction, dismissing }) {
         borderRadius: 10,
         marginBottom: 12,
         overflow: 'hidden',
+        backgroundColor: '#fff',
         opacity: dismissing ? 0 : 1,
         transform: dismissing ? 'translateY(-6px)' : 'translateY(0)',
         transition: 'opacity 0.25s, transform 0.25s',
       }}
     >
-      {/* Header */}
-      <div style={{ backgroundColor: '#f7f7f5', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #e8e7e3' }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>
+      {/* Topbar navy */}
+      <div style={{ backgroundColor: '#173557', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>
           {instLabel}
         </span>
-        <span style={{ fontSize: 11, color: '#888780', backgroundColor: '#e8e7e3', padding: '2px 8px', borderRadius: 4 }}>{refLabel}</span>
+        <span style={{ fontSize: 11, color: '#173557', backgroundColor: '#59c2ed', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+          {refLabel}
+        </span>
+        {isPartial && (
+          <span style={{ fontSize: 11, color: '#92400e', backgroundColor: '#fde68a', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+            ⚠️ Dados parciais
+          </span>
+        )}
       </div>
 
       {/* Tabela comparação */}
       <div style={{ padding: '12px 16px', overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: 'auto' }} />
+            <col style={{ width: 90 }} />
+            <col style={{ width: 110 }} />
+          </colgroup>
           <thead>
             <tr>
               <th style={{ textAlign: 'left', color: '#888780', fontWeight: 600, paddingBottom: 6, paddingRight: 16, whiteSpace: 'nowrap' }}>Campo</th>
-              <th style={{ textAlign: 'right', color: '#888780', fontWeight: 600, paddingBottom: 6, paddingRight: 16 }}>Atual</th>
+              <th style={{ textAlign: 'right', color: '#888780', fontWeight: 600, paddingBottom: 6, paddingRight: 8 }}>Atual</th>
               <th style={{ textAlign: 'right', color: '#888780', fontWeight: 600, paddingBottom: 6 }}>API DONC</th>
             </tr>
           </thead>
@@ -109,7 +129,7 @@ function PendingCard({ row, onAction, dismissing }) {
             {COMPARE_FIELDS.map(f => (
               <tr key={f.key} style={{ borderTop: '1px solid #f0f0ec' }}>
                 <td style={{ padding: '5px 16px 5px 0', color: '#555452', whiteSpace: 'nowrap' }}>{f.label}</td>
-                <td style={{ padding: '5px 16px 5px 0', textAlign: 'right', color: '#888780' }}>{fmtNum(row[f.key])}</td>
+                <td style={{ padding: '5px 8px 5px 0', textAlign: 'right', color: '#888780' }}>{fmtNum(row[f.key])}</td>
                 <td style={{ padding: '5px 0', textAlign: 'right' }}>
                   <CmpCell current={row[f.key]} next={apiVals[f.key]} />
                 </td>
@@ -138,14 +158,14 @@ function PendingCard({ row, onAction, dismissing }) {
         <button
           disabled={!!acting}
           onClick={() => act('approve')}
-          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: acting ? 'not-allowed' : 'pointer', backgroundColor: acting === 'approve' ? '#e8e7e3' : '#16a34a', color: acting === 'approve' ? '#888780' : '#fff' }}
+          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: acting ? 'not-allowed' : 'pointer', backgroundColor: acting === 'approve' ? '#e8e7e3' : '#d3da47', color: acting === 'approve' ? '#888780' : '#173557' }}
         >
           {acting === 'approve' ? '...' : 'Aprovar'}
         </button>
         <button
           disabled={!!acting}
           onClick={() => act('merge')}
-          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: acting ? 'not-allowed' : 'pointer', backgroundColor: acting === 'merge' ? '#e8e7e3' : '#173557', color: acting === 'merge' ? '#888780' : '#fff' }}
+          style={{ padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600, border: 'none', cursor: acting ? 'not-allowed' : 'pointer', backgroundColor: acting === 'merge' ? '#e8e7e3' : '#59c2ed', color: acting === 'merge' ? '#888780' : '#173557' }}
         >
           {acting === 'merge' ? '...' : 'Mesclar'}
         </button>
@@ -163,11 +183,12 @@ function PendingCard({ row, onAction, dismissing }) {
 
 // ── Página principal ───────────────────────────────────────────────────────────
 export default function DoncAPIPendentes() {
-  const navigate  = useNavigate()
-  const [rows,     setRows]     = useState([])
-  const [loading,  setLoading]  = useState(true)
+  const navigate   = useNavigate()
+  const [rows,       setRows]      = useState([])
+  const [loading,    setLoading]   = useState(true)
   const [dismissing, setDismissing] = useState(new Set())
-  const [approving, setApproving]  = useState(false)
+  const [approving,  setApproving]  = useState(false)
+  const [rejecting,  setRejecting]  = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -199,26 +220,23 @@ export default function DoncAPIPendentes() {
   }, {})
 
   async function doAction(row, type) {
-    const snap     = row.donc_snapshot
-    const apiVals  = snapshotValues(snap)
+    const snap    = row.donc_snapshot
+    const apiVals = snapshotValues(snap)
 
     let patch = { pending: false }
 
     if (type === 'approve') {
-      // Substitui todos os campos pelo valor da API
       Object.assign(patch, apiVals, {
-        os_por_tipo:    snap?.osPorTipo   ?? null,
-        donc_snapshot:  snap,
+        os_por_tipo:   snap?.osPorTipo  ?? null,
+        donc_snapshot: snap,
       })
     } else if (type === 'merge') {
-      // Preenche apenas campos zerados ou nulos
       for (const [k, v] of Object.entries(apiVals)) {
         const cur = row[k]
         if (cur === null || cur === undefined || cur === 0) patch[k] = v
       }
       if (!row.os_por_tipo && snap?.osPorTipo) patch.os_por_tipo = snap.osPorTipo
     }
-    // reject: só pending = false
 
     const { error } = await supabase
       .from('client_usage')
@@ -230,7 +248,6 @@ export default function DoncAPIPendentes() {
     const label = type === 'approve' ? 'Aprovado' : type === 'merge' ? 'Mesclado' : 'Rejeitado'
     toast.success(label)
 
-    // Animação de saída
     setDismissing(prev => new Set([...prev, row.id]))
     setTimeout(() => {
       setRows(prev => prev.filter(r => r.id !== row.id))
@@ -247,10 +264,19 @@ export default function DoncAPIPendentes() {
     setApproving(false)
   }
 
+  async function rejectAll() {
+    if (!window.confirm(`Rejeitar todos os ${rows.length} registros pendentes?`)) return
+    setRejecting(true)
+    for (const row of rows) {
+      await doAction(row, 'reject')
+    }
+    setRejecting(false)
+  }
+
   return (
     <div style={{ maxWidth: 780, margin: '0 auto', padding: '24px 16px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
         <button
           onClick={() => navigate('/configuracoes')}
           style={{ fontSize: 13, color: '#888780', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
@@ -262,18 +288,27 @@ export default function DoncAPIPendentes() {
           Registros Pendentes — API DONC
         </h1>
         {rows.length > 0 && (
-          <span style={{ fontSize: 12, backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 600, padding: '2px 10px', borderRadius: 10, marginLeft: 4 }}>
+          <span style={{ fontSize: 12, backgroundColor: '#59c2ed', color: '#fff', fontWeight: 700, padding: '2px 10px', borderRadius: 10 }}>
             {rows.length}
           </span>
         )}
         {rows.length > 1 && (
-          <button
-            onClick={approveAll}
-            disabled={approving}
-            style={{ marginLeft: 'auto', padding: '7px 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: 'none', cursor: approving ? 'not-allowed' : 'pointer', backgroundColor: approving ? '#e8e7e3' : '#16a34a', color: approving ? '#888780' : '#fff' }}
-          >
-            {approving ? 'Aprovando...' : 'Aprovar todos'}
-          </button>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button
+              onClick={approveAll}
+              disabled={approving || rejecting}
+              style={{ padding: '7px 18px', borderRadius: 7, fontSize: 13, fontWeight: 600, border: 'none', cursor: (approving || rejecting) ? 'not-allowed' : 'pointer', backgroundColor: (approving || rejecting) ? '#e8e7e3' : '#173557', color: (approving || rejecting) ? '#888780' : '#fff' }}
+            >
+              {approving ? 'Aprovando...' : 'Aprovar todos'}
+            </button>
+            <button
+              onClick={rejectAll}
+              disabled={approving || rejecting}
+              style={{ padding: '7px 18px', borderRadius: 7, fontSize: 13, fontWeight: 500, border: '1px solid #d4d3ce', cursor: (approving || rejecting) ? 'not-allowed' : 'pointer', backgroundColor: '#fff', color: '#888780' }}
+            >
+              {rejecting ? 'Rejeitando...' : 'Rejeitar todos'}
+            </button>
+          </div>
         )}
       </div>
 

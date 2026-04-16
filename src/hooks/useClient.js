@@ -18,7 +18,7 @@ export function useClient(id) {
           activities(*, responsible:profiles(id,name), contacts(id,name)),
           milestones(*, milestone_tasks(*)),
           projects(*, responsible:profiles(id, name), milestones(*, milestone_tasks(*))),
-          client_usage(*),
+          client_usage(*, client_donc_instances(id, label)),
           client_support(*),
           client_catalog_history(*, catalog_items(type)),
           onboarding_phases(*, onboarding_tasks(*))

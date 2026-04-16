@@ -14,6 +14,18 @@ function fmtMonth(ym) {
   return `${months[parseInt(m) - 1]}/${y.slice(2)}`
 }
 
+function fmtNum(v) {
+  if (v === null || v === undefined) return '—'
+  return Number(v).toLocaleString('pt-BR')
+}
+
+function isCurrentMonth(ym) {
+  if (!ym) return false
+  const now = new Date()
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  return ym === cur
+}
+
 export function ClientSubUso({ client, onEdit }) {
   const { remove } = useClientUsageMutations()
 
@@ -31,7 +43,7 @@ export function ClientSubUso({ client, onEdit }) {
     datasets: [
       {
         label: 'OS Criadas',
-        data: chartData6.map(u => u.os_created),
+        data: chartData6.map(u => u.os_created ?? null),
         borderColor: '#59c2ed',
         backgroundColor: 'rgba(89,194,237,0.08)',
         fill: true, tension: 0.4, pointRadius: 4,
@@ -39,7 +51,7 @@ export function ClientSubUso({ client, onEdit }) {
       },
       {
         label: 'Usuários Ativos',
-        data: chartData6.map(u => u.active_users),
+        data: chartData6.map(u => u.active_users ?? null),
         borderColor: '#1D9E75',
         backgroundColor: 'rgba(29,158,117,0.06)',
         fill: true, tension: 0.4, pointRadius: 4,
@@ -56,6 +68,22 @@ export function ClientSubUso({ client, onEdit }) {
       x: { grid: { display: false } },
     },
   }
+
+  // Agrupa por ref_month (mais recente primeiro)
+  const monthGroups = []
+  const monthSeen = new Set()
+  for (const u of [...sorted].reverse()) {
+    if (!monthSeen.has(u.ref_month)) {
+      monthSeen.add(u.ref_month)
+      monthGroups.push({
+        month: u.ref_month,
+        rows: [...sorted].reverse().filter(r => r.ref_month === u.ref_month),
+      })
+    }
+  }
+
+  const today = new Date().getDate()
+  const COL_COUNT = 8
 
   return (
     <div className="space-y-5">
@@ -78,39 +106,108 @@ export function ClientSubUso({ client, onEdit }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-bg-secondary">
-                  <th className="text-left px-4 py-2 text-xs font-medium text-text-tertiary">Mês</th>
-                  <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary">OS Criadas</th>
-                  <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary">Usuários Ativos</th>
-                  <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary">Ações</th>
+                  <th className="text-left px-4 py-2 text-xs font-medium text-text-tertiary" style={{ minWidth: 100 }}>Mês</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-tertiary" style={{ width: 80 }}>OS Criadas</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-tertiary" style={{ width: 80 }}>Usuários At.</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-tertiary" style={{ width: 80 }}>OS Finaliz.</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-tertiary" style={{ width: 80 }}>OS Abertas</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-tertiary" style={{ width: 80 }}>OS Cancel.</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-text-tertiary" style={{ width: 80 }}>Unidades</th>
+                  <th className="text-right px-4 py-2 text-xs font-medium text-text-tertiary" style={{ width: 72 }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {[...sorted].reverse().map(u => (
-                  <tr key={u.ref_month} className="border-t border-border-tertiary hover:bg-bg-secondary transition-colors">
-                    <td className="px-4 py-2.5 font-medium text-text-primary">{fmtMonth(u.ref_month)}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{(u.os_created ?? 0).toLocaleString('pt-BR')}</td>
-                    <td className="px-4 py-2.5 text-right text-text-secondary">{(u.active_users ?? 0).toLocaleString('pt-BR')}</td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => onEdit(u.ref_month)}
-                          className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => handleDelete(u)}
-                          disabled={remove.isPending}
-                          className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-red transition-colors"
-                          title="Excluir"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {monthGroups.flatMap(({ month, rows }) => {
+                  const multiInst = rows.length > 1
+                  const partial   = isCurrentMonth(month)
+                  const entries   = []
+
+                  // Cabeçalho de mês quando há múltiplas instâncias
+                  if (multiInst) {
+                    entries.push(
+                      <tr key={`mhdr-${month}`} className="bg-bg-secondary border-t border-border-tertiary">
+                        <td colSpan={COL_COUNT} className="px-4 py-1.5">
+                          <span className="text-xs font-semibold text-text-primary">{fmtMonth(month)}</span>
+                          {partial && (
+                            <span className="ml-2 text-xs font-medium" style={{ color: '#b45309' }}>
+                              (dados até dia {today})
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  }
+
+                  rows.forEach((u, idx) => {
+                    const instLabel  = u.client_donc_instances?.label
+                    const osPorTipo  = Array.isArray(u.os_por_tipo) && u.os_por_tipo.length > 0 ? u.os_por_tipo : null
+
+                    const firstColContent = multiInst
+                      ? (instLabel || `Instância ${u.instance_id ?? idx + 1}`)
+                      : fmtMonth(month)
+
+                    const partialNote = !multiInst && partial
+                      ? <span className="ml-1 text-xs" style={{ color: '#b45309', fontWeight: 500 }}
+                              title={`Dados coletados até ${today}/${String(new Date().getMonth() + 1).padStart(2, '0')}`}>(até dia {today})</span>
+                      : null
+
+                    entries.push(
+                      <tr key={u.id || `${month}-${idx}`} className="border-t border-border-tertiary hover:bg-bg-secondary transition-colors">
+                        <td className="px-4 py-2.5 font-medium text-text-primary" style={{ minWidth: 100 }}>
+                          {firstColContent}{partialNote}
+                        </td>
+                        <td className="px-3 py-2.5 text-right text-text-secondary" style={{ width: 80 }}>{fmtNum(u.os_created)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-secondary" style={{ width: 80 }}>{fmtNum(u.active_users)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-secondary" style={{ width: 80 }}>{fmtNum(u.os_finalizadas)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-secondary" style={{ width: 80 }}>{fmtNum(u.os_abertas)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-secondary" style={{ width: 80 }}>{fmtNum(u.os_canceladas)}</td>
+                        <td className="px-3 py-2.5 text-right text-text-secondary" style={{ width: 80 }}>{fmtNum(u.unidades)}</td>
+                        <td className="px-4 py-2.5 text-right" style={{ width: 72 }}>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => onEdit(u.ref_month)}
+                              className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => handleDelete(u)}
+                              disabled={remove.isPending}
+                              className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-red transition-colors"
+                              title="Excluir"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+
+                    // Chips de OS por tipo
+                    if (osPorTipo) {
+                      entries.push(
+                        <tr key={`chips-${u.id || `${month}-${idx}`}`} className="border-t border-border-tertiary bg-bg-secondary">
+                          <td colSpan={COL_COUNT} className="px-4 py-2">
+                            <div className="flex flex-wrap gap-1.5">
+                              {osPorTipo.map((t, ti) => (
+                                <span
+                                  key={ti}
+                                  className="text-xs rounded px-2 py-0.5"
+                                  style={{ backgroundColor: '#e8e7e3', color: '#1a1a18' }}
+                                >
+                                  {t.tipo ?? t.type ?? '?'}: {fmtNum(t.quantidade ?? t.count ?? t.total)}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    }
+                  })
+
+                  return entries
+                })}
               </tbody>
             </table>
           </div>
