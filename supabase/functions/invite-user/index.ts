@@ -37,7 +37,22 @@ serve(async (req) => {
       )
     }
 
-    // 4. Send invite email via Supabase Auth admin
+    // 4. Verificar se já existe usuário Auth com esse email
+    const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers({ perPage: 1000 })
+    if (listError) {
+      console.error('listUsers error:', listError.message)
+    }
+    const existingUser = users?.find(u => u.email === email)
+
+    if (existingUser) {
+      console.log('User already exists in Auth:', email, 'id:', existingUser.id)
+      return new Response(
+        JSON.stringify({ success: true, existing: true, user_id: existingUser.id }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 5. Send invite email via Supabase Auth admin
     const inviteOptions: { data: Record<string, string>; redirectTo?: string } = {
       data: { role, name },
     }
@@ -59,7 +74,7 @@ serve(async (req) => {
     console.log('Invite sent to:', email, 'user_id:', data.user?.id)
 
     return new Response(
-      JSON.stringify({ success: true, user_id: data.user?.id }),
+      JSON.stringify({ success: true, existing: false, user_id: data.user?.id }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {

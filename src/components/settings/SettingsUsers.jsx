@@ -63,11 +63,17 @@ function InviteUserModal({ onClose, onDone }) {
       const data = await res.json()
       if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao enviar convite')
 
-      // Atualizar status para invited
-      await supabase.from('profiles').update({ status: 'invited' }).eq('id', profile.id)
+      const isExisting = data?.existing === true
+      await supabase
+        .from('profiles')
+        .update({ status: isExisting ? 'active' : 'invited' })
+        .eq('id', profile.id)
 
       await logAction('invite_user', 'user', profile.id, form.name, null, { role: form.role, email: form.email })
-      toast.success(`Convite enviado para ${form.email}`)
+      toast.success(isExisting
+        ? `Acesso liberado diretamente para ${form.email}`
+        : `Convite enviado para ${form.email}`
+      )
       onDone?.()
       onClose()
     } catch (err) {
@@ -133,16 +139,24 @@ function ApproveModal({ request, onClose, onDone }) {
       const data = await res.json()
       if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao enviar convite')
 
-      // Marcar solicitação como invited (vem de access_requests) ou atualizar profile
+      const isExisting = data?.existing === true
+      const newStatus  = isExisting ? 'active' : 'invited'
+
       if (request._source === 'access_requests') {
-        await supabase.from('access_requests').update({ status: 'invited' }).eq('id', request.id)
+        await supabase.from('access_requests').update({ status: newStatus }).eq('id', request.id)
+        // Se usuário já existe, garantir que o profile esteja ativo com a role escolhida
+        if (isExisting && data.user_id) {
+          await supabase.from('profiles').update({ role, status: 'active' }).eq('id', data.user_id)
+        }
       } else {
-        // Perfil pendente legado — atualiza role + status
-        await supabase.from('profiles').update({ role, status: 'invited' }).eq('id', request.id)
+        await supabase.from('profiles').update({ role, status: newStatus }).eq('id', request.id)
       }
 
       await logAction('invite_user', 'user', request.id, request.name, null, { role, email: request.email })
-      toast.success(`Acesso aprovado! Email enviado para ${request.email}`)
+      toast.success(isExisting
+        ? `Acesso liberado diretamente para ${request.email}`
+        : `Acesso aprovado! Email enviado para ${request.email}`
+      )
       onDone?.()
       onClose()
     } catch (err) {

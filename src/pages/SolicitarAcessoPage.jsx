@@ -17,18 +17,24 @@ export default function SolicitarAcessoPage() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { error } = await supabase
-        .from('access_requests')
-        .insert({ name: form.name.trim(), email: form.email.trim().toLowerCase() })
-      if (error) {
-        // Erro de email duplicado — mensagem amigável
-        if (error.code === '23505') {
-          toast.error('Este e-mail já tem uma solicitação em andamento.')
-        } else {
-          throw error
-        }
+      const email = form.email.trim().toLowerCase()
+
+      // Verificar se já existe um profile com esse email
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+      if (existing) {
+        toast.error('Este email já possui uma solicitação pendente ou conta ativa')
         return
       }
+
+      const { error } = await supabase
+        .from('profiles')
+        .insert({ name: form.name.trim(), email, status: 'pending', role: null })
+      if (error) throw error
+
       setSent(true)
     } catch (err) {
       toast.error(err.message || 'Erro ao enviar solicitação')
