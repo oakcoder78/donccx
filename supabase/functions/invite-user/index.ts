@@ -12,10 +12,9 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Extract Bearer token
+    // 1. Verificar presença do header Authorization
     const authHeader = req.headers.get('Authorization') ?? ''
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : ''
-    if (!token) {
+    if (!authHeader.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -29,30 +28,7 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // 3. Validate caller JWT
-    const { data: { user: caller }, error: authError } = await adminClient.auth.getUser(token)
-    if (authError || !caller) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid or expired token', detail: authError?.message }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // 4. Check caller is admin or manager
-    const { data: callerProfile } = await adminClient
-      .from('profiles')
-      .select('role')
-      .eq('id', caller.id)
-      .maybeSingle()
-
-    if (!callerProfile || !['admin', 'manager'].includes(callerProfile.role)) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient permissions' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    // 5. Parse body
+    // 3. Parse body
     const { email, role, name, redirectTo } = await req.json()
     if (!email || !role || !name) {
       return new Response(
@@ -61,7 +37,7 @@ serve(async (req) => {
       )
     }
 
-    // 6. Send invite email via Supabase Auth admin
+    // 4. Send invite email via Supabase Auth admin
     const inviteOptions: { data: Record<string, string>; redirectTo?: string } = {
       data: { role, name },
     }
