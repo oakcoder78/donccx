@@ -12,25 +12,28 @@ const GENDER_OPTIONS = [
 ]
 
 export default function PrimeiroAcesso() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile } = useAuth()
   const navigate = useNavigate()
-  const [gender, setGender]             = useState(profile?.gender || '')
-  const [phone, setPhone]               = useState(profile?.phone || '')
-  const [avatarFile, setAvatarFile]     = useState(null)
-  const [avatarPreview, setAvatarPreview] = useState(null)
-  const [saving, setSaving]             = useState(false)
 
-  // Redirecionar usuários já ativos que caiam aqui por engano
+  const [gender, setGender]               = useState(profile?.gender || '')
+  const [phone, setPhone]                 = useState(profile?.phone || '')
+  const [avatarFile, setAvatarFile]       = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(null)
+  const [password, setPassword]           = useState('')
+  const [confirm, setConfirm]             = useState('')
+  const [errors, setErrors]               = useState({})
+  const [saving, setSaving]               = useState(false)
+
   useEffect(() => {
     if (profile?.status === 'active') {
       navigate(profile.role === 'analyst' ? '/atendimento' : '/dashboard', { replace: true })
     }
   }, [profile])
 
-  // Dados vindos do user_metadata (enviado pelo invite-user Edge Function)
-  const metaName = user?.user_metadata?.name || user?.email || ''
-  const metaRole = user?.user_metadata?.role || 'csm'
+  const metaName    = user?.user_metadata?.name || user?.email || ''
+  const metaRole    = user?.user_metadata?.role || 'csm'
   const displayName = (profile?.name || metaName).split(' ')[0]
+  const currentAvatar = avatarPreview || profile?.avatar_url || null
 
   function handleAvatarChange(e) {
     const file = e.target.files?.[0]
@@ -39,14 +42,34 @@ export default function PrimeiroAcesso() {
     setAvatarPreview(URL.createObjectURL(file))
   }
 
-  function redirectAfterSetup(role) {
-    navigate(role === 'analyst' ? '/atendimento' : '/dashboard', { replace: true })
+  function validate() {
+    const errs = {}
+    if (!password) {
+      errs.password = 'Senha é obrigatória'
+    } else if (password.length < 6) {
+      errs.password = 'Senha deve ter no mínimo 6 caracteres'
+    }
+    if (!confirm) {
+      errs.confirm = 'Confirmação de senha é obrigatória'
+    } else if (confirm !== password) {
+      errs.confirm = 'As senhas não coincidem'
+    }
+    return errs
   }
 
   async function handleSave() {
     if (!user?.id) return
+    const errs = validate()
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs)
+      return
+    }
+    setErrors({})
     setSaving(true)
     try {
+      const { error: pwError } = await supabase.auth.updateUser({ password })
+      if (pwError) throw pwError
+
       const patch = {
         id:     user.id,
         name:   profile?.name || metaName,
@@ -57,7 +80,6 @@ export default function PrimeiroAcesso() {
         phone:  phone.trim() || null,
       }
 
-      // Upload de foto se fornecida
       if (avatarFile) {
         const ext  = avatarFile.name.split('.').pop()
         const path = `${user.id}/avatar.${ext}`
@@ -72,19 +94,19 @@ export default function PrimeiroAcesso() {
         }
       }
 
-      const { error } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .upsert(patch, { onConflict: 'id' })
-      if (error) throw error
+      if (profileError) throw profileError
 
       await supabase
         .from('access_requests')
         .update({ status: 'approved' })
         .eq('email', user.email)
 
-      await refreshProfile()
-      toast.success('Perfil completado!')
-      redirectAfterSetup(patch.role)
+      await supabase.auth.signOut()
+      toast.success('Perfil configurado! Faça login com sua nova senha.')
+      navigate('/login', { replace: true })
     } catch (e) {
       toast.error(e.message || 'Erro ao salvar perfil')
     } finally {
@@ -92,35 +114,10 @@ export default function PrimeiroAcesso() {
     }
   }
 
-  async function handleSkip() {
-    if (!user?.id) return
-    setSaving(true)
-    try {
-      await supabase.from('profiles').upsert({
-        id:     user.id,
-        name:   profile?.name || metaName,
-        email:  user.email,
-        role:   profile?.role || metaRole,
-        status: 'active',
-      }, { onConflict: 'id' })
-      await supabase
-        .from('access_requests')
-        .update({ status: 'approved' })
-        .eq('email', user.email)
-      await refreshProfile()
-    } catch (_) {
-      // Falha silenciosa — não impede o redirecionamento
-    } finally {
-      setSaving(false)
-    }
-    redirectAfterSetup(profile?.role || metaRole)
-  }
-
   return (
     <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
 
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-0.5 mb-2">
             <span className="text-donc-lime font-bold text-3xl">donc</span>
@@ -133,22 +130,22 @@ export default function PrimeiroAcesso() {
             Bem-vindo(a), {displayName}!
           </h1>
           <p className="text-sm text-text-tertiary mb-5">
-            Complete seu perfil para começar. Todos os campos são opcionais.
+            Configure seu perfil e defina sua senha para começar.
           </p>
 
           <div className="space-y-4">
             {/* Foto de perfil */}
             <div className="flex flex-col items-center gap-2">
               <div className="w-20 h-20 rounded-full overflow-hidden bg-donc-navy flex items-center justify-center border-2 border-border-tertiary flex-shrink-0">
-                {avatarPreview
-                  ? <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                {currentAvatar
+                  ? <img src={currentAvatar} alt="Avatar" className="w-full h-full object-cover" />
                   : <span className="text-white font-bold text-2xl">
                       {(profile?.name || metaName || 'U')[0].toUpperCase()}
                     </span>
                 }
               </div>
               <label className="cursor-pointer text-xs text-donc-sky hover:underline">
-                Adicionar foto de perfil
+                {currentAvatar ? 'Alterar foto de perfil' : 'Adicionar foto de perfil'}
                 <input
                   type="file"
                   accept="image/*"
@@ -183,20 +180,46 @@ export default function PrimeiroAcesso() {
               />
             </div>
 
+            {/* Senha */}
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                Defina sua senha de acesso <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })) }}
+                placeholder="Mínimo 6 caracteres"
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky ${errors.password ? 'border-red-400' : 'border-border-secondary'}`}
+              />
+              {errors.password && (
+                <p className="text-xs text-red-500 mt-1">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Confirmar senha */}
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                Confirmar senha <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                value={confirm}
+                onChange={e => { setConfirm(e.target.value); setErrors(prev => ({ ...prev, confirm: undefined })) }}
+                placeholder="Repita a senha"
+                className={`w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky ${errors.confirm ? 'border-red-400' : 'border-border-secondary'}`}
+              />
+              {errors.confirm && (
+                <p className="text-xs text-red-500 mt-1">{errors.confirm}</p>
+              )}
+            </div>
+
             <button
               onClick={handleSave}
               disabled={saving}
               className="w-full py-2 px-4 bg-donc-navy text-white rounded-md text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
             >
               {saving ? 'Salvando...' : 'Completar perfil'}
-            </button>
-
-            <button
-              onClick={handleSkip}
-              disabled={saving}
-              className="w-full py-2 text-xs text-text-tertiary hover:text-text-secondary transition-colors"
-            >
-              Pular por agora
             </button>
           </div>
         </div>
