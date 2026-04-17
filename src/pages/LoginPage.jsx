@@ -2,14 +2,20 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/Button'
+import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle, profile } = useAuth()
+  const { signIn, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading]   = useState(false)
+
+  const [forgotOpen, setForgotOpen]     = useState(false)
+  const [resetEmail, setResetEmail]     = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetSent, setResetSent]       = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -22,6 +28,20 @@ export default function LoginPage() {
   async function handleGoogle() {
     const { error } = await signInWithGoogle()
     if (error) toast.error(error.message || 'Erro ao entrar com Google')
+  }
+
+  async function handleResetSubmit(e) {
+    e.preventDefault()
+    setResetLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+      redirectTo: 'https://donccx.vercel.app/reset-password',
+    })
+    setResetLoading(false)
+    if (error) {
+      toast.error(error.message || 'Erro ao enviar email de recuperação')
+      return
+    }
+    setResetSent(true)
   }
 
   return (
@@ -51,7 +71,16 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">Senha</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-text-secondary">Senha</label>
+                <button
+                  type="button"
+                  onClick={() => { setForgotOpen(o => !o); setResetSent(false) }}
+                  className="text-xs text-donc-sky hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
+              </div>
               <input
                 type="password"
                 value={password}
@@ -61,6 +90,37 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
+
+            {/* Recuperação de senha inline */}
+            {forgotOpen && (
+              <div className="rounded-md border border-border-tertiary bg-bg-secondary p-3 space-y-2">
+                {resetSent ? (
+                  <p className="text-xs text-donc-lime text-center py-1">
+                    Verifique seu email — enviamos um link para redefinir sua senha.
+                  </p>
+                ) : (
+                  <form onSubmit={handleResetSubmit} className="space-y-2">
+                    <p className="text-xs text-text-tertiary">Informe seu email para receber o link de recuperação.</p>
+                    <input
+                      type="email"
+                      value={resetEmail}
+                      onChange={e => setResetEmail(e.target.value)}
+                      required
+                      placeholder="seu@email.com"
+                      className="w-full px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
+                    />
+                    <button
+                      type="submit"
+                      disabled={resetLoading}
+                      className="w-full py-2 px-3 bg-donc-sky text-white text-xs font-medium rounded-md hover:bg-donc-sky/90 disabled:opacity-50 transition-colors"
+                    >
+                      {resetLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
             <Button type="submit" className="w-full justify-center" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>

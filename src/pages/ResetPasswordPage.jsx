@@ -56,7 +56,7 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (password.length < 8) { toast.error('A senha deve ter ao menos 8 caracteres'); return }
+    if (password.length < 6) { toast.error('A senha deve ter ao menos 6 caracteres'); return }
     if (password !== confirm) { toast.error('As senhas não coincidem'); return }
 
     setLoading(true)
@@ -65,8 +65,8 @@ export default function ResetPasswordPage() {
 
     if (updateError) { toast.error(updateError.message || 'Erro ao salvar senha'); return }
 
-    toast.success('Senha alterada com sucesso!')
-    navigate('/dashboard')
+    toast.success('Senha redefinida com sucesso!')
+    setTimeout(() => navigate('/login'), 2000)
   }
 
   return (
@@ -107,8 +107,8 @@ export default function ResetPasswordPage() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     required
-                    minLength={8}
-                    placeholder="mínimo 8 caracteres"
+                    minLength={6}
+                    placeholder="mínimo 6 caracteres"
                     className="w-full px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
                   />
                 </div>
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
                     required
-                    minLength={8}
+                    minLength={6}
                     placeholder="repita a senha"
                     className="w-full px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
                   />
