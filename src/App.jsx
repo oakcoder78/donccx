@@ -70,24 +70,23 @@ function PrivateRoute() {
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
 
-  // Usuário autenticado sem perfil ainda (veio do link de convite)
-  if (!profile && location.pathname !== '/primeiro-acesso') {
+  // Profile ainda carregando após onAuthStateChange — aguardar silenciosamente
+  if (!profile) return <Navigate to="/primeiro-acesso" replace />
+
+  if (profile.status === 'pending') return <PendingPage status="pending" />
+  if (profile.status === 'blocked') return <PendingPage status="blocked" />
+
+  // Convidado que ainda não completou o primeiro acesso
+  if (profile.status === 'invited') return <Navigate to="/primeiro-acesso" replace />
+
+  // Perfil recém-criado sem setup (ex: acesso liberado diretamente sem passar pelo fluxo)
+  const ageMs = Date.now() - new Date(profile.created_at).getTime()
+  if (ageMs < 5 * 60 * 1000 && !profile.gender && !profile.avatar_url) {
     return <Navigate to="/primeiro-acesso" replace />
   }
-
-  if (profile?.status === 'pending') return <PendingPage status="pending" />
-  if (profile?.status === 'blocked') return <PendingPage status="blocked" />
-
-  // Usuário convidado que ainda não completou o primeiro acesso
-  if (profile?.status === 'invited' && location.pathname !== '/primeiro-acesso') {
-    return <Navigate to="/primeiro-acesso" replace />
-  }
-
-  // /primeiro-acesso não usa AppLayout (sem Navbar)
-  if (location.pathname === '/primeiro-acesso') return <Outlet />
 
   // Analyst só pode acessar /atendimento
-  if (profile?.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
+  if (profile.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
     return <Navigate to="/atendimento" replace />
   }
   return <AppLayout />
@@ -127,6 +126,7 @@ function AppRoutes() {
 
       {/* Public auth routes */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
       <Route element={<AuthRedirect />}>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
@@ -134,7 +134,6 @@ function AppRoutes() {
 
       {/* Protected routes — dentro do AppLayout (Navbar + Donkie) */}
       <Route element={<PrivateRoute />}>
-        <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
         <Route path="/atendimento" element={<AtendimentoPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/empresas" element={<ClientsPage />} />

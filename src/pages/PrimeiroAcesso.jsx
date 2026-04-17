@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
@@ -19,6 +19,13 @@ export default function PrimeiroAcesso() {
   const [avatarFile, setAvatarFile]     = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(null)
   const [saving, setSaving]             = useState(false)
+
+  // Redirecionar usuários já ativos que caiam aqui por engano
+  useEffect(() => {
+    if (profile?.status === 'active') {
+      navigate(profile.role === 'analyst' ? '/atendimento' : '/dashboard', { replace: true })
+    }
+  }, [profile])
 
   // Dados vindos do user_metadata (enviado pelo invite-user Edge Function)
   const metaName = user?.user_metadata?.name || user?.email || ''
