@@ -13,19 +13,23 @@ export default function ResetPasswordPage() {
   const timeoutRef = useRef(null)
 
   useEffect(() => {
-    // Se o evento PASSWORD_RECOVERY não disparar em 5s, link é inválido/expirado
-    timeoutRef.current = setTimeout(() => {
-      if (!showForm) {
-        setError('Link inválido ou expirado. Solicite um novo e-mail de redefinição.')
-      }
-    }, 5000)
+    // Verificar sessão já existente (Supabase pode ter processado o token antes da montagem)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setShowForm(true)
+    })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+    // Fallback: aguardar evento do Supabase (PASSWORD_RECOVERY ou SIGNED_IN via link)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         clearTimeout(timeoutRef.current)
         setShowForm(true)
       }
     })
+
+    // Timeout de 15s como último recurso
+    timeoutRef.current = setTimeout(() => {
+      setError(prev => prev ?? 'Link inválido ou expirado. Solicite um novo e-mail de redefinição.')
+    }, 15000)
 
     return () => {
       clearTimeout(timeoutRef.current)
