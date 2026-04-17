@@ -6,7 +6,7 @@ const response = await fetch('https://api.supabase.com/v1/projects/etfeqblaeuhao
   },
   body: JSON.stringify({
     site_url: 'https://donccx.vercel.app',
-    additional_redirect_urls: 'https://donccx.vercel.app,https://donccx.vercel.app/reset-password,https://donccx.vercel.app/primeiro-acesso'
+    uri_allow_list: 'https://donccx.vercel.app,https://donccx.vercel.app/reset-password,https://donccx.vercel.app/primeiro-acesso'
   })
 })
 const data = await response.json()
