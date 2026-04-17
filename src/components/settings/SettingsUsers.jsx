@@ -140,16 +140,10 @@ function ApproveModal({ request, onClose, onDone }) {
       if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao enviar convite')
 
       const isExisting = data?.existing === true
-      const newStatus  = isExisting ? 'active' : 'invited'
 
-      if (request._source === 'access_requests') {
-        await supabase.from('access_requests').update({ status: newStatus }).eq('id', request.id)
-        // Se usuário já existe, garantir que o profile esteja ativo com a role escolhida
-        if (isExisting && data.user_id) {
-          await supabase.from('profiles').update({ role, status: 'active' }).eq('id', data.user_id)
-        }
-      } else {
-        await supabase.from('profiles').update({ role, status: newStatus }).eq('id', request.id)
+      await supabase.from('access_requests').update({ status: 'approved' }).eq('id', request.id)
+      if (isExisting && data.user_id) {
+        await supabase.from('profiles').update({ role, status: 'active' }).eq('id', data.user_id)
       }
 
       await logAction('invite_user', 'user', request.id, request.name, null, { role, email: request.email })
@@ -219,11 +213,10 @@ export function SettingsUsers() {
 
   if (isLoading) return <PageSpinner />
 
-  const pendingProfiles = profiles.filter(p => p.status === 'pending')
   const invitedProfiles = profiles.filter(p => p.status === 'invited')
   const rest            = profiles.filter(p => p.status !== 'pending' && p.status !== 'invited')
 
-  const hasPending = accessRequests.length > 0 || pendingProfiles.length > 0
+  const hasPending = accessRequests.length > 0
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -235,10 +228,9 @@ export function SettingsUsers() {
       {hasPending && (
         <div className="bg-donc-amber/10 border border-donc-amber/30 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-donc-amber mb-3">
-            Aguardando aprovação ({accessRequests.length + pendingProfiles.length})
+            Aguardando aprovação ({accessRequests.length})
           </h3>
           <div className="space-y-2">
-            {/* Novas solicitações via access_requests */}
             {accessRequests.map(req => (
               <div key={req.id} className="flex items-center gap-3 bg-bg-primary rounded-md p-3">
                 <Avatar name={req.name} size="md" />
@@ -251,7 +243,7 @@ export function SettingsUsers() {
                     <Button
                       size="sm"
                       variant="green"
-                      onClick={() => setApprovingRequest({ ...req, _source: 'access_requests' })}
+                      onClick={() => setApprovingRequest(req)}
                     >
                       Aprovar
                     </Button>
@@ -261,39 +253,6 @@ export function SettingsUsers() {
                       onClick={async () => {
                         await supabase.from('access_requests').update({ status: 'rejected' }).eq('id', req.id)
                         refetchAR()
-                        toast.success('Solicitação rejeitada')
-                      }}
-                    >
-                      Rejeitar
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Perfis pendentes legados */}
-            {pendingProfiles.map(p => (
-              <div key={p.id} className="flex items-center gap-3 bg-bg-primary rounded-md p-3">
-                <Avatar name={p.name} size="md" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary">{p.name}</p>
-                  <p className="text-xs text-text-tertiary">{p.email}</p>
-                </div>
-                {canManageUsers && (
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="green"
-                      onClick={() => setApprovingRequest({ ...p, _source: 'profiles' })}
-                    >
-                      Aprovar
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      onClick={async () => {
-                        await supabase.from('profiles').update({ status: 'rejected' }).eq('id', p.id)
-                        refetch()
                         toast.success('Solicitação rejeitada')
                       }}
                     >

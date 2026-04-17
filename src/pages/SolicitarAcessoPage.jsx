@@ -19,20 +19,30 @@ export default function SolicitarAcessoPage() {
     try {
       const email = form.email.trim().toLowerCase()
 
-      // Verificar se já existe um profile com esse email
-      const { data: existing } = await supabase
-        .from('profiles')
+      const { data: existingAR } = await supabase
+        .from('access_requests')
         .select('id')
         .eq('email', email)
+        .in('status', ['pending', 'approved'])
         .maybeSingle()
-      if (existing) {
+      if (existingAR) {
         toast.error('Este email já possui uma solicitação pendente ou conta ativa')
         return
       }
 
-      const { error } = await supabase
+      const { data: existingProfile } = await supabase
         .from('profiles')
-        .insert({ name: form.name.trim(), email, status: 'pending', role: null })
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+      if (existingProfile) {
+        toast.error('Este email já possui uma conta ativa')
+        return
+      }
+
+      const { error } = await supabase
+        .from('access_requests')
+        .insert({ name: form.name.trim(), email, status: 'pending' })
       if (error) throw error
 
       setSent(true)
