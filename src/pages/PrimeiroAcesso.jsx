@@ -77,6 +77,11 @@ export default function PrimeiroAcesso() {
         .upsert(patch, { onConflict: 'id' })
       if (error) throw error
 
+      await supabase
+        .from('access_requests')
+        .update({ status: 'approved' })
+        .eq('email', user.email)
+
       await refreshProfile()
       toast.success('Perfil completado!')
       redirectAfterSetup(patch.role)
@@ -98,6 +103,10 @@ export default function PrimeiroAcesso() {
         role:   profile?.role || metaRole,
         status: 'active',
       }, { onConflict: 'id' })
+      await supabase
+        .from('access_requests')
+        .update({ status: 'approved' })
+        .eq('email', user.email)
       await refreshProfile()
     } catch (_) {
       // Falha silenciosa — não impede o redirecionamento

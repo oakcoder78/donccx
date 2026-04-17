@@ -216,7 +216,9 @@ export function SettingsUsers() {
   const invitedProfiles = profiles.filter(p => p.status === 'invited')
   const rest            = profiles.filter(p => p.status !== 'pending' && p.status !== 'invited')
 
-  const hasPending = accessRequests.length > 0
+  const activeEmails      = new Set(profiles.filter(p => p.status === 'active').map(p => p.email))
+  const pendingRequests   = accessRequests.filter(r => !activeEmails.has(r.email))
+  const hasPending        = pendingRequests.length > 0
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -228,10 +230,10 @@ export function SettingsUsers() {
       {hasPending && (
         <div className="bg-donc-amber/10 border border-donc-amber/30 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-donc-amber mb-3">
-            Aguardando aprovação ({accessRequests.length})
+            Aguardando aprovação ({pendingRequests.length})
           </h3>
           <div className="space-y-2">
-            {accessRequests.map(req => (
+            {pendingRequests.map(req => (
               <div key={req.id} className="flex items-center gap-3 bg-bg-primary rounded-md p-3">
                 <Avatar name={req.name} size="md" />
                 <div className="flex-1 min-w-0">
