@@ -30,8 +30,8 @@ export default function LoginPage() {
     if (error) toast.error(error.message || 'Erro ao entrar com Google')
   }
 
-  async function handleResetSubmit(e) {
-    e.preventDefault()
+  async function handleResetSubmit() {
+    if (!resetEmail.trim()) return
     setResetLoading(true)
     const { data, error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
       redirectTo: 'https://donccx.vercel.app/reset-password',
@@ -100,7 +100,7 @@ export default function LoginPage() {
                     Verifique seu email — enviamos um link para redefinir sua senha.
                   </p>
                 ) : (
-                  <form onSubmit={handleResetSubmit} className="space-y-2">
+                  <div className="space-y-2">
                     <p className="text-xs text-text-tertiary">Informe seu email para receber o link de recuperação.</p>
                     <input
                       type="email"
@@ -111,13 +111,14 @@ export default function LoginPage() {
                       className="w-full px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
                     />
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handleResetSubmit}
                       disabled={resetLoading}
                       className="w-full py-2 px-3 bg-donc-sky text-white text-xs font-medium rounded-md hover:bg-donc-sky/90 disabled:opacity-50 transition-colors"
                     >
                       {resetLoading ? 'Enviando...' : 'Enviar link de recuperação'}
                     </button>
-                  </form>
+                  </div>
                 )}
               </div>
             )}
