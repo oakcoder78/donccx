@@ -1,57 +1,36 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
-
-function parseHash(hash) {
-  const params = {}
-  hash.replace(/^#/, '').split('&').forEach(part => {
-    const [k, v] = part.split('=')
-    if (k) params[decodeURIComponent(k)] = decodeURIComponent(v || '')
-  })
-  return params
-}
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm]   = useState('')
   const [loading, setLoading]   = useState(false)
-  const [ready, setReady]       = useState(false)
+  const [showForm, setShowForm] = useState(false)
   const [error, setError]       = useState(null)
+  const timeoutRef = useRef(null)
 
   useEffect(() => {
-    async function init() {
-      // 1. Parsear o hash da URL antes do Supabase client consumi-lo
-      const params = parseHash(window.location.hash)
-
-      if (params.type === 'recovery' && params.access_token) {
-        // 2. Estabelecer a sessão com o token do link de recuperação
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: params.access_token,
-          refresh_token: params.refresh_token || '',
-        })
-        if (sessionError) {
-          setError('Link inválido ou expirado. Solicite um novo e-mail de redefinição.')
-          return
-        }
-        // 3. Limpar o hash da URL sem recarregar a página
-        window.history.replaceState(null, '', window.location.pathname)
-        setReady(true)
-        return
+    // Se o evento PASSWORD_RECOVERY não disparar em 5s, link é inválido/expirado
+    timeoutRef.current = setTimeout(() => {
+      if (!showForm) {
+        setError('Link inválido ou expirado. Solicite um novo e-mail de redefinição.')
       }
+    }, 5000)
 
-      // Fallback: se não há token no hash mas há sessão ativa, libera o formulário
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        setReady(true)
-        return
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        clearTimeout(timeoutRef.current)
+        setShowForm(true)
       }
+    })
 
-      setError('Link inválido ou expirado. Solicite um novo e-mail de redefinição.')
+    return () => {
+      clearTimeout(timeoutRef.current)
+      subscription.unsubscribe()
     }
-
-    init()
   }, [])
 
   async function handleSubmit(e) {
@@ -65,14 +44,14 @@ export default function ResetPasswordPage() {
 
     if (updateError) { toast.error(updateError.message || 'Erro ao salvar senha'); return }
 
-    toast.success('Senha redefinida com sucesso!')
+    await supabase.auth.signOut()
+    toast.success('Senha redefinida! Faça login com sua nova senha.')
     setTimeout(() => navigate('/login'), 2000)
   }
 
   return (
     <div className="min-h-screen bg-bg-secondary flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-0.5 mb-2">
             <span className="text-donc-lime font-bold text-3xl">donc</span>
@@ -94,8 +73,8 @@ export default function ResetPasswordPage() {
                 Voltar ao login
               </button>
             </div>
-          ) : !ready ? (
-            <p className="text-sm text-text-tertiary text-center py-4">Validando link...</p>
+          ) : !showForm ? (
+            <p className="text-sm text-text-tertiary text-center py-4">Verificando link...</p>
           ) : (
             <>
               <p className="text-sm text-text-tertiary mb-5">Digite e confirme sua nova senha.</p>
