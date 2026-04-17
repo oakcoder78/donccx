@@ -13,16 +13,20 @@ export default function ResetPasswordPage() {
   const timeoutRef = useRef(null)
 
   useEffect(() => {
+    async function activate(session) {
+      if (!session) return
+      await supabase.auth.signOut({ scope: 'others' })
+      clearTimeout(timeoutRef.current)
+      setShowForm(true)
+    }
+
     // Verificar sessão já existente (Supabase pode ter processado o token antes da montagem)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setShowForm(true)
-    })
+    supabase.auth.getSession().then(({ data: { session } }) => activate(session))
 
     // Fallback: aguardar evento do Supabase (PASSWORD_RECOVERY ou SIGNED_IN via link)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
-        clearTimeout(timeoutRef.current)
-        setShowForm(true)
+        activate(session)
       }
     })
 
