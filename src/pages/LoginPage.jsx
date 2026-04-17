@@ -33,9 +33,10 @@ export default function LoginPage() {
   async function handleResetSubmit(e) {
     e.preventDefault()
     setResetLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(resetEmail.trim(), {
       redirectTo: 'https://donccx.vercel.app/reset-password',
     })
+    console.log('[resetPassword] data:', data, 'error:', error)
     setResetLoading(false)
     if (error) {
       toast.error(error.message || 'Erro ao enviar email de recuperação')
