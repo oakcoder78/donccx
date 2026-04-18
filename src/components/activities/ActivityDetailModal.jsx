@@ -152,17 +152,64 @@ useEffect(() => {
 
               <div className="space-y-1">
                 {attachments.map((file) => (
-                  <div
-                    key={file.id}
-                    className="text-sm flex items-center justify-between border border-border-secondary rounded-md px-2 py-1"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(file)}
-                      className="text-sm text-blue-600 hover:underline"
+                  <div className="flex items-center justify-between gap-2 p-2 border border-border-tertiary rounded-md bg-bg-secondary">
+                    {/* File name */}
+                    <span
+                      className="text-sm text-text-primary truncate flex-1"
+                      title={file.file_name}
                     >
                       {file.file_name}
-                    </button>
+                    </span>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {/* Preview */}
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(file)}
+                        className="text-text-secondary hover:text-text-primary text-sm"
+                        title="Visualizar"
+                      >
+                        👁
+                      </button>
+
+                      {/* Download */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            const { data, error } =
+                              await supabase
+                                .storage
+                                .from('activity-attachments')
+                                .createSignedUrl(
+                                  file.storage_path,
+                                  60
+                                )
+
+                            if (error) {
+                              console.error(error)
+                              return
+                            }
+
+                            if (data?.signedUrl) {
+                              const link = document.createElement('a')
+                              link.href = data.signedUrl
+                              link.download = file.file_name
+                              document.body.appendChild(link)
+                              link.click()
+                              link.remove()
+                            }
+                          } catch (err) {
+                            console.error('Download error:', err)
+                          }
+                        }}
+                        className="text-text-secondary hover:text-text-primary text-sm"
+                        title="Download"
+                      >
+                        ⬇
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
