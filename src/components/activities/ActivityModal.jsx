@@ -5,6 +5,8 @@ import { useActivityMutations } from '../../hooks/useActivities'
 import { useClients } from '../../hooks/useClients'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useContacts } from '../../hooks/useContacts'
+import AttachmentInput from '../activityAttachments/AttachmentInput'
+import { saveActivityAttachments } from '../../services/activityAttachments/saveActivityAttachments'
 
 const TYPES = [
   { value: 'reuniao', label: 'Reunião' },
@@ -32,6 +34,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
     due_date: activity?.due_date || '',
     notes: activity?.notes || '',
   })
+  const [attachmentFiles, setAttachmentFiles] = useState([])
 
   const { create, update } = useActivityMutations()
   const { data: clients = [] } = useClients()
@@ -51,9 +54,68 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       contact_id: form.contact_id ? Number(form.contact_id) : null,
       responsible_id: form.responsible_id || null,
     }
-    if (isEdit) await update.mutateAsync({ id: activity.id, ...payload })
-    else await create.mutateAsync(payload)
+
+    let activityResult
+
+    if (isEdit) {
+      activityResult =
+        await update.mutateAsync({
+          id: activity.id,
+          ...payload
+        })
+    } else {
+      activityResult =
+        await create.mutateAsync(payload)
+    }
+
+    // Upload attachments if any exist
+    if (attachmentFiles.length > 0) {
+      let activityId
+
+      if (isEdit) {
+
+        activityId = activity.id
+
+      } else {
+
+        if (Array.isArray(activityResult)) {
+          activityId = activityResult[0]?.id
+        }
+
+        else if (activityResult?.data?.id) {
+          activityId = activityResult.data.id
+        }
+
+        else if (activityResult?.id) {
+          activityId = activityResult.id
+        }
+
+      }
+
+      if (!activityId) {
+
+        console.error(
+          'Erro: activityId não encontrado após criação',
+          activityResult
+        )
+
+        return
+
+      }
+
+      await saveActivityAttachments({
+        activityId,
+        clientId: payload.client_id,
+        userId: payload.responsible_id,
+        files: attachmentFiles
+      })
+    }
+
     onClose()
+  }
+
+  function handleFilesChange(files) {
+    setAttachmentFiles(files)
   }
 
   const isMutating = create.isPending || update.isPending
@@ -133,6 +195,10 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
           <textarea name="notes" value={form.notes} onChange={handleChange} rows={2}
             className="input-base w-full resize-none" />
         </div>
+
+        <AttachmentInput
+          onFilesChange={handleFilesChange}
+        />
 
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>

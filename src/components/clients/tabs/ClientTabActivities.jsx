@@ -40,7 +40,19 @@ export function ClientTabActivities({ client }) {
               {typeIcon[a.type]}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-text-primary truncate">{a.title || a.description}</p>
+              <div className="flex items-center gap-1">
+  <p className="text-sm font-medium text-text-primary truncate">
+    {a.title || a.description}
+  </p>
+  {a.has_attachments && (
+    <span
+      title="Possui anexos"
+      className="text-xs"
+    >
+      📎
+    </span>
+  )}
+</div>
               <p className="text-xs text-text-tertiary">{a.type} · {formatDate(a.activity_date)} · {a.responsible?.name}</p>
             </div>
             <Badge variant={a.status === 'concluida' ? 'green' : 'amber'}>

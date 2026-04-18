@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useActivityMutations } from '../../hooks/useActivities'
 import { ActivityModal } from './ActivityModal'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
+import { getActivityAttachments } from '../../services/activityAttachments/getActivityAttachments'
+import { supabase } from '../../lib/supabaseClient'
 
 const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
 const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
@@ -24,7 +26,58 @@ function InfoCell({ label, value }) {
 
 export function ActivityDetailModal({ activity: a, onClose }) {
   const [showEdit, setShowEdit] = useState(false)
+  const [attachments, setAttachments] = useState([])
+  const [previewUrl, setPreviewUrl] = useState(null)
   const { update, remove } = useActivityMutations()
+
+useEffect(() => {
+  async function loadAttachments() {
+
+    if (!a?.id) return
+
+    const result =
+      await getActivityAttachments(a.id)
+
+    if (result.success) {
+      setAttachments(result.data)
+    }
+
+  }
+
+  loadAttachments()
+
+}, [a?.id])
+
+  async function handleDownload(file) {
+    try {
+      const { data, error } =
+        await supabase
+          .storage
+          .from('activity-attachments')
+          .createSignedUrl(
+            file.storage_path,
+            60
+          )
+
+      if (error) {
+        console.error(error)
+        return
+      }
+
+      if (!data?.signedUrl) return
+
+      if (file.file_type.startsWith('image/')) {
+        setPreviewUrl(data.signedUrl)
+      } else {
+        window.open(
+          data.signedUrl,
+          '_blank'
+        )
+      }
+    } catch (err) {
+      console.error('Download error:', err)
+    }
+  }
 
   async function handleToggle() {
     const newStatus = a.status === 'concluida' ? 'pendente' : 'concluida'
@@ -90,6 +143,31 @@ export function ActivityDetailModal({ activity: a, onClose }) {
               <p className="text-sm text-text-primary whitespace-pre-wrap bg-bg-secondary rounded-lg p-3">{a.notes}</p>
             </div>
           )}
+
+          {attachments.length > 0 && (
+            <div className="mt-4">
+              <div className="text-sm font-medium mb-2">
+                📎 Anexos
+              </div>
+
+              <div className="space-y-1">
+                {attachments.map((file) => (
+                  <div
+                    key={file.id}
+                    className="text-sm flex items-center justify-between border border-border-secondary rounded-md px-2 py-1"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleDownload(file)}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      {file.file_name}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -108,6 +186,15 @@ export function ActivityDetailModal({ activity: a, onClose }) {
           <Button variant="danger" size="sm" onClick={handleDelete} disabled={remove.isPending}>Excluir</Button>
         </div>
       </div>
+
+      {/* Image preview modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setPreviewUrl(null)}>
+          <div className="max-w-[90vw] max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+            <img src={previewUrl} alt="Preview" className="max-w-full max-h-full rounded-lg shadow-lg" />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

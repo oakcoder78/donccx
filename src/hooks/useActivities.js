@@ -9,7 +9,15 @@ export function useActivities(filters = {}, options = {}) {
     queryFn: async () => {
       let q = supabase
         .from('activities')
-        .select(`*, client:clients(id,name,fantasy_name), contact:contacts(id,name), responsible:profiles(id,name), activity_attachments(*)`)
+        .select(`
+          *,
+          client:clients(id,name,fantasy_name),
+          contact:contacts(id,name),
+          responsible:profiles(id,name),
+          activity_attachments (
+            id
+          )
+        `)
         .order('activity_date', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -21,7 +29,16 @@ export function useActivities(filters = {}, options = {}) {
 
       const { data, error } = await q
       if (error) { console.error('[useActivities] query error:', error); return [] }
-      return data ?? []
+
+      // Add has_attachments flag for each activity
+      const formatted = data.map(a => ({
+        ...a,
+        has_attachments:
+          a.activity_attachments &&
+          a.activity_attachments.length > 0
+      }))
+
+      return formatted ?? []
     },
     retry: 0,
   })
