@@ -8,6 +8,14 @@ import {
 } from "lucide-react"
 
 
+import {
+  BarChart3,
+  Target,
+  Handshake,
+  Wallet,
+  Rocket
+} from "lucide-react"
+
 export const ActivityIcons = {
 
   reuniao: Calendar,
@@ -43,3 +51,11 @@ export const ActivityIconBackgrounds = {
 
 
 export const DefaultActivityIcon = FileText
+
+export const HealthDimensionIcons = {
+  health_uso: BarChart3,
+  health_suporte: Target,
+  health_relacionamento: Handshake,
+  health_financeiro: Wallet,
+  health_projeto: Rocket
+}

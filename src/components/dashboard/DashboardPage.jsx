@@ -8,6 +8,7 @@ import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { BrazilMap } from './BrazilMap'
+import { HealthDimensionIcons } from "../../lib/icons"
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const todayStr = new Date().toISOString().slice(0, 10)
@@ -15,10 +16,10 @@ const in30Str  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); ret
 const ago30Str = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) })()
 
 const DIMS = [
-  { key: 'health_uso',            label: 'Uso',            color: '#59c2ed', icon: '📊' },
-  { key: 'health_suporte',        label: 'Suporte',        color: '#E24B4A', icon: '🎯' },
-  { key: 'health_relacionamento', label: 'Relacionamento', color: '#534AB7', icon: '🤝' },
-  { key: 'health_financeiro',     label: 'Financeiro',     color: '#BA7517', icon: '💰' },
+  { key: 'health_uso',            label: 'Uso',            color: '#59c2ed', icon: 'health_uso' },
+  { key: 'health_suporte',        label: 'Suporte',        color: '#E24B4A', icon: 'health_suporte' },
+  { key: 'health_relacionamento', label: 'Relacionamento', color: '#534AB7', icon: 'health_relacionamento' },
+  { key: 'health_financeiro',     label: 'Financeiro',     color: '#BA7517', icon: 'health_financeiro' },
   { key: 'health_projeto',        label: 'Projeto',        color: '#1D9E75', icon: '🚀' },
 ]
 
@@ -616,7 +617,7 @@ export default function DashboardPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         backgroundColor: `${d.color}22`, fontSize: 13,
                       }}>
-                        {d.icon}
+                        <HealthDimensionIcons[dim.icon] className="w-5 h-5" strokeWidth={1.8} />
                       </div>
                       <div style={{ fontSize: 12, color: '#4a4a46', width: 92, flexShrink: 0 }}>{d.label}</div>
                       <div style={{ flex: 1, height: 5, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
