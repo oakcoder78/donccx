@@ -9,6 +9,7 @@ import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ActivityModal } from './ActivityModal'
 import { ActivityDetailModal } from './ActivityDetailModal'
+import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
 
 const TABS = [
   { key: 'all', label: 'Todas' },
@@ -20,23 +21,7 @@ const TABS = [
   { key: 'whatsapp', label: 'WhatsApp' },
 ]
 
-const typeIcon = {
-  reuniao: Calendar,
-  ligacao: Phone,
-  email: Mail,
-  whatsapp: MessageCircle,
-  tarefa: CheckSquare,
-  nota: FileText
-}
 
-const typeBg = {
-  reuniao: '#E6F1FB',
-  ligacao: '#FAEEDA',
-  email: '#EAF3DE',
-  whatsapp: '#E6F9EC',
-  tarefa: '#EEEDFE',
-  nota: '#F5F5F3'
-}
 
 function groupByMonth(activities) {
   const groups = {}
@@ -306,7 +291,7 @@ function ActivityItem({ activity: a, onClick }) {
     a.status !== 'concluida' &&
     a.due_date < today
 
-  const Icon = typeIcon[a.type] || FileText
+  const Icon = ActivityIcons[a.type] || DefaultActivityIcon
 
   return (
     <div
@@ -316,7 +301,7 @@ function ActivityItem({ activity: a, onClick }) {
 
       <div
         className="w-8 h-8 rounded-md flex items-center justify-center text-base flex-shrink-0 mt-0.5"
-        style={{ backgroundColor: typeBg[a.type] }}
+        style={{ backgroundColor: ActivityIconBackgrounds[a.type] }}
       >
 
         <Icon
