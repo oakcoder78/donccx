@@ -174,7 +174,8 @@ useEffect(() => {
           {attachments.length > 0 && (
             <div className="mt-4">
               <div className="text-sm font-medium mb-2">
-                📎 Anexos
+                <Paperclip className="w-4 h-4 text-text-secondary" strokeWidth={1.8} />
+                <span>Anexos</span>
               </div>
 
               <div className="space-y-1">
