@@ -620,7 +620,7 @@ export default function DashboardPage() {
                         {(() => {
 
   const Icon =
-    HealthDimensionIcons[dim.icon];
+    HealthDimensionIcons[d.icon];
 
   return (
 
