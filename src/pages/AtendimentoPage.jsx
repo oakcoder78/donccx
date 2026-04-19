@@ -5,6 +5,7 @@ import { getFreshdeskConfig } from '../lib/freshdeskConfig'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { ActionIcons } from "../lib/icons"
 
 // ── Tipos de ticket (valores obrigatórios configurados no Freshdesk) ─────────
 const TICKET_TYPES = [

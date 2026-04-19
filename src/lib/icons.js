@@ -16,6 +16,15 @@ import {
   Rocket
 } from "lucide-react"
 
+import {
+  Pencil,
+  Trash2,
+  Eye,
+  Link,
+  Mail,
+  X
+} from "lucide-react"
+
 export const ActivityIcons = {
 
   reuniao: Calendar,
@@ -51,6 +60,15 @@ export const ActivityIconBackgrounds = {
 
 
 export const DefaultActivityIcon = FileText
+
+export const ActionIcons = {
+  edit: Pencil,
+  delete: Trash2,
+  view: Eye,
+  link: Link,
+  email: Mail,
+  remove: X
+}
 
 export const HealthDimensionIcons = {
   health_uso: BarChart3,

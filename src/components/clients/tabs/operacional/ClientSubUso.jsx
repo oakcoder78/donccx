@@ -169,7 +169,7 @@ export function ClientSubUso({ client, onEdit }) {
                               className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
                               title="Editar"
                             >
-                              ✏️
+                              <ActionIcons.edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(u)}

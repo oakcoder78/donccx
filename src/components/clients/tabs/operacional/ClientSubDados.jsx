@@ -4,6 +4,7 @@ import { usePermissions } from '../../../../hooks/usePermissions'
 import { useCatalog } from '../../../../hooks/useCatalog'
 import { supabase } from '../../../../lib/supabaseClient'
 import toast from 'react-hot-toast'
+import { ActionIcons } from "../../../../lib/icons"
 
 function InfoRow({ label, value }) {
   if (!value) return null
