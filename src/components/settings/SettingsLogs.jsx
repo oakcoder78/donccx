@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { PageSpinner } from '../ui/Spinner'
 
@@ -48,6 +49,7 @@ function DetailCell({ oldValue, newValue }) {
 }
 
 export function SettingsLogs() {
+  const LogsIcon = SettingsMenuIcons['logs']
   const [entityType, setEntityType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]   = useState('')
@@ -74,7 +76,7 @@ export function SettingsLogs() {
 
   return (
     <div className="max-w-5xl space-y-4">
-      <h2 className="text-base font-semibold text-text-primary">📋 Logs de Auditoria</h2>
+      <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><LogsIcon className="w-4 h-4" /> Logs de Auditoria</h2>
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 bg-bg-primary border border-border-tertiary rounded-lg p-3">

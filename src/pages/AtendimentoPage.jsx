@@ -695,6 +695,9 @@ const Step3Fields = memo(function Step3Fields({ initialValues, groups, agents, s
   if (formRef)  formRef.current  = form
   if (patchRef) patchRef.current = (updates) => setForm(p => ({ ...p, ...updates }))
 
+  const SmartphoneIcon = ActionIcons.smartphone
+  const UserIcon = ActionIcons.user
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '0 28px' }}>
 
@@ -777,15 +780,15 @@ const Step3Fields = memo(function Step3Fields({ initialValues, groups, agents, s
         )}
 
         <Field label="Origem">
-          <div style={{ padding: '8px 12px', backgroundColor: '#f7f7f5', borderRadius: 7, fontSize: 13, color: '#888780', border: '1px solid #e8e7e3' }}>
-            📱 WhatsApp
+          <div style={{ padding: '8px 12px', backgroundColor: '#f7f7f5', borderRadius: 7, fontSize: 13, color: '#888780', border: '1px solid #e8e7e3', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <SmartphoneIcon style={{ width: 14, height: 14 }} /> WhatsApp
           </div>
         </Field>
 
         {/* Resumo empresa + contato */}
         <div style={{ padding: '12px 14px', backgroundColor: '#f0f4f8', borderRadius: 8, fontSize: 12, borderLeft: '3px solid #173557', marginTop: 8 }}>
           <p style={{ fontWeight: 600, color: '#173557', margin: '0 0 4px' }}>🏢 {summary.client}</p>
-          <p style={{ color: '#4a5568', margin: 0 }}>👤 {summary.contact}</p>
+          <p style={{ color: '#4a5568', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}><UserIcon style={{ width: 12, height: 12 }} /> {summary.contact}</p>
           {summary.email && <p style={{ color: '#888780', margin: '2px 0 0', fontSize: 11 }}>{summary.email}</p>}
         </div>
       </div>
@@ -1070,6 +1073,7 @@ export default function AtendimentoPage() {
   const { profile } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState(INITIAL_DATA)
+  const SmartphoneIcon = ActionIcons.smartphone
 
   function update(patch) { setData(p => ({ ...p, ...patch })) }
 
@@ -1080,7 +1084,7 @@ export default function AtendimentoPage() {
       <AnalystHeader profile={profile} />
 
       <div style={{ marginBottom: 4 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18', margin: 0 }}>📱 Atendimento WhatsApp</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1a1a18', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}><SmartphoneIcon style={{ width: 20, height: 20 }} /> Atendimento WhatsApp</h1>
         <p style={{ fontSize: 13, color: '#888780', margin: '4px 0 0' }}>
           Crie tickets no Freshdesk a partir de conversas WhatsApp com análise automática por IA.
         </p>

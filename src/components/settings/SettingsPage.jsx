@@ -13,20 +13,21 @@ import { SettingsMinhaConta } from './SettingsMinhaConta'
 import { SettingsFeatureFlags } from './SettingsFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
+import { SettingsMenuIcons } from '../../lib/icons'
 
 const BASE_MENU = [
-  { key: 'minha-conta',    icon: '👤',  label: 'Minha Conta' },
-  { key: 'health',         icon: '❤️',  label: 'Health Score' },
-  { key: 'catalog',   icon: '📦',  label: 'Catálogos'   },
-  { key: 'segments',  icon: '🏷️',  label: 'Segmentos'   },
-  { key: 'stages',    icon: '🔄',  label: 'Estágios'    },
-  { key: 'users',     icon: '👥',  label: 'Usuários'    },
-  { key: 'logs',      icon: '📋',  label: 'Auditoria'   },
-  { key: 'freshdesk', icon: '🎧',  label: 'Freshdesk',  adminOnly: true },
-  { key: 'donkie',    icon: '🤖',  label: 'Donkie',     adminOnly: true },
-  { key: 'ai',        icon: '✨',  label: 'IA',          adminOnly: true },
-  { key: 'donc-api',  icon: '🔌',  label: 'API DONC',        managerOnly: true },
-  { key: 'features',  icon: '🚩',  label: 'Funcionalidades', adminOnly: true  },
+  { key: 'minha-conta', Icon: SettingsMenuIcons['minha-conta'], label: 'Minha Conta' },
+  { key: 'health',      Icon: SettingsMenuIcons['health'],       label: 'Health Score' },
+  { key: 'catalog',     Icon: SettingsMenuIcons['catalog'],      label: 'Catálogos'   },
+  { key: 'segments',    Icon: SettingsMenuIcons['segments'],     label: 'Segmentos'   },
+  { key: 'stages',      Icon: SettingsMenuIcons['stages'],       label: 'Estágios'    },
+  { key: 'users',       Icon: SettingsMenuIcons['users'],        label: 'Usuários'    },
+  { key: 'logs',        Icon: SettingsMenuIcons['logs'],         label: 'Auditoria'   },
+  { key: 'freshdesk',   Icon: SettingsMenuIcons['freshdesk'],    label: 'Freshdesk',  adminOnly: true },
+  { key: 'donkie',      Icon: SettingsMenuIcons['donkie'],       label: 'Donkie',     adminOnly: true },
+  { key: 'ai',          Icon: SettingsMenuIcons['ai'],           label: 'IA',          adminOnly: true },
+  { key: 'donc-api',    Icon: SettingsMenuIcons['donc-api'],     label: 'API DONC',        managerOnly: true },
+  { key: 'features',    Icon: SettingsMenuIcons['features'],     label: 'Funcionalidades', adminOnly: true  },
 ]
 
 export default function SettingsPage() {
@@ -49,20 +50,23 @@ export default function SettingsPage() {
       <aside className="w-52 bg-bg-primary border-r border-border-tertiary p-3 flex-shrink-0">
         <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider px-2 mb-2">Configurações</p>
         <nav className="space-y-0.5">
-          {MENU.map(item => (
-            <button
-              key={item.key}
-              onClick={() => setSection(item.key)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                section === item.key
-                  ? 'bg-donc-navy text-white'
-                  : 'text-text-secondary hover:bg-bg-secondary'
-              }`}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </button>
-          ))}
+          {MENU.map(item => {
+            const MenuIcon = item.Icon
+            return (
+              <button
+                key={item.key}
+                onClick={() => setSection(item.key)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  section === item.key
+                    ? 'bg-donc-navy text-white'
+                    : 'text-text-secondary hover:bg-bg-secondary'
+                }`}
+              >
+                <MenuIcon className="w-4 h-4 flex-shrink-0" />
+                {item.label}
+              </button>
+            )
+          })}
         </nav>
       </aside>
 

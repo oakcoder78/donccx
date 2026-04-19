@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -179,6 +180,8 @@ function ClientBlock({ client, instances, onSave, onRemove }) {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export function SettingsDoncAPI() {
+  const APIIcon = SettingsMenuIcons['donc-api']
+  const LogsIcon = SettingsMenuIcons['logs']
   const navigate = useNavigate()
 
   // ── Instâncias ─────────────────────────────────────────────────────────────
@@ -293,7 +296,7 @@ export function SettingsDoncAPI() {
   return (
     <div style={{ maxWidth: 720 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', margin: '0 0 4px' }}>🔌 API DONC</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><APIIcon style={{ width: 16, height: 16 }} /> API DONC</h2>
         <p style={{ fontSize: 12, color: '#888780', margin: 0 }}>
           Configure instâncias por cliente e sincronize dados operacionais mensais.
         </p>
@@ -332,7 +335,7 @@ export function SettingsDoncAPI() {
             backgroundColor: '#fff', color: '#1a1a18',
           }}
         >
-          📋 Ver registros pendentes
+          <LogsIcon style={{ width: 14, height: 14 }} /> Ver registros pendentes
           <span style={{
             fontSize: 12, fontWeight: 700, padding: '2px 9px', borderRadius: 10,
             backgroundColor: pendingCount > 0 ? '#59c2ed' : '#e8e7e3',

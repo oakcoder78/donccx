@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { useCatalog, useCatalogMutations } from '../../hooks/useCatalog'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
@@ -47,6 +48,7 @@ function CatalogForm({ item, onClose }) {
 }
 
 export function SettingsCatalog() {
+  const CatalogIcon = SettingsMenuIcons['catalog']
   const { data: catalog = [], isLoading } = useCatalog()
   const { remove } = useCatalogMutations()
   const [modal, setModal] = useState(null) // null | 'create' | item
@@ -59,7 +61,7 @@ export function SettingsCatalog() {
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">📦 Catálogos</h2>
+        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><CatalogIcon className="w-4 h-4" /> Catálogos</h2>
         <Button size="sm" onClick={() => setModal('create')}>+ Novo Item</Button>
       </div>
 

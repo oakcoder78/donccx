@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { useSegments, useSegmentsMutations } from '../../hooks/useSegments'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
@@ -33,6 +34,7 @@ function SegmentForm({ segment, onClose }) {
 }
 
 export function SettingsSegments() {
+  const SegmentsIcon = SettingsMenuIcons['segments']
   const { data: segments = [], isLoading } = useSegments()
   const { remove } = useSegmentsMutations()
   const [modal, setModal] = useState(null) // null | 'create' | segment
@@ -42,7 +44,7 @@ export function SettingsSegments() {
   return (
     <div className="max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">🏷️ Segmentos</h2>
+        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><SegmentsIcon className="w-4 h-4" /> Segmentos</h2>
         <Button size="sm" onClick={() => setModal('create')}>+ Novo Segmento</Button>
       </div>
 

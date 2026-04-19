@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { useStages, useStagesMutations } from '../../hooks/useStages'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
@@ -48,6 +49,7 @@ function StageForm({ stage, onClose }) {
 }
 
 export function SettingsStages() {
+  const StagesIcon = SettingsMenuIcons['stages']
   const { data: stages = [], isLoading } = useStages()
   const { remove } = useStagesMutations()
   const [modal, setModal] = useState(null)
@@ -57,7 +59,7 @@ export function SettingsStages() {
   return (
     <div className="max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">🔄 Estágios</h2>
+        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><StagesIcon className="w-4 h-4" /> Estágios</h2>
         <Button size="sm" onClick={() => setModal('create')}>+ Novo Estágio</Button>
       </div>
 

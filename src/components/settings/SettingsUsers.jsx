@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { useProfiles, useProfilesMutations } from '../../hooks/useProfiles'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuditLog } from '../../hooks/useAuditLog'
@@ -189,6 +190,7 @@ function ApproveModal({ request, onClose, onDone }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsUsers() {
+  const UsersIcon = SettingsMenuIcons['users']
   const { data: profiles = [], isLoading, refetch } = useProfiles()
   const { updateStatus, updateRole } = useProfilesMutations()
   const { canManageUsers } = usePermissions()
@@ -223,7 +225,7 @@ export function SettingsUsers() {
   return (
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary">👥 Usuários</h2>
+        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Usuários</h2>
       </div>
 
       {/* ── Solicitações pendentes ─────────────────────────────────────── */}

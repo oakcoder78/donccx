@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -66,6 +67,7 @@ const S = {
 }
 
 export function SettingsAI() {
+  const AIIcon = SettingsMenuIcons['ai']
   const [loading, setLoading] = useState(true)
 
   // ── Modelos ─────────────────────────────────────────────────────────────────
@@ -156,7 +158,7 @@ export function SettingsAI() {
   return (
     <div style={{ maxWidth: 680 }}>
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', margin: '0 0 4px' }}>🤖 Configurações de IA</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><AIIcon style={{ width: 16, height: 16 }} /> Configurações de IA</h2>
         <p style={{ fontSize: 12, color: '#888780', margin: 0 }}>
           Controle os modelos OpenRouter e o prompt usado para análise automática de atendimentos WhatsApp.
         </p>

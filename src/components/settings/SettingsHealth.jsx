@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { HealthDimensionIcons } from '../../lib/icons'
+import { HealthDimensionIcons, SettingsMenuIcons } from '../../lib/icons'
 import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
 import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -63,6 +63,7 @@ function HealthScoreAccordion() {
 }
 
 export function SettingsHealth() {
+  const HealthIcon = SettingsMenuIcons['health']
   const { data, isLoading } = useHealthConfig()
   const { updateConfig, updateRule } = useHealthConfigMutations()
   const { profile } = useAuth()
@@ -104,7 +105,7 @@ export function SettingsHealth() {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-base font-semibold text-text-primary mb-4">❤️ Health Score</h2>
+        <h2 className="text-base font-semibold text-text-primary mb-4 flex items-center gap-2"><HealthIcon className="w-4 h-4" /> Health Score</h2>
 
         <HealthScoreAccordion />
 

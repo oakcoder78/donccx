@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
 import { fetchAndSaveFreshdeskConfig } from '../../lib/freshdeskConfig'
@@ -45,6 +46,7 @@ function computeSuggestion(client, fdCompanies) {
 
 // ── Seção Mapeamento ──────────────────────────────────────────────────────────
 function MappingSection() {
+  const SearchIcon = ActionIcons.search
   const [clients, setClients]         = useState([])
   const [edits, setEdits]             = useState({})         // { clientId: string }
   const [suggestions, setSuggestions] = useState({})         // { clientId: { fdId, fdName } }
@@ -121,7 +123,7 @@ function MappingSection() {
           {clients.filter(c => c.freshdesk_company_id).length} de {clients.length} clientes mapeados
         </p>
         <Button size="sm" variant="secondary" onClick={handleFetchSuggestions} disabled={fetching}>
-          {fetching ? 'Buscando…' : '🔍 Buscar sugestões do Freshdesk'}
+          {fetching ? 'Buscando…' : <span className="flex items-center gap-1.5"><SearchIcon className="w-3.5 h-3.5" /> Buscar sugestões do Freshdesk</span>}
         </Button>
       </div>
 
@@ -196,6 +198,8 @@ function MappingSection() {
 
 // ── Seção Sincronização ───────────────────────────────────────────────────────
 function SyncSection() {
+  const SyncIcon = ActionIcons.recalculate
+  const LogsIcon = SettingsMenuIcons['logs']
   const now          = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [month, setMonth]         = useState(defaultMonth)
@@ -270,7 +274,7 @@ function SyncSection() {
         </div>
         <div className="pt-5">
           <Button onClick={handleSync} disabled={syncing || !month}>
-            {syncing ? 'Sincronizando…' : '🔄 Sincronizar todos'}
+            {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
           </Button>
         </div>
       </div>
@@ -305,7 +309,7 @@ function SyncSection() {
           to="/config/freshdesk/pendentes"
           className="inline-flex items-center gap-1 text-sm text-donc-sky hover:underline"
         >
-          📋 Ver importações pendentes de revisão →
+          <LogsIcon className="w-3.5 h-3.5" /> Ver importações pendentes de revisão →
         </Link>
       </div>
     </div>
@@ -314,12 +318,13 @@ function SyncSection() {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsFreshdesk() {
+  const FreshdeskIcon = SettingsMenuIcons['freshdesk']
   const [tab, setTab] = useState('mapping')
 
   return (
     <div className="max-w-5xl space-y-6">
       <div>
-        <h2 className="text-base font-semibold text-text-primary mb-1">🎧 Integração Freshdesk</h2>
+        <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2"><FreshdeskIcon className="w-4 h-4" /> Integração Freshdesk</h2>
         <p className="text-xs text-text-tertiary mb-4">
           Mapeie empresas do Freshdesk para clientes do doncCX e sincronize dados de suporte mensalmente.
         </p>
