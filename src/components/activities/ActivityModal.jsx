@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useActivityMutations } from '../../hooks/useActivities'
@@ -7,6 +7,7 @@ import { useProfiles } from '../../hooks/useProfiles'
 import { useContacts } from '../../hooks/useContacts'
 import AttachmentInput from '../activityAttachments/AttachmentInput'
 import { saveActivityAttachments } from '../../services/activityAttachments/saveActivityAttachments'
+import { getActivityAttachments } from '../../services/activityAttachments/getActivityAttachments'
 
 const TYPES = [
   { value: 'reuniao', label: 'Reunião' },
@@ -35,11 +36,27 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
     notes: activity?.notes || '',
   })
   const [attachmentFiles, setAttachmentFiles] = useState([])
+  const [existingAttachments, setExistingAttachments] = useState([])
 
   const { create, update } = useActivityMutations()
   const { data: clients = [] } = useClients()
   const { data: profiles = [] } = useProfiles()
   const { data: contacts = [] } = useContacts(form.client_id ? { client_id: Number(form.client_id) } : {})
+
+  useEffect(() => {
+    async function loadExistingAttachments() {
+      if (!activity?.id) return
+
+      const result =
+        await getActivityAttachments(activity.id)
+
+      if (result.success) {
+        setExistingAttachments(result.data)
+      }
+    }
+
+    loadExistingAttachments()
+  }, [activity?.id])
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -198,6 +215,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
 
         <AttachmentInput
           onFilesChange={handleFilesChange}
+          existingFiles={existingAttachments}
         />
 
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
