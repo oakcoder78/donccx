@@ -123,7 +123,10 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       await saveActivityAttachments({
         activityId,
         clientId: payload.client_id,
-        userId: payload.responsible_id,
+        userId:
+          payload.responsible_id
+          || activity?.responsible_id
+          || null,
         files: attachmentFiles
       })
     }

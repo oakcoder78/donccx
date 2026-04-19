@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 
-export default function AttachmentInput({ onFilesChange }) {
+export default function AttachmentInput({ onFilesChange, existingFiles = [] }) {
 
   const [selectedFiles, setSelectedFiles] = useState([])
   const fileInputRef = useRef(null)
@@ -33,6 +33,74 @@ export default function AttachmentInput({ onFilesChange }) {
       <label className="label-sm">
         Anexos
       </label>
+
+      {existingFiles.length > 0 && (
+        <div className="mb-3 space-y-2">
+          <p className="text-xs text-text-tertiary">
+            Arquivos existentes
+          </p>
+          {existingFiles.map(file => (
+            <div
+              key={file.id}
+              className="
+                flex
+                items-center
+                justify-between
+                gap-2
+                border
+                border-border-tertiary
+                rounded-md
+                px-2
+                py-1
+                bg-bg-secondary
+              "
+            >
+              {/* File name */}
+              <span
+                className="
+                  text-sm
+                  text-text-primary
+                  truncate
+                  flex-1
+                "
+                title={file.file_name}
+              >
+                {file.file_name}
+              </span>
+
+              {/* Placeholder actions */}
+              <div className="flex items-center gap-2">
+
+                {/* Preview placeholder */}
+                <span
+                  className="
+                    text-text-tertiary
+                    text-xs
+                    opacity-60
+                  "
+                  title="Preview disponível no modo visualização"
+                >
+                  👁
+                </span>
+
+                {/* Download placeholder */}
+                <span
+                  className="
+                    text-text-tertiary
+                    text-xs
+                    opacity-60
+                  "
+                  title="Download disponível no modo visualização"
+                >
+                  ⬇
+                </span>
+
+              </div>
+
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mt-1">
 
