@@ -11,6 +11,7 @@ import { ActivityModal } from './ActivityModal'
 import { ActivityDetailModal } from './ActivityDetailModal'
 import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
 
+// Vercel build trigger
 const TABS = [
   { key: 'all', label: 'Todas' },
   { key: 'reuniao', label: 'Reuniões' },
