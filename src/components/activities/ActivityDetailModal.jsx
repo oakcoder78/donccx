@@ -6,6 +6,7 @@ import { Badge } from '../ui/Badge'
 import { getActivityAttachments } from '../../services/activityAttachments/getActivityAttachments'
 import { softDeleteActivityAttachment } from '../../services/activityAttachments/softDeleteActivityAttachment'
 import { supabase } from '../../lib/supabaseClient'
+import toast from 'react-hot-toast'
 import { useProfiles } from '../../hooks/useProfiles'
 
 const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
@@ -33,6 +34,19 @@ export function ActivityDetailModal({ activity: a, onClose }) {
   const [profiles, setProfiles] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
   const { update, remove } = useActivityMutations()
+
+// Load current authenticated user
+useEffect(() => {
+  async function loadCurrentUser() {
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      console.error('Error loading current user:', error)
+      return
+    }
+    setCurrentUser(data?.user || null)
+  }
+  loadCurrentUser()
+}, [])
 
 useEffect(() => {
   async function loadAttachments() {
@@ -234,6 +248,7 @@ useEffect(() => {
                             if (result.success) {
                               // Remove from local state immediately
                               setAttachments(prev => prev.filter(f => f.id !== file.id))
+                              toast.success('Arquivo removido com sucesso')
                             } else {
                               toast.error(result.error || 'Falha ao remover arquivo')
                             }
