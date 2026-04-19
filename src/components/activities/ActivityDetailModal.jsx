@@ -44,6 +44,7 @@ useEffect(() => {
       return
     }
     setCurrentUser(data?.user || null)
+    console.log('currentUser:', currentUser)
   }
   loadCurrentUser()
 }, [])
