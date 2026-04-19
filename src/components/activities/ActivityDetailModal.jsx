@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
 import { useActivityMutations } from '../../hooks/useActivities'
 import { ActivityModal } from './ActivityModal'
 import { Button } from '../ui/Button'
@@ -10,7 +11,14 @@ import toast from 'react-hot-toast'
 import { Paperclip, Eye, Download, Trash2 } from "lucide-react"
 import { useProfiles } from '../../hooks/useProfiles'
 
-const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
+const typeIcon = {
+  reuniao: Calendar,
+  ligacao: Phone,
+  email: Mail,
+  whatsapp: MessageCircle,
+  tarefa: CheckSquare,
+  nota: FileText
+}
 const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
 const typeLabel = { reuniao: 'Reunião', ligacao: 'Ligação', email: 'E-mail', whatsapp: 'WhatsApp', tarefa: 'Tarefa', nota: 'Nota' }
 
@@ -127,7 +135,7 @@ useEffect(() => {
         <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
             style={{ backgroundColor: typeBg[a.type] }}>
-            {typeIcon[a.type]}
+            (() => { const Icon = typeIcon[a.type]; return <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />; })()
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">

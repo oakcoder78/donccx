@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
 import { useActivities } from '../../../hooks/useActivities'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'

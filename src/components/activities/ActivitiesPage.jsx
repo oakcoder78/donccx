@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
 import { useActivities } from '../../hooks/useActivities'
 import { useClients } from '../../hooks/useClients'
 import { useProfiles } from '../../hooks/useProfiles'
@@ -19,7 +20,14 @@ const TABS = [
   { key: 'whatsapp', label: 'WhatsApp' },
 ]
 
-const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
+const typeIcon = {
+  reuniao: Calendar,
+  ligacao: Phone,
+  email: Mail,
+  whatsapp: MessageCircle,
+  tarefa: CheckSquare,
+  nota: FileText
+}
 const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
 
 function formatDate(d) {
@@ -214,7 +222,7 @@ function ActivityItem({ activity: a, onClick }) {
     >
       <div className="w-8 h-8 rounded-md flex items-center justify-center text-base flex-shrink-0 mt-0.5"
         style={{ backgroundColor: typeBg[a.type] }}>
-        {typeIcon[a.type]}
+        (() => { const Icon = typeIcon[a.type]; return <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />; })()
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-text-primary">{a.title || a.description}</p>
