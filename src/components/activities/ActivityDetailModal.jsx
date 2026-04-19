@@ -222,10 +222,15 @@ useEffect(() => {
                       <button
                         type="button"
                         onClick={async () => {
+                          // Ensure profile loaded
+                          if (!profile) {
+                            toast.error('Usuário ainda não carregado. Tente novamente.')
+                            return
+                          }
                           // Check permissions
                           const hasPermission =
-                            file.uploaded_by === profile?.id ||
-                            profile?.role === 'admin'
+                            file.uploaded_by === profile.id ||
+                            profile.role === 'admin'
 
                           if (!hasPermission) {
                             toast.error('Você não tem permissão para remover este arquivo.')
