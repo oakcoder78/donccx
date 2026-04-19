@@ -617,7 +617,21 @@ export default function DashboardPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         backgroundColor: `${d.color}22`, fontSize: 13,
                       }}>
-                        <HealthDimensionIcons[dim.icon] className="w-5 h-5" strokeWidth={1.8} />
+                        {(() => {
+
+  const Icon =
+    HealthDimensionIcons[dim.icon];
+
+  return (
+
+    <Icon
+      className="w-5 h-5"
+      strokeWidth={1.8}
+    />
+
+  );
+
+})()}
                       </div>
                       <div style={{ fontSize: 12, color: '#4a4a46', width: 92, flexShrink: 0 }}>{d.label}</div>
                       <div style={{ flex: 1, height: 5, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>
