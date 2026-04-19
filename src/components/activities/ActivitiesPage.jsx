@@ -214,6 +214,7 @@ export default function ActivitiesPage() {
 function ActivityItem({ activity: a, onClick }) {
   const today = new Date().toISOString().split('T')[0]
   const isOverdue = a.due_date && a.status !== 'concluida' && a.due_date < today
+  const Icon = typeIcon[a.type] || FileText
 
   return (
     <div
@@ -222,7 +223,7 @@ function ActivityItem({ activity: a, onClick }) {
     >
       <div className="w-8 h-8 rounded-md flex items-center justify-center text-base flex-shrink-0 mt-0.5"
         style={{ backgroundColor: typeBg[a.type] }}>
-        (() => { const Icon = typeIcon[a.type]; return <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />; })()
+        (() => { const Icon = typeIcon[a.type] || FileText; return <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />; })()
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-text-primary">{a.title || a.description}</p>
