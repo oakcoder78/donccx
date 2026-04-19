@@ -20,6 +20,12 @@ import { CSS } from '@dnd-kit/utilities'
 import { SectionIcons, FallbackSectionIcon, ActionIcons, HealthDimensionIcons } from '../lib/icons'
 
 // ── Helpers ──────────────────────────────────────────────────
+const PT_MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+function formatPeriodPT(period) {
+  const [y, m] = period.split('-').map(Number)
+  return `${PT_MONTHS[m - 1]} ${y}`
+}
+
 function getLast12Months(period) {
   const [y, m] = period.split('-').map(Number)
   const months = []
@@ -310,6 +316,24 @@ export default function ReportEditorPage() {
       await updateReport.mutateAsync({ id: reportId, sections, html_content: html })
       await publishReport.mutateAsync({ id: reportId, html_content: html })
       setPublishBanner(true)
+      // Register activity for this publish (fire-and-forget)
+      ;(async () => {
+        try {
+          const { data: { user } } = await supabase.auth.getUser()
+          await supabase.from('activities').insert({
+            type:           'relatorio',
+            title:          `RMC — ${formatPeriodPT(report.period)}`,
+            client_id:      report.client_id,
+            responsible_id: user?.id ?? null,
+            date:           new Date().toISOString().slice(0, 10),
+            status:         'concluida',
+            description:    'Relatório Mensal do Cliente gerado e publicado.',
+            contact_id:     null,
+          })
+        } catch (err) {
+          console.error('Activity insert failed:', err)
+        }
+      })()
     } finally { setPublishing(false) }
   }
 
