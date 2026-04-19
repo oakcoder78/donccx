@@ -67,6 +67,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
     e.preventDefault()
     const payload = {
       ...form,
+      activity_time: form.activity_time?.trim() ? form.activity_time : null,
       client_id: form.client_id ? Number(form.client_id) : null,
       contact_id: form.contact_id ? Number(form.contact_id) : null,
       responsible_id: form.responsible_id || null,
