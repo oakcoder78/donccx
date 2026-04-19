@@ -9,17 +9,9 @@ import { softDeleteActivityAttachment } from '../../services/activityAttachments
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 import { Paperclip, Eye, Download, Trash2 } from "lucide-react"
+import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
 import { useProfiles } from '../../hooks/useProfiles'
 
-const typeIcon = {
-  reuniao: Calendar,
-  ligacao: Phone,
-  email: Mail,
-  whatsapp: MessageCircle,
-  tarefa: CheckSquare,
-  nota: FileText
-}
-const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
 const typeLabel = { reuniao: 'Reunião', ligacao: 'Ligação', email: 'E-mail', whatsapp: 'WhatsApp', tarefa: 'Tarefa', nota: 'Nota' }
 
 function formatDate(d) {
@@ -127,7 +119,7 @@ useEffect(() => {
   if (showEdit) return <ActivityModal activity={a} onClose={() => { setShowEdit(false); onClose() }} />
 
   const isOverdue = a.due_date && a.status !== 'concluida' && new Date(a.due_date) < new Date();
-  const Icon = typeIcon[a.type] || FileText;
+  const Icon = ActivityIcons[a.type] || DefaultActivityIcon;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -135,7 +127,7 @@ useEffect(() => {
         {/* Header */}
         <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
-            style={{ backgroundColor: typeBg[a.type] }}
+            style={{ backgroundColor: ActivityIconBackgrounds[a.type] }}
 >
             <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
           </div>
