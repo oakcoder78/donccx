@@ -325,7 +325,7 @@ export default function ReportEditorPage() {
             title:          `RMC — ${formatPeriodPT(report.period)}`,
             client_id:      report.client_id,
             responsible_id: user?.id ?? null,
-            date:           new Date().toISOString().slice(0, 10),
+            activity_date:  new Date().toISOString().slice(0, 10),
             status:         'concluida',
             description:    'Relatório Mensal do Cliente gerado e publicado.',
             contact_id:     null,
