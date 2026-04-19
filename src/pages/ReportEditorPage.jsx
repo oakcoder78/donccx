@@ -455,7 +455,7 @@ export default function ReportEditorPage() {
               title="Preview"
               className="w-full rounded-lg shadow border border-border-tertiary"
               style={{ height: 'calc(100vh - 120px)', minHeight: 500 }}
-              sandbox="allow-same-origin"
+              sandbox="allow-scripts allow-same-origin"
             />
           </div>
         </div>

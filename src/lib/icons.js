@@ -33,6 +33,7 @@ import {
   Sparkles,
   Plug,
   Flag,
+  Info,
 } from "lucide-react"
 
 export const ActivityIcons = {
@@ -83,6 +84,7 @@ export const ActionIcons = {
   user: User,
   smartphone: Smartphone,
   recalculate: RefreshCw,
+  info: Info,
 }
 
 export const SettingsMenuIcons = {

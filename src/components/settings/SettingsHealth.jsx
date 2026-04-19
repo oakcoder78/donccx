@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { HealthDimensionIcons, SettingsMenuIcons } from '../../lib/icons'
+import { HealthDimensionIcons, SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
 import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -18,6 +18,7 @@ const DIMENSIONS_INFO = [
 ]
 
 function HealthScoreAccordion() {
+  const InfoIcon = ActionIcons.info
   const [open, setOpen] = useState(false)
   return (
     <div className="border border-border-tertiary rounded-lg mb-4 overflow-hidden">
@@ -26,7 +27,7 @@ function HealthScoreAccordion() {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center justify-between px-4 py-3 bg-bg-secondary hover:bg-bg-tertiary transition-colors text-left"
       >
-        <span className="text-sm font-semibold text-text-primary">💡 Entenda o Health Score</span>
+        <span className="text-sm font-semibold text-text-primary flex items-center gap-2"><InfoIcon className="w-4 h-4" /> Entenda o Health Score</span>
         <svg
           className={`w-4 h-4 text-text-tertiary transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
