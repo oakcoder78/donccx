@@ -223,6 +223,12 @@ useEffect(() => {
                       <button
                         type="button"
                         onClick={async () => {
+                          // Debug logs for permission
+                          console.log('DEBUG DELETE PERMISSION');
+                          console.log('profile object:', profile);
+                          console.log('profile.id:', profile?.id);
+                          console.log('file.uploaded_by:', file.uploaded_by);
+
                           // Ensure profile loaded
                           if (!profile) {
                             toast.error('Usuário ainda não carregado. Tente novamente.')
@@ -232,6 +238,8 @@ useEffect(() => {
                           const hasPermission =
                             file.uploaded_by === profile.id ||
                             profile.role === 'admin'
+
+                          console.log('hasPermission result:', hasPermission);
 
                           if (!hasPermission) {
                             toast.error('Você não tem permissão para remover este arquivo.')
