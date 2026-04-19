@@ -4,24 +4,16 @@ import {
   Mail,
   MessageCircle,
   CheckSquare,
-  FileText
-} from "lucide-react"
-
-
-import {
+  FileText,
   BarChart3,
   Target,
   Handshake,
   Wallet,
-  Rocket
-} from "lucide-react"
-
-import {
+  Rocket,
   Pencil,
   Trash2,
   Eye,
   Link,
-  Mail,
   X
 } from "lucide-react"
 
