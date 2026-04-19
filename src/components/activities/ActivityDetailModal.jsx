@@ -4,7 +4,9 @@ import { ActivityModal } from './ActivityModal'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { getActivityAttachments } from '../../services/activityAttachments/getActivityAttachments'
+import { softDeleteActivityAttachment } from '../../services/activityAttachments/softDeleteActivityAttachment'
 import { supabase } from '../../lib/supabaseClient'
+import { useProfiles } from '../../hooks/useProfiles'
 
 const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
 const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
@@ -28,6 +30,8 @@ export function ActivityDetailModal({ activity: a, onClose }) {
   const [showEdit, setShowEdit] = useState(false)
   const [attachments, setAttachments] = useState([])
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [profiles, setProfiles] = useState([])
+  const [currentUser, setCurrentUser] = useState(null)
   const { update, remove } = useActivityMutations()
 
 useEffect(() => {
@@ -208,6 +212,37 @@ useEffect(() => {
                         title="Download"
                       >
                         ⬇
+                      </button>
+
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          // Check permissions
+                          const hasPermission =
+                            file.uploaded_by === currentUser?.id ||
+                            currentUser?.role === 'admin'
+
+                          if (!hasPermission) {
+                            toast.error('Você não tem permissão para remover este arquivo.')
+                            return
+                          }
+
+                          // Show confirmation
+                          if (window.confirm('Confirmar remoção deste arquivo?')) {
+                            const result = await softDeleteActivityAttachment(file.id)
+                            if (result.success) {
+                              // Remove from local state immediately
+                              setAttachments(prev => prev.filter(f => f.id !== file.id))
+                            } else {
+                              toast.error(result.error || 'Falha ao remover arquivo')
+                            }
+                          }
+                        }}
+                        className="text-text-secondary hover:text-text-primary text-sm"
+                        title="Excluir"
+                      >
+                        🗑
                       </button>
                     </div>
                   </div>
