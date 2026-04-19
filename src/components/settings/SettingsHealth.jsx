@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { HealthDimensionIcons } from '../../lib/icons'
 import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
 import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -9,11 +10,11 @@ import toast from 'react-hot-toast'
 const DIMS = ['uso','suporte','relacionamento','financeiro','projeto']
 
 const DIMENSIONS_INFO = [
-  { icon: '📊', name: 'Uso', desc: 'Adoção da plataforma — módulos ativos, usuários e ordens de serviço' },
-  { icon: '🎧', name: 'Suporte', desc: 'Qualidade do atendimento — tickets, SLA e escaladas N3' },
-  { icon: '🤝', name: 'Relacionamento', desc: 'Mapeamento e engajamento de contatos-chave no cliente' },
-  { icon: '💰', name: 'Financeiro', desc: 'Classificação ABC e situação de pagamento' },
-  { icon: '🎯', name: 'Projeto', desc: 'Milestones e progresso do onboarding' },
+  { Icon: HealthDimensionIcons.health_uso,            name: 'Uso',            desc: 'Adoção da plataforma — módulos ativos, usuários e ordens de serviço' },
+  { Icon: HealthDimensionIcons.health_suporte,        name: 'Suporte',        desc: 'Qualidade do atendimento — tickets, SLA e escaladas N3' },
+  { Icon: HealthDimensionIcons.health_relacionamento, name: 'Relacionamento', desc: 'Mapeamento e engajamento de contatos-chave no cliente' },
+  { Icon: HealthDimensionIcons.health_financeiro,     name: 'Financeiro',     desc: 'Classificação ABC e situação de pagamento' },
+  { Icon: HealthDimensionIcons.health_projeto,        name: 'Projeto',        desc: 'Milestones e progresso do onboarding' },
 ]
 
 function HealthScoreAccordion() {
@@ -42,7 +43,7 @@ function HealthScoreAccordion() {
           <div className="space-y-2">
             {DIMENSIONS_INFO.map(d => (
               <div key={d.name} className="flex items-start gap-2">
-                <span className="text-base leading-5">{d.icon}</span>
+                <d.Icon className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-tertiary" />
                 <div>
                   <span className="text-sm font-medium text-text-primary">{d.name}</span>
                   <span className="text-sm text-text-tertiary"> — {d.desc}</span>

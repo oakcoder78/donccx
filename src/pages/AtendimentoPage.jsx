@@ -658,8 +658,8 @@ function Step2({ data, onChange, onNext, onBack }) {
         <button onClick={handleAnalyze} disabled={!canAnalyze || analyzing || extracting} style={S.btnSky(!canAnalyze || analyzing || extracting)}>
           {analyzing ? '⏳ Analisando atendimento...' : '🤖 Analisar com IA'}
         </button>
-        <button onClick={handleManual} disabled={extracting} style={S.btnSecondary} title="Avançar sem análise de IA e preencher manualmente">
-          ✏️ Preencher manualmente
+        <button onClick={handleManual} disabled={extracting} style={{ ...S.btnSecondary, display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Avançar sem análise de IA e preencher manualmente">
+          <ActionIcons.edit style={{ width: 14, height: 14 }} /> Preencher manualmente
         </button>
       </div>
 

@@ -178,7 +178,7 @@ export function ClientSubUso({ client, onEdit }) {
                               className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-red transition-colors"
                               title="Excluir"
                             >
-                              🗑️
+                              <ActionIcons.delete className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

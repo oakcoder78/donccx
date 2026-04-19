@@ -17,6 +17,7 @@ import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { SectionIcons, FallbackSectionIcon, ActionIcons, HealthDimensionIcons } from '../lib/icons'
 
 // ── Helpers ──────────────────────────────────────────────────
 function getLast12Months(period) {
@@ -31,10 +32,9 @@ function getLast12Months(period) {
 
 function uid() { return `c${Date.now()}${Math.random().toString(36).slice(2, 6)}` }
 
-const SECTION_ICONS = {
-  capa: '📋', escala: '📈', suporte: '🎫', projetos: '🗂️', health_score: '💚',
-  destaques: '⭐', contexto: '🌐', proximos_passos: '🎯',
-  'custom-text': '📄', 'custom-image': '🖼️', 'custom-metrics': '📊', 'custom-bars': '📊',
+function SecIcon({ type, className = 'w-3.5 h-3.5' }) {
+  const Icon = SectionIcons[type] ?? FallbackSectionIcon
+  return <Icon className={className} />
 }
 
 const TAG_COLORS = {
@@ -349,13 +349,13 @@ export default function ReportEditorPage() {
           <Badge variant={isPublished ? 'green' : 'slate'}>{isPublished ? 'Publicado' : 'Rascunho'}</Badge>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {isPublished && <Button variant="secondary" size="sm" onClick={copyLink}>🔗 Copiar Link</Button>}
+          {isPublished && <Button variant="secondary" size="sm" onClick={copyLink} className="flex items-center gap-1.5"><ActionIcons.link className="w-3 h-3" /> Copiar Link</Button>}
           <Button variant="secondary" size="sm" onClick={handleSave} disabled={saving}>
             {saving ? 'Salvando…' : 'Salvar'}
           </Button>
           {!isPublished && (
-            <Button size="sm" onClick={handlePublish} disabled={publishing}>
-              {publishing ? 'Publicando…' : '🚀 Publicar'}
+            <Button size="sm" onClick={handlePublish} disabled={publishing} className="flex items-center gap-1.5">
+              {publishing ? 'Publicando…' : <><HealthDimensionIcons.health_projeto className="w-3 h-3" /> Publicar</>}
             </Button>
           )}
         </div>
@@ -384,7 +384,7 @@ export default function ReportEditorPage() {
                     activeId === capaSection.id ? 'bg-donc-navy text-white' : 'text-text-secondary hover:bg-bg-tertiary'
                   }`}
                 >
-                  <span className="text-xs flex-shrink-0">{SECTION_ICONS['capa']}</span>
+                  <SecIcon type="capa" />
                   <span className="text-[11px] leading-tight truncate flex-1">{capaSection.title}</span>
                 </button>
               </div>
@@ -466,7 +466,7 @@ export default function ReportEditorPage() {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-donc-verde text-white px-6 py-3 rounded-xl shadow-xl flex items-center gap-4 z-50">
           <span className="text-sm font-semibold">✅ Relatório publicado!</span>
           <button onClick={copyLink} className="text-xs font-semibold underline">Copiar link</button>
-          <button onClick={() => setPublishBanner(false)} className="text-white/70 hover:text-white text-lg ml-2">×</button>
+          <button onClick={() => setPublishBanner(false)} className="text-white/70 hover:text-white ml-2"><ActionIcons.remove className="w-4 h-4" /></button>
         </div>
       )}
 
@@ -523,15 +523,15 @@ function SortableSidebarItem({ sec, isActive, showDelete, onSelect, onDelete }) 
           className="flex-shrink-0 text-[10px] leading-none cursor-grab opacity-0 group-hover:opacity-50 hover:!opacity-100 select-none"
           onClick={e => e.stopPropagation()}
         >⋮⋮</span>
-        <span className="text-xs flex-shrink-0">{SECTION_ICONS[sec.type] ?? '📌'}</span>
+        <SecIcon type={sec.type} />
         <span className="text-[11px] leading-tight truncate flex-1">{sec.title}</span>
       </button>
       {showDelete && (
         <button
           onClick={onDelete}
-          className="absolute right-1 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-red-500 text-xs opacity-0 group-hover:opacity-100"
+          className="absolute right-1 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-red-500 opacity-0 group-hover:opacity-100"
           title="Remover"
-        >×</button>
+        ><ActionIcons.remove className="w-3 h-3" /></button>
       )}
     </div>
   )
@@ -560,7 +560,7 @@ function SectionEditor({
       {!isCapa && (
         <div className="flex items-center justify-between">
           <div className={`flex items-center gap-2 text-sm font-semibold ${sec.enabled ? 'text-text-primary' : 'text-text-tertiary'}`}>
-            <span>{SECTION_ICONS[sec.type] ?? '📌'}</span>
+            <SecIcon type={sec.type} />
             <span>{sec.title}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -573,7 +573,7 @@ function SectionEditor({
       {/* Título da seção capa */}
       {isCapa && (
         <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-          <span>{SECTION_ICONS['capa']}</span>
+          <SecIcon type="capa" />
           <span>Capa</span>
         </div>
       )}
@@ -834,8 +834,8 @@ function Toggle({ enabled, onToggle }) {
 // ── Health Score Preview (read-only) ──────────────────────────
 function HealthPreview({ healthData }) {
   if (!healthData) return (
-    <div className="text-xs text-text-tertiary p-3 bg-bg-secondary rounded-md border border-border-tertiary">
-      💚 Dados de Health Score não encontrados para este cliente.
+    <div className="text-xs text-text-tertiary p-3 bg-bg-secondary rounded-md border border-border-tertiary flex items-center gap-1.5">
+      <HealthDimensionIcons.health_uso className="w-3.5 h-3.5" /> Dados de Health Score não encontrados para este cliente.
     </div>
   )
   const total = healthData.health_total
@@ -960,7 +960,7 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
                 {e.highlighted && <span className="text-[10px] text-donc-navy font-semibold">★ Destaque</span>}
               </div>
               <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                <button onClick={() => startEdit(e)} className="text-text-tertiary hover:text-donc-navy text-sm" title="Editar">✏️</button>
+                <button onClick={() => startEdit(e)} className="text-text-tertiary hover:text-donc-navy" title="Editar"><ActionIcons.edit className="w-3.5 h-3.5" /></button>
                 <button onClick={() => onRemove(e.id)} className="text-text-tertiary hover:text-red-500 text-sm">×</button>
               </div>
             </div>
@@ -1155,7 +1155,7 @@ function ImageUploader({ imageUrl, caption, uploading, onFile, onCaption }) {
           </div>
         ) : (
           <div>
-            <div className="text-2xl mb-2">🖼️</div>
+            <SecIcon type="custom-image" className="w-8 h-8 mx-auto mb-2 text-text-tertiary" />
             <p className="text-xs font-medium text-text-secondary mb-1">Arraste ou clique</p>
             <p className="text-xs text-text-tertiary">PNG, JPG ou SVG</p>
           </div>

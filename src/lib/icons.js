@@ -14,7 +14,10 @@ import {
   Trash2,
   Eye,
   Link,
-  X
+  X,
+  Star,
+  Globe,
+  Image as ImageIcon,
 } from "lucide-react"
 
 export const ActivityIcons = {
@@ -69,3 +72,20 @@ export const HealthDimensionIcons = {
   health_financeiro: Wallet,
   health_projeto: Rocket
 }
+
+export const SectionIcons = {
+  capa:             FileText,
+  escala:           BarChart3,
+  suporte:          Target,
+  projetos:         Rocket,
+  health_score:     BarChart3,
+  destaques:        Star,
+  contexto:         Globe,
+  proximos_passos:  Target,
+  'custom-text':    FileText,
+  'custom-image':   ImageIcon,
+  'custom-metrics': BarChart3,
+  'custom-bars':    BarChart3,
+}
+
+export const FallbackSectionIcon = FileText

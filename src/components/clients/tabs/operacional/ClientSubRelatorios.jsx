@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ActionIcons } from '../../../../lib/icons'
 import { useClientReports, useReportMutations, useReportViews } from '../../../../hooks/useClientReports'
 import { useAuth } from '../../../../contexts/AuthContext'
 import { Button } from '../../../ui/Button'
@@ -202,8 +203,8 @@ export function ClientSubRelatorios({ client }) {
                 <div className="text-xs text-text-tertiary mt-1 flex items-center gap-3">
                   <span>Criado em {formatDate(r.created_at)}</span>
                   {r.status === 'published' && viewsCount > 0 && (
-                    <span className="text-donc-sky">
-                      👁️ {viewsCount} visualizaç{viewsCount !== 1 ? 'ões' : 'ão'}
+                    <span className="text-donc-sky flex items-center gap-1">
+                      <ActionIcons.view className="w-3 h-3" /> {viewsCount} visualizaç{viewsCount !== 1 ? 'ões' : 'ão'}
                     </span>
                   )}
                 </div>
@@ -222,17 +223,17 @@ export function ClientSubRelatorios({ client }) {
                   <>
                     <button
                       onClick={() => copyLink(r.public_token)}
-                      className="text-text-tertiary hover:text-text-primary"
+                      className="text-text-tertiary hover:text-text-primary flex items-center gap-1"
                       title="Copiar link público"
                     >
-                      🔗 Link
+                      <ActionIcons.link className="w-3 h-3" /> Link
                     </button>
                     <button
                       onClick={() => setViewsReportId(r.id)}
-                      className="text-text-tertiary hover:text-text-primary"
+                      className="text-text-tertiary hover:text-text-primary flex items-center gap-1"
                       title="Ver visualizações"
                     >
-                      👁️ Views
+                      <ActionIcons.view className="w-3 h-3" /> Views
                     </button>
                     <button
                       onClick={() => setAllowEmailReport(r)}

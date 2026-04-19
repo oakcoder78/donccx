@@ -610,6 +610,7 @@ export default function DashboardPage() {
                   const countText = majority
                     ? `${d.healthy}/${d.total} saudáveis`
                     : `${d.total - d.healthy}/${d.total} com alerta`
+                  const DimIcon = HealthDimensionIcons[d.icon]
                   return (
                     <div key={d.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{
@@ -617,21 +618,7 @@ export default function DashboardPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         backgroundColor: `${d.color}22`, fontSize: 13,
                       }}>
-                        {(() => {
-
-  const Icon =
-    HealthDimensionIcons[d.icon];
-
-  return (
-
-    <Icon
-      className="w-5 h-5"
-      strokeWidth={1.8}
-    />
-
-  );
-
-})()}
+                        <DimIcon className="w-5 h-5" strokeWidth={1.8} />
                       </div>
                       <div style={{ fontSize: 12, color: '#4a4a46', width: 92, flexShrink: 0 }}>{d.label}</div>
                       <div style={{ flex: 1, height: 5, backgroundColor: '#f0efed', borderRadius: 3, overflow: 'hidden' }}>

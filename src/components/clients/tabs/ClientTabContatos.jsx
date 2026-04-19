@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ActionIcons } from '../../../lib/icons'
 import { Avatar } from '../../ui/Avatar'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
@@ -60,9 +61,9 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
           {c.email && (
             <a href={`mailto:${c.email}`}
               onClick={e => e.stopPropagation()}
-              className="text-xs text-text-secondary hover:text-donc-sky transition-colors truncate max-w-[180px]"
+              className="text-xs text-text-secondary hover:text-donc-sky transition-colors truncate max-w-[180px] flex items-center gap-1"
             >
-              📧 {c.email}
+              <ActionIcons.email className="w-3 h-3 flex-shrink-0" /> {c.email}
             </a>
           )}
           {wp && (
@@ -93,22 +94,22 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
             className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
             title="E-mail"
           >
-            📧
+            <ActionIcons.email className="w-4 h-4" />
           </a>
         )}
         <button
           onClick={() => onEdit(link)}
-          className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors text-xs"
+          className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
           title="Editar"
         >
-          ✏️
+          <ActionIcons.edit className="w-4 h-4" />
         </button>
         <button
           onClick={() => onUnlink(link.id)}
-          className="p-1.5 rounded-md hover:bg-red-50 text-text-tertiary hover:text-donc-red transition-colors text-xs"
+          className="p-1.5 rounded-md hover:bg-red-50 text-text-tertiary hover:text-donc-red transition-colors"
           title="Desvincular"
         >
-          ✕
+          <ActionIcons.remove className="w-4 h-4" />
         </button>
       </div>
     </div>
