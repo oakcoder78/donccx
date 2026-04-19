@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
-import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
+import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../../lib/icons";
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Avatar } from '../../ui/Avatar'
