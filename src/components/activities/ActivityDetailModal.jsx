@@ -232,7 +232,7 @@ useEffect(() => {
                         className="text-text-secondary hover:text-text-primary text-sm"
                         title="Download"
                       >
-                        ⬇
+                        <Download className="w-4 h-4 text-text-secondary hover:text-text-primary transition-colors"/>
                       </button>
 
                       {/* Delete */}
