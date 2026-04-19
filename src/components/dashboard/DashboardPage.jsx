@@ -20,7 +20,7 @@ const DIMS = [
   { key: 'health_suporte',        label: 'Suporte',        color: '#E24B4A', icon: 'health_suporte' },
   { key: 'health_relacionamento', label: 'Relacionamento', color: '#534AB7', icon: 'health_relacionamento' },
   { key: 'health_financeiro',     label: 'Financeiro',     color: '#BA7517', icon: 'health_financeiro' },
-  { key: 'health_projeto',        label: 'Projeto',        color: '#1D9E75', icon: '🚀' },
+  { key: 'health_projeto',        label: 'Projeto',        color: '#1D9E75', icon: 'health_projeto' },
 ]
 
 const PHRASES = [
