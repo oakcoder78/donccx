@@ -1,0 +1,47 @@
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F7F5;">
+  <tr>
+    <td align="center">
+      <!-- Container -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF;">
+        <!-- Header -->
+        <tr>
+          <td style="background:#173557;padding:20px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+            <span style="color:#D3DA47;font-size:24px;font-weight:bold;">donc</span><span style="color:#FFFFFF;font-size:24px;font-weight:bold;">CX</span><span style="color:#A2AEBC;font-size:20px;font-weight:bold;"> Hub</span>
+          </td>
+        </tr>
+        <!-- Content -->
+        <tr>
+          <td style="padding:30px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#173557;">
+            <p style="font-size:22px;font-weight:bold;margin:0 0 20px 0;">Acesse sua conta</p>
+            <p style="margin:0 0 20px 0;font-size:16px;line-height:1.5;">Olá,</p>
+            <p style="margin:0 0 20px 0;font-size:16px;line-height:1.5;">
+              Recebemos uma solicitação para acessar sua conta no <strong>doncCX Hub</strong>.<br/>
+              Clique o botão abaixo para entrar com segurança.
+            </p>
+            <!-- Button -->
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td align="center" style="padding:20px 0;">
+                  <a href="{{ .ConfirmationURL }}" style="background:#2DA3ED;color:#FFFFFF;padding:12px 24px;text-decoration:none;font-size:16px;font-weight:bold;border-radius:6px;display:inline-block;">Acessar conta</a>
+                </td>
+              </tr>
+            </table>
+            <!-- Fallback link -->
+            <p style="margin:20px 0 0 0;font-size:14px;line-height:1.5;color:#A2AEBC;">Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
+            <p style="margin:5px 0 0 0;font-size:14px;word-break:break-all;"><a href="{{ .ConfirmationURL }}" style="color:#2DA3ED;text-decoration:none;">{{ .ConfirmationURL }}</a></p>
+            <p style="margin:20px 0 0 0;font-size:14px;line-height:1.5;color:#A2AEBC;">Se você não solicitou este acesso, ignore este e‑mail.</p>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background:#F7F7F5;padding:20px 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;font-size:12px;color:#A2AEBC;text-align:center;">
+            <p style="margin:0 0 10px 0;">Este e‑mail foi enviado pelo doncCX Hub.<br/>Uma solução desenvolvida pela Donc.</p>
+            <p style="margin:0 0 10px 0;"><a href="{{ .SiteURL }}" style="color:#2DA3ED;text-decoration:none;"><img src="https://donc.com.br/img/logo-donc-gradient.png" alt="Donc logo" width="120" style="border:none;display:block;margin:0 auto;"/></a></p>
+            <p style="margin:0;">Se você não solicitou este e‑mail, pode ignorá‑lo com segurança.</p>
+          </td>
+        </tr>
+      </table>
+      <!-- End Container -->
+    </td>
+  </tr>
+</table>
