@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
+import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../../lib/icons";
 import { useActivities } from '../../../hooks/useActivities'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
@@ -7,8 +8,6 @@ import { ActivityModal } from '../../activities/ActivityModal'
 import { ActivityDetailModal } from '../../activities/ActivityDetailModal'
 import { PageSpinner } from '../../ui/Spinner'
 
-const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
-const typeBg = { reuniao: '#E6F1FB', ligacao: '#FAEEDA', email: '#EAF3DE', whatsapp: '#E6F9EC', tarefa: '#EEEDFE', nota: '#F5F5F3' }
 
 function formatDate(d) {
   if (!d) return '—'
@@ -30,15 +29,16 @@ export function ClientTabActivities({ client }) {
       </div>
 
       <div className="space-y-2">
-        {activities.map(a => (
+        {activities.map(a => {
           <div
+            const Icon = ActivityIcons[a.type] || DefaultActivityIcon;
             key={a.id}
             onClick={() => setSelected(a)}
             className="flex items-start gap-3 p-3 rounded-lg border border-border-tertiary hover:border-border-secondary cursor-pointer transition-colors bg-bg-primary"
           >
             <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 text-base"
-              style={{ backgroundColor: typeBg[a.type] }}>
-              {typeIcon[a.type]}
+              style={{ backgroundColor: ActivityIconBackgrounds[a.type] }}>
+              <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
