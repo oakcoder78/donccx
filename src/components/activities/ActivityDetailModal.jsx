@@ -7,6 +7,7 @@ import { getActivityAttachments } from '../../services/activityAttachments/getAc
 import { softDeleteActivityAttachment } from '../../services/activityAttachments/softDeleteActivityAttachment'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
+import { Paperclip, Eye, Download, Trash2 } from "lucide-react"
 import { useProfiles } from '../../hooks/useProfiles'
 
 const typeIcon = { reuniao: '📅', ligacao: '📞', email: '📧', whatsapp: '💬', tarefa: '✅', nota: '📝' }
