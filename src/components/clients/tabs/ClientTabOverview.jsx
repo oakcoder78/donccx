@@ -52,17 +52,19 @@ export function ClientTabOverview({ client }) {
           <p className="text-sm text-text-tertiary">Nenhuma atividade.</p>
         ) : (
           <div className="space-y-2">
-            {recentActivities.map(a => (
-              <div key={a.id} className="flex items-start gap-2 py-1.5 border-b border-border-tertiary last:border-0">
-              const Icon = ActivityIcons[a.type] || DefaultActivityIcon;
-                <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">{a.title || a.description}</p>
-                  <p className="text-xs text-text-tertiary">{formatDate(a.activity_date)} · {a.responsible?.name}</p>
-                </div>
-                <Badge variant={a.status === 'concluida' ? 'green' : 'amber'}>{a.status === 'concluida' ? 'Concluída' : 'Pendente'}</Badge>
-              </div>
-            ))}
+            {recentActivities.map(a => {
+  const Icon = ActivityIcons[a.type] || DefaultActivityIcon;
+  return (
+    <div key={a.id} className="flex items-start gap-2 py-1.5 border-b border-border-tertiary last:border-0">
+      <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-text-primary truncate">{a.title || a.description}</p>
+        <p className="text-xs text-text-tertiary">{formatDate(a.activity_date)} · {a.responsible?.name}</p>
+      </div>
+      <Badge variant={a.status === 'concluida' ? 'green' : 'amber'}>{a.status === 'concluida' ? 'Concluída' : 'Pendente'}</Badge>
+    </div>
+  );
+})}
           </div>
         )}
       </Card>
