@@ -32,23 +32,12 @@ export function ActivityDetailModal({ activity: a, onClose }) {
   const [attachments, setAttachments] = useState([])
   const [previewUrl, setPreviewUrl] = useState(null)
   const [profiles, setProfiles] = useState([])
-  const [currentUser, setCurrentUser] = useState(null)
+  // Removed currentUser state – using profile from useProfiles
   const { update, remove } = useActivityMutations()
 
-// Load current authenticated user
-useEffect(() => {
-  async function loadCurrentUser() {
-    const { data, error } = await supabase.auth.getUser()
-    if (error) {
-      console.error('Error loading current user:', error)
-      return
-    }
-    setCurrentUser(data?.user || null)
-    console.log('currentUser:', currentUser)
-  }
-  loadCurrentUser()
-}, [])
+  const { profile } = useProfiles()
 
+// Load current authenticated user
 useEffect(() => {
   async function loadAttachments() {
 
@@ -235,8 +224,8 @@ useEffect(() => {
                         onClick={async () => {
                           // Check permissions
                           const hasPermission =
-                            file.uploaded_by === currentUser?.id ||
-                            currentUser?.role === 'admin'
+                            file.uploaded_by === profile?.id ||
+                            profile?.role === 'admin'
 
                           if (!hasPermission) {
                             toast.error('Você não tem permissão para remover este arquivo.')
