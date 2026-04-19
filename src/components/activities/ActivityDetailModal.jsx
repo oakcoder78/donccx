@@ -36,7 +36,22 @@ export function ActivityDetailModal({ activity: a, onClose }) {
   const { update, remove } = useActivityMutations()
 
   const { data: userProfiles } = useProfiles()
-  const profile = userProfiles?.[0]
+  const [authUser, setAuthUser] = useState(null)
+
+  // Load authenticated user from Supabase
+  useEffect(() => {
+    async function loadAuthUser() {
+      const { data, error } = await supabase.auth.getUser()
+      if (error) {
+        console.error('Error loading auth user:', error)
+        return
+      }
+      setAuthUser(data?.user || null)
+    }
+    loadAuthUser()
+  }, [])
+
+  const profile = userProfiles?.find(p => p.id === authUser?.id)
 
 // Load current authenticated user
 useEffect(() => {
