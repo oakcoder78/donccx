@@ -126,7 +126,8 @@ useEffect(() => {
 
   if (showEdit) return <ActivityModal activity={a} onClose={() => { setShowEdit(false); onClose() }} />
 
-  const isOverdue = a.due_date && a.status !== 'concluida' && new Date(a.due_date) < new Date()
+  const isOverdue = a.due_date && a.status !== 'concluida' && new Date(a.due_date) < new Date();
+  const Icon = typeIcon[a.type] || FileText;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -135,7 +136,7 @@ useEffect(() => {
         <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
             style={{ backgroundColor: typeBg[a.type] }}
-{(() => { const Icon = typeIcon[a.type] || FileText; return null; })()}>
+>
             <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
           </div>
           <div className="flex-1 min-w-0">
