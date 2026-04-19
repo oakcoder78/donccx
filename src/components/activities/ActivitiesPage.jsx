@@ -19,6 +19,7 @@ const TABS = [
   { key: 'tarefa', label: 'Tarefas' },
   { key: 'nota', label: 'Notas' },
   { key: 'whatsapp', label: 'WhatsApp' },
+  { key: 'relatorio', label: 'Relatórios' },
 ]
 
 

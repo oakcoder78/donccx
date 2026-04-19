@@ -48,7 +48,9 @@ export const ActivityIcons = {
 
   tarefa: CheckSquare,
 
-  nota: FileText
+  nota: FileText,
+
+  relatorio: FileText,
 
 }
 
@@ -65,7 +67,9 @@ export const ActivityIconBackgrounds = {
 
   tarefa: '#EEEDFE',
 
-  nota: '#F5F5F3'
+  nota: '#F5F5F3',
+
+  relatorio: '#E8EEF7',
 
 }
 
