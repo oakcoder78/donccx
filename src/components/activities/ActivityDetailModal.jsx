@@ -194,7 +194,7 @@ useEffect(() => {
                         className="text-text-secondary hover:text-text-primary text-sm"
                         title="Visualizar"
                       >
-                        👁
+                        <Eye className="w-4 h-4 text-text-secondary hover:text-text-primary"/>
                       </button>
 
                       {/* Download */}
@@ -276,7 +276,7 @@ useEffect(() => {
                         className="text-text-secondary hover:text-text-primary text-sm"
                         title="Excluir"
                       >
-                        🗑
+                        <Trash2 className="w-4 h-4 text-text-secondary hover:text-text-primary"/>
                       </button>
                     </div>
                   </div>
