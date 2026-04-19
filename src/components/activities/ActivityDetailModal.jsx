@@ -134,8 +134,9 @@ useEffect(() => {
         {/* Header */}
         <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
-            style={{ backgroundColor: typeBg[a.type] }}>
-            (() => { const Icon = typeIcon[a.type]; return <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />; })()
+            style={{ backgroundColor: typeBg[a.type] }}
+{(() => { const Icon = typeIcon[a.type] || FileText; return null; })()}>
+            <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
