@@ -35,8 +35,8 @@ export function ActivityDetailModal({ activity: a, onClose }) {
   // Removed currentUser state – using profile from useProfiles
   const { update, remove } = useActivityMutations()
 
-  const { data: profiles } = useProfiles()
-  const profile = profiles?.[0]
+  const { data: userProfiles } = useProfiles()
+  const profile = userProfiles?.[0]
 
 // Load current authenticated user
 useEffect(() => {
