@@ -18,6 +18,21 @@ import {
   Star,
   Globe,
   Image as ImageIcon,
+  Paperclip,
+  Search,
+  User,
+  Smartphone,
+  RefreshCw,
+  Heart,
+  Package,
+  Tag,
+  Users,
+  ClipboardList,
+  Headphones,
+  Bot,
+  Sparkles,
+  Plug,
+  Flag,
 } from "lucide-react"
 
 export const ActivityIcons = {
@@ -62,7 +77,27 @@ export const ActionIcons = {
   view: Eye,
   link: Link,
   email: Mail,
-  remove: X
+  remove: X,
+  attachment: Paperclip,
+  search: Search,
+  user: User,
+  smartphone: Smartphone,
+  recalculate: RefreshCw,
+}
+
+export const SettingsMenuIcons = {
+  'minha-conta': User,
+  health:        Heart,
+  catalog:       Package,
+  segments:      Tag,
+  stages:        RefreshCw,
+  users:         Users,
+  logs:          ClipboardList,
+  freshdesk:     Headphones,
+  donkie:        Bot,
+  ai:            Sparkles,
+  'donc-api':    Plug,
+  features:      Flag,
 }
 
 export const HealthDimensionIcons = {

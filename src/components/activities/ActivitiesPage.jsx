@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
 import { useActivities } from '../../hooks/useActivities'
 import { useClients } from '../../hooks/useClients'
 import { useProfiles } from '../../hooks/useProfiles'
@@ -9,7 +8,7 @@ import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ActivityModal } from './ActivityModal'
 import { ActivityDetailModal } from './ActivityDetailModal'
-import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
+import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon, ActionIcons } from "../../lib/icons";
 
 // Vercel build trigger
 const TABS = [
@@ -159,7 +158,7 @@ export default function ActivitiesPage() {
         />
 
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none">
-          🔍
+          <ActionIcons.search className="w-4 h-4" />
         </span>
       </div>
 
@@ -347,8 +346,8 @@ function ActivityItem({ activity: a, onClick }) {
         </Badge>
 
         {a.activity_attachments?.length > 0 && (
-          <span className="text-xs text-text-tertiary">
-            📎 {a.activity_attachments.length}
+          <span className="text-xs text-text-tertiary flex items-center gap-0.5">
+            <ActionIcons.attachment className="w-3 h-3" /> {a.activity_attachments.length}
           </span>
         )}
 

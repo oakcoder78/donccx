@@ -2,6 +2,7 @@ import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { formatPhone } from '../../lib/formatPhone'
+import { ActionIcons, ActivityIcons } from '../../lib/icons'
 
 const STATUS_INFO = {
   ativo: { emoji: '🟢', label: 'Ativo' },
@@ -24,7 +25,7 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
   return (
     <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 sticky top-20">
       <div className="flex justify-end mb-2">
-        <button onClick={onClose} className="text-text-tertiary hover:text-text-primary text-sm">✕</button>
+        <button onClick={onClose} className="text-text-tertiary hover:text-text-primary"><ActionIcons.remove className="w-4 h-4" /></button>
       </div>
 
       {/* Avatar + name */}
@@ -45,14 +46,14 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
         {primaryEmail && (
           <a href={`mailto:${primaryEmail}`}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary">
-            📧 E-mail
+            <ActionIcons.email className="w-3.5 h-3.5" /> E-mail
           </a>
         )}
         {whatsapp && (
           <a href={`https://wa.me/${whatsapp.number.replace(/\D/g,'')}`}
             target="_blank" rel="noreferrer"
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary">
-            💬 WhatsApp
+            <ActivityIcons.whatsapp className="w-3.5 h-3.5" /> WhatsApp
           </a>
         )}
       </div>
@@ -64,21 +65,23 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
           {/* Multiple emails via contact_emails, fall back to contacts.email */}
           {(c.contact_emails?.length > 0 ? c.contact_emails : c.email ? [{ email: c.email, is_primary: true }] : []).map((em, i) => (
             <div key={i} className="flex items-center gap-2 text-sm text-text-primary mb-1">
-              <span className="text-text-tertiary">📧</span>
+              <ActionIcons.email className="w-3.5 h-3.5 text-text-tertiary flex-shrink-0" />
               <a href={`mailto:${em.email}`} className="hover:underline">{em.email}</a>
               {em.is_primary && <span className="text-xs text-text-tertiary bg-bg-secondary px-1 rounded">principal</span>}
             </div>
           ))}
           {phones.map((p, i) => (
             <div key={i} className="flex items-center gap-2 text-sm text-text-primary mb-1">
-              <span className="text-text-tertiary">{p.type === 'WhatsApp' ? '💬' : '📞'}</span>
+              {p.type === 'WhatsApp'
+                ? <ActivityIcons.whatsapp className="w-3.5 h-3.5 text-text-tertiary flex-shrink-0" />
+                : <ActivityIcons.ligacao className="w-3.5 h-3.5 text-text-tertiary flex-shrink-0" />}
               {formatPhone(p.number)} <span className="text-xs text-text-tertiary">{p.type}</span>
             </div>
           ))}
           {c.linkedin && (
             <a href={c.linkedin} target="_blank" rel="noreferrer"
               className="flex items-center gap-2 text-sm text-donc-sky hover:underline">
-              <span>🔗</span> LinkedIn
+              <ActionIcons.link className="w-3.5 h-3.5" /> LinkedIn
             </a>
           )}
         </div>

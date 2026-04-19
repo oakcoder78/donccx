@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ActionIcons } from '../../../lib/icons'
+import { ActionIcons, ActivityIcons } from '../../../lib/icons'
 import { Avatar } from '../../ui/Avatar'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
@@ -70,9 +70,9 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
             <a href={`https://wa.me/${wp.number.replace(/\D/g,'')}`}
               target="_blank" rel="noreferrer"
               onClick={e => e.stopPropagation()}
-              className="text-xs text-text-secondary hover:text-donc-verde transition-colors"
+              className="text-xs text-text-secondary hover:text-donc-verde transition-colors flex items-center gap-1"
             >
-              💬 {formatPhone(wp.number)}
+              <ActivityIcons.whatsapp className="w-3 h-3 flex-shrink-0" /> {formatPhone(wp.number)}
             </a>
           )}
         </div>
@@ -86,7 +86,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
             className="p-1.5 rounded-md bg-green-50 hover:bg-green-100 text-green-700 transition-colors"
             title="WhatsApp"
           >
-            💬
+            <ActivityIcons.whatsapp className="w-4 h-4" />
           </a>
         )}
         {c.email && (

@@ -4,6 +4,7 @@ import { Button } from '../../ui/Button'
 import { useHealthConfig } from '../../../hooks/useHealthConfig'
 import { useRecalculateHealth } from '../../../hooks/useHealthScore'
 import { calculateHealthScore } from '../../../lib/healthScore'
+import { ActionIcons } from '../../../lib/icons'
 
 const DIMS = [
   { key: 'uso',            label: 'Uso',           color: '#59c2ed' },
@@ -163,7 +164,7 @@ export function ClientTabHealth({ client }) {
           disabled={recalculate.isPending}
           onClick={() => recalculate.mutate({ client, rules })}
         >
-          {recalculate.isPending ? 'Calculando...' : '🩺 Recalcular'}
+          {recalculate.isPending ? 'Calculando...' : <span className="flex items-center gap-1.5"><ActionIcons.recalculate className="w-3.5 h-3.5" /> Recalcular</span>}
         </Button>
       </div>
 

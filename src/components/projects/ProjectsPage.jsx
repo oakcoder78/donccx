@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { PageHeader } from '../ui/PageHeader'
 import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
+import { ActionIcons } from '../../lib/icons'
 
 const COLUMNS = [
   { key: 'planejado',    label: 'Planejado',    color: '#888780', badge: 'slate'  },
@@ -184,7 +185,7 @@ export default function ProjectsPage() {
                                 <p className="text-sm font-semibold text-text-primary mb-1 leading-snug">{proj.title}</p>
 
                                 {respName && (
-                                  <p className="text-xs text-text-tertiary mb-2 truncate">👤 {respName}</p>
+                                  <p className="text-xs text-text-tertiary mb-2 truncate flex items-center gap-1"><ActionIcons.user className="w-3 h-3 flex-shrink-0" /> {respName}</p>
                                 )}
 
                                 {totalMs > 0 && (
