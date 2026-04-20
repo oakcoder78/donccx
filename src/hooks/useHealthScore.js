@@ -109,6 +109,13 @@ export async function recalculateAndSave(client, rules, weights) {
 
   const scores = calculateHealthScore(enrichedClient, effectiveRules, effectiveWeights)
 
+  console.log('[recalc debug]', {
+    clientId: client.id,
+    stageGroup: scores.stageGroup,
+    weights: effectiveWeights,
+    scores: { uso: scores.uso, suporte: scores.suporte, relacionamento: scores.relacionamento, financeiro: scores.financeiro, projeto: scores.projeto, total: scores.total }
+  })
+
   const now = new Date().toISOString()
   const { error } = await supabase
     .from('clients')
