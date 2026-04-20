@@ -118,6 +118,7 @@ export async function recalculateAndSave(client, rules, weights) {
       health_relacionamento: scores.relacionamento,
       health_financeiro:     scores.financeiro,
       health_projeto:        scores.projeto,
+      health_total:          scores.total,
       health_calculated_at:  now,
       updated_at:            now,
     })
