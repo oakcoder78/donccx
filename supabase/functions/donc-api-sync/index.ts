@@ -157,6 +157,7 @@ serve(async (req) => {
         // ── Salvar snapshot (campos calculados só escritos na aprovação CSM) ────
         const now = new Date()
         const isCurrentMonth = refMonth === `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+        console.log(`donc-api-sync: refMonth=${refMonth} nowUTC=${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')} isCurrentMonth=${isCurrentMonth} partial_day=${isCurrentMonth ? now.getUTCDate() : null}`)
 
         const usageRow = {
           client_id:     inst.client_id,
