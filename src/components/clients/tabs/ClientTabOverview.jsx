@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '../../../lib/supabaseClient'
 import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Avatar } from '../../ui/Avatar'
@@ -8,17 +9,13 @@ import { Button } from '../../ui/Button'
 import { ActivityIcons, DefaultActivityIcon, HealthDimensionIcons, ActionIcons } from '../../../lib/icons'
 import { syncClient } from '../../../lib/clientSync'
 import { useCatalog } from '../../../hooks/useCatalog'
+import { Bar, Line } from 'react-chartjs-2'
+import { Chart, CategoryScale, LinearScale, BarElement, Tooltip, PointElement, LineElement, Filler, LineController } from 'chart.js'
 import toast from 'react-hot-toast'
 
-const GAP_META = {
-  pausado:    { icon: '⚠', label: 'Pausado' },
-  abandonado: { icon: '⛔', label: 'Abandonado' },
-}
+Chart.register(CategoryScale, LinearScale, BarElement, Tooltip, PointElement, LineElement, Filler, LineController)
 
-function formatDate(d) {
-  if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtMonth(ym) {
   if (!ym) return ''
@@ -37,40 +34,123 @@ function pct(a, b) {
   return Math.round(((a - b) / b) * 100)
 }
 
+function formatDate(d) {
+  if (!d) return '—'
+  return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
+}
+
 const DIMS = [
-  { key: 'uso',            label: 'Uso',        Icon: HealthDimensionIcons.health_uso            },
-  { key: 'suporte',        label: 'Suporte',    Icon: HealthDimensionIcons.health_suporte        },
-  { key: 'relacionamento', label: 'Relac.',     Icon: HealthDimensionIcons.health_relacionamento },
-  { key: 'financeiro',     label: 'Financeiro', Icon: HealthDimensionIcons.health_financeiro     },
-  { key: 'projeto',        label: 'Projeto',    Icon: HealthDimensionIcons.health_projeto        },
+  { key: 'uso',            label: 'Uso',        color: '#59c2ed' },
+  { key: 'suporte',        label: 'Suporte',    color: '#1D9E75' },
+  { key: 'relacionamento', label: 'Relac.',     color: '#d3da47' },
+  { key: 'financeiro',     label: 'Financeiro', color: '#185FA5' },
+  { key: 'projeto',        label: 'Projeto',    color: '#534AB7' },
 ]
 
+// ── Sparkline inline SVG ──────────────────────────────────────────────────────
+function Sparkline({ data, color = '#59c2ed', width = 80, height = 32 }) {
+  if (!data || data.length < 2) return null
+  const max = Math.max(...data, 1)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const pts = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width
+    const y = height - ((v - min) / range) * (height - 4) - 2
+    return `${x},${y}`
+  }).join(' ')
+  const lastPt = pts.split(' ').pop().split(',')
+  return (
+    <svg width={width} height={height} style={{ overflow: 'visible' }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={lastPt[0]} cy={lastPt[1]} r="2.5" fill={color} />
+    </svg>
+  )
+}
+
+// ── Metric card ───────────────────────────────────────────────────────────────
+function MetricCard({ label, value, delta, sparkData, sparkColor, sub }) {
+  const deltaColor = delta === null ? '#888780' : delta >= 0 ? '#1D9E75' : '#E24B4A'
+  const deltaArrow = delta === null ? '' : delta >= 0 ? '▲' : '▼'
+  return (
+    <div style={{
+      background: '#fff',
+      border: '1px solid #e8e7e3',
+      borderRadius: 10,
+      padding: '14px 16px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4,
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a18', lineHeight: 1.1 }}>{value}</div>
+          {delta !== null && (
+            <div style={{ fontSize: 11, fontWeight: 600, color: deltaColor, marginTop: 2 }}>
+              {deltaArrow} {Math.abs(delta)}% vs mês ant.
+            </div>
+          )}
+          {sub && <div style={{ fontSize: 11, color: '#888780', marginTop: 2 }}>{sub}</div>}
+        </div>
+        {sparkData && <Sparkline data={sparkData} color={sparkColor || '#59c2ed'} />}
+      </div>
+    </div>
+  )
+}
+
+// ── Alert pill ────────────────────────────────────────────────────────────────
+function AlertPill({ text, color, bg }) {
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '6px 12px', borderRadius: 20,
+      background: bg, color, fontSize: 12, fontWeight: 600,
+      border: `1px solid ${color}30`,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+      {text}
+    </div>
+  )
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
 export function ClientTabOverview({ client }) {
   const navigate   = useNavigate()
   const qc         = useQueryClient()
   const { data: catalog = [] } = useCatalog()
-  const [syncing, setSyncing] = useState(false)
+  const [syncing, setSyncing]  = useState(false)
+
+  // Histórico de health score
+  const { data: healthHistory = [] } = useQuery({
+    queryKey: ['health_history', client.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('health_score_history')
+        .select('ref_month, health_total, health_uso, health_suporte, health_relacionamento, health_financeiro, health_projeto')
+        .eq('client_id', client.id)
+        .order('ref_month', { ascending: true })
+        .limit(6)
+      return data ?? []
+    },
+  })
 
   // ── Dados derivados ──────────────────────────────────────────────────────────
 
-  // Atividade mais recente
   const lastActivity = [...(client.activities || [])]
     .sort((a, b) => b.activity_date?.localeCompare(a.activity_date))[0] ?? null
 
-  // Próxima atividade pendente
   const nextActivity = [...(client.activities || [])]
     .filter(a => a.status === 'pendente' && a.due_date)
     .sort((a, b) => a.due_date.localeCompare(b.due_date))[0] ?? null
 
-  // Uso: mês atual vs anterior
   const usageSorted = [...(client.client_usage || [])]
-    .filter(u => !u.partial_day)
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
-  const curUsage  = usageSorted[0] ?? null
-  const prevUsage = usageSorted[1] ?? null
-  const osVar = curUsage && prevUsage ? pct(curUsage.os_created, prevUsage.os_created) : null
+  const usageLast6 = [...usageSorted].reverse().slice(-6)
+  const curUsage   = usageSorted[0] ?? null
+  const prevUsage  = usageSorted[1] ?? null
+  const osVar      = curUsage && prevUsage ? pct(curUsage.os_created, prevUsage.os_created) : null
+  const userVar    = curUsage && prevUsage ? pct(curUsage.active_users, prevUsage.active_users) : null
 
-  // Suporte: tickets não resolvidos do mês mais recente
   const supportSorted = [...(client.client_support || [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
   const curSupport  = supportSorted[0] ?? null
@@ -78,61 +158,104 @@ export function ClientTabOverview({ client }) {
     ? Math.max(0, (curSupport.tickets_opened ?? 0) - (curSupport.tickets_resolved ?? 0))
     : 0
 
-  // Financeiro
   const delayDays = client.delay_days ?? 0
+  const decisor   = client.contact_links?.find(l => l.papel === 'Decisor')
 
-  // Decisor principal
-  const decisor = client.contact_links?.find(l => l.papel === 'Decisor')
-
-  // Renovação
   const renewalDays = client.contract_renewal
     ? Math.ceil((new Date(client.contract_renewal + 'T00:00:00') - new Date()) / (1000 * 60 * 60 * 24))
     : null
 
-  // Milestones atrasados
   const todayStr = new Date().toISOString().slice(0, 10)
   const lateMilestones = (client.milestones || [])
     .filter(m => m.status !== 'done' && m.due_date && m.due_date < todayStr)
 
-  // Oportunidades de expansão
-  const allSolucoes = catalog.filter(c => c.type === 'solucao')
-  const catalogMap = {}
+  const allSolucoes  = catalog.filter(c => c.type === 'solucao')
+  const catalogMap   = {}
   client.client_catalog?.forEach(cc => { catalogMap[cc.catalog_item_id] = cc })
   const contractedIds = new Set(Object.keys(catalogMap).map(Number))
-  const gaps    = allSolucoes.filter(sol => catalogMap[sol.id] && (catalogMap[sol.id].status === 'pausado' || catalogMap[sol.id].status === 'abandonado'))
-  const expansao = allSolucoes.filter(sol => !contractedIds.has(sol.id))
+  const expansao     = allSolucoes.filter(sol => !contractedIds.has(sol.id))
 
-  // Alertas
   const alerts = []
-  if (renewalDays !== null && renewalDays <= 60 && renewalDays >= 0)
-    alerts.push({ color: '#BA7517', bg: '#fef9c3', text: `Renovação em ${renewalDays} dias` })
   if (renewalDays !== null && renewalDays < 0)
-    alerts.push({ color: '#E24B4A', bg: '#fee2e2', text: `Renovação vencida há ${Math.abs(renewalDays)} dias` })
+    alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `Renovação vencida há ${Math.abs(renewalDays)} dias` })
+  if (renewalDays !== null && renewalDays >= 0 && renewalDays <= 60)
+    alerts.push({ color: '#BA7517', bg: '#FFFBEB', text: `Renovação em ${renewalDays} dias` })
   if (lateMilestones.length > 0)
-    alerts.push({ color: '#BA7517', bg: '#fef9c3', text: `${lateMilestones.length} milestone${lateMilestones.length > 1 ? 's' : ''} atrasado${lateMilestones.length > 1 ? 's' : ''}` })
+    alerts.push({ color: '#BA7517', bg: '#FFFBEB', text: `${lateMilestones.length} milestone${lateMilestones.length > 1 ? 's' : ''} atrasado${lateMilestones.length > 1 ? 's' : ''}` })
   if (openTickets > 0)
-    alerts.push({ color: '#E24B4A', bg: '#fee2e2', text: `${openTickets} ticket${openTickets > 1 ? 's' : ''} sem resolução` })
+    alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `${openTickets} ticket${openTickets > 1 ? 's' : ''} sem resolução` })
   if (delayDays > 0)
-    alerts.push({ color: '#E24B4A', bg: '#fee2e2', text: `Atraso financeiro: ${delayDays} dias` })
+    alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `Atraso financeiro: ${delayDays} dias` })
 
-  // Health score
   const score      = client.health_total ?? 0
   const scoreColor = score >= 75 ? '#1D9E75' : score >= 50 ? '#BA7517' : '#E24B4A'
   const scoreLabel = score >= 75 ? 'Saudável' : score >= 50 ? 'Atenção' : 'Em Risco'
 
-  // Sync disponível?
   const hasSync = !!(client.client_donc_instances?.length || client.freshdesk_company_id)
+
+  // Gráfico de barras — OS últimos 6 meses
+  const barChart = useMemo(() => ({
+    labels: usageLast6.map(u => fmtMonth(u.ref_month)),
+    datasets: [{
+      label: 'OS Criadas',
+      data: usageLast6.map(u => u.os_created ?? 0),
+      backgroundColor: usageLast6.map((_, i) =>
+        i === usageLast6.length - 1 ? '#173557' : '#59c2ed40'
+      ),
+      borderColor: usageLast6.map((_, i) =>
+        i === usageLast6.length - 1 ? '#173557' : '#59c2ed'
+      ),
+      borderWidth: 1.5,
+      borderRadius: 5,
+    }],
+  }), [usageLast6])
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: {
+      callbacks: { label: ctx => ` ${fmtNum(ctx.raw)} OS` }
+    }},
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#888780' } },
+      y: { grid: { color: '#f0efed' }, ticks: { font: { size: 11 }, color: '#888780' }, border: { display: false } },
+    },
+  }
+
+  // Gráfico de linha — health score histórico
+  const healthChart = useMemo(() => ({
+    labels: healthHistory.map(h => fmtMonth(h.ref_month)),
+    datasets: [{
+      label: 'Health Score',
+      data: healthHistory.map(h => h.health_total),
+      borderColor: scoreColor,
+      backgroundColor: `${scoreColor}15`,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 4,
+      pointBackgroundColor: scoreColor,
+      borderWidth: 2,
+    }],
+  }), [healthHistory, scoreColor])
+
+  const lineOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#888780' } },
+      y: { min: 0, max: 100, grid: { color: '#f0efed' }, ticks: { font: { size: 11 }, color: '#888780' }, border: { display: false } },
+    },
+  }
 
   async function handleSync() {
     setSyncing(true)
     try {
       const result = await syncClient(client)
-      if (result.errors.length > 0) {
-        result.errors.forEach(e => toast.error(e))
-      } else {
-        toast.success('Dados sincronizados e health score atualizado', { icon: '🔄' })
-      }
+      if (result.errors.length > 0) result.errors.forEach(e => toast.error(e))
+      else toast.success('Dados sincronizados e health score atualizado', { icon: '🔄' })
       qc.invalidateQueries({ queryKey: ['client', String(client.id)] })
+      qc.invalidateQueries({ queryKey: ['health_history', client.id] })
     } catch (e) {
       toast.error(e.message)
     } finally {
@@ -141,223 +264,239 @@ export function ClientTabOverview({ client }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* ── Linha 1: Health + Próxima Ação ── */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* ── Linha 0: Alertas + Sync ── */}
+      {(alerts.length > 0 || hasSync) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 12, flexWrap: 'wrap',
+          padding: '10px 16px',
+          background: '#fff',
+          border: '1px solid #e8e7e3',
+          borderRadius: 10,
+        }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {alerts.length === 0
+              ? <span style={{ fontSize: 12, color: '#888780' }}>Nenhum alerta no momento.</span>
+              : alerts.map((a, i) => <AlertPill key={i} {...a} />)
+            }
+          </div>
+          {hasSync && (
+            <Button size="sm" variant="secondary" onClick={handleSync} disabled={syncing}>
+              {syncing
+                ? 'Sincronizando...'
+                : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <ActionIcons.recalculate style={{ width: 13, height: 13 }} /> Sincronizar
+                  </span>
+              }
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* ── Linha 1: 4 métricas ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
 
         {/* Health Score */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">Health Score</h3>
-            <button onClick={() => navigate(`/empresas/${client.id}?tab=health`)} className="text-xs text-donc-sky hover:underline">Ver detalhes</button>
+        <div style={{
+          background: '#173557',
+          borderRadius: 10,
+          padding: '14px 16px',
+          display: 'flex', flexDirection: 'column', gap: 6,
+          position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Health Score</div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ fontSize: 36, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{score}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: scoreColor, marginBottom: 3 }}>{scoreLabel}</div>
           </div>
-          <div className="flex items-center gap-4 mb-3">
-            <div className="text-4xl font-bold" style={{ color: scoreColor }}>{score}</div>
-            <div>
-              <div className="text-sm font-medium" style={{ color: scoreColor }}>{scoreLabel}</div>
-              <div className="text-xs text-text-tertiary mt-0.5">
-                {client.health_calculated_at
-                  ? `Calculado em ${new Date(client.health_calculated_at).toLocaleDateString('pt-BR')}`
-                  : 'Nunca calculado'}
-              </div>
-            </div>
-          </div>
-          <div className="space-y-1.5">
+          <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
             {DIMS.map(d => {
-              const val   = client[`health_${d.key}`] ?? 0
-              const color = val >= 15 ? '#1D9E75' : val >= 10 ? '#BA7517' : '#E24B4A'
+              const val = client[`health_${d.key}`] ?? 0
               return (
-                <div key={d.key} className="flex items-center gap-2">
-                  <span className="text-xs text-text-tertiary w-16">{d.label}</span>
-                  <div className="flex-1 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
-                    <div className="h-full rounded-full" style={{ width: `${(val / 20) * 100}%`, backgroundColor: color }} />
-                  </div>
-                  <span className="text-xs font-medium w-6 text-right" style={{ color }}>{val}</span>
+                <div key={d.key} title={`${d.label}: ${val}/20`} style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${(val / 20) * 100}%`, background: d.color, borderRadius: 2 }} />
                 </div>
               )
             })}
           </div>
-        </Card>
+          <button
+            onClick={() => navigate(`/empresas/${client.id}?tab=health`)}
+            style={{ position: 'absolute', top: 12, right: 12, fontSize: 10, color: 'rgba(255,255,255,0.4)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            detalhes →
+          </button>
+        </div>
 
-        {/* Próxima Ação + Última Interação */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">Ações</h3>
-            <button onClick={() => navigate(`/empresas/${client.id}?tab=atividades`)} className="text-xs text-donc-sky hover:underline">Ver todas</button>
-          </div>
+        {/* OS do mês */}
+        <MetricCard
+          label={`OS Criadas — ${curUsage ? fmtMonth(curUsage.ref_month) : '—'}`}
+          value={curUsage ? fmtNum(curUsage.os_created) : '—'}
+          delta={osVar}
+          sparkData={usageLast6.map(u => u.os_created ?? 0)}
+          sparkColor="#59c2ed"
+        />
 
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Próxima atividade</p>
-              {nextActivity ? (
-                <div className="flex items-start gap-2">
-                  {(() => { const Icon = ActivityIcons[nextActivity.type] || DefaultActivityIcon; return <Icon className="w-4 h-4 text-text-secondary mt-0.5 flex-shrink-0" strokeWidth={1.8} /> })()}
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{nextActivity.title || nextActivity.description}</p>
-                    <p className="text-xs text-text-tertiary">{formatDate(nextActivity.due_date)}</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-text-tertiary italic">Nenhuma atividade agendada</p>
-              )}
-            </div>
+        {/* Usuários ativos */}
+        <MetricCard
+          label="Usuários Ativos"
+          value={curUsage ? fmtNum(curUsage.active_users) : '—'}
+          delta={userVar}
+          sparkData={usageLast6.map(u => u.active_users ?? 0)}
+          sparkColor="#1D9E75"
+          sub={curUsage?.active_users && curUsage?.os_created
+            ? `${Math.round(curUsage.os_created / curUsage.active_users)} OS/usuário`
+            : undefined
+          }
+        />
 
-            <div className="border-t border-border-tertiary pt-3">
-              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Última interação</p>
-              {lastActivity ? (
-                <div className="flex items-start gap-2">
-                  {(() => { const Icon = ActivityIcons[lastActivity.type] || DefaultActivityIcon; return <Icon className="w-4 h-4 text-text-secondary mt-0.5 flex-shrink-0" strokeWidth={1.8} /> })()}
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{lastActivity.title || lastActivity.description}</p>
-                    <p className="text-xs text-text-tertiary">{formatDate(lastActivity.activity_date)} · {lastActivity.responsible?.name}</p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-text-tertiary italic">Nenhuma atividade registrada</p>
-              )}
-            </div>
-
-            {decisor && (
-              <div className="border-t border-border-tertiary pt-3">
-                <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Decisor</p>
-                <div className="flex items-center gap-2">
-                  <Avatar name={decisor.contacts?.name} size="sm" />
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{decisor.contacts?.name}</p>
-                    <p className="text-xs text-text-tertiary">{decisor.contacts?.cargo}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </Card>
+        {/* Tickets / Financeiro */}
+        {openTickets > 0 ? (
+          <MetricCard
+            label="Tickets em Aberto"
+            value={openTickets}
+            delta={null}
+            sparkData={null}
+            sparkColor="#E24B4A"
+            sub={curSupport ? `Ref. ${fmtMonth(curSupport.ref_month)}` : undefined}
+          />
+        ) : delayDays > 0 ? (
+          <MetricCard
+            label="Atraso Financeiro"
+            value={`${delayDays}d`}
+            delta={null}
+            sparkData={null}
+            sub="dias de atraso"
+          />
+        ) : (
+          <MetricCard
+            label="Suporte"
+            value={curSupport ? `${curSupport.tickets_resolved ?? 0}/${curSupport.tickets_opened ?? 0}` : '—'}
+            delta={null}
+            sparkData={null}
+            sub="resolvidos/abertos"
+          />
+        )}
       </div>
 
-      {/* ── Linha 2: Operação + Alertas ── */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* ── Linha 2: Gráfico de OS + Health Score histórico ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
-        {/* Operação do mês */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">
-              Operação {curUsage ? `— ${fmtMonth(curUsage.ref_month)}` : ''}
-            </h3>
-            <button onClick={() => navigate(`/empresas/${client.id}?tab=operacional&sub=uso`)} className="text-xs text-donc-sky hover:underline">Ver detalhes</button>
+        {/* Barras OS */}
+        <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Ordens de Serviço — últimos 6 meses</span>
+            <button onClick={() => navigate(`/empresas/${client.id}?tab=operacional&sub=uso`)} style={{ fontSize: 11, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>ver detalhes</button>
           </div>
-          {curUsage ? (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-text-secondary">OS Criadas</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">{fmtNum(curUsage.os_created)}</span>
-                  {osVar !== null && (
-                    <span className="text-xs font-medium" style={{ color: osVar >= 0 ? '#1D9E75' : '#E24B4A' }}>
-                      {osVar >= 0 ? '▲' : '▼'} {Math.abs(osVar)}%
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-text-secondary">Usuários Ativos</span>
-                <span className="text-sm font-semibold text-text-primary">{fmtNum(curUsage.active_users)}</span>
-              </div>
-              {openTickets > 0 && (
-                <div className="flex items-center justify-between border-t border-border-tertiary pt-2 mt-2">
-                  <span className="text-sm text-text-secondary">Tickets em aberto</span>
-                  <span className="text-sm font-semibold" style={{ color: '#E24B4A' }}>{openTickets}</span>
-                </div>
-              )}
+          {usageLast6.length >= 2 ? (
+            <div style={{ height: 140 }}>
+              <Bar data={barChart} options={barOptions} />
             </div>
           ) : (
-            <p className="text-sm text-text-tertiary italic">Nenhum dado de uso registrado.</p>
+            <div style={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Dados insuficientes para o gráfico.</span>
+            </div>
           )}
-        </Card>
+        </div>
 
-        {/* Alertas + Sync */}
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-text-primary">Alertas</h3>
-            {hasSync && (
-              <Button size="sm" variant="secondary" onClick={handleSync} disabled={syncing}>
-                {syncing
-                  ? 'Sincronizando...'
-                  : <span className="flex items-center gap-1.5"><ActionIcons.recalculate className="w-3.5 h-3.5" /> Sincronizar</span>}
-              </Button>
-            )}
+        {/* Health Score histórico */}
+        <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Evolução do Health Score</span>
+            <button onClick={() => navigate(`/empresas/${client.id}?tab=health`)} style={{ fontSize: 11, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>ver detalhes</button>
           </div>
-          {alerts.length > 0 ? (
-            <div className="space-y-2">
-              {alerts.map((a, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium" style={{ backgroundColor: a.bg, color: a.color }}>
-                  {a.text}
+          {healthHistory.length >= 2 ? (
+            <div style={{ height: 140 }}>
+              <Line data={healthChart} options={lineOptions} />
+            </div>
+          ) : (
+            <div style={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Histórico disponível a partir do próximo recálculo.</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Linha 3: Ações + Power Map ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+
+        {/* Ações */}
+        <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Ações</span>
+            <button onClick={() => navigate(`/empresas/${client.id}?tab=atividades`)} style={{ fontSize: 11, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>ver todas</button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Próxima atividade</div>
+              {nextActivity ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  {(() => { const Icon = ActivityIcons[nextActivity.type] || DefaultActivityIcon; return <Icon style={{ width: 15, height: 15, color: '#4a4a46', marginTop: 1, flexShrink: 0 }} strokeWidth={1.8} /> })()}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18' }}>{nextActivity.title || nextActivity.description}</div>
+                    <div style={{ fontSize: 11, color: '#888780' }}>{formatDate(nextActivity.due_date)}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Nenhuma atividade agendada</div>
+              )}
+            </div>
+            <div style={{ borderTop: '1px solid #f0efed', paddingTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Última interação</div>
+              {lastActivity ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  {(() => { const Icon = ActivityIcons[lastActivity.type] || DefaultActivityIcon; return <Icon style={{ width: 15, height: 15, color: '#4a4a46', marginTop: 1, flexShrink: 0 }} strokeWidth={1.8} /> })()}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18' }}>{lastActivity.title || lastActivity.description}</div>
+                    <div style={{ fontSize: 11, color: '#888780' }}>{formatDate(lastActivity.activity_date)} · {lastActivity.responsible?.name}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Nenhuma atividade registrada</div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Power Map */}
+        <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Power Map</span>
+            <button onClick={() => navigate(`/empresas/${client.id}?tab=contatos`)} style={{ fontSize: 11, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>ver todos</button>
+          </div>
+          {client.contact_links?.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {client.contact_links.slice(0, 4).map(cl => (
+                <div key={cl.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Avatar name={cl.contacts?.name} size="sm" />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cl.contacts?.name}</div>
+                    <div style={{ fontSize: 11, color: '#888780', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cl.contacts?.cargo}</div>
+                  </div>
+                  <Badge variant={cl.papel === 'Decisor' ? 'navy' : cl.champion ? 'sky' : 'default'}>
+                    {cl.champion ? 'Champion' : cl.papel}
+                  </Badge>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-text-tertiary italic">Nenhum alerta no momento.</p>
+            <div style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Nenhum contato mapeado.</div>
           )}
-        </Card>
-      </div>
-
-      {/* ── Linha 3: Power Map + Oportunidades ── */}
-      {(client.contact_links?.length > 0 || gaps.length > 0 || expansao.length > 0) && (
-        <div className="grid md:grid-cols-2 gap-4">
-
-          {/* Power Map resumido */}
-          {client.contact_links?.length > 0 && (
-            <Card>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-text-primary">Power Map</h3>
-                <button onClick={() => navigate(`/empresas/${client.id}?tab=contatos`)} className="text-xs text-donc-sky hover:underline">Ver todos</button>
-              </div>
-              <div className="space-y-2">
-                {client.contact_links.slice(0, 4).map(cl => (
-                  <div key={cl.id} className="flex items-center gap-2">
-                    <Avatar name={cl.contacts?.name} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">{cl.contacts?.name}</p>
-                      <p className="text-xs text-text-tertiary truncate">{cl.contacts?.cargo}</p>
-                    </div>
-                    <Badge variant={cl.papel === 'Decisor' ? 'navy' : cl.champion ? 'sky' : 'default'}>
-                      {cl.champion ? 'Champion' : cl.papel}
-                    </Badge>
-                  </div>
+          {expansao.length > 0 && (
+            <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #f0efed' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Expansão potencial</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {expansao.slice(0, 6).map(sol => (
+                  <span key={sol.id} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, border: '1px solid #e8e7e3', color: '#4a4a46', background: '#f7f7f5' }}>{sol.name}</span>
                 ))}
+                {expansao.length > 6 && <span style={{ fontSize: 11, color: '#888780' }}>+{expansao.length - 6}</span>}
               </div>
-            </Card>
-          )}
-
-          {/* Oportunidades */}
-          {(gaps.length > 0 || expansao.length > 0) && (
-            <Card>
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Oportunidades de Expansão</h3>
-              {gaps.length > 0 && (
-                <div className="mb-2">
-                  <p className="text-xs text-text-tertiary mb-1">Soluções pausadas/abandonadas</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {gaps.map(sol => (
-                      <span key={sol.id} className="text-xs px-2 py-0.5 rounded-full border border-border-secondary text-text-secondary flex items-center gap-1">
-                        {GAP_META[catalogMap[sol.id]?.status]?.icon} {sol.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {expansao.length > 0 && (
-                <div>
-                  <p className="text-xs text-text-tertiary mb-1">Potencial de expansão</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {expansao.slice(0, 8).map(sol => (
-                      <span key={sol.id} className="text-xs px-2 py-0.5 rounded-full border border-border-secondary text-text-secondary">{sol.name}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </Card>
+            </div>
           )}
         </div>
-      )}
+      </div>
+
     </div>
   )
 }
