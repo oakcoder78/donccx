@@ -6,8 +6,27 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export async function syncClient(client) {
-  const results = { donc: null, freshdesk: null, healthScore: null, errors: [] }
+  const results = { donc: null, freshdesk: null, healthScore: null, healthScoreBefore: null, errors: [], usage: null, support: null }
   const refMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+
+  // Captura estado anterior
+  const { data: usageBefore } = await supabase
+    .from('client_usage')
+    .select('os_created, active_users, ref_month')
+    .eq('client_id', client.id)
+    .order('ref_month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const { data: supportBefore } = await supabase
+    .from('client_support')
+    .select('tickets_opened, tickets_resolved, ref_month')
+    .eq('client_id', client.id)
+    .order('ref_month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  results.healthScoreBefore = client.health_total ?? null
 
   // 1. Sync DONC — apenas se tiver instâncias
   const { data: instances } = await supabase
@@ -60,6 +79,16 @@ export async function syncClient(client) {
       }
 
       results.donc = data.synced ?? 0
+
+      // Captura dados atualizados de uso
+      const { data: usageAfter } = await supabase
+        .from('client_usage')
+        .select('os_created, active_users, ref_month')
+        .eq('client_id', client.id)
+        .order('ref_month', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      results.usage = { before: usageBefore, after: usageAfter }
     } catch (e) {
       results.errors.push(`DONC: ${e.message}`)
     }
@@ -74,6 +103,16 @@ export async function syncClient(client) {
       results.errors.push(`Freshdesk: ${e.message}`)
     }
   }
+
+  // Captura dados atualizados de suporte
+  const { data: supportAfter } = await supabase
+    .from('client_support')
+    .select('tickets_opened, tickets_resolved, ref_month')
+    .eq('client_id', client.id)
+    .order('ref_month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  results.support = { before: supportBefore, after: supportAfter }
 
   // 3. Recalcular health score
   try {

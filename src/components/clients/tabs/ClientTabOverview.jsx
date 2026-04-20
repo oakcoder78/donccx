@@ -113,12 +113,159 @@ function AlertPill({ text, color, bg }) {
   )
 }
 
+// ── Modal de progresso de sync ────────────────────────────────────────────────
+function SyncModal({ step, result, client, onClose }) {
+  const steps = [
+    { key: 'donc',      label: 'API DONC',    desc: 'Sincronizando dados operacionais' },
+    { key: 'freshdesk', label: 'Freshdesk',   desc: 'Sincronizando tickets de suporte' },
+    { key: 'health',    label: 'Health Score', desc: 'Recalculando score' },
+    { key: 'done',      label: 'Concluído',   desc: 'Sincronização finalizada' },
+  ]
+
+  const currentIdx = steps.findIndex(s => s.key === step)
+  const isDone = step === 'done'
+  const progress = isDone ? 100 : Math.round(((currentIdx + 1) / (steps.length)) * 85)
+
+  function fmtNum(v) {
+    if (v === null || v === undefined) return '—'
+    return Number(v).toLocaleString('pt-BR')
+  }
+
+  function Delta({ before, after, label }) {
+    if (before === null && after === null) return null
+    const changed = before !== after
+    const increased = after > before
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f0efed' }}>
+        <span style={{ fontSize: 12, color: '#4a4a46' }}>{label}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 12, color: '#888780' }}>{fmtNum(before)}</span>
+          <span style={{ fontSize: 10, color: '#888780' }}>→</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: changed ? (increased ? '#1D9E75' : '#E24B4A') : '#1a1a18' }}>
+            {fmtNum(after)}
+            {changed && <span style={{ fontSize: 10, marginLeft: 3 }}>{increased ? '▲' : '▼'}</span>}
+          </span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 14, width: '100%', maxWidth: 440,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+        overflow: 'hidden',
+      }}>
+        {/* Header navy */}
+        <div style={{ background: '#173557', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Sincronização</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{client.fantasy_name || client.name}</div>
+          </div>
+          {isDone && (
+            <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 6, color: '#fff', fontSize: 12, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}>
+              Fechar
+            </button>
+          )}
+        </div>
+
+        {/* Barra de progresso */}
+        <div style={{ padding: '16px 20px 0' }}>
+          <div style={{ height: 6, background: '#f0efed', borderRadius: 3, overflow: 'hidden', marginBottom: 12 }}>
+            <div style={{
+              height: '100%', borderRadius: 3,
+              background: isDone ? '#1D9E75' : '#59c2ed',
+              width: `${progress}%`,
+              transition: 'width 0.5s ease, background 0.3s ease',
+            }} />
+          </div>
+
+          {/* Steps */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+            {steps.filter(s => s.key !== 'done').map((s, i) => {
+              const idx = steps.findIndex(x => x.key === step)
+              const done = i < idx || isDone
+              const active = s.key === step && !isDone
+              return (
+                <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: (!done && !active) ? 0.35 : 1 }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                    background: done ? '#1D9E75' : active ? '#173557' : '#f0efed',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 700,
+                    color: (done || active) ? '#fff' : '#888780',
+                    transition: 'all 0.3s',
+                  }}>
+                    {done ? '✓' : i + 1}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>{s.label}</div>
+                    {active && <div style={{ fontSize: 11, color: '#888780' }}>{s.desc}...</div>}
+                  </div>
+                  {active && (
+                    <div style={{ width: 14, height: 14, border: '2px solid #59c2ed', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Resumo — só quando done */}
+        {isDone && result && (
+          <div style={{ padding: '0 20px 20px' }}>
+            <div style={{ borderTop: '1px solid #e8e7e3', paddingTop: 14, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Resumo das alterações</div>
+
+              {result.healthScoreBefore !== null && result.healthScore !== null && (
+                <Delta before={result.healthScoreBefore} after={result.healthScore} label="Health Score" />
+              )}
+
+              {result.usage?.after && (
+                <>
+                  <Delta before={result.usage.before?.os_created ?? null} after={result.usage.after?.os_created ?? null} label="OS Criadas" />
+                  <Delta before={result.usage.before?.active_users ?? null} after={result.usage.after?.active_users ?? null} label="Usuários Ativos" />
+                </>
+              )}
+
+              {result.support?.after && (
+                <>
+                  <Delta before={result.support.before?.tickets_opened ?? null} after={result.support.after?.tickets_opened ?? null} label="Tickets Abertos" />
+                  <Delta before={result.support.before?.tickets_resolved ?? null} after={result.support.after?.tickets_resolved ?? null} label="Tickets Resolvidos" />
+                </>
+              )}
+
+              {result.errors?.length > 0 && (
+                <div style={{ marginTop: 10, padding: '8px 10px', background: '#FEF2F2', borderRadius: 6, border: '1px solid #E24B4A30' }}>
+                  {result.errors.map((e, i) => (
+                    <div key={i} style={{ fontSize: 11, color: '#E24B4A', fontWeight: 500 }}>⚠ {e}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export function ClientTabOverview({ client }) {
   const navigate   = useNavigate()
   const qc         = useQueryClient()
   const { data: catalog = [] } = useCatalog()
   const [syncing, setSyncing]  = useState(false)
+  const [syncStep, setSyncStep]     = useState(null)
+  const [syncResult, setSyncResult] = useState(null)
 
   // Histórico de health score
   const { data: healthHistory = [] } = useQuery({
@@ -250,16 +397,18 @@ export function ClientTabOverview({ client }) {
 
   async function handleSync() {
     setSyncing(true)
+    setSyncStep('donc')
+    setSyncResult(null)
     try {
       const result = await syncClient(client)
-      if (result.errors.length > 0) result.errors.forEach(e => toast.error(e))
-      else toast.success('Dados sincronizados e health score atualizado', { icon: '🔄' })
+      setSyncStep('done')
+      setSyncResult(result)
       qc.invalidateQueries({ queryKey: ['client', String(client.id)] })
       qc.invalidateQueries({ queryKey: ['health_history', client.id] })
     } catch (e) {
       toast.error(e.message)
-    } finally {
       setSyncing(false)
+      setSyncStep(null)
     }
   }
 
@@ -497,6 +646,14 @@ export function ClientTabOverview({ client }) {
         </div>
       </div>
 
+      {syncStep !== null && (
+        <SyncModal
+          step={syncStep}
+          result={syncResult}
+          client={client}
+          onClose={() => { setSyncing(false); setSyncStep(null); setSyncResult(null) }}
+        />
+      )}
     </div>
   )
 }
