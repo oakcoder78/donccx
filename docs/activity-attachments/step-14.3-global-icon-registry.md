@@ -2,339 +2,180 @@
 
 ## Context
 
-After stabilizing JSX behavior
+After stabilizing JSX behavior  
 and removing invalid rendering patterns,
 
-the icon system
-was still fragmented.
+the icon system  
+was still fragmented  
+across multiple modules.
 
-Multiple components
-contained duplicated
+Several components  
+contained duplicated  
 icon mappings.
 
 Examples included:
 
-- typeIcon objects
-defined inside components
+- local typeIcon objects  
+defined inside components  
 
-- typeBg objects
-declared locally
+- local typeBg objects  
+declared per file  
 
-- repeated icon logic
-across different files
+- repeated icon logic  
+spread across modules  
+
+- emoji-based icons  
+used inconsistently  
+throughout the interface  
 
 This created risks such as:
 
-- visual inconsistencies
-- duplicated definitions
-- difficult maintenance
-- increased probability
-of future rendering errors
+- visual inconsistencies  
+between modules  
 
-A centralized icon system
-became necessary
-to standardize behavior
-and simplify future updates.
+- duplicated definitions  
+across files  
 
+- difficult maintenance  
+during future changes  
+
+- increased probability  
+of rendering errors  
+
+- unpredictable fallback behavior  
+
+Initially, the icon logic  
+was limited  
+to activity components.
+
+However,  
+as the UI expanded  
+to include:
+
+- operational tables  
+- report modules  
+- dashboard dimensions  
+- configuration panels  
+- action buttons  
+
+the system required  
+a scalable  
+and centralized  
+icon management strategy.
+
+A unified global registry  
+became necessary  
+to standardize behavior  
+and simplify future development.
 
 ---
 
 ## Purpose
 
-This step introduces
-a centralized icon registry
+This step introduces  
+a centralized  
+global icon registry  
 responsible for:
 
-- defining activity icons
-in a single location
+- defining activity icons  
+in a single location  
 
-- defining icon backgrounds
-in a single location
+- defining action icons  
+(edit, delete, view)  
 
-- eliminating duplicated
-icon mappings
+- defining health dimension icons  
 
-- improving visual consistency
-across components
+- defining settings menu icons  
 
-- enabling scalable
-icon usage across modules
+- defining report section icons  
 
-This registry
-acts as the single source
-of truth
-for activity icons.
+- defining icon backgrounds  
+centrally  
 
+- eliminating duplicated  
+icon mappings  
+
+- replacing emoji-based icons  
+with vector icons  
+
+- improving visual consistency  
+across modules  
+
+- enabling scalable  
+icon usage across the platform  
+
+This registry  
+acts as the **single source of truth**  
+for all UI icons  
+used throughout the system.
 
 ---
 
 ## Implementation
 
-The global icon registry
-was created and integrated
-into existing components.
+The global icon registry  
+was created  
+and progressively expanded  
+to support multiple UI domains.
 
-The process included:
+The implementation  
+occurred in structured phases.
 
-### 1 — Create Global Icon Registry
+---
 
-A new file
+## 1 — Create Global Icon Registry
+
+A new file  
 was created:
 
 src/lib/icons.js
 
+This file centralizes  
+all icon definitions  
+used throughout the system.
 
-This file defines:
+The registry initially  
+included activity icons  
+and later expanded  
+to support global UI elements.
 
-- ActivityIcons
-- ActivityIconBackgrounds
-- DefaultActivityIcon
+Core icon imports:
 
-
-Example structure:
-
+```javascript
 import {
   Calendar,
   Phone,
   Mail,
   MessageCircle,
   CheckSquare,
-  FileText
+  FileText,
+  BarChart3,
+  Target,
+  Handshake,
+  Wallet,
+  Rocket,
+  Pencil,
+  Trash2,
+  Eye,
+  Link,
+  X,
+  Star,
+  Globe,
+  Image as ImageIcon,
+  Paperclip,
+  Search,
+  User,
+  Smartphone,
+  RefreshCw,
+  Heart,
+  Package,
+  Tag,
+  Users,
+  ClipboardList,
+  Headphones,
+  Bot,
+  Sparkles,
+  Plug,
+  Flag,
+  Info
 } from "lucide-react"
-
-
-export const ActivityIcons = {
-
-  reuniao: Calendar,
-
-  ligacao: Phone,
-
-  email: Mail,
-
-  whatsapp: MessageCircle,
-
-  tarefa: CheckSquare,
-
-  nota: FileText
-
-}
-
-
-export const ActivityIconBackgrounds = {
-
-  reuniao: '#E6F1FB',
-
-  ligacao: '#FAEEDA',
-
-  email: '#EAF3DE',
-
-  whatsapp: '#E6F9EC',
-
-  tarefa: '#EEEDFE',
-
-  nota: '#F5F5F3'
-
-}
-
-
-export const DefaultActivityIcon =
-  FileText
-
-
-This structure ensures:
-
-- consistent icon usage
-- centralized styling
-- predictable fallback behavior
-
-
----
-
-### 2 — Remove Local Icon Definitions
-
-All local definitions
-such as:
-
-const typeIcon = { ... }
-
-const typeBg = { ... }
-
-were removed
-from individual components.
-
-This eliminated:
-
-- duplicated logic
-- inconsistent mappings
-- outdated icon definitions
-
-
----
-
-### 3 — Integrate Registry into Components
-
-Existing components
-were migrated
-to use the centralized registry.
-
-Icons are now accessed using:
-
-ActivityIcons[a.type]
-
-and:
-
-ActivityIconBackgrounds[a.type]
-
-With fallback support:
-
-ActivityIcons[a.type]
-  || DefaultActivityIcon
-
-
-This guarantees:
-
-- safe rendering
-- consistent fallback
-- stable UI behavior
-
-
----
-
-### 4 — Migrate Core Components
-
-The following components
-were successfully migrated:
-
-ActivitiesPage.jsx
-
-ActivityDetailModal.jsx
-
-ClientTabOverview.jsx
-
-ClientTabActivities.jsx
-
-
-Each component
-now references:
-
-src/lib/icons.js
-
-instead of local mappings.
-
-
----
-
-### 5 — Replace Attachment Emoji
-
-During migration,
-the attachment indicator:
-
-📎
-
-was replaced
-with:
-
-Paperclip (Lucide icon)
-
-
-This ensured:
-
-- visual consistency
-- removal of emoji-based icons
-- alignment with design standards
-
-
----
-
-## Files Created
-
-The following file
-was introduced:
-
-src/lib/icons.js
-
-
-This file is now
-the central reference
-for activity icons.
-
-
----
-
-## Files Updated
-
-The following files
-were modified:
-
-src/components/activities/ActivitiesPage.jsx
-
-src/components/activities/ActivityDetailModal.jsx
-
-src/components/clients/tabs/ClientTabOverview.jsx
-
-src/components/clients/tabs/ClientTabActivities.jsx
-
-
-All icon references
-now originate
-from the centralized registry.
-
-
----
-
-## Result
-
-After integration:
-
-- all activity icons
-are defined centrally
-
-- visual consistency
-is preserved
-across modules
-
-- duplicated icon mappings
-were eliminated
-
-- UI rendering
-became more predictable
-
-- component maintenance
-became simpler
-
-
-Build status:
-
-✔ Successful
-
-Rendering status:
-
-✔ Stable
-
-Runtime errors:
-
-✔ Eliminated
-
-
----
-
-## Outcome
-
-This step completed
-the transition
-to centralized icon management.
-
-The system now uses:
-
-- reusable icon definitions
-- shared background styles
-- consistent fallback icons
-
-Future UI improvements
-can now be applied
-from a single location.
-
-This establishes
-a scalable foundation
-for icon usage
-across the entire platform.

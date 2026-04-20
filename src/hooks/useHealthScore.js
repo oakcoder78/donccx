@@ -34,7 +34,7 @@ async function fetchClientArrays(clientId) {
   const [usageRes, supportRes, activitiesRes, milestonesRes, historyRes, projectsRes] = await Promise.all([
     supabase
       .from('client_usage')
-      .select('ref_month, os_created, active_users')
+      .select('ref_month, os_created, active_users, pending')
       .eq('client_id', clientId)
       .order('ref_month', { ascending: false }),
     supabase

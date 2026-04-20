@@ -47,11 +47,14 @@ function calcUso(client, rules) {
 
   if (usage.length < 2) return { score: 20, appliedRules: [] }
 
+  const effectiveUsage = [...usage].filter((u, idx) => !(u.pending === true && idx === 0))
+  if (effectiveUsage.length < 2) return { score: 20, appliedRules: [] }
+
   const appliedRules = []
   let mod = 0
 
-  const cur   = usage[0]
-  const last3 = usage.slice(1, 4)
+  const cur   = effectiveUsage[0]
+  const last3 = effectiveUsage.slice(1, 4)
   const avg3OS    = last3.reduce((s, u) => s + (u.os_created   ?? 0), 0) / last3.length
   const avg3Users = last3.reduce((s, u) => s + (u.active_users ?? 0), 0) / last3.length
 

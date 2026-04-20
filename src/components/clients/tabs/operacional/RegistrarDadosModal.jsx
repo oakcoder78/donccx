@@ -95,6 +95,8 @@ export function RegistrarDadosModal({ client, initialMonth, onClose }) {
           ref_month:    month,
           os_created:   Number(osVal)    || 0,
           active_users: Number(usersVal) || 0,
+          pending:      month === currentMonth(),
+          partial_day:  month === currentMonth() ? new Date().getDate() : null,
         }))
       }
 

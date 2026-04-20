@@ -120,7 +120,8 @@ export function ClientSubUso({ client, onEdit }) {
               <tbody>
                 {monthGroups.flatMap(({ month, rows }) => {
                   const multiInst = rows.length > 1
-                  const partial   = isCurrentMonth(month)
+                  const partial   = rows[0]?.pending === true
+                  const partialDay = rows[0]?.partial_day ?? today
                   const entries   = []
 
                   // Cabeçalho de mês quando há múltiplas instâncias
@@ -131,7 +132,7 @@ export function ClientSubUso({ client, onEdit }) {
                           <span className="text-xs font-semibold text-text-primary">{fmtMonth(month)}</span>
                           {partial && (
                             <span className="ml-2 text-xs font-medium" style={{ color: '#b45309' }}>
-                              (dados até dia {today})
+                              (dados até dia {partialDay})
                             </span>
                           )}
                         </td>
@@ -147,9 +148,10 @@ export function ClientSubUso({ client, onEdit }) {
                       ? (instLabel || `Instância ${u.instance_id ?? idx + 1}`)
                       : fmtMonth(month)
 
-                    const partialNote = !multiInst && partial
+                    const rowPartialDay = u.partial_day ?? today
+                    const partialNote = !multiInst && u.pending === true
                       ? <span className="ml-1 text-xs" style={{ color: '#b45309', fontWeight: 500 }}
-                              title={`Dados coletados até ${today}/${String(new Date().getMonth() + 1).padStart(2, '0')}`}>(até dia {today})</span>
+                              title={`Dados coletados até ${rowPartialDay}/${String(new Date().getMonth() + 1).padStart(2, '0')}`}>(até dia {rowPartialDay})</span>
                       : null
 
                     entries.push(
