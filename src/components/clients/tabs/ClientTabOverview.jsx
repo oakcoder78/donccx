@@ -576,6 +576,20 @@ export function ClientTabOverview({ client }) {
               <span style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Histórico disponível a partir do próximo recálculo.</span>
             </div>
           )}
+          <div style={{ borderTop: '1px solid #f0efed', marginTop: 12, paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Temperatura CSM</span>
+              <TemperaturaCSM client={client} compact={true} />
+            </div>
+            {client.temperature_note && (client.temperature_updated_at) && (() => {
+              const days = Math.floor((Date.now() - new Date(client.temperature_updated_at).getTime()) / (1000*60*60*24))
+              return days <= 30 ? (
+                <span style={{ fontSize: 11, color: '#4a4a46', fontStyle: 'italic', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  "{client.temperature_note}"
+                </span>
+              ) : null
+            })()}
+          </div>
         </div>
       </div>
 
@@ -617,10 +631,6 @@ export function ClientTabOverview({ client }) {
                 <div style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Nenhuma atividade registrada</div>
               )}
             </div>
-            <div style={{ borderTop: '1px solid #f0efed', paddingTop: 12, marginTop: 4 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Temperatura do CSM</div>
-              <TemperaturaCSM client={client} compact={true} />
-            </div>
           </div>
         </div>
 
@@ -661,8 +671,6 @@ export function ClientTabOverview({ client }) {
           )}
         </div>
       </div>
-
-      <TemperaturaCSM client={client} />
 
       {syncStep !== null && (
         <SyncModal
