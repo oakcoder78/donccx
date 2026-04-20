@@ -223,7 +223,7 @@ export default function DoncAPIPendentes() {
     const snap    = row.donc_snapshot
     const apiVals = snapshotValues(snap)
 
-    let patch = { pending: false }
+    let patch = { pending: false, partial_day: row.partial_day ?? null }
 
     if (type === 'approve') {
       Object.assign(patch, apiVals, {
