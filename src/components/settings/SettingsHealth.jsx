@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HealthDimensionIcons, SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
 import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
+import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 const DIMS = ['uso','suporte','relacionamento','financeiro','projeto']
@@ -59,6 +61,133 @@ function HealthScoreAccordion() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function WeightsSection({ isAdmin }) {
+  const qc = useQueryClient()
+  const GROUPS = [
+    { key: 'onboarding',           label: 'Onboarding' },
+    { key: 'producao',             label: 'Produção' },
+    { key: 'producao_sem_projeto', label: 'Produção sem Projeto' },
+  ]
+  const DIMS_W = [
+    { key: 'uso',            label: 'Uso' },
+    { key: 'relacionamento', label: 'Relacionamento' },
+    { key: 'projeto',        label: 'Projeto' },
+    { key: 'suporte',        label: 'Suporte' },
+    { key: 'financeiro',     label: 'Financeiro' },
+    { key: 'temperatura',    label: 'Temperatura CSM' },
+  ]
+
+  const { data: rawWeights = [], isLoading } = useQuery({
+    queryKey: ['health_dimension_weights'],
+    queryFn: async () => {
+      const { data } = await supabase.from('health_dimension_weights').select('*')
+      return data ?? []
+    },
+  })
+
+  const [edits, setEdits] = useState({})
+  const [saving, setSaving] = useState(null)
+
+  useEffect(() => {
+    if (!rawWeights.length) return
+    const init = {}
+    for (const row of rawWeights) {
+      if (!init[row.stage_group]) init[row.stage_group] = {}
+      init[row.stage_group][row.dimension] = String(row.weight)
+    }
+    setEdits(init)
+  }, [rawWeights])
+
+  function getVal(group, dim) {
+    return edits[group]?.[dim] ?? '0'
+  }
+
+  function setVal(group, dim, val) {
+    setEdits(prev => ({
+      ...prev,
+      [group]: { ...(prev[group] ?? {}), [dim]: val }
+    }))
+  }
+
+  function getSum(group) {
+    return DIMS_W.reduce((s, d) => s + (parseInt(getVal(group, d.key), 10) || 0), 0)
+  }
+
+  async function saveGroup(groupKey) {
+    const sum = getSum(groupKey)
+    if (sum !== 100) { toast.error(`A soma dos pesos deve ser 100 (atual: ${sum})`); return }
+    setSaving(groupKey)
+    try {
+      const rows = DIMS_W.map(d => ({
+        stage_group: groupKey,
+        dimension: d.key,
+        weight: parseInt(getVal(groupKey, d.key), 10) || 0,
+      }))
+      const { error } = await supabase
+        .from('health_dimension_weights')
+        .upsert(rows, { onConflict: 'stage_group,dimension' })
+      if (error) throw error
+      toast.success('Pesos salvos')
+      qc.invalidateQueries({ queryKey: ['health_dimension_weights'] })
+    } catch (e) {
+      toast.error(e.message)
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  if (isLoading) return null
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 mb-4">
+      <h3 className="text-sm font-semibold text-text-primary mb-1">Pesos por Estágio</h3>
+      <p className="text-xs text-text-tertiary mb-4">Define a importância de cada dimensão no cálculo do Health Score conforme o estágio do cliente. A soma deve ser 100.</p>
+      <div className="space-y-4">
+        {GROUPS.map(g => {
+          const sum = getSum(g.key)
+          const valid = sum === 100
+          return (
+            <div key={g.key} className="border border-border-tertiary rounded-lg p-3">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-text-primary">{g.label}</span>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-semibold ${valid ? 'text-donc-verde' : 'text-donc-red'}`}>
+                    Soma: {sum}/100
+                  </span>
+                  {isAdmin && (
+                    <Button size="sm" onClick={() => saveGroup(g.key)} disabled={saving === g.key || !valid}>
+                      {saving === g.key ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {DIMS_W.map(d => (
+                  <div key={d.key}>
+                    <label className="label-sm">{d.label}</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={getVal(g.key, d.key)}
+                        onChange={e => setVal(g.key, d.key, e.target.value)}
+                        disabled={!isAdmin}
+                        className="input-base w-full text-right"
+                      />
+                      <span className="text-xs text-text-tertiary">%</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -129,6 +258,8 @@ export function SettingsHealth() {
           </div>
           <Button size="sm" onClick={saveThresholds} disabled={updateConfig.isPending}>Salvar</Button>
         </div>
+
+        <WeightsSection isAdmin={isAdmin} />
 
         {/* Recalcular todos — admin only */}
         {isAdmin && (
