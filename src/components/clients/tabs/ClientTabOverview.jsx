@@ -8,6 +8,7 @@ import { Avatar } from '../../ui/Avatar'
 import { Button } from '../../ui/Button'
 import { ActivityIcons, DefaultActivityIcon, HealthDimensionIcons, ActionIcons } from '../../../lib/icons'
 import { syncClient } from '../../../lib/clientSync'
+import { TemperaturaCSM } from '../TemperaturaCSM'
 import { useCatalog } from '../../../hooks/useCatalog'
 import { Bar, Line } from 'react-chartjs-2'
 import { Chart, CategoryScale, LinearScale, BarElement, Tooltip, PointElement, LineElement, Filler, LineController } from 'chart.js'
@@ -616,6 +617,10 @@ export function ClientTabOverview({ client }) {
                 <div style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Nenhuma atividade registrada</div>
               )}
             </div>
+            <div style={{ borderTop: '1px solid #f0efed', paddingTop: 12, marginTop: 4 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Temperatura do CSM</div>
+              <TemperaturaCSM client={client} compact={true} />
+            </div>
           </div>
         </div>
 
@@ -656,6 +661,8 @@ export function ClientTabOverview({ client }) {
           )}
         </div>
       </div>
+
+      <TemperaturaCSM client={client} />
 
       {syncStep !== null && (
         <SyncModal

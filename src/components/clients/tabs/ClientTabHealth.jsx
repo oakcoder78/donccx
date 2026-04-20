@@ -12,6 +12,7 @@ import { useRecalculateHealth } from '../../../hooks/useHealthScore'
 import { calculateHealthScore } from '../../../lib/healthScore'
 import { ActionIcons } from '../../../lib/icons'
 import { supabase } from '../../../lib/supabaseClient'
+import { TemperaturaCSM } from '../TemperaturaCSM'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 
@@ -167,6 +168,11 @@ export function ClientTabHealth({ client }) {
     return calculateHealthScore(client, rules).appliedRules
   }, [client, rules])
 
+  const stageGroup = rules.length
+    ? calculateHealthScore(client, rules).stageGroup
+    : 'producao'
+  const stageGroupLabel = { onboarding: 'Onboarding', producao: 'Produção', producao_sem_projeto: 'Produção sem Projeto' }
+
   const [openMap, setOpenMap] = useState(() =>
     Object.fromEntries(DIMS.map(d => [d.key, false]))
   )
@@ -197,6 +203,7 @@ export function ClientTabHealth({ client }) {
         >
           {recalculate.isPending ? 'Calculando...' : <span className="flex items-center gap-1.5"><ActionIcons.recalculate className="w-3.5 h-3.5" /> Recalcular</span>}
         </Button>
+        <span className="text-xs text-text-tertiary">Grupo: {stageGroupLabel[stageGroup] ?? stageGroup}</span>
       </div>
 
       {/* Score total */}
@@ -277,6 +284,8 @@ export function ClientTabHealth({ client }) {
           </Button>
         </div>
       </div>
+
+      <TemperaturaCSM client={client} />
 
       {/* Gráfico de evolução histórica */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
