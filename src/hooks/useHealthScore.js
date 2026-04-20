@@ -23,6 +23,20 @@ async function fetchRules() {
   return data ?? []
 }
 
+async function fetchWeights() {
+  const { data, error } = await supabase
+    .from('health_dimension_weights')
+    .select('stage_group, dimension, weight')
+  if (error) { console.error('[fetchWeights]', error); return null }
+
+  const weights = {}
+  for (const row of data ?? []) {
+    if (!weights[row.stage_group]) weights[row.stage_group] = {}
+    weights[row.stage_group][row.dimension] = row.weight
+  }
+  return weights
+}
+
 /**
  * Busca do banco os arrays necessários para o cálculo do health score.
  * Não depende do estado do React Query cache.
@@ -84,15 +98,16 @@ async function fetchClientArrays(clientId) {
  * Busca os arrays de dados diretamente do banco para garantir dados frescos.
  * Se rules não for fornecido, busca do banco automaticamente.
  */
-export async function recalculateAndSave(client, rules) {
-  const [effectiveRules, freshArrays] = await Promise.all([
+export async function recalculateAndSave(client, rules, weights) {
+  const [effectiveRules, freshArrays, effectiveWeights] = await Promise.all([
     rules != null ? Promise.resolve(rules) : fetchRules(),
     fetchClientArrays(client.id),
+    weights != null ? Promise.resolve(weights) : fetchWeights(),
   ])
 
   const enrichedClient = { ...client, ...freshArrays }
 
-  const scores = calculateHealthScore(enrichedClient, effectiveRules)
+  const scores = calculateHealthScore(enrichedClient, effectiveRules, effectiveWeights)
 
   const now = new Date().toISOString()
   const { error } = await supabase
@@ -135,16 +150,17 @@ export async function recalculateAndSave(client, rules) {
  * score de cada um e persiste. Retorna a quantidade de clientes atualizados.
  */
 export async function recalculateAllHealthScores() {
-  const [clientsResult, rules] = await Promise.all([
+  const [clientsResult, rules, weights] = await Promise.all([
     supabase.from('clients').select(FULL_CLIENT_SELECT).eq('contract_active', true),
     fetchRules(),
+    fetchWeights(),
   ])
 
   if (clientsResult.error) throw clientsResult.error
   const clients = clientsResult.data ?? []
   if (!clients.length) return 0
 
-  await Promise.all(clients.map(c => recalculateAndSave(c, rules)))
+  await Promise.all(clients.map(c => recalculateAndSave(c, rules, weights)))
   return clients.length
 }
 
