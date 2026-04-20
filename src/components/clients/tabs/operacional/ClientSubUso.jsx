@@ -31,7 +31,6 @@ export function ClientSubUso({ client, onEdit }) {
   const { remove } = useClientUsageMutations()
 
   const usageData  = client.client_usage || []
-  console.log('[ClientSubUso] usageData abril:', usageData.filter(u => u.ref_month === '2026-04').map(u => ({ id: u.id, pending: u.pending, partial_day: u.partial_day })))
   const sorted     = [...usageData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
   const chartData6 = sorted.slice(-6)
 
