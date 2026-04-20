@@ -109,6 +109,24 @@ export async function recalculateAndSave(client, rules) {
     .eq('id', client.id)
 
   if (error) throw error
+
+  const refMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`
+  const historyRow = {
+    client_id:             client.id,
+    ref_month:             refMonth,
+    health_uso:            scores.uso,
+    health_suporte:        scores.suporte,
+    health_relacionamento: scores.relacionamento,
+    health_financeiro:     scores.financeiro,
+    health_projeto:        scores.projeto,
+    health_total:          scores.total,
+    recorded_at:           new Date().toISOString(),
+  }
+  const { error: histErr } = await supabase
+    .from('health_score_history')
+    .upsert(historyRow, { onConflict: 'client_id,ref_month' })
+  if (histErr) console.error('[recalculateAndSave] health_score_history upsert error:', histErr)
+
   return scores
 }
 

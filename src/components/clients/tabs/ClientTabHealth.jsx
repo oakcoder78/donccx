@@ -1,10 +1,26 @@
 import { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Line } from 'react-chartjs-2'
+import {
+  Chart, CategoryScale, LinearScale, PointElement, LineElement,
+  Tooltip, Legend, Filler
+} from 'chart.js'
 import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
 import { useHealthConfig } from '../../../hooks/useHealthConfig'
 import { useRecalculateHealth } from '../../../hooks/useHealthScore'
 import { calculateHealthScore } from '../../../lib/healthScore'
 import { ActionIcons } from '../../../lib/icons'
+import { supabase } from '../../../lib/supabaseClient'
+
+Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
+
+function fmtMonth(ym) {
+  if (!ym) return ''
+  const [y, m] = ym.split('-')
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+  return `${months[parseInt(m) - 1]}/${y.slice(2)}`
+}
 
 const DIMS = [
   { key: 'uso',            label: 'Uso',           color: '#59c2ed' },
@@ -121,6 +137,21 @@ export function ClientTabHealth({ client }) {
   const config = data?.config
   const rules  = data?.rules || []
   const recalculate = useRecalculateHealth()
+
+  const historyMonths = config?.history_months ?? 6
+  const { data: historyRows = [] } = useQuery({
+    queryKey: ['health_history', client.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('health_score_history')
+        .select('ref_month, health_total')
+        .eq('client_id', client.id)
+        .order('ref_month', { ascending: true })
+        .limit(historyMonths)
+      if (error) { console.error('[ClientTabHealth] history query error:', error); return [] }
+      return data ?? []
+    },
+  })
 
   const score       = client.health_total || 0
   const healthy     = config?.threshold_healthy  ?? 75
@@ -245,6 +276,43 @@ export function ClientTabHealth({ client }) {
             Colapsar tudo
           </Button>
         </div>
+      </div>
+
+      {/* Gráfico de evolução histórica */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
+        <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-3">
+          Evolução do Health Score
+        </p>
+        {historyRows.length < 2 ? (
+          <p className="text-xs text-text-tertiary italic">
+            Histórico disponível a partir do próximo recálculo.
+          </p>
+        ) : (
+          <Line
+            height={80}
+            data={{
+              labels: historyRows.map(r => fmtMonth(r.ref_month)),
+              datasets: [{
+                label: 'Health Score',
+                data: historyRows.map(r => r.health_total),
+                borderColor: '#173557',
+                backgroundColor: 'rgba(23,53,87,0.08)',
+                fill: true,
+                tension: 0.4,
+                pointRadius: 4,
+                pointBackgroundColor: '#173557',
+              }],
+            }}
+            options={{
+              responsive: true,
+              plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+              scales: {
+                y: { min: 0, max: 100, grid: { display: false } },
+                x: { grid: { display: false } },
+              },
+            }}
+          />
+        )}
       </div>
     </div>
   )
