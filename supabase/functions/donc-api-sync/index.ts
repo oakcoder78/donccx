@@ -170,7 +170,7 @@ serve(async (req) => {
         // Upsert com constraint composta client_id + ref_month
         const { error: upsertErr } = await admin
           .from('client_usage')
-          .upsert(usageRow, { onConflict: 'client_id,ref_month' })
+          .upsert(usageRow, { onConflict: 'client_id,ref_month,instance_id' })
 
         if (upsertErr) throw new Error(`Upsert falhou: ${upsertErr.message}`)
 
