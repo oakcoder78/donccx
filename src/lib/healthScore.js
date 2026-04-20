@@ -47,7 +47,7 @@ function calcUso(client, rules) {
 
   if (usage.length < 2) return { score: 20, appliedRules: [] }
 
-  const effectiveUsage = [...usage].filter((u, idx) => !(u.pending === true && idx === 0))
+  const effectiveUsage = usage.filter((u, idx) => !(u.partial_day !== null && u.partial_day !== undefined && idx === 0))
   if (effectiveUsage.length < 2) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
