@@ -292,9 +292,20 @@ export function ClientTabOverview({ client }) {
 
   const usageSorted = [...(client.client_usage || [])]
     .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
-  const usageLast6 = [...usageSorted].reverse().slice(-6)
-  const curUsage   = usageSorted[0] ?? null
-  const prevUsage  = usageSorted[1] ?? null
+  // Agrupa por ref_month somando os valores de múltiplas instâncias
+  const usageByMonth = {}
+  for (const u of client.client_usage || []) {
+    const m = u.ref_month
+    if (!usageByMonth[m]) usageByMonth[m] = { ref_month: m, os_created: 0, active_users: 0, partial_day: u.partial_day }
+    usageByMonth[m].os_created   += u.os_created   ?? 0
+    usageByMonth[m].active_users += u.active_users  ?? 0
+    if (u.partial_day != null) usageByMonth[m].partial_day = u.partial_day
+  }
+  const usageConsolidated = Object.values(usageByMonth)
+    .sort((a, b) => a.ref_month.localeCompare(b.ref_month))
+  const usageLast6 = usageConsolidated.slice(-6)
+  const curUsage  = [...usageConsolidated].reverse()[0] ?? null
+  const prevUsage = [...usageConsolidated].reverse()[1] ?? null
   const osVar      = curUsage && prevUsage ? pct(curUsage.os_created, prevUsage.os_created) : null
   const userVar    = curUsage && prevUsage ? pct(curUsage.active_users, prevUsage.active_users) : null
 
