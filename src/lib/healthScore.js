@@ -37,6 +37,26 @@ function isNeutralStage(client) {
   return NEUTRAL_STAGES.includes((client.stage?.name ?? '').toLowerCase().trim())
 }
 
+function resolveStageGroup(client) {
+  const stageName = (client.stage?.name ?? '').toLowerCase().trim()
+  const onboardingStages = ['onboarding', 'estabilização']
+  if (onboardingStages.includes(stageName)) return 'onboarding'
+
+  const hasActiveProject = (client.projects ?? []).some(p =>
+    p.status === 'em_andamento' || p.status === 'planejado'
+  )
+  return hasActiveProject ? 'producao' : 'producao_sem_projeto'
+}
+
+function calcTemperatura(client) {
+  const temp = client.csm_temperature ?? 0
+  const updatedAt = client.temperature_updated_at
+  if (!updatedAt) return 0
+  const daysSince = (Date.now() - new Date(updatedAt).getTime()) / (1000 * 60 * 60 * 24)
+  if (daysSince > 30) return 0
+  return temp
+}
+
 // ─── USO ───────────────────────────────────────────────────────────────────────
 function calcUso(client, rules) {
   if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
@@ -290,32 +310,49 @@ function calcProjeto(client, rules) {
 }
 
 // ─── TOTAL ─────────────────────────────────────────────────────────────────────
-export function calculateHealthScore(client, rules = []) {
+export function calculateHealthScore(client, rules = [], weights = null) {
   if (client.contract_active === false) {
     return {
-      total: 0, uso: 0, suporte: 0, relacionamento: 0, financeiro: 0, projeto: 0,
+      total: 0, uso: 0, suporte: 0, relacionamento: 0, financeiro: 0, projeto: 0, temperatura: 0,
+      stageGroup: 'producao',
       appliedRules: { uso: [], suporte: [], relacionamento: [], financeiro: [], projeto: [] },
     }
   }
 
-  const uso           = calcUso(client, rules)
-  const suporte       = calcSuporte(client, rules)
+  const stageGroup = resolveStageGroup(client)
+
+  const W = weights?.[stageGroup] ?? {
+    uso: 20, relacionamento: 20, projeto: 20, suporte: 20, financeiro: 20, temperatura: 0
+  }
+
+  const uso            = calcUso(client, rules)
+  const suporte        = calcSuporte(client, rules)
   const relacionamento = calcRelacionamento(client, rules)
-  const financeiro    = calcFinanceiro(client, rules)
-  const projeto       = calcProjeto(client, rules)
+  const financeiro     = calcFinanceiro(client, rules)
+  const projeto        = calcProjeto(client, rules)
+  const temperaturaVal = calcTemperatura(client)
+
+  const weightedUso            = W.uso            > 0 ? (uso.score            / 20) * W.uso            : 0
+  const weightedSuporte        = W.suporte        > 0 ? (suporte.score        / 20) * W.suporte        : 0
+  const weightedRelacionamento = W.relacionamento > 0 ? (relacionamento.score / 20) * W.relacionamento : 0
+  const weightedFinanceiro     = W.financeiro     > 0 ? (financeiro.score     / 20) * W.financeiro     : 0
+  const weightedProjeto        = W.projeto        > 0 ? (projeto.score        / 20) * W.projeto        : 0
+  const weightedTemperatura    = W.temperatura    > 0 ? (temperaturaVal       / 20) * W.temperatura    : 0
 
   const total = clamp(
-    uso.score + suporte.score + relacionamento.score + financeiro.score + projeto.score,
+    Math.round(weightedUso + weightedSuporte + weightedRelacionamento + weightedFinanceiro + weightedProjeto + weightedTemperatura),
     0, 100
   )
 
   return {
     total,
-    uso:           uso.score,
-    suporte:       suporte.score,
+    uso:            uso.score,
+    suporte:        suporte.score,
     relacionamento: relacionamento.score,
-    financeiro:    financeiro.score,
-    projeto:       projeto.score,
+    financeiro:     financeiro.score,
+    projeto:        projeto.score,
+    temperatura:    temperaturaVal,
+    stageGroup,
     appliedRules: {
       uso:           uso.appliedRules,
       suporte:       suporte.appliedRules,
