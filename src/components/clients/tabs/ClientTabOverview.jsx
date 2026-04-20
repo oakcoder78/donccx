@@ -542,17 +542,17 @@ export function ClientTabOverview({ client }) {
       </div>
 
       {/* ── Linha 2: Gráfico de OS + Health Score histórico ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'stretch' }}>
 
         {/* Barras OS */}
-        <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Ordens de Serviço — últimos 6 meses</span>
             <button onClick={() => navigate(`/empresas/${client.id}?tab=operacional&sub=uso`)} style={{ fontSize: 11, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>ver detalhes</button>
           </div>
           {usageLast6.length >= 2 ? (
-            <div style={{ height: 140 }}>
-              <Bar data={barChart} options={barOptions} />
+            <div style={{ flex: 1, minHeight: 120 }}>
+              <Bar data={barChart} options={{ ...barOptions, maintainAspectRatio: false }} />
             </div>
           ) : (
             <div style={{ height: 140, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
