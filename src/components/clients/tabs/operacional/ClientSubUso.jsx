@@ -121,7 +121,7 @@ export function ClientSubUso({ client, onEdit }) {
               <tbody>
                 {monthGroups.flatMap(({ month, rows }) => {
                   const multiInst = rows.length > 1
-                  const partial   = rows[0]?.pending === true
+                  const partial   = rows[0]?.partial_day != null
                   const partialDay = rows[0]?.partial_day ?? today
                   const entries   = []
 
@@ -150,7 +150,7 @@ export function ClientSubUso({ client, onEdit }) {
                       : fmtMonth(month)
 
                     const rowPartialDay = u.partial_day ?? today
-                    const partialNote = !multiInst && u.pending === true
+                    const partialNote = !multiInst && u.partial_day != null
                       ? <span className="ml-1 text-xs" style={{ color: '#b45309', fontWeight: 500 }}
                               title={`Dados coletados até ${rowPartialDay}/${String(new Date().getMonth() + 1).padStart(2, '0')}`}>(até dia {rowPartialDay})</span>
                       : null
