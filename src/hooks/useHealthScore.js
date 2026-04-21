@@ -188,6 +188,7 @@ export function useRecalculateHealth() {
     onSuccess: (scores, { client }) => {
       qc.invalidateQueries({ queryKey: ['client', String(client.id)] })
       qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.resetQueries({ queryKey: ['client', String(client.id)] })
       toast.success(
         `Health Score atualizado: ${scores.total} pts`,
         { icon: '🩺' }
