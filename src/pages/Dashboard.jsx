@@ -6,10 +6,14 @@ import { useProfiles } from '../hooks/useProfiles'
 import { useHealthConfig } from '../hooks/useHealthConfig'
 import { useRecalculateHealth } from '../hooks/useHealthScore'
 import { useActivities } from '../hooks/useActivities'
+import { useMilestones } from '../hooks/useMilestones'
 import { PageSpinner } from '../components/ui/Spinner'
+import { ActionIcons } from '../lib/icons'
 import { calcGravidade } from '../lib/gravidade'
 
-// ─── Design tokens ────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const todayStr = new Date().toISOString().slice(0, 10)
 
 const C = {
   navy:      '#173557',
@@ -41,6 +45,14 @@ const DIMS = [
   { key: 'health_financeiro',     label: 'Financeiro' },
   { key: 'health_projeto',        label: 'Projeto' },
 ]
+
+const ACT_TYPE_LABELS = {
+  reuniao:  'Reunião',
+  ligacao:  'Ligação',
+  email:    'E-mail',
+  whatsapp: 'WhatsApp',
+  visita:   'Visita',
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -124,6 +136,7 @@ const ICONS = {
   close: 'M6 6l12 12M18 6L6 18',
   trend: 'M3 17l6-6 4 4 8-8M14 7h7v7',
   phone: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.9.31 1.78.57 2.63a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.45-1.14a2 2 0 012.11-.45c.85.26 1.73.45 2.63.57A2 2 0 0122 16.92z',
+  mile:  'M3 12h18M12 3l9 9-9 9',
 }
 
 // ─── MetricCard ───────────────────────────────────────────────────────────────
@@ -172,13 +185,8 @@ function AttentionCard({ client, signals, isActive, onClick }) {
         transition: 'border-color 0.15s',
       }}
     >
-      {/* left accent bar */}
-      <div style={{
-        position: 'absolute', left: 0, top: 14, bottom: 14,
-        width: 3, borderRadius: 2, background: accentColor,
-      }} />
+      <div style={{ position: 'absolute', left: 0, top: 14, bottom: 14, width: 3, borderRadius: 2, background: accentColor }} />
 
-      {/* top-left: name + trend */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', gridColumn: '1/2' }}>
         <span style={{ fontWeight: 700, fontSize: 15, color: C.ink, letterSpacing: '-0.01em' }}>
           {client.fantasy_name || client.name}
@@ -193,7 +201,6 @@ function AttentionCard({ client, signals, isActive, onClick }) {
         )}
       </div>
 
-      {/* top-right: score pill */}
       <div style={{ gridColumn: '2/3', gridRow: '1/3', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, minWidth: 72 }}>
         <span style={{
           fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em',
@@ -207,7 +214,6 @@ function AttentionCard({ client, signals, isActive, onClick }) {
         </span>
       </div>
 
-      {/* bottom-left: tags */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, gridColumn: '1/2', marginTop: 4 }}>
         {signals.slice(0, 3).map((s, i) => (
           <span key={i} style={{
@@ -221,10 +227,7 @@ function AttentionCard({ client, signals, isActive, onClick }) {
           </span>
         ))}
         {client.abc_class && (
-          <span style={{
-            fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 6,
-            color: C.ink3, background: '#f1f3f5',
-          }}>
+          <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 9px', borderRadius: 6, color: C.ink3, background: '#f1f3f5' }}>
             Classe {client.abc_class}
           </span>
         )}
@@ -262,10 +265,7 @@ function HealthyCard({ client, onClick }) {
           </div>
         )}
       </div>
-      <span style={{
-        fontSize: 14, fontWeight: 700, color: C.green,
-        background: C.greenSoft, padding: '3px 10px', borderRadius: 999,
-      }}>
+      <span style={{ fontSize: 14, fontWeight: 700, color: C.green, background: C.greenSoft, padding: '3px 10px', borderRadius: 999 }}>
         {health}
       </span>
     </div>
@@ -308,7 +308,9 @@ function ActivityRow({ act }) {
   )
 }
 
-function RightSidebar({ clients, activities }) {
+const SearchIcon = ActionIcons.search
+
+function RightSidebar({ clients, activities, search, onSearchChange }) {
   const pendingActs = useMemo(() => {
     if (!activities?.length) return []
     return activities
@@ -356,6 +358,29 @@ function RightSidebar({ clients, activities }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+      {/* Search input — acima de Próximas atividades */}
+      <div style={{ position: 'relative', marginTop: 8 }}>
+        <input
+          type="text"
+          placeholder="Buscar empresa..."
+          value={search}
+          onChange={e => onSearchChange(e.target.value)}
+          style={{
+            width: '100%', padding: '9px 36px 9px 14px', borderRadius: 10,
+            border: `0.5px solid ${C.lineS}`, fontSize: 13, color: C.ink,
+            outline: 'none', background: C.surface, fontFamily: 'inherit',
+            boxSizing: 'border-box',
+          }}
+        />
+        <span style={{
+          position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)',
+          color: C.ink4, display: 'flex', pointerEvents: 'none',
+        }}>
+          <SearchIcon style={{ width: 14, height: 14 }} />
+        </span>
+      </div>
+
       {/* Activities */}
       <Panel title="Próximas atividades" chip={pendingActs.length || null}>
         {pendingActs.length === 0 ? (
@@ -439,6 +464,37 @@ function ClientDrawer({ client, signals, rules, onClose }) {
   const band        = scoreBand(health)
   const status      = clientStatus(signals)
 
+  const { data: clientActivities = [] } = useActivities({ client_id: client.id })
+  const { data: milestones = [] }       = useMilestones(client.id)
+
+  const lastActivity = useMemo(() => {
+    if (!clientActivities.length) return null
+    return [...clientActivities].sort((a, b) => {
+      if (!a.activity_date) return 1
+      if (!b.activity_date) return -1
+      return b.activity_date.localeCompare(a.activity_date)
+    })[0]
+  }, [clientActivities])
+
+  const hasOverdueActivity = useMemo(() =>
+    clientActivities.some(a =>
+      a.status !== 'done' && a.status !== 'completed' && a.status !== 'cancelado' &&
+      a.activity_date && a.activity_date < todayStr
+    ),
+    [clientActivities]
+  )
+
+  const hasOverdueMilestone = useMemo(() =>
+    milestones.some(m => m.status !== 'done' && m.due_date && m.due_date < todayStr),
+    [milestones]
+  )
+
+  const trend = health >= 75
+    ? { label: '↑ Saudável', color: C.green }
+    : health >= 50
+    ? { label: '→ Atenção',  color: C.amber }
+    : { label: '↓ Em Risco', color: C.red }
+
   useEffect(() => {
     const handler = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
@@ -459,31 +515,37 @@ function ClientDrawer({ client, signals, rules, onClose }) {
 
   const qaList = useMemo(() => {
     const actions = [
-      { ico: { bg: '#eef2f7', text: C.navy }, label: 'Recalcular Health Score', key: 'recalc' },
-      { ico: { bg: C.amberSoft, text: C.amber }, label: 'Atualizar temperatura', key: 'temp' },
+      { ico: { bg: C.skySoft, text: '#2b7aa4' }, label: 'Registrar atividade',     key: 'new_activity' },
+      { ico: { bg: C.amberSoft, text: C.amber }, label: 'Atualizar temperatura',    key: 'temp' },
     ]
-    if (signals.some(s => s.title.includes('atraso')))
+    if (hasOverdueActivity)
       actions.push({ ico: { bg: C.redSoft, text: C.red }, label: 'Concluir atividade atrasada', key: 'late' })
-    if (signals.some(s => s.title.includes('Temperatura vencida')))
-      actions.push({ ico: { bg: C.amberSoft, text: C.amber }, label: 'Avaliar temperatura agora', key: 'tempnow' })
-    return actions.slice(0, 4)
-  }, [signals])
+    if (hasOverdueMilestone)
+      actions.push({ ico: { bg: C.amberSoft, text: C.amber }, label: 'Reagendar milestone', key: 'milestone' })
+    return actions
+  }, [hasOverdueActivity, hasOverdueMilestone])
 
   function handleQA(key) {
-    if (key === 'recalc') { recalculate.mutate({ client, rules }); return }
-    if (key === 'temp' || key === 'tempnow') { onClose(); navigate(`/empresas/${client.id}?tab=health`); return }
-    if (key === 'late') { onClose(); navigate(`/empresas/${client.id}?tab=atividades`); return }
+    if (key === 'new_activity') { onClose(); navigate(`/empresas/${client.id}?tab=atividades`); return }
+    if (key === 'temp')         { onClose(); navigate(`/empresas/${client.id}?tab=health`);     return }
+    if (key === 'late')         { onClose(); navigate(`/empresas/${client.id}?tab=atividades`); return }
+    if (key === 'milestone')    { onClose(); navigate(`/empresas/${client.id}?tab=projetos`);   return }
+  }
+
+  const qaIcon = (key) => {
+    if (key === 'new_activity') return ICONS.plus
+    if (key === 'late')         return ICONS.check
+    if (key === 'milestone')    return ICONS.mile
+    return ICONS.therm
   }
 
   return (
     <>
-      {/* Overlay */}
       <div
         onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(14,34,58,0.18)', zIndex: 40, backdropFilter: 'blur(1px)' }}
       />
 
-      {/* Drawer panel */}
       <div style={{
         position: 'fixed', top: 0, right: 0, height: '100vh', width: 360,
         background: C.surface, borderLeft: `0.5px solid ${C.line}`,
@@ -512,16 +574,16 @@ function ClientDrawer({ client, signals, rules, onClose }) {
             </button>
           </div>
 
-          {/* Stats row */}
+          {/* Stats row: Score · Tendência · Temperatura */}
           <div style={{ display: 'flex', marginTop: 16, border: `0.5px solid ${C.line}`, borderRadius: 12, overflow: 'hidden' }}>
             {[
-              { k: 'Score', v: health, color: band.text },
-              { k: 'Temperatura', v: tempLabel(client), color: C.ink },
-              { k: 'Sinais', v: signals.length, color: signals.length > 0 ? C.amber : C.ink },
+              { k: 'Score',      v: health,           color: band.text   },
+              { k: 'Tendência',  v: trend.label,      color: trend.color },
+              { k: 'Temperatura',v: tempLabel(client), color: C.ink      },
             ].map((s, i, arr) => (
               <div key={s.k} style={{ flex: 1, padding: '10px 12px', borderRight: i < arr.length - 1 ? `0.5px solid ${C.line}` : 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <span style={{ fontSize: 9.5, fontWeight: 700, color: C.ink4, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{s.k}</span>
-                <span style={{ fontSize: 14, fontWeight: 700, color: s.color, letterSpacing: '-0.01em' }}>{s.v}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: s.color, letterSpacing: '-0.01em', lineHeight: 1.2 }}>{s.v}</span>
               </div>
             ))}
           </div>
@@ -530,7 +592,33 @@ function ClientDrawer({ client, signals, rules, onClose }) {
         {/* Body */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 12px', display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-          {/* Signals */}
+          {/* Última interação */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, marginBottom: 12 }}>
+              Última interação
+            </div>
+            {lastActivity ? (
+              <div style={{ padding: 14, border: `0.5px solid ${C.line}`, borderRadius: 12 }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: C.ink4, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 5 }}>
+                  {ACT_TYPE_LABELS[lastActivity.type] || lastActivity.type || 'Atividade'}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>
+                  {lastActivity.description || lastActivity.title || 'Atividade'}
+                </div>
+                {lastActivity.activity_date && (
+                  <div style={{ fontSize: 11, color: C.ink3, marginTop: 5, fontWeight: 500 }}>
+                    {new Date(lastActivity.activity_date + 'T00:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: 12, color: C.ink4, textAlign: 'center', padding: '12px 0', fontStyle: 'italic' }}>
+                Sem interações registradas
+              </div>
+            )}
+          </div>
+
+          {/* Sinais ativos */}
           {signals.length > 0 && (
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, marginBottom: 12 }}>
@@ -554,32 +642,7 @@ function ClientDrawer({ client, signals, rules, onClose }) {
             </div>
           )}
 
-          {/* Health dimensions */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, marginBottom: 12 }}>
-              Saúde por dimensão
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-              {DIMS.map(d => {
-                const val = client[d.key] ?? 0
-                const pct = (val / 20) * 100
-                const fillColor = val >= 15 ? C.green : val >= 10 ? C.sky : val >= 7 ? C.amber : C.red
-                return (
-                  <div key={d.key} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', fontSize: 12 }}>
-                      <span style={{ fontWeight: 600, color: C.ink }}>{d.label}</span>
-                      <span style={{ fontWeight: 700, color: C.ink2, fontSize: 11.5 }}>{val} / 20</span>
-                    </div>
-                    <div style={{ height: 6, background: '#f1f3f5', borderRadius: 999, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', borderRadius: 999, background: fillColor, width: `${pct}%`, transition: 'width 0.4s' }} />
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Quick actions */}
+          {/* Ações rápidas */}
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, marginBottom: 12 }}>
               Ações rápidas
@@ -588,27 +651,49 @@ function ClientDrawer({ client, signals, rules, onClose }) {
               {qaList.map(a => (
                 <button
                   key={a.key}
-                  onClick={() => handleQA(a.key)}
-                  disabled={a.key === 'recalc' && recalculate.isPending}
+                  onClick={() => a.key === 'new_activity' || a.key === 'temp' || a.key === 'late' || a.key === 'milestone'
+                    ? handleQA(a.key)
+                    : undefined
+                  }
+                  disabled={false}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12, padding: 12,
                     border: `0.5px solid ${C.line}`, borderRadius: 12,
-                    background: 'transparent', cursor: (a.key === 'recalc' && recalculate.isPending) ? 'not-allowed' : 'pointer',
-                    textAlign: 'left', opacity: (a.key === 'recalc' && recalculate.isPending) ? 0.6 : 1,
-                    fontFamily: 'inherit',
+                    background: 'transparent', cursor: 'pointer',
+                    textAlign: 'left', fontFamily: 'inherit',
                   }}
-                  onMouseEnter={e => { if (!(a.key === 'recalc' && recalculate.isPending)) { e.currentTarget.style.borderColor = C.lineS; e.currentTarget.style.background = '#fafbfc' } }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = C.lineS; e.currentTarget.style.background = '#fafbfc' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.background = 'transparent' }}
                 >
                   <div style={{ width: 26, height: 26, flexShrink: 0, borderRadius: 7, display: 'grid', placeItems: 'center', background: a.ico.bg, color: a.ico.text }}>
-                    <Icon d={a.key === 'recalc' ? ICONS.trend : a.key === 'late' ? ICONS.check : ICONS.therm} />
+                    <Icon d={qaIcon(a.key)} />
                   </div>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.ink }}>
-                    {a.key === 'recalc' && recalculate.isPending ? 'Calculando...' : a.label}
-                  </span>
+                  <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.ink }}>{a.label}</span>
                   <span style={{ color: C.ink4 }}><Icon d={ICONS.chev} /></span>
                 </button>
               ))}
+
+              {/* Recalcular — sempre disponível, separado */}
+              <button
+                onClick={() => recalculate.mutate({ client, rules })}
+                disabled={recalculate.isPending}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: 12,
+                  border: `0.5px solid ${C.line}`, borderRadius: 12,
+                  background: 'transparent', cursor: recalculate.isPending ? 'not-allowed' : 'pointer',
+                  textAlign: 'left', opacity: recalculate.isPending ? 0.6 : 1, fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => { if (!recalculate.isPending) { e.currentTarget.style.borderColor = C.lineS; e.currentTarget.style.background = '#fafbfc' } }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.background = 'transparent' }}
+              >
+                <div style={{ width: 26, height: 26, flexShrink: 0, borderRadius: 7, display: 'grid', placeItems: 'center', background: '#eef2f7', color: C.navy }}>
+                  <Icon d={ICONS.trend} />
+                </div>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: C.ink }}>
+                  {recalculate.isPending ? 'Calculando...' : 'Recalcular Health Score'}
+                </span>
+                <span style={{ color: C.ink4 }}><Icon d={ICONS.chev} /></span>
+              </button>
             </div>
           </div>
         </div>
@@ -643,9 +728,8 @@ function ClientDrawer({ client, signals, rules, onClose }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-  const { profile }          = useAuth()
-  const navigate             = useNavigate()
-  const isAdminOrManager     = profile?.role === 'admin' || profile?.role === 'manager'
+  const { profile }      = useAuth()
+  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
   const [selectedClient, setSelectedClient] = useState(null)
   const [selectedCsm,    setSelectedCsm]    = useState('')
@@ -701,22 +785,29 @@ export default function Dashboard() {
     [searched]
   )
 
-  // Metrics
-  const emRisco   = clients.filter(c => (c.health_total ?? 0) < 50).length
+  // ── Metrics ──
   const emAtencao = clients.filter(c => getSignals(c).length > 0).length
+  const emRisco   = clients.filter(c => (c.health_total ?? 0) < 50).length
   const tempsExp  = clients.filter(c => {
     const age = c.temperature_updated_at
       ? (Date.now() - new Date(c.temperature_updated_at).getTime()) / 864e5
       : Infinity
     return age > 30
   }).length
-  const pendingActivities = activities.filter(a => a.status !== 'done' && a.status !== 'completed' && a.status !== 'cancelado')
-  const overdueActs = pendingActivities.filter(a => {
-    if (!a.activity_date) return false
-    const d = new Date(a.activity_date); d.setHours(0, 0, 0, 0)
-    const today = new Date(); today.setHours(0, 0, 0, 0)
-    return d < today
-  })
+
+  // MRR
+  const mrrTotal     = clients.filter(c => c.contract_active).reduce((s, c) => s + (c.mrr || 0), 0)
+  const mrrNum       = mrrTotal.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+  const overdueAmt   = clients.reduce((s, c) => s + (c.overdue_amount || 0), 0)
+  const overdueNum   = overdueAmt.toLocaleString('pt-BR', { maximumFractionDigits: 0 })
+
+  // Atividades do CSM logado
+  const myPending = activities.filter(a =>
+    a.status !== 'done' && a.status !== 'completed' && a.status !== 'cancelado' &&
+    a.responsible_id === profile?.id
+  )
+  const myOverdue = myPending.filter(a => a.activity_date && a.activity_date < todayStr)
+  const myToday   = myPending.filter(a => a.activity_date === todayStr)
 
   const csmList = profiles
     .filter(p => (p.role === 'csm' || p.role === 'manager') && p.status === 'active')
@@ -745,16 +836,16 @@ export default function Dashboard() {
 
         {/* ── HEADER ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32, gap: 24, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            {/* Avatar */}
-            <div style={{ width: 48, height: 48, borderRadius: '50%', flexShrink: 0, background: C.navy, color: '#fff', fontWeight: 700, fontSize: 15, display: 'grid', placeItems: 'center', letterSpacing: '0.02em', border: `0.5px solid ${C.lineS}`, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            {/* Avatar — dobrado */}
+            <div style={{ width: 96, height: 96, borderRadius: '50%', flexShrink: 0, background: C.navy, color: '#fff', fontWeight: 700, fontSize: 28, display: 'grid', placeItems: 'center', letterSpacing: '0.02em', border: `0.5px solid ${C.lineS}`, overflow: 'hidden' }}>
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt={profile.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
                 : initials(profile?.name)
               }
             </div>
-            <div>
-              <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 2px', color: C.ink }}>
+            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.02em', margin: '0 0 4px', color: C.ink }}>
                 {greeting()}, <span style={{ color: C.navy }}>{profile?.name?.split(' ')[0]}</span>.
               </div>
               <div style={{ fontSize: 13, color: C.ink3, fontWeight: 500, textTransform: 'capitalize' }}>{dateStr}</div>
@@ -788,9 +879,10 @@ export default function Dashboard() {
         {/* ── METRICS ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 18, marginBottom: 32 }}>
           <MetricCard
-            label="Total de clientes"
-            value={clients.length}
-            sub={`${healthyList.length} saudáveis · ${attentionList.length} com sinal`}
+            label="MRR do portfólio"
+            value={`R$ ${mrrNum}`}
+            sub={overdueAmt > 0 ? `R$ ${overdueNum} em atraso` : 'Sem inadimplência'}
+            color={overdueAmt > 0 ? C.red : C.ink}
           />
           <MetricCard
             label="Requer atenção"
@@ -799,10 +891,10 @@ export default function Dashboard() {
             sub="clientes com sinal ativo"
           />
           <MetricCard
-            label="Em risco crítico"
-            value={emRisco}
-            color={emRisco > 0 ? C.red : C.ink}
-            sub={`health score abaixo de 50`}
+            label="Atividades pendentes"
+            value={myPending.length}
+            color={myPending.length > 0 ? C.amber : C.ink}
+            sub={`${myOverdue.length} atrasada${myOverdue.length !== 1 ? 's' : ''} · ${myToday.length} hoje`}
           />
           <MetricCard
             label="Temperaturas vencidas"
@@ -812,46 +904,21 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* ── SEARCH ── */}
-        {clients.length > 6 && (
-          <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ position: 'relative', maxWidth: 320 }}>
-              <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: C.ink4, fontSize: 14, pointerEvents: 'none' }}>🔍</span>
-              <input
-                type="text"
-                placeholder="Buscar empresa..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 14px 8px 32px', borderRadius: 8,
-                  border: `0.5px solid ${C.lineS}`, fontSize: 13, color: C.ink,
-                  outline: 'none', background: C.surface, fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-            {search && <span style={{ fontSize: 12, color: C.ink3 }}>{searched.length} resultado{searched.length !== 1 ? 's' : ''}</span>}
-          </div>
-        )}
-
         {/* ── CONTENT GRID ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 28, alignItems: 'start' }}>
 
           {/* Left column */}
           <div>
-            {/* Attention clients */}
+            {/* Top 5 — atenção */}
             {attentionList.length > 0 && (
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: '8px 0 14px' }}>
                   <h2 style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.01em', color: C.ink, margin: 0 }}>
-                    Clientes que precisam de atenção
+                    Top 5 · Clientes que precisam de atenção
                   </h2>
-                  <span style={{ fontSize: 11, color: C.ink3, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    {attentionList.length} · ordenados por gravidade
-                  </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {attentionList.map(({ client, signals }) => (
+                  {attentionList.slice(0, 5).map(({ client, signals }) => (
                     <AttentionCard
                       key={client.id}
                       client={client}
@@ -864,7 +931,7 @@ export default function Dashboard() {
               </>
             )}
 
-            {/* Healthy clients */}
+            {/* Saudáveis — máx 6 em grid 3×2 */}
             {healthyList.length > 0 && (
               <>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', margin: `${attentionList.length > 0 ? 28 : 8}px 0 14px` }}>
@@ -875,8 +942,8 @@ export default function Dashboard() {
                     {healthyList.length} clientes
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
-                  {healthyList.map(({ client }) => (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+                  {healthyList.slice(0, 6).map(({ client }) => (
                     <HealthyCard key={client.id} client={client} onClick={setSelectedClient} />
                   ))}
                 </div>
@@ -890,8 +957,13 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Right sidebar */}
-          <RightSidebar clients={clients} activities={activities} />
+          {/* Right column — sidebar com busca */}
+          <RightSidebar
+            clients={clients}
+            activities={activities}
+            search={search}
+            onSearchChange={setSearch}
+          />
         </div>
       </div>
 
