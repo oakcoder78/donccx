@@ -127,13 +127,9 @@ export default function ReportPublicPage() {
     if (viewRegistered || !reportData?.id) return
     setViewRegistered(true)
     try {
-      // Skip activity for internal Hub users
-      const { data: internalUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', email.trim())
-        .maybeSingle()
-      if (internalUser) return
+      // Skip if internal Hub user has active session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) return
 
       await supabase.rpc('register_report_view', {
         p_report_id:    reportData.id,
