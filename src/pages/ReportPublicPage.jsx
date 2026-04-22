@@ -147,14 +147,13 @@ export default function ReportPublicPage() {
 
   // ── Estado: relatório autorizado ────────────────────────
   if (state === 'authorized' && reportData) {
-    // Registra view na primeira renderização
     if (!viewRegistered) registerView()
 
     return (
       <>
         {/* Barra superior */}
         <div
-          className="no-print"
+          className="no-print report-topbar"
           style={{
             position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
             background: 'rgba(255,255,255,0.94)',
@@ -172,20 +171,39 @@ export default function ReportPublicPage() {
           </div>
           <button
             onClick={() => window.print()}
+            className="report-topbar-btn"
             style={{
               padding: '7px 16px',
               background: NAVY, color: '#fff',
               border: 'none', borderRadius: 8,
               fontWeight: 700, fontSize: 13,
-              cursor: 'pointer', fontFamily: 'inherit',
+              cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
             }}
           >
             🖨️ Salvar como PDF
           </button>
         </div>
 
+        {/* Botão PDF sticky — mobile only */}
+        <button
+          className="no-print report-pdf-sticky"
+          onClick={() => window.print()}
+          style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99,
+            background: NAVY, color: '#fff',
+            border: 'none',
+            fontWeight: 700, fontSize: 15,
+            cursor: 'pointer', fontFamily: 'inherit',
+            padding: '16px 24px',
+            letterSpacing: 0.2,
+            display: 'none',
+          }}
+        >
+          🖨️ Salvar como PDF
+        </button>
+
         {/* Conteúdo do relatório */}
-        <div style={{ paddingTop: 52 }}>
+        <div className="report-content" style={{ paddingTop: 52 }}>
           <div dangerouslySetInnerHTML={{ __html: reportData.html_content }} />
         </div>
 
@@ -193,6 +211,75 @@ export default function ReportPublicPage() {
           @media print {
             .no-print { display: none !important; }
             body { margin: 0; padding: 0; }
+          }
+
+          html, body { overflow-x: hidden; }
+
+          .wrap { box-sizing: border-box; }
+          .wrap * { box-sizing: border-box; }
+          svg { max-width: 100%; }
+
+          @media (max-width: 639px) {
+            /* Top bar: hide PDF button (sticky shown instead) */
+            .report-topbar { padding: 10px 14px !important; }
+            .report-topbar-btn { display: none !important; }
+
+            /* Sticky PDF button */
+            .report-pdf-sticky { display: block !important; }
+
+            /* Content: less top padding (smaller bar), bottom clearance for sticky */
+            .report-content { padding-top: 44px !important; }
+
+            /* Wrap responsive */
+            .wrap { padding: 10px 10px 80px !important; }
+
+            /* KPI / metric grids → single column */
+            .wrap [style*="grid-template-columns"] {
+              grid-template-columns: 1fr !important;
+            }
+
+            /* Large numeric values — readable, no overflow */
+            .wrap [style*="font-size:2.2rem"] {
+              font-size: 1.6rem !important;
+              word-break: break-all;
+            }
+
+            /* Slide padding reduction */
+            .slide > div {
+              padding-left: 14px !important;
+              padding-right: 14px !important;
+            }
+
+            /* Side-by-side flex sections (health score etc.) → stack */
+            .slide [style*="gap:32px"],
+            .slide [style*="gap: 32px"] {
+              flex-direction: column !important;
+              gap: 14px !important;
+            }
+
+            /* Cover: stack client info row */
+            .cover-slide [style*="gap:20px"],
+            .cover-slide [style*="gap: 20px"] {
+              flex-direction: column !important;
+              gap: 10px !important;
+            }
+
+            /* Cover: CSM card align */
+            .cover-slide [style*="align-items:flex-end"],
+            .cover-slide [style*="align-items: flex-end"] {
+              align-items: stretch !important;
+            }
+
+            /* Cover title font reduction */
+            .cover-slide [style*="font-size:3rem"],
+            .cover-slide [style*="font-size: 3rem"],
+            .cover-slide [style*="font-size:2.4rem"],
+            .cover-slide [style*="font-size: 2.4rem"] {
+              font-size: 1.5rem !important;
+            }
+
+            /* No overflow in any slide */
+            .slide, .wrap > * { overflow-x: hidden; max-width: 100%; }
           }
         `}</style>
       </>
