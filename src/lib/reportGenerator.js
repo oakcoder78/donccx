@@ -195,8 +195,15 @@ function resolBar(pct) {
 }
 
 function barChartV(usageHistory, period) {
-  const sorted = [...(usageHistory ?? [])]
-    .filter(u => u.os_created != null)
+  // Aggregate by ref_month — clients with multiple instances generate N rows/month
+  const agg = {}
+  for (const u of usageHistory ?? []) {
+    if (u.pending === true) continue          // skip incomplete current-month snapshots
+    if (u.os_created == null) continue
+    if (!agg[u.ref_month]) agg[u.ref_month] = { ref_month: u.ref_month, os_created: 0 }
+    agg[u.ref_month].os_created += u.os_created
+  }
+  const sorted = Object.values(agg)
     .sort((a, b) => a.ref_month.localeCompare(b.ref_month))
     .slice(-12)
   if (!sorted.length) return ''
