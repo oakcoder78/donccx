@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react'
-// import { useNavigate } from 'react-router-dom' // removed navigation for activity modal
 import { ActivityDetailModal } from '../components/activities/ActivityDetailModal'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../contexts/AuthContext'
@@ -277,7 +276,6 @@ function HealthyCard({ client, onClick }) {
 
 function ActivityRow({ act, isLast, onOpen }) {
 
-  const navigate = useNavigate();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
