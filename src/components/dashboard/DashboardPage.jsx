@@ -160,21 +160,23 @@ export default function DashboardPage() {
   // useMemo deve ficar antes de qualquer early return (Rules of Hooks)
   // Atrasadas (< hoje) primeiro, depois futuras/hoje — ambas asc por data/hora
   const upcomingActivities = useMemo(() => {
-  const filtered = myTasks.filter(a => a.status !== 'concluida' && a.status !== 'cancelada');
-  const overdue = [...filtered]
-    .filter(a => a.activity_date && a.activity_date < todayStr)
-    .sort((a, b) => {
-      if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date);
-      return (a.activity_time || '').localeCompare(b.activity_time || '');
-    });
-  const future = [...filtered]
-    .filter(a => a.activity_date && a.activity_date >= todayStr)
-    .sort((a, b) => {
-      if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date);
-      return (a.activity_time || '').localeCompare(b.activity_time || '');
-    });
-  return [...overdue, ...future];
-}, [myTasks])
+    const filtered = myTasks.filter(
+      a => a.status !== 'concluida' && a.status !== 'cancelada'
+    )
+    const overdue = [...filtered]
+      .filter(a => a.activity_date && a.activity_date < todayStr)
+      .sort((a, b) => {
+        if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
+        return (a.activity_time || '').localeCompare(b.activity_time || '')
+      })
+    const future = [...filtered]
+      .filter(a => a.activity_date && a.activity_date >= todayStr)
+      .sort((a, b) => {
+        if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
+        return (a.activity_time || '').localeCompare(b.activity_time || '')
+      })
+    return [...overdue, ...future]
+  }, [myTasks])
 
   const { data: lastActivityMap = {} } = useQuery({
     queryKey: ['last_activity_map', selectedCsm || 'all'],
