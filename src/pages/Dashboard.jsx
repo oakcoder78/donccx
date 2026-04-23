@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+// import { useNavigate } from 'react-router-dom' // removed navigation for activity modal
+import { ActivityDetailModal } from '../components/activities/ActivityDetailModal'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../contexts/AuthContext'
 import { useProfiles } from '../hooks/useProfiles'
@@ -274,7 +275,7 @@ function HealthyCard({ client, onClick }) {
 
 // ─── RightSidebar ─────────────────────────────────────────────────────────────
 
-function ActivityRow({ act, isLast }) {
+function ActivityRow({ act, isLast, onOpen }) {
 
   const navigate = useNavigate();
 
@@ -319,7 +320,7 @@ function ActivityRow({ act, isLast }) {
   return (
 
     <div
-      onClick={() => navigate(`/activities/${act.id}`)}
+      onClick={() => onOpen(act)}
       style={{
         display: 'flex',
         gap: 10,
@@ -378,7 +379,7 @@ function ActivityRow({ act, isLast }) {
 
 const SearchIcon = ActionIcons.search
 
-function RightSidebar({ clients, activities, search, onSearchChange }) {
+function RightSidebar({ clients, activities, search, onSearchChange, onOpenActivity }) {
   const pendingActs = useMemo(() => {
     if (!activities?.length) return []
     return activities
@@ -457,9 +458,10 @@ function RightSidebar({ clients, activities, search, onSearchChange }) {
           <div>
             {pendingActs.map((a, i) => (
               <div key={a.id} style={i === pendingActs.length - 1 ? { borderBottom: 'none' } : {}}>
-                <ActivityRow 
+                <ActivityRow
                   act={a}
                   isLast={i === pendingActs.length - 1}
+                  onOpen={onOpenActivity}
                  />
               </div>
             ))}
@@ -799,6 +801,7 @@ function ClientDrawer({ client, signals, rules, onClose }) {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
+  const [selectedActivity, setSelectedActivity] = useState(null);
   const { profile }      = useAuth()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
@@ -1034,6 +1037,7 @@ export default function Dashboard() {
             activities={activities}
             search={search}
             onSearchChange={setSearch}
+            onOpenActivity={setSelectedActivity}
           />
         </div>
       </div>
@@ -1045,6 +1049,12 @@ export default function Dashboard() {
           signals={selectedSignals}
           rules={rules}
           onClose={() => setSelectedClient(null)}
+        />
+      )}
+      {selectedActivity && (
+        <ActivityDetailModal
+          activity={selectedActivity}
+          onClose={() => setSelectedActivity(null)}
         />
       )}
     </div>
