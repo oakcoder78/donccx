@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useNavigate } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../contexts/AuthContext'
