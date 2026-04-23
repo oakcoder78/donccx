@@ -316,7 +316,7 @@ function RightSidebar({ clients, activities, search, onSearchChange }) {
   const pendingActs = useMemo(() => {
     if (!activities?.length) return []
     return activities
-      .filter(a => a.status !== 'done' && a.status !== 'completed' && a.status !== 'cancelado')
+      .filter(a => a.status !== 'concluida' && a.status !== 'cancelada')
       .sort((a, b) => {
         const da = a.activity_date ? new Date(a.activity_date) : new Date('9999')
         const db = b.activity_date ? new Date(b.activity_date) : new Date('9999')
