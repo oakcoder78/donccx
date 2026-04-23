@@ -274,41 +274,106 @@ function HealthyCard({ client, onClick }) {
 
 // ─── RightSidebar ─────────────────────────────────────────────────────────────
 
-function ActivityRow({ act }) {
-  const navigate = useNavigate();
-  const date = act.activity_date ? new Date(act.activity_date) : null
-  const today = new Date(); today.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
+function ActivityRow({ act, isLast }) {
 
-  let when = ''
-  let urgency = 'future'
-  if (act.due_date) {
-    const d = new Date(act.due_date); d.setHours(0, 0, 0, 0)
-    if (d < today) { when = 'Atrasada'; urgency = 'late' }
-    else if (d.getTime() === today.getTime()) { when = 'Hoje'; urgency = 'today' }
-    else if (d.getTime() === tomorrow.getTime()) { when = 'Amanhã'; urgency = 'today' }
-    else { when = act.due_date.split('-').reverse().join('/'); urgency = 'future' }
-  } else if (act.activity_date) {
-    when = act.activity_date.split('-').reverse().join('/')
+  const navigate = useNavigate();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  let when = '';
+  let urgency = 'future';
+
+  const baseDate =
+    act.due_date ||
+    act.activity_date;
+
+  if (baseDate) {
+
+    const d = new Date(baseDate);
+    d.setHours(0, 0, 0, 0);
+
+    if (d < today) {
+      urgency = 'late';
+    }
+    else if (d.getTime() === today.getTime()) {
+      urgency = 'today';
+    }
+    else if (d.getTime() === tomorrow.getTime()) {
+      urgency = 'today';
+    }
+
+    when = baseDate.split('-').reverse().join('/');
   }
 
-  const whenColor = urgency === 'late' ? '#dc3545' : urgency === 'today' ? C.amber : C.ink4
+  const whenColor =
+    urgency === 'late'
+      ? '#dc3545'
+      : urgency === 'today'
+        ? C.amber
+        : C.ink4;
 
   return (
-    <div style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: `0.5px solid ${C.line}` }}>
-      <div style={{ flexShrink: 0, width: 56, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: whenColor, paddingTop: 2 }}>
+
+    <div
+      onClick={() => navigate(`/activities/${act.id}`)}
+      style={{
+        display: 'flex',
+        gap: 10,
+        padding: '10px 0',
+        borderBottom: isLast
+          ? 'none'
+          : `0.5px solid ${C.line}`,
+        cursor: 'pointer'
+      }}
+    >
+
+      <div
+        style={{
+          flexShrink: 0,
+          width: 56,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: '0.04em',
+          textTransform: 'uppercase',
+          color: whenColor,
+          paddingTop: 2
+        }}
+      >
         {when}
       </div>
+
       <div style={{ minWidth: 0, flex: 1 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, lineHeight: 1.35 }}>
-          {act.description || act.title || 'Atividade'}
+
+        <div
+          style={{
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: C.ink,
+            lineHeight: 1.35
+          }}
+        >
+          {act.title || act.description || 'Atividade'}
         </div>
-        <div style={{ fontSize: 11, color: C.ink3, marginTop: 2, fontWeight: 500 }}>
+
+        <div
+          style={{
+            fontSize: 11,
+            color: C.ink3,
+            marginTop: 2,
+            fontWeight: 500
+          }}
+        >
           {act.client?.fantasy_name || act.client?.name || '—'}
         </div>
+
       </div>
+
     </div>
-  )
+  );
 }
 
 const SearchIcon = ActionIcons.search
@@ -392,7 +457,10 @@ function RightSidebar({ clients, activities, search, onSearchChange }) {
           <div>
             {pendingActs.map((a, i) => (
               <div key={a.id} style={i === pendingActs.length - 1 ? { borderBottom: 'none' } : {}}>
-                <ActivityRow act={a} />
+                <ActivityRow 
+                  act={a}
+                  isLast={i === pendingActs.length - 1}
+                 />
               </div>
             ))}
           </div>
