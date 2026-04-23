@@ -149,9 +149,12 @@ export default function DashboardPage() {
   const { data: profiles = [] } = useProfiles()
   // Admin/manager vê todas as pendentes; CSM só as próprias
   const activitiesFilter = isAdminOrManager
-    ? { status: 'pendente' }
-    : { responsible_id: profile?.id, status: 'pendente' }
-  const { data: myTasks = [] } = useActivities(activitiesFilter, { enabled: !!profile })
+    ? { }
+    : { responsible_id: profile?.id }
+// Filter later: exclude concluida/cancelada and apply due_date logic
+  const { data: myTasksRaw = [] } = useActivities(activitiesFilter, { enabled: !!profile })
+  // Excluir concluídas/canceladas
+  const myTasks = myTasksRaw.filter(a => a.status !== 'concluida' && a.status !== 'cancelada')
 
   // Last activity date per client (for "sem interação" logic)
   // useMemo deve ficar antes de qualquer early return (Rules of Hooks)
