@@ -276,6 +276,7 @@ function HealthyCard({ client, onClick }) {
 
 function ActivityRow({ act }) {
   const navigate = useNavigate();
+  const navigate = useNavigate();
   const date = act.activity_date ? new Date(act.activity_date) : null
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
@@ -292,7 +293,7 @@ function ActivityRow({ act }) {
     when = act.activity_date.split('-').reverse().join('/')
   }
 
-  const whenColor = urgency === 'late' ? C.red : urgency === 'today' ? C.amber : C.ink4
+  const whenColor = urgency === 'late' ? '#dc3545' : urgency === 'today' ? C.amber : C.ink4
 
   return (
     <div style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: `0.5px solid ${C.line}` }}>
