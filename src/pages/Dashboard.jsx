@@ -281,12 +281,14 @@ function ActivityRow({ act }) {
 
   let when = ''
   let urgency = 'future'
-  if (date) {
-    const d = new Date(date); d.setHours(0, 0, 0, 0)
+  if (a.due_date) {
+    const d = new Date(a.due_date); d.setHours(0, 0, 0, 0)
     if (d < today) { when = 'Atrasada'; urgency = 'late' }
     else if (d.getTime() === today.getTime()) { when = 'Hoje'; urgency = 'today' }
     else if (d.getTime() === tomorrow.getTime()) { when = 'Amanhã'; urgency = 'today' }
-    else { when = date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }); urgency = 'future' }
+    else { when = a.due_date.split('-').reverse().join('/'); urgency = 'future' }
+  } else if (a.activity_date) {
+    when = a.activity_date.split('-').reverse().join('/')
   }
 
   const whenColor = urgency === 'late' ? C.red : urgency === 'today' ? C.amber : C.ink4
