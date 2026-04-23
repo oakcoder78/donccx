@@ -23,7 +23,8 @@ export function useActivities(filters = {}, options = {}) {
 
       if (filters.client_id) q = q.eq('client_id', filters.client_id)
       if (filters.type) q = q.eq('type', filters.type)
-      if (filters.status) q = q.eq('status', filters.status)
+      if (filters.status) q = q.eq('status', filters.status);
+    if (filters.excludeStatuses) q = q.not('status', 'in', filters.excludeStatuses);
       if (filters.responsible_id) q = q.eq('responsible_id', filters.responsible_id)
       if (filters.search) q = q.ilike('description', `%${filters.search}%`)
 

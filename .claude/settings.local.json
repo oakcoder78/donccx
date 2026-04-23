@@ -40,7 +40,16 @@
       "Bash(grep -n \"create table.*projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
       "Bash(cat /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
       "Bash(grep -B 5 \"INSERT INTO projects\" /e/donc/donccx/.claude/worktrees/silly-shtern/supabase/migrations/*.sql)",
-      "Bash(node -e \"const p = require\\('./node_modules/tesseract.js/package.json'\\); console.log\\(p.version, p.main\\)\")"
+      "Bash(node -e \"const p = require\\('./node_modules/tesseract.js/package.json'\\); console.log\\(p.version, p.main\\)\")",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(cp \"C:\\\\Users\\\\Carvalho\\\\.claude\\\\projects\\\\E--donc-donccx\\\\bd64fb2e-1a7c-4a7e-8c9e-652605bf87ec\\\\tool-results\\\\webfetch-1776791966905-whjgp8.bin\" /tmp/design.gz)",
+      "Bash(gunzip -c /tmp/design.gz)",
+      "Read(//tmp/**)",
+      "Bash(tar -xf design.gz)",
+      "Bash(tar -xf design.html)",
+      "Bash(ls -la donccx-dashboard/)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(xargs grep *)"
     ]
   }
 }

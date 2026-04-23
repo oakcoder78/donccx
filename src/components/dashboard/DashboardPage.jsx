@@ -149,27 +149,21 @@ export default function DashboardPage() {
   const { data: profiles = [] } = useProfiles()
   // Admin/manager vê todas as pendentes; CSM só as próprias
   const activitiesFilter = isAdminOrManager
-    ? { }
-    : { responsible_id: profile?.id }
+    ? { excludeStatuses: ['concluida', 'cancelada'] }
+    : { responsible_id: profile?.id, excludeStatuses: ['concluida', 'cancelada'] }
 // Filter later: exclude concluida/cancelada and apply due_date logic
   const { data: myTasksRaw = [] } = useActivities(activitiesFilter, { enabled: !!profile })
-  // Excluir concluídas/canceladas
-  const myTasks = myTasksRaw.filter(a => a.status !== 'concluida' && a.status !== 'cancelada')
-
   // Last activity date per client (for "sem interação" logic)
   // useMemo deve ficar antes de qualquer early return (Rules of Hooks)
   // Atrasadas (< hoje) primeiro, depois futuras/hoje — ambas asc por data/hora
   const upcomingActivities = useMemo(() => {
-    const filtered = myTasks.filter(
-      a => a.status !== 'concluida' && a.status !== 'cancelada'
-    )
-    const overdue = [...filtered]
+    const overdue = [...myTasks]
       .filter(a => a.activity_date && a.activity_date < todayStr)
       .sort((a, b) => {
         if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
         return (a.activity_time || '').localeCompare(b.activity_time || '')
       })
-    const future = [...filtered]
+    const future = [...myTasks]
       .filter(a => a.activity_date && a.activity_date >= todayStr)
       .sort((a, b) => {
         if (a.activity_date !== b.activity_date) return a.activity_date.localeCompare(b.activity_date)
