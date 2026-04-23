@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useNavigate } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../contexts/AuthContext'
@@ -275,6 +275,7 @@ function HealthyCard({ client, onClick }) {
 // ─── RightSidebar ─────────────────────────────────────────────────────────────
 
 function ActivityRow({ act }) {
+  const navigate = useNavigate();
   const date = act.activity_date ? new Date(act.activity_date) : null
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
