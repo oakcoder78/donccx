@@ -508,13 +508,17 @@ export default function DashboardPage() {
           ) : (
             <div>
               {upcomingActivities.slice(0, 5).map((a, i) => {
-                const isOverdue = a.activity_date < todayStr
-                const isToday   = a.activity_date === todayStr
+                const isOverdue = a.due_date && a.due_date < todayStr && a.status !== 'concluida' && a.status !== 'cancelada'
+                const isToday   = a.due_date && a.due_date === todayStr && a.status !== 'concluida' && a.status !== 'cancelada'
                 const dateLabel = isOverdue
                   ? 'atrasada'
                   : isToday
                     ? 'hoje'
-                    : (() => { const [,m,d] = a.activity_date.split('-'); return `${d}/${m}` })()
+                    : a.due_date
+                      ? (() => { const [,m,d] = a.due_date.split('-'); return `${d}/${m}` })()
+                      : a.activity_date
+                        ? (() => { const [,m,d] = a.activity_date.split('-'); return `${d}/${m}` })()
+                        : ''
                 const badgeStyle = isOverdue
                   ? { backgroundColor: '#E24B4A20', color: '#E24B4A' }
                   : isToday
