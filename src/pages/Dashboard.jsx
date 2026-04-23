@@ -276,7 +276,6 @@ function HealthyCard({ client, onClick }) {
 
 function ActivityRow({ act }) {
   const navigate = useNavigate();
-  const navigate = useNavigate();
   const date = act.activity_date ? new Date(act.activity_date) : null
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1)
