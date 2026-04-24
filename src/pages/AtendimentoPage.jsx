@@ -870,7 +870,6 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         ticketPayload.custom_fields = { cf_categoria: form.category }
       }
 
-      console.log('[AtendimentoPage] POST /tickets payload:', JSON.stringify(ticketPayload, null, 2))
 
       const createRes = await fetch(fnUrl, {
         method: 'POST',
@@ -879,8 +878,6 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       })
       const created = await createRes.json()
 
-      console.log('[AtendimentoPage] Freshdesk response status:', createRes.status)
-      console.log('[AtendimentoPage] Freshdesk response body:', JSON.stringify(created, null, 2))
 
       if (!createRes.ok) {
         const errMsg = created?.message || created?.description
@@ -900,7 +897,6 @@ function Step3({ data, onChange, onBack, onSuccess }) {
           }),
         })
         const replyData = await replyRes.json()
-        console.log('[AtendimentoPage] reply response:', replyRes.status, JSON.stringify(replyData, null, 2))
       }
 
       // Salva registro em whatsapp_tickets
