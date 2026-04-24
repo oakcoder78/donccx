@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ActivityDetailModal } from '../components/activities/ActivityDetailModal'
 import { useClients } from '../hooks/useClients'
 import { useAuth } from '../contexts/AuthContext'
