@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ClientSubDados } from './operacional/ClientSubDados'
-import { ClientSubOnboarding } from './operacional/ClientSubOnboarding'
 import { ClientSubUso } from './operacional/ClientSubUso'
 import { ClientSubProjetos } from './operacional/ClientSubProjetos'
 import { ClientSubSuporte } from './operacional/ClientSubSuporte'
@@ -11,7 +10,6 @@ import { Button } from '../../ui/Button'
 
 const SUBS = [
   { key: 'dados',      label: 'Dados'      },
-  { key: 'onboarding', label: 'Onboarding' },
   { key: 'uso',        label: 'Uso'        },
   { key: 'projetos',   label: 'Projetos'   },
   { key: 'suporte',    label: 'Suporte'    },
@@ -58,9 +56,8 @@ export function ClientTabOperacional({ client }) {
         )}
       </div>
 
-      {sub === 'dados'      && <ClientSubDados      client={client} />}
-      {sub === 'onboarding' && <ClientSubOnboarding client={client} />}
-      {sub === 'uso'        && <ClientSubUso        client={client} onEdit={setModalMonth} />}
+      {sub === 'dados'    && <ClientSubDados client={client} />}
+      {sub === 'uso'      && <ClientSubUso   client={client} onEdit={setModalMonth} />}
       {sub === 'projetos'   && <ClientSubProjetos   client={client} />}
       {sub === 'suporte'    && <ClientSubSuporte    client={client} onEdit={setModalMonth} />}
       {sub === 'relatorios' && <ClientSubRelatorios client={client} />}

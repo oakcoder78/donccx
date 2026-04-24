@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import { useAllProjects, useUpdateProjectStatus } from '../../hooks/useProjects'
+import { useAllOnboardings } from '../../hooks/useOnboardings'
 import { useClients } from '../../hooks/useClients'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
@@ -9,6 +10,7 @@ import { PageHeader } from '../ui/PageHeader'
 import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ActionIcons } from '../../lib/icons'
+import { ProjectModal } from './ProjectModal'
 
 const COLUMNS = [
   { key: 'planejado',    label: 'Planejado',    color: '#888780', badge: 'slate'  },
@@ -17,8 +19,21 @@ const COLUMNS = [
   { key: 'suspenso',     label: 'Suspenso',     color: '#BA7517', badge: 'amber' },
 ]
 
-const todayStr = new Date().toISOString().slice(0, 10)
+const PROJ_TYPE = {
+  onboarding: { label: 'Onboarding', variant: 'sky'    },
+  expansao:   { label: 'Expansão',   variant: 'violet' },
+  interno:    { label: 'Interno',    variant: 'slate'  },
+}
+
+const SITUACAO_LABEL = {
+  fluindo: { label: 'Fluindo', variant: 'green'  },
+  atencao: { label: 'Atenção', variant: 'amber'  },
+  travado: { label: 'Travado', variant: 'red'    },
+}
+
+const todayStr    = new Date().toISOString().slice(0, 10)
 const in30DaysStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
 
 function formatDate(d) {
   if (!d) return null
@@ -27,14 +42,68 @@ function formatDate(d) {
 
 const SELECT_CLS = 'px-3 py-1.5 text-xs border border-border-secondary rounded-md bg-bg-primary hover:border-text-tertiary transition-colors'
 
+// ── Stats drawer ──────────────────────────────────────────────────────────────
+
+function StatsDrawer({ title, items, onClose }) {
+  const navigate = useNavigate()
+
+  return (
+    <div
+      className="fixed inset-0 z-40"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="absolute right-0 top-0 h-full w-80 bg-bg-primary border-l border-border-tertiary shadow-xl flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary">
+          <h3 className="text-sm font-semibold text-text-primary">{title}</h3>
+          <button onClick={onClose} className="text-text-tertiary hover:text-text-primary transition-colors text-lg leading-none">×</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+          {items.length === 0 && (
+            <p className="text-sm text-text-tertiary text-center py-8">Nenhum item.</p>
+          )}
+          {items.map(item => (
+            <button
+              key={item.id}
+              onClick={() => { navigate(`/empresas/${item.clientId}?tab=operacional&sub=projetos`); onClose() }}
+              className="w-full text-left p-3 rounded-md border border-border-tertiary hover:border-border-secondary hover:bg-bg-tertiary transition-colors"
+            >
+              <p className="text-xs font-medium text-donc-blue truncate mb-0.5">{item.clientName}</p>
+              <p className="text-sm font-semibold text-text-primary leading-snug">{item.title}</p>
+              {item.sub && <p className="text-xs text-text-tertiary mt-0.5">{item.sub}</p>}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Stats card ────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, color, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex-1 min-w-[140px] p-4 rounded-lg border border-border-tertiary bg-bg-primary hover:border-border-secondary hover:shadow-sm transition-all text-left"
+    >
+      <p className="text-2xl font-bold" style={{ color }}>{value}</p>
+      <p className="text-xs text-text-tertiary mt-0.5">{label}</p>
+    </button>
+  )
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
 export default function ProjectsPage() {
   const navigate = useNavigate()
   const { profile, isManager } = useAuth()
   const isAdminOrManager = isManager
 
-  const { data: projects = [], isLoading } = useAllProjects()
-  const { data: clients = [] }  = useClients()
-  const { data: profiles = [] } = useProfiles()
+  const { data: projects     = [], isLoading }  = useAllProjects()
+  const { data: onboardings  = [] }             = useAllOnboardings()
+  const { data: clients      = [] }             = useClients()
+  const { data: profiles     = [] }             = useProfiles()
   const updateStatus = useUpdateProjectStatus()
 
   const [local, setLocal] = useState([])
@@ -43,14 +112,18 @@ export default function ProjectsPage() {
   const [clientFilter,   setClientFilter]   = useState('')
   const [csmFilter,      setCsmFilter]      = useState('')
   const [deadlineFilter, setDeadlineFilter] = useState('')
+  const [typeFilter,     setTypeFilter]     = useState('')
 
-  // CSMs always see only their own projects; admin/manager can filter freely
+  const [showModal,  setShowModal]  = useState(false)
+  const [drawerKey,  setDrawerKey]  = useState(null) // which stat card is open
+
   const effectiveCsmFilter = isAdminOrManager ? csmFilter : (profile?.id ?? null)
 
   const filtered = useMemo(() => {
     let list = local
     if (clientFilter)       list = list.filter(p => String(p.client_id) === clientFilter)
     if (effectiveCsmFilter) list = list.filter(p => p.responsible_id === effectiveCsmFilter)
+    if (typeFilter)         list = list.filter(p => p.type === typeFilter)
     if (deadlineFilter === 'atrasado') {
       list = list.filter(p => p.end_date && p.end_date < todayStr && p.status !== 'concluido')
     } else if (deadlineFilter === 'vence_30') {
@@ -59,15 +132,16 @@ export default function ProjectsPage() {
       list = list.filter(p => !p.end_date)
     }
     return list
-  }, [local, clientFilter, effectiveCsmFilter, deadlineFilter])
+  }, [local, clientFilter, effectiveCsmFilter, typeFilter, deadlineFilter])
 
   const csmProfiles = profiles.filter(p => ['csm', 'admin', 'manager'].includes(p.role))
-  const hasFilters  = clientFilter || (isAdminOrManager && csmFilter) || deadlineFilter
+  const hasFilters  = clientFilter || (isAdminOrManager && csmFilter) || deadlineFilter || typeFilter
 
   function clearFilters() {
     setClientFilter('')
     setCsmFilter('')
     setDeadlineFilter('')
+    setTypeFilter('')
   }
 
   function onDragEnd(result) {
@@ -82,13 +156,148 @@ export default function ProjectsPage() {
     updateStatus.mutate({ id, status: newStatus })
   }
 
+  // ── Stats ──────────────────────────────────────────────────────────────────
+
+  const statsAtivos = useMemo(
+    () => filtered.filter(p => ['planejado', 'em_andamento'].includes(p.status)),
+    [filtered]
+  )
+
+  const statsTravados = useMemo(
+    () => onboardings.filter(o => o.situacao_geral === 'travado'),
+    [onboardings]
+  )
+
+  const statsAtencao = useMemo(
+    () => onboardings.filter(o => o.situacao_geral === 'atencao'),
+    [onboardings]
+  )
+
+  const statsAtraso = useMemo(
+    () => filtered.filter(p => p.end_date && p.end_date < todayStr && p.status !== 'concluido'),
+    [filtered]
+  )
+
+  const statsConcluidos = useMemo(
+    () => filtered.filter(p => p.status === 'concluido' && p.end_date && p.end_date >= firstOfMonth),
+    [filtered]
+  )
+
+  // ── Drawer items builder ───────────────────────────────────────────────────
+
+  const drawerConfig = useMemo(() => {
+    if (!drawerKey) return null
+
+    if (drawerKey === 'ativos') return {
+      title: 'Projetos ativos',
+      items: statsAtivos.map(p => ({
+        id:         p.id,
+        clientId:   p.client_id,
+        clientName: p.client?.fantasy_name || p.client?.name || '—',
+        title:      p.title,
+        sub:        p.responsible?.name || null,
+      })),
+    }
+
+    if (drawerKey === 'travados') return {
+      title: 'Onboardings travados',
+      items: statsTravados.map(o => ({
+        id:         o.id,
+        clientId:   o.client_id,
+        clientName: o.client?.fantasy_name || o.client?.name || '—',
+        title:      o.title,
+        sub:        `Fase: ${o.fase_atual}`,
+      })),
+    }
+
+    if (drawerKey === 'atencao') return {
+      title: 'Onboardings em atenção',
+      items: statsAtencao.map(o => ({
+        id:         o.id,
+        clientId:   o.client_id,
+        clientName: o.client?.fantasy_name || o.client?.name || '—',
+        title:      o.title,
+        sub:        `Fase: ${o.fase_atual}`,
+      })),
+    }
+
+    if (drawerKey === 'atraso') return {
+      title: 'Projetos em atraso',
+      items: statsAtraso.map(p => ({
+        id:         p.id,
+        clientId:   p.client_id,
+        clientName: p.client?.fantasy_name || p.client?.name || '—',
+        title:      p.title,
+        sub:        p.end_date ? `Prazo: ${formatDate(p.end_date)}` : null,
+      })),
+    }
+
+    if (drawerKey === 'concluidos') return {
+      title: 'Concluídos no mês',
+      items: statsConcluidos.map(p => ({
+        id:         p.id,
+        clientId:   p.client_id,
+        clientName: p.client?.fantasy_name || p.client?.name || '—',
+        title:      p.title,
+        sub:        p.end_date ? formatDate(p.end_date) : null,
+      })),
+    }
+
+    return null
+  }, [drawerKey, statsAtivos, statsTravados, statsAtencao, statsAtraso, statsConcluidos])
+
   if (isLoading) return <PageSpinner />
 
   const total = filtered.length
 
   return (
     <div className="p-6">
-      <PageHeader title="Projetos" subtitle={`${total} projeto${total !== 1 ? 's' : ''}`} />
+      <PageHeader
+        title="Projetos"
+        subtitle={`${total} projeto${total !== 1 ? 's' : ''}`}
+        action={
+          <button
+            onClick={() => setShowModal(true)}
+            className="px-3 py-1.5 text-sm font-medium bg-donc-sky text-white rounded-md hover:bg-opacity-90 transition-colors"
+          >
+            + Novo Projeto
+          </button>
+        }
+      />
+
+      {/* Stats cards */}
+      <div className="flex flex-wrap gap-3 mb-5">
+        <StatCard
+          label="Projetos ativos"
+          value={statsAtivos.length}
+          color="#59c2ed"
+          onClick={() => setDrawerKey(drawerKey === 'ativos' ? null : 'ativos')}
+        />
+        <StatCard
+          label="Onboardings travados"
+          value={statsTravados.length}
+          color="#E05252"
+          onClick={() => setDrawerKey(drawerKey === 'travados' ? null : 'travados')}
+        />
+        <StatCard
+          label="Em atenção"
+          value={statsAtencao.length}
+          color="#BA7517"
+          onClick={() => setDrawerKey(drawerKey === 'atencao' ? null : 'atencao')}
+        />
+        <StatCard
+          label="Em atraso"
+          value={statsAtraso.length}
+          color="#E05252"
+          onClick={() => setDrawerKey(drawerKey === 'atraso' ? null : 'atraso')}
+        />
+        <StatCard
+          label="Concluídos no mês"
+          value={statsConcluidos.length}
+          color="#1D9E75"
+          onClick={() => setDrawerKey(drawerKey === 'concluidos' ? null : 'concluidos')}
+        />
+      </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
@@ -109,6 +318,13 @@ export default function ProjectsPage() {
             ))}
           </select>
         )}
+
+        <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={SELECT_CLS}>
+          <option value="">Todos os tipos</option>
+          <option value="onboarding">Onboarding</option>
+          <option value="expansao">Expansão</option>
+          <option value="interno">Interno</option>
+        </select>
 
         <select value={deadlineFilter} onChange={e => setDeadlineFilter(e.target.value)} className={SELECT_CLS}>
           <option value="">Todos os prazos</option>
@@ -150,20 +366,21 @@ export default function ProjectsPage() {
                       className="flex-1 min-h-[80px] rounded-md transition-colors duration-150"
                       style={{
                         backgroundColor: snapshot.isDraggingOver ? 'rgba(0,0,0,0.04)' : 'transparent',
-                        padding: snapshot.isDraggingOver ? 4 : 0,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
+                        padding:         snapshot.isDraggingOver ? 4 : 0,
+                        display:         'flex',
+                        flexDirection:   'column',
+                        gap:             8,
                       }}
                     >
                       {items.map((proj, index) => {
-                        const milestones  = proj.milestones ?? []
-                        const totalMs     = milestones.length
-                        const doneMs      = milestones.filter(m => m.status === 'done').length
-                        const pct         = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
-                        const isOverdue   = proj.end_date && proj.status !== 'concluido' && proj.end_date < todayStr
-                        const clientName  = proj.client?.fantasy_name || proj.client?.name || '—'
-                        const respName    = proj.responsible?.name || null
+                        const milestones = proj.milestones ?? []
+                        const totalMs    = milestones.length
+                        const doneMs     = milestones.filter(m => m.status === 'done').length
+                        const pct        = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
+                        const isOverdue  = proj.end_date && proj.status !== 'concluido' && proj.end_date < todayStr
+                        const clientName = proj.client?.fantasy_name || proj.client?.name || '—'
+                        const respName   = proj.responsible?.name || null
+                        const typeMeta   = proj.type ? PROJ_TYPE[proj.type] : null
 
                         return (
                           <Draggable key={proj.id} draggableId={String(proj.id)} index={index}>
@@ -184,8 +401,16 @@ export default function ProjectsPage() {
                                 <p className="text-xs font-medium text-donc-blue mb-0.5 truncate">{clientName}</p>
                                 <p className="text-sm font-semibold text-text-primary mb-1 leading-snug">{proj.title}</p>
 
+                                {typeMeta && (
+                                  <div className="mb-1.5">
+                                    <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>
+                                  </div>
+                                )}
+
                                 {respName && (
-                                  <p className="text-xs text-text-tertiary mb-2 truncate flex items-center gap-1"><ActionIcons.user className="w-3 h-3 flex-shrink-0" /> {respName}</p>
+                                  <p className="text-xs text-text-tertiary mb-2 truncate flex items-center gap-1">
+                                    <ActionIcons.user className="w-3 h-3 flex-shrink-0" /> {respName}
+                                  </p>
                                 )}
 
                                 {totalMs > 0 && (
@@ -231,6 +456,21 @@ export default function ProjectsPage() {
           })}
         </div>
       </DragDropContext>
+
+      {/* Stats drawer */}
+      {drawerKey && drawerConfig && (
+        <StatsDrawer
+          title={drawerConfig.title}
+          items={drawerConfig.items}
+          onClose={() => setDrawerKey(null)}
+        />
+      )}
+
+      {/* New project modal */}
+      <ProjectModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+      />
     </div>
   )
 }

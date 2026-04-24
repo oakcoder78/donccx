@@ -5,12 +5,19 @@ import { useProfiles } from '../../../../hooks/useProfiles'
 import { Button } from '../../../ui/Button'
 import { Badge } from '../../../ui/Badge'
 import { Modal } from '../../../ui/Modal'
+import { ProjectModal } from '../../../projects/ProjectModal'
 
 const PROJ_STATUS = {
   planejado:    { label: 'Planejado',    variant: 'slate'  },
   em_andamento: { label: 'Em Andamento', variant: 'sky'    },
   concluido:    { label: 'Concluído',    variant: 'green'  },
   suspenso:     { label: 'Suspenso',     variant: 'amber'  },
+}
+
+const PROJ_TYPE = {
+  onboarding: { label: 'Onboarding', variant: 'sky'    },
+  expansao:   { label: 'Expansão',   variant: 'violet' },
+  interno:    { label: 'Interno',    variant: 'slate'  },
 }
 
 const MS_STATUS = {
@@ -57,16 +64,14 @@ export function ClientSubProjetos({ client }) {
     })
   }
 
-  // projeto modal
+  // new project modal (ProjectModal handles onboarding/expansao/interno flows)
+  const [showProjectModal, setShowProjectModal] = useState(false)
+
+  // edit project modal (inline, simple)
   const [showProjModal, setShowProjModal] = useState(false)
   const [editProj, setEditProj]           = useState(null)
   const [projForm, setProjForm]           = useState(EMPTY_PROJ)
 
-  function openCreateProj() {
-    setEditProj(null)
-    setProjForm({ ...EMPTY_PROJ, responsible_id: client.csm_id || '' })
-    setShowProjModal(true)
-  }
   function openEditProj(p) {
     setEditProj(p)
     setProjForm({
@@ -180,7 +185,7 @@ export function ClientSubProjetos({ client }) {
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
-        <Button size="sm" onClick={openCreateProj}>+ Novo Projeto</Button>
+        <Button size="sm" onClick={() => setShowProjectModal(true)}>+ Novo Projeto</Button>
       </div>
 
       {projects.length === 0 && (
@@ -207,6 +212,9 @@ export function ClientSubProjetos({ client }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-semibold text-text-primary truncate">{proj.title}</span>
                   <Badge variant={ps.variant}>{ps.label}</Badge>
+                  {proj.type && PROJ_TYPE[proj.type] && (
+                    <Badge variant={PROJ_TYPE[proj.type].variant}>{PROJ_TYPE[proj.type].label}</Badge>
+                  )}
                   {proj.responsible && (
                     <span className="text-xs text-text-tertiary">· {proj.responsible.name}</span>
                   )}
@@ -328,11 +336,18 @@ export function ClientSubProjetos({ client }) {
         )
       })}
 
-      {/* Modal: Projeto */}
+      {/* Modal: Novo Projeto (onboarding / expansao / interno flow) */}
+      <ProjectModal
+        isOpen={showProjectModal}
+        onClose={() => setShowProjectModal(false)}
+        clientId={client.id}
+      />
+
+      {/* Modal: Editar Projeto (inline, simple) */}
       <Modal
         isOpen={showProjModal}
         onClose={() => setShowProjModal(false)}
-        title={editProj ? 'Editar Projeto' : 'Novo Projeto'}
+        title="Editar Projeto"
         maxWidth="max-w-lg"
       >
         <div className="space-y-3">
