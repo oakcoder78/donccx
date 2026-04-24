@@ -45,7 +45,7 @@ const inputRO$ = { ...input$, background: '#f4f5f7', color: 'rgba(23,53,87,0.75)
 
 const EMPTY_FORM = {
   title: '', description: '', responsible_id: '',
-  start_date: '', end_date: '', status: 'em_andamento',
+  start_date: '', end_date: '', kickoff_date: '', status: 'em_andamento',
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -77,7 +77,12 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
   // Derived state
   const isOnbType = type === 'onboarding' || type === 'expansao'
   const kickoffSla = onbCfg.kickoff_sla_days ?? 5
-  const kickoffDisplay = addDays(form.start_date, kickoffSla)
+
+  // Kickoff: init when modal opens; re-sync when start_date changes
+  useEffect(() => {
+    if (isOpen)
+      setForm(p => ({ ...p, kickoff_date: p.kickoff_date || addDays(p.start_date, kickoffSla) }))
+  }, [isOpen])
 
   // Grouped capability types
   const grpOp  = capTypes.filter(c => c.category === 'operacao')
@@ -141,13 +146,14 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
       })
     } else {
       await createOnboardingFlow.mutateAsync({
-        clientId:     resolvedClientId,
+        clientId:      resolvedClientId,
         type,
-        title:        form.title.trim(),
-        csm_id:       form.responsible_id || undefined,
-        start_date:   form.start_date || undefined,
-        notes:        form.description || undefined,
-        capabilities: caps,
+        title:         form.title.trim(),
+        csm_id:        form.responsible_id || undefined,
+        start_date:    form.start_date || undefined,
+        notes:         form.description || undefined,
+        capabilities:  caps,
+        kickoff_date:  form.kickoff_date || undefined,
       })
     }
     handleClose()
@@ -411,7 +417,10 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                     className="pm-input"
                     type="date"
                     value={form.start_date}
-                    onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))}
+                    onChange={e => {
+                      const d = e.target.value
+                      setForm(p => ({ ...p, start_date: d, kickoff_date: addDays(d, kickoffSla) }))
+                    }}
                     style={input$}
                   />
                 </div>
@@ -540,9 +549,15 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
                   <div>
                     <label style={label$}>Kickoff previsto</label>
-                    <input type="date" value={kickoffDisplay} readOnly style={inputRO$} />
+                    <input
+                      className="pm-input"
+                      type="date"
+                      value={form.kickoff_date}
+                      onChange={e => setForm(p => ({ ...p, kickoff_date: e.target.value }))}
+                      style={input$}
+                    />
                     <div style={{ fontSize: '11px', color: 'rgba(23,53,87,0.5)', marginTop: '4px' }}>
-                      Prazo padrão: {kickoffSla} dias corridos.
+                      Padrão: {kickoffSla} dias a partir do início.
                     </div>
                   </div>
                   <div>

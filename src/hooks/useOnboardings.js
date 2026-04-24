@@ -89,7 +89,7 @@ export function useCreateOnboardingFlow() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, type, title, csm_id, start_date, notes, capabilities }) => {
+    mutationFn: async ({ clientId, type, title, csm_id, start_date, notes, capabilities, kickoff_date }) => {
       // 1. Fetch SLA config
       const { data: cfgRows } = await supabase.from('onboarding_config').select('key, value')
       const cfg = {}
@@ -122,9 +122,9 @@ export function useCreateOnboardingFlow() {
       ])
       if (fasesErr) throw fasesErr
 
-      // 4. Planned dates from SLA
+      // 4. Planned dates — kickoff from form override or SLA fallback
       const base           = start_date || new Date().toISOString().slice(0, 10)
-      const kickoffPlanned = addDays(base, kickoffSla)
+      const kickoffPlanned = kickoff_date || addDays(base, kickoffSla)
       const ptPlanned      = addDays(kickoffPlanned, ptSla)
       const golivePlanned  = addDays(base, goliveSla)
 
