@@ -11,6 +11,7 @@ import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ActionIcons } from '../../lib/icons'
 import { ProjectModal } from './ProjectModal'
+import { FASE_LABELS } from '../../lib/onboardingLabels'
 
 const COLUMNS = [
   { key: 'planejado',    label: 'Planejado',    color: '#888780', badge: 'slate'  },
@@ -228,7 +229,7 @@ export default function ProjectsPage() {
         clientId:   o.client_id,
         clientName: o.client?.fantasy_name || o.client?.name || '—',
         title:      o.title,
-        sub:        `Fase: ${o.fase_atual}`,
+        sub:        `Fase: ${FASE_LABELS[o.fase_atual] || o.fase_atual}`,
       })),
     }
 
@@ -239,7 +240,7 @@ export default function ProjectsPage() {
         clientId:   o.client_id,
         clientName: o.client?.fantasy_name || o.client?.name || '—',
         title:      o.title,
-        sub:        `Fase: ${o.fase_atual}`,
+        sub:        `Fase: ${FASE_LABELS[o.fase_atual] || o.fase_atual}`,
       })),
     }
 

@@ -11,6 +11,7 @@ import {
   useOnboardingConfig,
 } from '../../hooks/useOnboardings'
 import { useUpdateProject } from '../../hooks/useProjects'
+import { FASE_LABELS } from '../../lib/onboardingLabels'
 
 // ── CSS injetado: pseudo-classes que não podem ser inline ──────────────────
 const MODAL_CSS = `
@@ -641,7 +642,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
                     <label style={label$}>{isEdit ? 'Fase atual' : 'Fase inicial'}</label>
                     <input
                       type="text"
-                      value={isEdit ? (onboardingData?.fase_atual || '—') : 'Definição do Escopo'}
+                      value={isEdit ? (FASE_LABELS[onboardingData?.fase_atual] || onboardingData?.fase_atual || '—') : FASE_LABELS.definicao_escopo}
                       readOnly
                       style={inputRO$}
                     />
