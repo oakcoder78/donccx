@@ -140,7 +140,7 @@ export default function ProjectsPage() {
       list = list.filter(p => !p.end_date)
     }
     return list
-  }, [local, clientFilter, effectiveCsmFilter, typeFilter, deadlineFilter])
+  }, [local, selectedFilterClient, effectiveCsmFilter, typeFilter, deadlineFilter])
 
   const csmProfiles = profiles.filter(p => ['csm', 'admin', 'manager'].includes(p.role))
   const hasFilters  = !!selectedFilterClient || (isAdminOrManager && csmFilter) || deadlineFilter || typeFilter
