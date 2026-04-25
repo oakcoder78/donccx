@@ -4,6 +4,7 @@ import { useClients } from '../../hooks/useClients'
 import {
   useCatalogItems,
   useOnboarding,
+  useOnboardingCapabilities,
   useCreateOnboardingFlow,
   useUpdateOnboardingFlow,
   useCreateInternalProject,
@@ -86,7 +87,8 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
 
   // Onboarding data — only loaded in edit mode for onboarding/expansao projects
   const onboardingId = isEdit && isOnbType && isOpen ? project?.onboarding_id : null
-  const { data: onboardingData } = useOnboarding(onboardingId)
+  const { data: onboardingData }                          = useOnboarding(onboardingId)
+  const { data: onbCaps = [], isSuccess: capsLoaded }     = useOnboardingCapabilities(onboardingId)
 
   // Catalog item groups
   const grpServicos = catalogItems.filter(c => c.type === 'servico')
@@ -144,20 +146,24 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
 
   // Fill onboarding-specific fields when data loads (edit mode)
   useEffect(() => {
-    if (!onboardingData || capsInitialized || !isOpen) return
+    if (!onboardingData || !isOpen) return
     const kickoffMs = (onboardingData.onboarding_milestones ?? []).find(m => m.type === 'kickoff')
-    const capIds = (onboardingData.onboarding_capabilities ?? [])
-      .map(c => c.catalog_item_id).filter(Boolean)
     setForm(p => ({
       ...p,
       description:    onboardingData.notes  || '',
       responsible_id: onboardingData.csm_id || '',
       kickoff_date:   kickoffMs?.planned_date ? kickoffMs.planned_date.slice(0, 10) : '',
       start_date:     p.start_date || (onboardingData.start_date ? onboardingData.start_date.slice(0, 10) : ''),
+      end_date:       p.end_date   || (onboardingData.end_date   ? onboardingData.end_date.slice(0, 10)   : ''),
     }))
-    setCaps(capIds)
+  }, [onboardingData, isOpen])
+
+  // Load capabilities from dedicated query (edit mode)
+  useEffect(() => {
+    if (!capsLoaded || capsInitialized || !isOpen) return
+    setCaps(onbCaps)
     setCapsInitialized(true)
-  }, [onboardingData, capsInitialized, isOpen])
+  }, [capsLoaded, onbCaps, capsInitialized, isOpen])
 
   // Escape key
   useEffect(() => {

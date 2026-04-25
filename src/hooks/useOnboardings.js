@@ -53,11 +53,28 @@ export function useOnboarding(onboardingId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboardings')
-        .select('*, onboarding_capabilities(catalog_item_id), onboarding_milestones(id, type, planned_date)')
+        .select('*, onboarding_milestones(id, type, planned_date)')
         .eq('id', onboardingId)
         .single()
       if (error) { console.error('[useOnboarding]', error); return null }
       return data
+    },
+    retry: 0,
+  })
+}
+
+export function useOnboardingCapabilities(onboardingId) {
+  return useQuery({
+    queryKey: ['onboarding_caps', onboardingId],
+    enabled: !!onboardingId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboarding_capabilities')
+        .select('catalog_item_id')
+        .eq('onboarding_id', onboardingId)
+        .not('catalog_item_id', 'is', null)
+      if (error) { console.error('[useOnboardingCapabilities]', error); return [] }
+      return (data ?? []).map(r => r.catalog_item_id).filter(Boolean)
     },
     retry: 0,
   })
@@ -229,6 +246,7 @@ export function useUpdateOnboardingFlow() {
     onSuccess: (_, { project }) => {
       qc.invalidateQueries({ queryKey: ['onboardings', project.client_id] })
       qc.invalidateQueries({ queryKey: ['onboarding', project.onboarding_id] })
+      qc.invalidateQueries({ queryKey: ['onboarding_caps', project.onboarding_id] })
       qc.invalidateQueries({ queryKey: ['onboardings_all'] })
       qc.invalidateQueries({ queryKey: ['projects', project.client_id] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
