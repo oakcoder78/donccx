@@ -209,6 +209,8 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
           title:        form.title.trim(),
           csm_id:       form.responsible_id || undefined,
           notes:        form.description    || undefined,
+          start_date:   form.start_date     || undefined,
+          end_date:     form.end_date       || undefined,
           capabilities: caps,
           kickoff_date: form.kickoff_date   || undefined,
         })
@@ -231,6 +233,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
           title:        form.title.trim(),
           csm_id:       form.responsible_id || undefined,
           start_date:   form.start_date     || undefined,
+          end_date:     form.end_date       || undefined,
           notes:        form.description    || undefined,
           capabilities: caps,
           kickoff_date: form.kickoff_date   || undefined,

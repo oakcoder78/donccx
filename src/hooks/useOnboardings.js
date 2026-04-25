@@ -122,7 +122,7 @@ export function useCreateOnboardingFlow() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, type, title, csm_id, start_date, notes, capabilities, kickoff_date }) => {
+    mutationFn: async ({ clientId, type, title, csm_id, start_date, end_date, notes, capabilities, kickoff_date }) => {
       // 1. Fetch SLA config
       const { data: cfgRows } = await supabase.from('onboarding_config').select('key, value')
       const cfg = {}
@@ -171,16 +171,16 @@ export function useCreateOnboardingFlow() {
 
       // 6. Insert capabilities (catalog_item_id)
       if (capabilities?.length > 0) {
-        const { error: capErr } = await supabase.from('onboarding_capabilities').insert(
-          capabilities.map(itemId => ({ onboarding_id: onb.id, catalog_item_id: itemId }))
-        )
+        const capPayload = capabilities.map(itemId => ({ onboarding_id: onb.id, catalog_item_id: itemId }))
+        console.log('[createOnboardingFlow] capabilities payload', capPayload)
+        const { error: capErr } = await supabase.from('onboarding_capabilities').insert(capPayload)
         if (capErr) throw capErr
       }
 
       // 7. Insert linked project
       const { data: proj, error: projErr } = await supabase
         .from('projects')
-        .insert({ client_id: clientId, title, type, onboarding_id: onb.id, status: 'em_andamento', start_date: start_date || null })
+        .insert({ client_id: clientId, title, type, onboarding_id: onb.id, status: 'em_andamento', start_date: start_date || null, end_date: end_date || null })
         .select()
         .single()
       if (projErr) throw projErr
@@ -203,11 +203,11 @@ export function useUpdateOnboardingFlow() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ project, title, csm_id, notes, capabilities, kickoff_date }) => {
-      // 1. Update project title
+    mutationFn: async ({ project, title, csm_id, notes, start_date, end_date, capabilities, kickoff_date }) => {
+      // 1. Update project title + dates
       const { error: projErr } = await supabase
         .from('projects')
-        .update({ title })
+        .update({ title, start_date: start_date || null, end_date: end_date || null })
         .eq('id', project.id)
       if (projErr) throw projErr
 
@@ -236,9 +236,9 @@ export function useUpdateOnboardingFlow() {
       if (delErr) throw delErr
 
       if (capabilities?.length > 0) {
-        const { error: capErr } = await supabase.from('onboarding_capabilities').insert(
-          capabilities.map(itemId => ({ onboarding_id: project.onboarding_id, catalog_item_id: itemId }))
-        )
+        const capPayload = capabilities.map(itemId => ({ onboarding_id: project.onboarding_id, catalog_item_id: itemId }))
+        console.log('[updateOnboardingFlow] capabilities payload', capPayload)
+        const { error: capErr } = await supabase.from('onboarding_capabilities').insert(capPayload)
         if (capErr) throw capErr
       }
     },
