@@ -53,7 +53,7 @@ export function useOnboarding(onboardingId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboardings')
-        .select('*, onboarding_capabilities(catalog_item_id)')
+        .select('*, onboarding_capabilities(catalog_item_id), onboarding_milestones(id, type, planned_date)')
         .eq('id', onboardingId)
         .single()
       if (error) { console.error('[useOnboarding]', error); return null }
@@ -186,7 +186,7 @@ export function useUpdateOnboardingFlow() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ project, title, csm_id, notes, capabilities }) => {
+    mutationFn: async ({ project, title, csm_id, notes, capabilities, kickoff_date }) => {
       // 1. Update project title
       const { error: projErr } = await supabase
         .from('projects')
@@ -201,7 +201,17 @@ export function useUpdateOnboardingFlow() {
         .eq('id', project.onboarding_id)
       if (onbErr) throw onbErr
 
-      // 3. Replace capabilities
+      // 3. Update kickoff milestone planned_date if provided
+      if (kickoff_date) {
+        const { error: msErr } = await supabase
+          .from('onboarding_milestones')
+          .update({ planned_date: kickoff_date })
+          .eq('onboarding_id', project.onboarding_id)
+          .eq('type', 'kickoff')
+        if (msErr) throw msErr
+      }
+
+      // 4. Replace capabilities
       const { error: delErr } = await supabase
         .from('onboarding_capabilities')
         .delete()

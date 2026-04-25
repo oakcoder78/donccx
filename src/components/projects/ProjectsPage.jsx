@@ -20,9 +20,9 @@ const COLUMNS = [
 ]
 
 const PROJ_TYPE = {
-  onboarding: { label: 'Onboarding', variant: 'sky'    },
-  expansao:   { label: 'Expansão',   variant: 'violet' },
-  interno:    { label: 'Interno',    variant: 'slate'  },
+  onboarding: { label: 'Onboarding', bg: '#e6f1fb', color: '#0c447c' },
+  expansao:   { label: 'Expansão',   bg: '#e8ed8a', color: '#5a6200' },
+  interno:    { label: 'Interno',    bg: '#f0f0ee', color: '#555555' },
 }
 
 const SITUACAO_LABEL = {
@@ -471,7 +471,11 @@ export default function ProjectsPage() {
 
                                 {(typeMeta || situacao) && (
                                   <div className="flex items-center gap-1.5 mb-1.5">
-                                    {typeMeta && <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>}
+                                    {typeMeta && (
+                                      <span style={{ background: typeMeta.bg, color: typeMeta.color, padding: '2px 7px', borderRadius: '5px', fontSize: '11px', fontWeight: 600 }}>
+                                        {typeMeta.label}
+                                      </span>
+                                    )}
                                     {situacao && SITUACAO_COLOR[situacao] && (
                                       <span
                                         title={SITUACAO_LABEL[situacao]?.label || situacao}

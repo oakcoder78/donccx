@@ -129,8 +129,8 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
         title:          project.title        || '',
         description:    pIsOnb ? '' : (project.description  || ''),
         responsible_id: pIsOnb ? '' : (project.responsible_id || ''),
-        start_date:     project.start_date   || '',
-        end_date:       project.end_date     || '',
+        start_date:     project.start_date ? project.start_date.slice(0, 10) : '',
+        end_date:       project.end_date   ? project.end_date.slice(0, 10)   : '',
         kickoff_date:   '',
         status:         project.status       || 'em_andamento',
       })
@@ -143,10 +143,12 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   // Fill onboarding-specific fields when data loads (edit mode)
   useEffect(() => {
     if (!onboardingData || capsInitialized || !isOpen) return
+    const kickoffMs = (onboardingData.onboarding_milestones ?? []).find(m => m.type === 'kickoff')
     setForm(p => ({
       ...p,
-      description:    onboardingData.notes   || '',
-      responsible_id: onboardingData.csm_id  || '',
+      description:    onboardingData.notes  || '',
+      responsible_id: onboardingData.csm_id || '',
+      kickoff_date:   kickoffMs?.planned_date ? kickoffMs.planned_date.slice(0, 10) : '',
     }))
     const capIds = (onboardingData.onboarding_capabilities ?? [])
       .map(c => c.catalog_item_id).filter(Boolean)
@@ -199,6 +201,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
           csm_id:       form.responsible_id || undefined,
           notes:        form.description    || undefined,
           capabilities: caps,
+          kickoff_date: form.kickoff_date   || undefined,
         })
       }
     } else {
@@ -605,49 +608,56 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
                   </div>
                 </div>
 
-                {/* Kickoff + Fase inicial — only in create mode */}
-                {!isEdit && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                    <div>
-                      <label style={label$}>Kickoff previsto</label>
-                      <input
-                        className="pm-input"
-                        type="date"
-                        value={form.kickoff_date}
-                        onChange={e => setForm(p => ({ ...p, kickoff_date: e.target.value }))}
-                        style={input$}
-                      />
+                {/* Kickoff + Fase */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <label style={label$}>Kickoff previsto</label>
+                    <input
+                      className="pm-input"
+                      type="date"
+                      value={form.kickoff_date}
+                      onChange={e => setForm(p => ({ ...p, kickoff_date: e.target.value }))}
+                      style={input$}
+                    />
+                    {!isEdit && (
                       <div style={{ fontSize: '11px', color: 'rgba(23,53,87,0.5)', marginTop: '4px' }}>
                         Padrão: {kickoffSla} dias a partir do início.
                       </div>
-                    </div>
-                    <div>
-                      <label style={label$}>Fase inicial</label>
-                      <input type="text" value="Definição do Escopo" readOnly style={inputRO$} />
-                    </div>
+                    )}
                   </div>
-                )}
+                  <div>
+                    <label style={label$}>{isEdit ? 'Fase atual' : 'Fase inicial'}</label>
+                    <input
+                      type="text"
+                      value={isEdit ? (onboardingData?.fase_atual || '—') : 'Definição do Escopo'}
+                      readOnly
+                      style={inputRO$}
+                    />
+                  </div>
+                </div>
 
-                {/* Info banner — only in create mode */}
-                {!isEdit && (
+                {/* Info / link banner */}
+                <div style={{
+                  background: 'rgba(89,194,237,0.12)', border: '1px solid rgba(89,194,237,0.3)',
+                  borderRadius: '9px', padding: '10px 12px',
+                  fontSize: '12px', color: '#0a4a6b',
+                  display: 'flex', gap: '9px', alignItems: 'flex-start',
+                  lineHeight: 1.45,
+                }}>
                   <div style={{
-                    background: 'rgba(89,194,237,0.12)', border: '1px solid rgba(89,194,237,0.3)',
-                    borderRadius: '9px', padding: '10px 12px',
-                    fontSize: '12px', color: '#0a4a6b',
-                    display: 'flex', gap: '9px', alignItems: 'flex-start',
-                    lineHeight: 1.45,
+                    width: '16px', height: '16px', borderRadius: '50%',
+                    background: '#59c2ed', color: '#fff',
+                    display: 'grid', placeItems: 'center',
+                    fontSize: '10px', fontWeight: 700, flexShrink: 0, marginTop: '1px',
                   }}>
-                    <div style={{
-                      width: '16px', height: '16px', borderRadius: '50%',
-                      background: '#59c2ed', color: '#fff',
-                      display: 'grid', placeItems: 'center',
-                      fontSize: '10px', fontWeight: 700, flexShrink: 0, marginTop: '1px',
-                    }}>
-                      i
-                    </div>
-                    <div>Um onboarding será criado e vinculado a este projeto automaticamente.</div>
+                    i
                   </div>
-                )}
+                  <div>
+                    {isEdit
+                      ? 'Este projeto está vinculado a um onboarding ativo.'
+                      : 'Um onboarding será criado e vinculado a este projeto automaticamente.'}
+                  </div>
+                </div>
               </div>
             )}
           </div>
