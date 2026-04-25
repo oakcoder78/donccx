@@ -124,13 +124,15 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
     if (isEdit) {
       const pType  = project.type
       const pIsOnb = pType === 'onboarding' || pType === 'expansao'
+      const sd = project.start_date ? project.start_date.slice(0, 10) : ''
+      const ed = project.end_date   ? project.end_date.slice(0, 10)   : ''
       setType(pType)
       setForm({
         title:          project.title        || '',
         description:    pIsOnb ? '' : (project.description  || ''),
         responsible_id: pIsOnb ? '' : (project.responsible_id || ''),
-        start_date:     project.start_date ? project.start_date.slice(0, 10) : '',
-        end_date:       project.end_date   ? project.end_date.slice(0, 10)   : '',
+        start_date:     sd,
+        end_date:       ed,
         kickoff_date:   '',
         status:         project.status       || 'em_andamento',
       })
@@ -138,20 +140,21 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
     } else {
       setForm(p => ({ ...p, kickoff_date: p.kickoff_date || addDays(p.start_date, kickoffSla) }))
     }
-  }, [isOpen])
+  }, [isOpen, project?.id])
 
   // Fill onboarding-specific fields when data loads (edit mode)
   useEffect(() => {
     if (!onboardingData || capsInitialized || !isOpen) return
     const kickoffMs = (onboardingData.onboarding_milestones ?? []).find(m => m.type === 'kickoff')
+    const capIds = (onboardingData.onboarding_capabilities ?? [])
+      .map(c => c.catalog_item_id).filter(Boolean)
     setForm(p => ({
       ...p,
       description:    onboardingData.notes  || '',
       responsible_id: onboardingData.csm_id || '',
       kickoff_date:   kickoffMs?.planned_date ? kickoffMs.planned_date.slice(0, 10) : '',
+      start_date:     p.start_date || (onboardingData.start_date ? onboardingData.start_date.slice(0, 10) : ''),
     }))
-    const capIds = (onboardingData.onboarding_capabilities ?? [])
-      .map(c => c.catalog_item_id).filter(Boolean)
     setCaps(capIds)
     setCapsInitialized(true)
   }, [onboardingData, capsInitialized, isOpen])

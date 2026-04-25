@@ -163,7 +163,7 @@ export function useCreateOnboardingFlow() {
       // 7. Insert linked project
       const { data: proj, error: projErr } = await supabase
         .from('projects')
-        .insert({ client_id: clientId, title, type, onboarding_id: onb.id, status: 'em_andamento' })
+        .insert({ client_id: clientId, title, type, onboarding_id: onb.id, status: 'em_andamento', start_date: start_date || null })
         .select()
         .single()
       if (projErr) throw projErr
