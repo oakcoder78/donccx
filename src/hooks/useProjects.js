@@ -25,12 +25,33 @@ export function useAllProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), milestones(id, status, milestone_tasks(id, done))')
+        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), milestones(id, status, milestone_tasks(id, done)), onboarding:onboardings!onboarding_id(id, situacao_geral)')
         .order('created_at', { ascending: false })
       if (error) { console.error('[useAllProjects]', error); return [] }
       return data ?? []
     },
     retry: 0,
+  })
+}
+
+export function useUpdateProject() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, client_id, title, description, responsible_id, start_date, end_date, status }) => {
+      const payload = { title, status }
+      payload.description    = description    || null
+      payload.responsible_id = responsible_id || null
+      payload.start_date     = start_date     || null
+      payload.end_date       = end_date       || null
+      const { error } = await supabase.from('projects').update(payload).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: (_, { client_id }) => {
+      qc.invalidateQueries({ queryKey: ['projects', client_id] })
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      toast.success('Projeto atualizado')
+    },
+    onError: (e) => toast.error(e.message),
   })
 }
 

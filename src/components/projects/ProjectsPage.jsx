@@ -31,6 +31,12 @@ const SITUACAO_LABEL = {
   travado: { label: 'Travado', variant: 'red'    },
 }
 
+const SITUACAO_COLOR = {
+  fluindo: '#1D9E75',
+  atencao: '#BA7517',
+  travado: '#E05252',
+}
+
 const todayStr    = new Date().toISOString().slice(0, 10)
 const in30DaysStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
@@ -109,10 +115,12 @@ export default function ProjectsPage() {
   const [local, setLocal] = useState([])
   useEffect(() => { setLocal(projects) }, [projects])
 
-  const [clientFilter,   setClientFilter]   = useState('')
-  const [csmFilter,      setCsmFilter]      = useState('')
-  const [deadlineFilter, setDeadlineFilter] = useState('')
-  const [typeFilter,     setTypeFilter]     = useState('')
+  const [filterSearch,         setFilterSearch]         = useState('')
+  const [filterOpen,           setFilterOpen]           = useState(false)
+  const [selectedFilterClient, setSelectedFilterClient] = useState(null)
+  const [csmFilter,            setCsmFilter]            = useState('')
+  const [deadlineFilter,       setDeadlineFilter]       = useState('')
+  const [typeFilter,           setTypeFilter]           = useState('')
 
   const [showModal,  setShowModal]  = useState(false)
   const [drawerKey,  setDrawerKey]  = useState(null) // which stat card is open
@@ -121,8 +129,8 @@ export default function ProjectsPage() {
 
   const filtered = useMemo(() => {
     let list = local
-    if (clientFilter)       list = list.filter(p => String(p.client_id) === clientFilter)
-    if (effectiveCsmFilter) list = list.filter(p => p.responsible_id === effectiveCsmFilter)
+    if (selectedFilterClient) list = list.filter(p => p.client_id === selectedFilterClient.id)
+    if (effectiveCsmFilter)   list = list.filter(p => p.responsible_id === effectiveCsmFilter)
     if (typeFilter)         list = list.filter(p => p.type === typeFilter)
     if (deadlineFilter === 'atrasado') {
       list = list.filter(p => p.end_date && p.end_date < todayStr && p.status !== 'concluido')
@@ -135,10 +143,24 @@ export default function ProjectsPage() {
   }, [local, clientFilter, effectiveCsmFilter, typeFilter, deadlineFilter])
 
   const csmProfiles = profiles.filter(p => ['csm', 'admin', 'manager'].includes(p.role))
-  const hasFilters  = clientFilter || (isAdminOrManager && csmFilter) || deadlineFilter || typeFilter
+  const hasFilters  = !!selectedFilterClient || (isAdminOrManager && csmFilter) || deadlineFilter || typeFilter
+
+  const filterSuggestions = filterSearch.trim()
+    ? clients.filter(c => {
+        const q = filterSearch.toLowerCase()
+        return (c.name || '').toLowerCase().includes(q)
+            || (c.fantasy_name || '').toLowerCase().includes(q)
+      }).slice(0, 8)
+    : clients.slice(0, 8)
+
+  function clearFilterClient() {
+    setSelectedFilterClient(null)
+    setFilterSearch('')
+  }
 
   function clearFilters() {
-    setClientFilter('')
+    setSelectedFilterClient(null)
+    setFilterSearch('')
     setCsmFilter('')
     setDeadlineFilter('')
     setTypeFilter('')
@@ -303,12 +325,55 @@ export default function ProjectsPage() {
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <span className="text-xs text-text-tertiary">Filtrar por:</span>
 
-        <select value={clientFilter} onChange={e => setClientFilter(e.target.value)} className={SELECT_CLS}>
-          <option value="">Todas as empresas</option>
-          {clients.map(c => (
-            <option key={c.id} value={String(c.id)}>{c.fantasy_name || c.name}</option>
-          ))}
-        </select>
+        <div className="relative">
+          <div className={`flex items-center gap-1 ${SELECT_CLS}`} style={{ padding: '0 8px 0 12px', minWidth: 140 }}>
+            <input
+              type="text"
+              value={selectedFilterClient
+                ? (selectedFilterClient.fantasy_name || selectedFilterClient.name)
+                : filterSearch}
+              onChange={e => {
+                if (selectedFilterClient) return
+                setFilterSearch(e.target.value)
+                setFilterOpen(true)
+              }}
+              onFocus={() => { if (!selectedFilterClient) setFilterOpen(true) }}
+              onBlur={() => setTimeout(() => setFilterOpen(false), 150)}
+              readOnly={!!selectedFilterClient}
+              placeholder="Todas as empresas"
+              className="bg-transparent outline-none text-xs text-text-primary placeholder:text-text-tertiary flex-1"
+              style={{ minWidth: 100, cursor: selectedFilterClient ? 'default' : 'text', padding: '6px 0' }}
+            />
+            {selectedFilterClient && (
+              <button
+                onMouseDown={e => { e.preventDefault(); clearFilterClient() }}
+                className="text-text-tertiary hover:text-text-primary ml-1 text-sm leading-none flex-shrink-0"
+              >
+                ×
+              </button>
+            )}
+          </div>
+          {filterOpen && !selectedFilterClient && (
+            <div className="absolute top-full mt-1 left-0 z-20 bg-bg-primary border border-border-secondary rounded-md shadow-lg py-1 min-w-[200px] max-h-48 overflow-y-auto">
+              {filterSuggestions.length === 0 ? (
+                <p className="px-3 py-2 text-xs text-text-tertiary">Nenhuma empresa encontrada.</p>
+              ) : filterSuggestions.map(c => (
+                <button
+                  key={c.id}
+                  onMouseDown={e => {
+                    e.preventDefault()
+                    setSelectedFilterClient(c)
+                    setFilterSearch('')
+                    setFilterOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-1.5 text-xs text-text-primary hover:bg-bg-tertiary transition-colors truncate"
+                >
+                  {c.fantasy_name || c.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {isAdminOrManager && (
           <select value={csmFilter} onChange={e => setCsmFilter(e.target.value)} className={SELECT_CLS}>
@@ -381,6 +446,9 @@ export default function ProjectsPage() {
                         const clientName = proj.client?.fantasy_name || proj.client?.name || '—'
                         const respName   = proj.responsible?.name || null
                         const typeMeta   = proj.type ? PROJ_TYPE[proj.type] : null
+                        const situacao   = (proj.type === 'onboarding' || proj.type === 'expansao')
+                          ? proj.onboarding?.situacao_geral
+                          : null
 
                         return (
                           <Draggable key={proj.id} draggableId={String(proj.id)} index={index}>
@@ -401,9 +469,16 @@ export default function ProjectsPage() {
                                 <p className="text-xs font-medium text-donc-blue mb-0.5 truncate">{clientName}</p>
                                 <p className="text-sm font-semibold text-text-primary mb-1 leading-snug">{proj.title}</p>
 
-                                {typeMeta && (
-                                  <div className="mb-1.5">
-                                    <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>
+                                {(typeMeta || situacao) && (
+                                  <div className="flex items-center gap-1.5 mb-1.5">
+                                    {typeMeta && <Badge variant={typeMeta.variant}>{typeMeta.label}</Badge>}
+                                    {situacao && SITUACAO_COLOR[situacao] && (
+                                      <span
+                                        title={SITUACAO_LABEL[situacao]?.label || situacao}
+                                        className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                                        style={{ backgroundColor: SITUACAO_COLOR[situacao] }}
+                                      />
+                                    )}
                                   </div>
                                 )}
 

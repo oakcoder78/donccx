@@ -46,6 +46,23 @@ export function useAllOnboardings() {
   })
 }
 
+export function useOnboarding(onboardingId) {
+  return useQuery({
+    queryKey: ['onboarding', onboardingId],
+    enabled: !!onboardingId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboardings')
+        .select('*, onboarding_capabilities(catalog_item_id)')
+        .eq('id', onboardingId)
+        .single()
+      if (error) { console.error('[useOnboarding]', error); return null }
+      return data
+    },
+    retry: 0,
+  })
+}
+
 export function useOnboardingConfig() {
   return useQuery({
     queryKey: ['onboarding_config'],
@@ -61,16 +78,16 @@ export function useOnboardingConfig() {
   })
 }
 
-export function useCapabilityTypes() {
+export function useCatalogItems() {
   return useQuery({
-    queryKey: ['onboarding_capability_types'],
+    queryKey: ['catalog'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('onboarding_capability_types')
+        .from('catalog_items')
         .select('*')
-        .eq('active', true)
-        .order('display_order')
-      if (error) { console.error('[useCapabilityTypes]', error); return [] }
+        .order('type')
+        .order('name')
+      if (error) { console.error('[useCatalogItems]', error); return [] }
       return data ?? []
     },
     staleTime: 10 * 60 * 1000,
@@ -84,7 +101,6 @@ function addDays(dateStr, days) {
   return d.toISOString().slice(0, 10)
 }
 
-// Full onboarding flow: onboarding + 3 fases + 3 milestones (with SLA) + project
 export function useCreateOnboardingFlow() {
   const qc = useQueryClient()
 
@@ -136,10 +152,10 @@ export function useCreateOnboardingFlow() {
       ])
       if (msErr) throw msErr
 
-      // 6. Insert capabilities
+      // 6. Insert capabilities (catalog_item_id)
       if (capabilities?.length > 0) {
         const { error: capErr } = await supabase.from('onboarding_capabilities').insert(
-          capabilities.map(ctId => ({ onboarding_id: onb.id, capability_type_id: ctId }))
+          capabilities.map(itemId => ({ onboarding_id: onb.id, catalog_item_id: itemId }))
         )
         if (capErr) throw capErr
       }
@@ -166,7 +182,52 @@ export function useCreateOnboardingFlow() {
   })
 }
 
-// Internal project — no onboarding flow
+export function useUpdateOnboardingFlow() {
+  const qc = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ project, title, csm_id, notes, capabilities }) => {
+      // 1. Update project title
+      const { error: projErr } = await supabase
+        .from('projects')
+        .update({ title })
+        .eq('id', project.id)
+      if (projErr) throw projErr
+
+      // 2. Update onboarding
+      const { error: onbErr } = await supabase
+        .from('onboardings')
+        .update({ title, csm_id: csm_id || null, notes: notes || null })
+        .eq('id', project.onboarding_id)
+      if (onbErr) throw onbErr
+
+      // 3. Replace capabilities
+      const { error: delErr } = await supabase
+        .from('onboarding_capabilities')
+        .delete()
+        .eq('onboarding_id', project.onboarding_id)
+      if (delErr) throw delErr
+
+      if (capabilities?.length > 0) {
+        const { error: capErr } = await supabase.from('onboarding_capabilities').insert(
+          capabilities.map(itemId => ({ onboarding_id: project.onboarding_id, catalog_item_id: itemId }))
+        )
+        if (capErr) throw capErr
+      }
+    },
+
+    onSuccess: (_, { project }) => {
+      qc.invalidateQueries({ queryKey: ['onboardings', project.client_id] })
+      qc.invalidateQueries({ queryKey: ['onboarding', project.onboarding_id] })
+      qc.invalidateQueries({ queryKey: ['onboardings_all'] })
+      qc.invalidateQueries({ queryKey: ['projects', project.client_id] })
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      toast.success('Projeto atualizado')
+    },
+    onError: (e) => toast.error(e.message),
+  })
+}
+
 export function useCreateInternalProject() {
   const qc = useQueryClient()
 

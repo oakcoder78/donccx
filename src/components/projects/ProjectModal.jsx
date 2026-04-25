@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useClients } from '../../hooks/useClients'
-import { useCapabilityTypes, useCreateOnboardingFlow, useCreateInternalProject, useOnboardingConfig } from '../../hooks/useOnboardings'
+import {
+  useCatalogItems,
+  useOnboarding,
+  useCreateOnboardingFlow,
+  useUpdateOnboardingFlow,
+  useCreateInternalProject,
+  useOnboardingConfig,
+} from '../../hooks/useOnboardings'
+import { useUpdateProject } from '../../hooks/useProjects'
 
 // ── CSS injetado: pseudo-classes que não podem ser inline ──────────────────
 const MODAL_CSS = `
@@ -49,46 +57,46 @@ const EMPTY_FORM = {
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
-export function ProjectModal({ isOpen, onClose, clientId }) {
-  const isGlobal = !clientId
+export function ProjectModal({ isOpen, onClose, clientId, project }) {
+  const isEdit   = !!project
+  const isGlobal = !clientId && !isEdit
 
-  // type: Interno is the prototype default (left-most segment)
-  const [type,   setType]   = useState('interno')
-  const [form,   setForm]   = useState(EMPTY_FORM)
-  const [caps,   setCaps]   = useState([])          // array of capability_type_id numbers
+  const [type,            setType]            = useState('interno')
+  const [form,            setForm]            = useState(EMPTY_FORM)
+  const [caps,            setCaps]            = useState([])
+  const [capsInitialized, setCapsInitialized] = useState(false)
 
-  // Combobox (global mode)
-  const [comboSearch, setComboSearch]     = useState('')
-  const [comboOpen,   setComboOpen]       = useState(false)
-  const [selClient,   setSelClient]       = useState(null)
+  // Combobox (create/global mode only)
+  const [comboSearch, setComboSearch] = useState('')
+  const [comboOpen,   setComboOpen]   = useState(false)
+  const [selClient,   setSelClient]   = useState(null)
 
-  const { data: profiles  = [] } = useProfiles()
-  const { data: clients   = [] } = useClients()
-  const { data: capTypes  = [] } = useCapabilityTypes()
-  const { data: onbCfg    = {} } = useOnboardingConfig()
-  const createOnboardingFlow     = useCreateOnboardingFlow()
-  const createInternalProject    = useCreateInternalProject()
+  const { data: profiles      = [] } = useProfiles()
+  const { data: clients       = [] } = useClients()
+  const { data: catalogItems  = [] } = useCatalogItems()
+  const { data: onbCfg        = {} } = useOnboardingConfig()
 
-  const isPending = createOnboardingFlow.isPending || createInternalProject.isPending
+  const createOnboardingFlow  = useCreateOnboardingFlow()
+  const updateOnboardingFlow  = useUpdateOnboardingFlow()
+  const createInternalProject = useCreateInternalProject()
+  const updateProject         = useUpdateProject()
 
-  // Client for contextual pill
-  const ctxClient = !isGlobal ? clients.find(c => c.id === clientId) : null
-
-  // Derived state
-  const isOnbType = type === 'onboarding' || type === 'expansao'
+  const isOnbType  = type === 'onboarding' || type === 'expansao'
   const kickoffSla = onbCfg.kickoff_sla_days ?? 5
 
-  // Kickoff: init when modal opens; re-sync when start_date changes
-  useEffect(() => {
-    if (isOpen)
-      setForm(p => ({ ...p, kickoff_date: p.kickoff_date || addDays(p.start_date, kickoffSla) }))
-  }, [isOpen])
+  // Onboarding data — only loaded in edit mode for onboarding/expansao projects
+  const onboardingId = isEdit && isOnbType && isOpen ? project?.onboarding_id : null
+  const { data: onboardingData } = useOnboarding(onboardingId)
 
-  // Grouped capability types
-  const grpOp  = capTypes.filter(c => c.category === 'operacao')
-  const grpMod = capTypes.filter(c => c.category === 'modulo')
+  // Catalog item groups
+  const grpServicos = catalogItems.filter(c => c.type === 'servico')
+  const grpSolucoes = catalogItems.filter(c => c.type === 'solucao')
 
-  // Filtered suggestions for combobox
+  // Context client (for context pill)
+  const ctxClientId = isEdit ? (project?.client_id || clientId) : clientId
+  const ctxClient   = ctxClientId ? clients.find(c => c.id === ctxClientId) : null
+
+  // Combobox suggestions
   const suggestions = comboSearch.trim()
     ? clients.filter(c => {
         const q = comboSearch.toLowerCase()
@@ -97,69 +105,167 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
       }).slice(0, 10)
     : clients.slice(0, 8)
 
-  // Validation (mirrors prototype JS)
-  const resolvedClientId = clientId || selClient?.id || null
+  const resolvedClientId = isEdit
+    ? (project?.client_id || clientId)
+    : (clientId || selClient?.id || null)
+
+  const isPending = createOnboardingFlow.isPending || createInternalProject.isPending
+    || updateOnboardingFlow.isPending || updateProject.isPending
+
+  // Validation
   const titleOk   = form.title.trim().length > 0
-  const empresaOk = !isGlobal || !!selClient
+  const empresaOk = isEdit ? true : (!isGlobal || !!selClient)
   const capsOk    = !isOnbType || caps.length > 0
   const canSubmit = titleOk && empresaOk && capsOk
 
-  // Reset all state
-  function reset() {
-    setType('interno'); setForm(EMPTY_FORM); setCaps([])
-    setComboSearch(''); setComboOpen(false); setSelClient(null)
-  }
-  function handleClose() { reset(); onClose() }
+  // Init form when modal opens
+  useEffect(() => {
+    if (!isOpen) return
+    if (isEdit) {
+      const pType  = project.type
+      const pIsOnb = pType === 'onboarding' || pType === 'expansao'
+      setType(pType)
+      setForm({
+        title:          project.title        || '',
+        description:    pIsOnb ? '' : (project.description  || ''),
+        responsible_id: pIsOnb ? '' : (project.responsible_id || ''),
+        start_date:     project.start_date   || '',
+        end_date:       project.end_date     || '',
+        kickoff_date:   '',
+        status:         project.status       || 'em_andamento',
+      })
+      if (pIsOnb) { setCaps([]); setCapsInitialized(false) }
+    } else {
+      setForm(p => ({ ...p, kickoff_date: p.kickoff_date || addDays(p.start_date, kickoffSla) }))
+    }
+  }, [isOpen])
+
+  // Fill onboarding-specific fields when data loads (edit mode)
+  useEffect(() => {
+    if (!onboardingData || capsInitialized || !isOpen) return
+    setForm(p => ({
+      ...p,
+      description:    onboardingData.notes   || '',
+      responsible_id: onboardingData.csm_id  || '',
+    }))
+    const capIds = (onboardingData.onboarding_capabilities ?? [])
+      .map(c => c.catalog_item_id).filter(Boolean)
+    setCaps(capIds)
+    setCapsInitialized(true)
+  }, [onboardingData, capsInitialized, isOpen])
 
   // Escape key
   useEffect(() => {
     if (!isOpen) return
-    const fn = (e) => { if (e.key === 'Escape') handleClose() }
+    const fn = e => { if (e.key === 'Escape') handleClose() }
     window.addEventListener('keydown', fn)
     return () => window.removeEventListener('keydown', fn)
   }, [isOpen])
 
-  // Combobox
+  function reset() {
+    setType('interno'); setForm(EMPTY_FORM); setCaps([]); setCapsInitialized(false)
+    setComboSearch(''); setComboOpen(false); setSelClient(null)
+  }
+  function handleClose() { reset(); onClose() }
+
   function handleComboSelect(c) {
     setSelClient(c)
     setComboSearch(c.fantasy_name || c.name)
     setComboOpen(false)
   }
 
-  // Chip toggle
   function toggleCap(id) {
     setCaps(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
-  // Submit
   async function handleSubmit() {
     if (!canSubmit || isPending) return
-    if (type === 'interno') {
-      await createInternalProject.mutateAsync({
-        clientId:       resolvedClientId,
-        title:          form.title.trim(),
-        description:    form.description || undefined,
-        responsible_id: form.responsible_id || undefined,
-        start_date:     form.start_date || undefined,
-        end_date:       form.end_date   || undefined,
-        status:         form.status,
-      })
+    if (isEdit) {
+      if (type === 'interno') {
+        await updateProject.mutateAsync({
+          id:             project.id,
+          client_id:      project.client_id,
+          title:          form.title.trim(),
+          description:    form.description    || null,
+          responsible_id: form.responsible_id || null,
+          start_date:     form.start_date     || null,
+          end_date:       form.end_date       || null,
+          status:         form.status,
+        })
+      } else {
+        await updateOnboardingFlow.mutateAsync({
+          project,
+          title:        form.title.trim(),
+          csm_id:       form.responsible_id || undefined,
+          notes:        form.description    || undefined,
+          capabilities: caps,
+        })
+      }
     } else {
-      await createOnboardingFlow.mutateAsync({
-        clientId:      resolvedClientId,
-        type,
-        title:         form.title.trim(),
-        csm_id:        form.responsible_id || undefined,
-        start_date:    form.start_date || undefined,
-        notes:         form.description || undefined,
-        capabilities:  caps,
-        kickoff_date:  form.kickoff_date || undefined,
-      })
+      if (type === 'interno') {
+        await createInternalProject.mutateAsync({
+          clientId:       resolvedClientId,
+          title:          form.title.trim(),
+          description:    form.description    || undefined,
+          responsible_id: form.responsible_id || undefined,
+          start_date:     form.start_date     || undefined,
+          end_date:       form.end_date       || undefined,
+          status:         form.status,
+        })
+      } else {
+        await createOnboardingFlow.mutateAsync({
+          clientId:     resolvedClientId,
+          type,
+          title:        form.title.trim(),
+          csm_id:       form.responsible_id || undefined,
+          start_date:   form.start_date     || undefined,
+          notes:        form.description    || undefined,
+          capabilities: caps,
+          kickoff_date: form.kickoff_date   || undefined,
+        })
+      }
     }
     handleClose()
   }
 
   if (!isOpen) return null
+
+  // ── Chip section renderer ────────────────────────────────────────────────
+  function renderChipGroup(label, items) {
+    if (!items.length) return null
+    return (
+      <div style={{ marginBottom: '10px' }}>
+        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(23,53,87,0.55)', marginBottom: '6px', fontWeight: 600 }}>
+          {label}
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          {items.map(item => {
+            const on    = caps.includes(item.id)
+            const color = item.color || '#173557'
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={on ? 'pm-chip pm-chip-on' : 'pm-chip'}
+                onClick={() => toggleCap(item.id)}
+                style={{
+                  border:      on ? `1px solid ${color}` : '1px solid rgba(15,34,58,0.14)',
+                  background:  on ? color : '#fff',
+                  color:       on ? '#fff' : '#173557',
+                  padding: '6px 11px', borderRadius: '999px',
+                  fontSize: '12px', cursor: 'pointer',
+                  fontFamily: 'inherit', fontWeight: 500,
+                  transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+                }}
+              >
+                {item.name}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -191,9 +297,13 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
           {/* ── Header ───────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '18px' }}>
             <div>
-              <h2 style={{ fontSize: '17px', fontWeight: 600, margin: 0 }}>Novo projeto</h2>
+              <h2 style={{ fontSize: '17px', fontWeight: 600, margin: 0 }}>
+                {isEdit ? 'Editar projeto' : 'Novo projeto'}
+              </h2>
               <div style={{ fontSize: '12px', color: 'rgba(23,53,87,0.6)', marginTop: '3px' }}>
-                Preencha os dados para criar um projeto no workspace.
+                {isEdit
+                  ? 'Atualize os dados do projeto.'
+                  : 'Preencha os dados para criar um projeto no workspace.'}
               </div>
             </div>
             <button
@@ -239,7 +349,7 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
 
               {/* Empresa */}
               {isGlobal ? (
-                /* Combobox */
+                /* Combobox — create/global mode */
                 <div style={{ marginBottom: '14px' }}>
                   <label style={label$}>
                     Empresa <span style={{ color: '#c44', marginLeft: '2px' }}>*</span>
@@ -303,7 +413,7 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                   </div>
                 </div>
               ) : (
-                /* Context pill */
+                /* Context pill — contextual or edit mode */
                 <div style={{ marginBottom: '14px' }}>
                   <label style={label$}>Empresa</label>
                   <div style={{
@@ -326,41 +436,47 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                 </div>
               )}
 
-              {/* Tipo — segmented */}
+              {/* Tipo — segmented (create) or readonly label (edit) */}
               <div style={{ marginBottom: '14px' }}>
                 <label style={label$}>
-                  Tipo <span style={{ color: '#c44', marginLeft: '2px' }}>*</span>
+                  Tipo {!isEdit && <span style={{ color: '#c44', marginLeft: '2px' }}>*</span>}
                 </label>
-                <div style={{
-                  display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
-                  background: '#f4f5f7', borderRadius: '9px', padding: '3px', gap: '3px',
-                }}>
-                  {[
-                    { key: 'interno',    label: 'Interno'    },
-                    { key: 'onboarding', label: 'Onboarding' },
-                    { key: 'expansao',   label: 'Expansão'   },
-                  ].map(t => (
-                    <button
-                      key={t.key}
-                      type="button"
-                      onClick={() => { setType(t.key); setCaps([]) }}
-                      style={{
-                        border: 'none',
-                        background: type === t.key ? '#fff' : 'transparent',
-                        padding: '8px 10px', borderRadius: '7px',
-                        fontSize: '13px', fontFamily: 'inherit', fontWeight: 500,
-                        color: type === t.key ? '#173557' : 'rgba(23,53,87,0.7)',
-                        cursor: 'pointer',
-                        transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
-                        boxShadow: type === t.key
-                          ? '0 1px 2px rgba(10,22,40,0.08), 0 0 0 1px rgba(15,34,58,0.06)'
-                          : 'none',
-                      }}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+                {isEdit ? (
+                  <div style={{ ...inputRO$, display: 'inline-block', width: 'auto', padding: '7px 14px' }}>
+                    {type === 'onboarding' ? 'Onboarding' : type === 'expansao' ? 'Expansão' : 'Interno'}
+                  </div>
+                ) : (
+                  <div style={{
+                    display: 'grid', gridTemplateColumns: 'repeat(3,1fr)',
+                    background: '#f4f5f7', borderRadius: '9px', padding: '3px', gap: '3px',
+                  }}>
+                    {[
+                      { key: 'interno',    label: 'Interno'    },
+                      { key: 'onboarding', label: 'Onboarding' },
+                      { key: 'expansao',   label: 'Expansão'   },
+                    ].map(t => (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => { setType(t.key); setCaps([]) }}
+                        style={{
+                          border: 'none',
+                          background: type === t.key ? '#fff' : 'transparent',
+                          padding: '8px 10px', borderRadius: '7px',
+                          fontSize: '13px', fontFamily: 'inherit', fontWeight: 500,
+                          color: type === t.key ? '#173557' : 'rgba(23,53,87,0.7)',
+                          cursor: 'pointer',
+                          transition: 'background 0.15s, color 0.15s, box-shadow 0.15s',
+                          boxShadow: type === t.key
+                            ? '0 1px 2px rgba(10,22,40,0.08), 0 0 0 1px rgba(15,34,58,0.06)'
+                            : 'none',
+                        }}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Título */}
@@ -373,29 +489,29 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                   type="text"
                   value={form.title}
                   onChange={e => setForm(p => ({ ...p, title: e.target.value }))}
-                  placeholder="Ex: Onboarding Rede Atacadão"
+                  placeholder="Ex: Onboarding Lojas Koerich"
                   style={input$}
                 />
               </div>
 
-              {/* Descrição */}
+              {/* Descrição / Notas */}
               <div style={{ marginBottom: '14px' }}>
                 <label style={label$}>
-                  Descrição{' '}
+                  {isOnbType ? 'Notas' : 'Descrição'}{' '}
                   <span style={{ color: 'rgba(23,53,87,0.45)', fontWeight: 400 }}>(opcional)</span>
                 </label>
                 <textarea
                   className="pm-input"
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  placeholder="Contexto, objetivos ou observações sobre o projeto."
+                  placeholder={isOnbType ? 'Contexto ou observações.' : 'Contexto, objetivos ou observações sobre o projeto.'}
                   style={{ ...input$, resize: 'vertical', minHeight: '64px' }}
                 />
               </div>
 
-              {/* Responsável */}
+              {/* Responsável / CSM */}
               <div style={{ marginBottom: '14px' }}>
-                <label style={label$}>Responsável</label>
+                <label style={label$}>{isOnbType ? 'CSM' : 'Responsável'}</label>
                 <select
                   className="pm-input"
                   value={form.responsible_id}
@@ -419,7 +535,11 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                     value={form.start_date}
                     onChange={e => {
                       const d = e.target.value
-                      setForm(p => ({ ...p, start_date: d, kickoff_date: addDays(d, kickoffSla) }))
+                      setForm(p => ({
+                        ...p,
+                        start_date:   d,
+                        kickoff_date: isOnbType && !isEdit ? addDays(d, kickoffSla) : p.kickoff_date,
+                      }))
                     }}
                     style={input$}
                   />
@@ -469,74 +589,14 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                     background: '#fafbfc', border: '1px solid rgba(15,34,58,0.07)',
                     borderRadius: '10px', padding: '14px',
                   }}>
-                    {/* Operação */}
-                    {grpOp.length > 0 && (
-                      <div style={{ marginBottom: '10px' }}>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(23,53,87,0.55)', marginBottom: '6px', fontWeight: 600 }}>
-                          Operação
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {grpOp.map(ct => {
-                            const on = caps.includes(ct.id)
-                            return (
-                              <button
-                                key={ct.id}
-                                type="button"
-                                className={on ? 'pm-chip pm-chip-on' : 'pm-chip'}
-                                onClick={() => toggleCap(ct.id)}
-                                style={{
-                                  border: on ? '1px solid #173557' : '1px solid rgba(15,34,58,0.14)',
-                                  background: on ? '#173557' : '#fff',
-                                  color: on ? '#fff' : '#173557',
-                                  padding: '6px 11px', borderRadius: '999px',
-                                  fontSize: '12px', cursor: 'pointer',
-                                  fontFamily: 'inherit', fontWeight: 500,
-                                  transition: 'background 0.15s, color 0.15s, border-color 0.15s',
-                                }}
-                              >
-                                {ct.name}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Módulo */}
-                    {grpMod.length > 0 && (
-                      <div>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(23,53,87,0.55)', marginBottom: '6px', fontWeight: 600 }}>
-                          Módulo
-                        </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {grpMod.map(ct => {
-                            const on = caps.includes(ct.id)
-                            return (
-                              <button
-                                key={ct.id}
-                                type="button"
-                                className={on ? 'pm-chip pm-chip-on' : 'pm-chip'}
-                                onClick={() => toggleCap(ct.id)}
-                                style={{
-                                  border: on ? '1px solid #173557' : '1px solid rgba(15,34,58,0.14)',
-                                  background: on ? '#173557' : '#fff',
-                                  color: on ? '#fff' : '#173557',
-                                  padding: '6px 11px', borderRadius: '999px',
-                                  fontSize: '12px', cursor: 'pointer',
-                                  fontFamily: 'inherit', fontWeight: 500,
-                                  transition: 'background 0.15s, color 0.15s, border-color 0.15s',
-                                }}
-                              >
-                                {ct.name}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
+                    {renderChipGroup('Serviços', grpServicos)}
+                    {renderChipGroup('Soluções', grpSolucoes)}
+                    {!grpServicos.length && !grpSolucoes.length && (
+                      <p style={{ fontSize: '12px', color: 'rgba(23,53,87,0.5)', margin: 0 }}>
+                        Nenhum item de catálogo encontrado.
+                      </p>
                     )}
                   </div>
-
-                  {/* Chips hint */}
                   <div style={{ fontSize: '11px', marginTop: '4px', color: caps.length === 0 ? '#b04545' : 'rgba(23,53,87,0.55)' }}>
                     {caps.length === 0
                       ? 'Selecione ao menos uma capacidade.'
@@ -545,45 +605,49 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                   </div>
                 </div>
 
-                {/* Kickoff + Fase inicial */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label style={label$}>Kickoff previsto</label>
-                    <input
-                      className="pm-input"
-                      type="date"
-                      value={form.kickoff_date}
-                      onChange={e => setForm(p => ({ ...p, kickoff_date: e.target.value }))}
-                      style={input$}
-                    />
-                    <div style={{ fontSize: '11px', color: 'rgba(23,53,87,0.5)', marginTop: '4px' }}>
-                      Padrão: {kickoffSla} dias a partir do início.
+                {/* Kickoff + Fase inicial — only in create mode */}
+                {!isEdit && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                    <div>
+                      <label style={label$}>Kickoff previsto</label>
+                      <input
+                        className="pm-input"
+                        type="date"
+                        value={form.kickoff_date}
+                        onChange={e => setForm(p => ({ ...p, kickoff_date: e.target.value }))}
+                        style={input$}
+                      />
+                      <div style={{ fontSize: '11px', color: 'rgba(23,53,87,0.5)', marginTop: '4px' }}>
+                        Padrão: {kickoffSla} dias a partir do início.
+                      </div>
+                    </div>
+                    <div>
+                      <label style={label$}>Fase inicial</label>
+                      <input type="text" value="Definição do Escopo" readOnly style={inputRO$} />
                     </div>
                   </div>
-                  <div>
-                    <label style={label$}>Fase inicial</label>
-                    <input type="text" value="Definição do Escopo" readOnly style={inputRO$} />
-                  </div>
-                </div>
+                )}
 
-                {/* Info banner */}
-                <div style={{
-                  background: 'rgba(89,194,237,0.12)', border: '1px solid rgba(89,194,237,0.3)',
-                  borderRadius: '9px', padding: '10px 12px',
-                  fontSize: '12px', color: '#0a4a6b',
-                  display: 'flex', gap: '9px', alignItems: 'flex-start',
-                  lineHeight: 1.45,
-                }}>
+                {/* Info banner — only in create mode */}
+                {!isEdit && (
                   <div style={{
-                    width: '16px', height: '16px', borderRadius: '50%',
-                    background: '#59c2ed', color: '#fff',
-                    display: 'grid', placeItems: 'center',
-                    fontSize: '10px', fontWeight: 700, flexShrink: 0, marginTop: '1px',
+                    background: 'rgba(89,194,237,0.12)', border: '1px solid rgba(89,194,237,0.3)',
+                    borderRadius: '9px', padding: '10px 12px',
+                    fontSize: '12px', color: '#0a4a6b',
+                    display: 'flex', gap: '9px', alignItems: 'flex-start',
+                    lineHeight: 1.45,
                   }}>
-                    i
+                    <div style={{
+                      width: '16px', height: '16px', borderRadius: '50%',
+                      background: '#59c2ed', color: '#fff',
+                      display: 'grid', placeItems: 'center',
+                      fontSize: '10px', fontWeight: 700, flexShrink: 0, marginTop: '1px',
+                    }}>
+                      i
+                    </div>
+                    <div>Um onboarding será criado e vinculado a este projeto automaticamente.</div>
                   </div>
-                  <div>Um onboarding será criado e vinculado a este projeto automaticamente.</div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -619,7 +683,10 @@ export function ProjectModal({ isOpen, onClose, clientId }) {
                 fontFamily: 'inherit', transition: 'background 0.15s',
               }}
             >
-              {isPending ? 'Criando...' : 'Salvar projeto'}
+              {isPending
+                ? (isEdit ? 'Salvando...' : 'Criando...')
+                : (isEdit ? 'Salvar alterações' : 'Salvar projeto')
+              }
             </button>
           </div>
         </div>

@@ -67,12 +67,19 @@ export function ClientSubProjetos({ client }) {
   // new project modal (ProjectModal handles onboarding/expansao/interno flows)
   const [showProjectModal, setShowProjectModal] = useState(false)
 
-  // edit project modal (inline, simple)
+  // edit via ProjectModal (onboarding / expansao)
+  const [editOnbProject, setEditOnbProject] = useState(null)
+
+  // edit project modal (inline, simple — interno only)
   const [showProjModal, setShowProjModal] = useState(false)
   const [editProj, setEditProj]           = useState(null)
   const [projForm, setProjForm]           = useState(EMPTY_PROJ)
 
   function openEditProj(p) {
+    if (p.type === 'onboarding' || p.type === 'expansao') {
+      setEditOnbProject(p)
+      return
+    }
     setEditProj(p)
     setProjForm({
       title:          p.title,
@@ -341,6 +348,14 @@ export function ClientSubProjetos({ client }) {
         isOpen={showProjectModal}
         onClose={() => setShowProjectModal(false)}
         clientId={client.id}
+      />
+
+      {/* Modal: Editar Projeto (onboarding / expansao via ProjectModal) */}
+      <ProjectModal
+        isOpen={!!editOnbProject}
+        onClose={() => setEditOnbProject(null)}
+        clientId={client.id}
+        project={editOnbProject}
       />
 
       {/* Modal: Editar Projeto (inline, simple) */}
