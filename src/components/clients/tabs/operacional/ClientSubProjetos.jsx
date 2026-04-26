@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjects, useProjectMutations } from '../../../../hooks/useProjects'
 import { useMilestoneMutations } from '../../../../hooks/useMilestones'
 import { useProfiles } from '../../../../hooks/useProfiles'
@@ -48,6 +49,7 @@ function ChevronIcon({ open }) {
 }
 
 export function ClientSubProjetos({ client }) {
+  const navigate = useNavigate()
   const { data: projects = [], isLoading } = useProjects(client.id)
   const { createProject, updateProject, removeProject } = useProjectMutations(client.id)
   const { createMilestone, updateMilestone, removeMilestone, toggleTask, createTask } =
@@ -211,7 +213,13 @@ export function ClientSubProjetos({ client }) {
           <div key={proj.id} className="border border-border-tertiary rounded-lg overflow-hidden">
             {/* Cabeçalho do projeto */}
             <button
-              onClick={() => toggleProj(proj.id)}
+              onClick={() => {
+                if (proj.type === 'onboarding' || proj.type === 'expansao') {
+                  navigate('/projetos/' + proj.id)
+                } else {
+                  toggleProj(proj.id)
+                }
+              }}
               className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-tertiary transition-colors focus-visible:outline-none"
             >
               <ChevronIcon open={isOpen} />

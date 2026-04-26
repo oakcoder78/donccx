@@ -458,7 +458,7 @@ export default function ProjectsPage() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                onClick={() => navigate(`/empresas/${proj.client_id}?tab=operacional&sub=projetos`)}
+                                onClick={() => navigate('/projetos/' + proj.id)}
                                 className="bg-bg-primary border border-border-tertiary rounded-md p-3 hover:border-border-secondary transition-colors select-none"
                                 style={{
                                   ...provided.draggableProps.style,
