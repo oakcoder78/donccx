@@ -685,7 +685,7 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 }
 
 // ── CatalogSearch ─────────────────────────────────────────────────────────────
-function CatalogSearch({ actTypes, activities, onboardingId, faseAtual, qc, logAction, user }) {
+function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, logAction, user }) {
   const [search,    setSearch]    = useState('')
   const [showDd,    setShowDd]    = useState(false)
   const inputRef = useRef()
@@ -713,7 +713,7 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtual, qc, logA
         onboarding_id: onboardingId,
         activity_type_id: type.id,
         title: type.name,
-        fase: faseAtual,
+        fase_id: faseAtualId ?? null,
         status: 'pendente',
         created_by: user?.id ?? null,
         display_order: activities.length,
@@ -932,6 +932,7 @@ export default function OnboardingDetailPage() {
   const msMap     = (onb?.onboarding_milestones ?? []).reduce((acc, m) => { acc[m.type] = m; return acc }, {})
   const caps      = onb?.onboarding_capabilities ?? []
   const activeMsType = getActiveMs(onb?.onboarding_milestones ?? [])
+  const faseAtualId = onb?.fase_atual_id ?? onb?.fase_atual?.id ?? null
   const clientName   = project.client?.fantasy_name || project.client?.name || '—'
 
   const totalSteps = 3 + 3 // 3 phases + 3 milestones
@@ -1094,7 +1095,7 @@ export default function OnboardingDetailPage() {
                 actTypes={actTypes}
                 activities={activities}
                 onboardingId={onboardingId}
-                faseAtual={faseAtual}
+                faseAtualId={faseAtualId}
                 qc={qc}
                 logAction={logAction}
                 user={user}
