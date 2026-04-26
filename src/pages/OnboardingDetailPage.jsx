@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -10,58 +10,191 @@ import { useProfiles } from '../hooks/useProfiles'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { ProjectModal } from '../components/projects/ProjectModal'
 
-// ── CSS injetado ──────────────────────────────────────────────────────────────
+// ── CSS (extraído do protótipo HTML aprovado) ─────────────────────────────────
 const PAGE_CSS = `
-  @keyframes onb-slide { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
-  .onb-panel { animation: onb-slide 0.18s ease; }
-  .onb-icon-btn { border:none; background:transparent; cursor:pointer; border-radius:6px; padding:4px 7px; color:#888780; font-size:13px; line-height:1; }
-  .onb-icon-btn:hover { background:rgba(15,34,58,0.08) !important; color:#173557 !important; }
-  .onb-ms-wrap:hover .onb-ms-ring { box-shadow: 0 0 0 5px rgba(89,194,237,0.18); }
-  .onb-row-hd { cursor:pointer; }
-  .onb-row-hd:hover { background: rgba(15,34,58,0.025) !important; }
-  .onb-pend-row:hover { background: rgba(15,34,58,0.03) !important; }
-  .onb-adv-btn:hover { background: rgba(89,194,237,0.2) !important; }
-  .onb-rev-btn:hover { background: rgba(15,34,58,0.07) !important; }
-  .onb-tab { border:none; background:transparent; cursor:pointer; padding:6px 14px; font-size:12px; font-weight:600; color:#888780; border-radius:6px; font-family:inherit; }
-  .onb-tab.active { background: rgba(89,194,237,0.12); color:#173557; }
-  .onb-tab:hover { background: rgba(15,34,58,0.05); }
+  /* timeline */
+  .onb-timeline-wrap { overflow-x: auto; padding: 6px 4px 4px; margin: 0 -4px; }
+  .onb-timeline { display: flex; align-items: stretch; min-width: max-content; gap: 0; }
+
+  /* milestone */
+  .onb-ms { display:flex; flex-direction:column; align-items:center; width:130px; flex:0 0 130px; padding-top:14px; cursor:pointer; user-select:none; }
+  .onb-ms-circle {
+    width:56px; height:56px; border-radius:50%;
+    background:#fff; border:2px solid rgba(15,34,58,0.18);
+    display:grid; place-items:center; color:rgba(23,53,87,0.6);
+    transition:all 0.18s ease; position:relative;
+  }
+  .onb-ms-circle svg { width:22px; height:22px; }
+  .onb-ms.done .onb-ms-circle { background:#e7f6ee; border-color:#1aa56a; color:#157a47; }
+  .onb-ms.done .onb-ms-circle::after {
+    content:""; position:absolute; bottom:-3px; right:-3px;
+    width:18px; height:18px; border-radius:50%;
+    background:#1aa56a url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'><polyline points='3.5 8.5 6.5 11.5 12.5 4.5'/></svg>") no-repeat center / 14px;
+    border:2px solid #fff;
+  }
+  .onb-ms.future .onb-ms-circle { color:rgba(23,53,87,0.35); border-color:rgba(15,34,58,0.12); }
+  .onb-ms.active .onb-ms-circle { background:#fff; border-color:#59c2ed; color:#173557; box-shadow:0 0 0 4px rgba(89,194,237,0.18); }
+  .onb-ms:hover .onb-ms-circle { box-shadow:0 0 0 5px rgba(89,194,237,0.18); }
+  .onb-ms-label { font-size:12px; font-weight:600; margin-top:10px; color:#173557; text-align:center; }
+  .onb-ms-date  { font-size:11px; color:rgba(23,53,87,0.55); margin-top:2px; text-align:center; }
+  .onb-ms-status { margin-top:6px; font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(23,53,87,0.5); font-weight:600; }
+  .onb-ms.done .onb-ms-status { color:#157a47; }
+  .onb-ms.active .onb-ms-status { color:#0a6a96; }
+
+  /* phase box */
+  .onb-phase { flex:1 1 230px; min-width:230px; background:#fff; border:1px solid rgba(15,34,58,0.10); border-radius:12px; padding:12px 14px 10px; margin:14px 0; display:flex; flex-direction:column; transition:all 0.18s ease; }
+  .onb-phase.active { border-color:#59c2ed; box-shadow:0 0 0 3px rgba(89,194,237,0.18),0 6px 18px -10px rgba(89,194,237,0.4); background:linear-gradient(180deg,#fff,#f4fbfe); }
+  .onb-phase.done { background:#f6fbf8; border-color:rgba(34,160,98,0.32); }
+  .onb-phase.future { opacity:0.55; }
+  .onb-phase-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; }
+  .onb-phase-name { font-size:13px; font-weight:600; }
+  .onb-phase-meta { font-size:11px; color:rgba(23,53,87,0.55); margin-top:2px; }
+  .onb-phase-bottom { display:flex; justify-content:space-between; align-items:center; margin-top:auto; padding-top:8px; }
+  .onb-phase-mini { background:transparent; border:none; padding:3px 6px; font-size:11px; color:rgba(23,53,87,0.6); border-radius:5px; cursor:pointer; font-family:inherit; }
+  .onb-phase-mini:hover { background:rgba(23,53,87,0.06); color:#173557; }
+  .onb-phase-mini:disabled { color:rgba(23,53,87,0.25); cursor:not-allowed; }
+  .onb-phase-mini.fwd { color:#0a6a96; font-weight:500; }
+  .onb-phase-mini.fwd:hover { background:rgba(89,194,237,0.12); }
+
+  /* connector */
+  .onb-conn { flex:0 0 28px; align-self:center; height:2px; background:rgba(15,34,58,0.12); margin-top:32px; }
+  .onb-conn.done { background:#1aa56a; }
+  .onb-conn.active { background:linear-gradient(90deg,#1aa56a,#59c2ed); }
+
+  /* milestone panel */
+  .onb-ms-panel { margin-top:14px; background:#f9fafb; border:1px solid rgba(15,34,58,0.10); border-radius:12px; padding:16px 18px; animation:onb-slide 0.18s ease; }
+  @keyframes onb-slide { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+  .onb-ms-panel-grid { display:grid; grid-template-columns:200px 1fr; gap:12px; margin-bottom:12px; }
+  .onb-ms-panel-grid.full { grid-template-columns:1fr; }
+  .onb-ms-panel-actions { display:flex; gap:8px; justify-content:flex-end; }
+
+  /* activity */
+  .onb-act-item { background:#fff; border:1px solid rgba(15,34,58,0.09); border-radius:10px; transition:border-color 0.15s,box-shadow 0.15s; }
+  .onb-act-item:hover { border-color:rgba(15,34,58,0.16); }
+  .onb-act-item.expanded { border-color:rgba(89,194,237,0.5); box-shadow:0 4px 14px -8px rgba(89,194,237,0.4); }
+  .onb-act-row { display:grid; grid-template-columns:22px 1fr 130px 160px 110px auto; align-items:center; gap:12px; padding:12px 14px; cursor:pointer; }
+  .onb-act-row:hover { background:rgba(15,34,58,0.012); border-radius:10px 10px 0 0; }
+  .onb-act-caret { width:20px; height:20px; display:grid; place-items:center; color:rgba(23,53,87,0.4); transition:transform 0.18s; }
+  .onb-act-item.expanded .onb-act-caret { transform:rotate(90deg); color:#173557; }
+  .onb-act-body { border-top:1px solid rgba(15,34,58,0.08); padding:14px 18px 16px; background:#fbfbfc; border-radius:0 0 10px 10px; }
+
+  /* pending */
+  .onb-pend-item { background:#fff; border:1px solid rgba(15,34,58,0.08); border-left:3px solid rgba(15,34,58,0.18); border-radius:8px; padding:9px 12px; display:grid; grid-template-columns:1fr 110px 100px 130px 100px; align-items:center; gap:10px; font-size:12px; }
+  .onb-pend-item.blocker { border-left-color:#c44; background:linear-gradient(90deg,rgba(196,60,60,0.04),#fff 18%); }
+  .onb-pend-item.high { border-left-color:#d99020; }
+  .onb-pend-empty { text-align:center; padding:14px; font-size:12px; color:rgba(23,53,87,0.5); background:#fff; border:1px dashed rgba(15,34,58,0.14); border-radius:8px; }
+
+  /* new pending form */
+  .onb-pend-form { background:#fff; border:1px solid rgba(89,194,237,0.4); border-radius:10px; padding:14px 16px; margin-top:8px; box-shadow:0 4px 14px -8px rgba(89,194,237,0.4); animation:onb-slide 0.18s ease; }
+  .onb-pf-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+  .onb-pf-grid .full { grid-column:1/-1; }
+  .onb-pf-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+
+  /* resp picker */
+  .onb-resp-picker { border:1px solid #d4d3ce; border-radius:7px; padding:6px; max-height:150px; overflow-y:auto; background:#fff; }
+  .onb-resp-sec { font-size:10px; text-transform:uppercase; letter-spacing:0.06em; color:rgba(23,53,87,0.5); font-weight:600; padding:5px 8px 3px; }
+  .onb-resp-opt { padding:5px 8px; border-radius:5px; font-size:12px; color:#173557; cursor:pointer; display:flex; align-items:center; gap:8px; }
+  .onb-resp-opt:hover { background:#f4f5f7; }
+  .onb-resp-opt.selected { background:rgba(89,194,237,0.12); color:#0a6a96; font-weight:500; }
+  .onb-mini-avatar { width:20px; height:20px; border-radius:50%; display:grid; place-items:center; font-size:10px; font-weight:600; flex-shrink:0; }
+  .onb-mini-avatar.client { background:rgba(89,194,237,0.22); color:#0a6a96; }
+  .onb-mini-avatar.team   { background:rgba(211,218,71,0.4); color:#5a6010; }
+
+  /* segmented priority */
+  .onb-segmented { display:inline-flex; background:#f4f5f7; border-radius:9px; padding:3px; gap:2px; }
+  .onb-segmented button { background:transparent; border:none; padding:6px 12px; font-size:12px; font-weight:500; color:rgba(23,53,87,0.65); border-radius:7px; cursor:pointer; font-family:inherit; }
+  .onb-segmented button.on { background:#fff; color:#173557; box-shadow:0 1px 2px rgba(15,34,58,0.08); }
+  .onb-segmented button[data-v="bloqueadora"].on { color:#a02020; }
+  .onb-segmented button[data-v="alta"].on { color:#875111; }
+
+  /* catalog search */
+  .onb-cat-wrap { position:relative; margin-bottom:12px; }
+  .onb-cat-input { width:100%; padding:9px 14px 9px 36px; background:#fff; border:1px solid #d4d3ce; border-radius:8px; font-size:13px; font-family:inherit; color:#173557; outline:none; }
+  .onb-cat-input:focus { border-color:#59c2ed; box-shadow:0 0 0 3px rgba(89,194,237,0.18); }
+  .onb-cat-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:rgba(23,53,87,0.4); pointer-events:none; }
+  .onb-cat-dd { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid rgba(15,34,58,0.12); border-radius:10px; box-shadow:0 12px 28px rgba(10,22,40,0.12); padding:4px; z-index:10; max-height:260px; overflow-y:auto; }
+  .onb-cat-item { padding:8px 10px; border-radius:6px; font-size:13px; color:#173557; display:flex; align-items:center; justify-content:space-between; cursor:pointer; }
+  .onb-cat-item:hover { background:#f4f5f7; }
+  .onb-cat-empty { padding:10px; font-size:12px; color:rgba(23,53,87,0.55); text-align:center; }
+
+  /* tags */
+  .onb-tag { font-size:11px; padding:3px 9px; border-radius:999px; font-weight:500; display:inline-flex; align-items:center; gap:5px; line-height:1.5; white-space:nowrap; }
+  .onb-tag.sky    { background:rgba(89,194,237,0.14); color:#0a6a96; }
+  .onb-tag.lime   { background:rgba(211,218,71,0.25); color:#5a6010; }
+  .onb-tag.green  { background:rgba(34,160,98,0.14); color:#157a47; }
+  .onb-tag.amber  { background:rgba(217,140,30,0.16); color:#875111; }
+  .onb-tag.red    { background:rgba(196,60,60,0.14); color:#a02020; }
+  .onb-tag.gray   { background:rgba(23,53,87,0.06); color:rgba(23,53,87,0.65); }
+  .onb-tag .live-dot { width:6px; height:6px; border-radius:50%; background:#1aa56a; box-shadow:0 0 0 3px rgba(26,165,106,0.18); }
+
+  /* capabilities */
+  .onb-cap-chip { font-size:12px; font-weight:500; padding:5px 11px; border-radius:999px; display:inline-flex; align-items:center; gap:6px; }
+  .onb-cap-chip::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; }
+
+  /* buttons */
+  .onb-btn-primary { background:#173557; color:#fff; border:none; border-radius:8px; padding:9px 16px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; }
+  .onb-btn-primary:hover { background:#1f4575; }
+  .onb-btn-primary.sm { padding:6px 12px; font-size:12px; }
+  .onb-btn-primary:disabled { background:#aaa9a3; cursor:not-allowed; }
+  .onb-btn-sec { background:#fff; color:#173557; border:1px solid rgba(15,34,58,0.14); border-radius:8px; padding:9px 16px; font-size:13px; font-weight:500; cursor:pointer; font-family:inherit; }
+  .onb-btn-sec:hover { background:#f4f5f7; }
+  .onb-btn-sec.sm { padding:6px 12px; font-size:12px; }
+  .onb-btn-link { background:transparent; border:none; padding:0; color:#0a6a96; font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; }
+  .onb-btn-link:hover { text-decoration:underline; }
+  .onb-icon-btn { background:transparent; border:none; width:28px; height:28px; border-radius:6px; display:grid; place-items:center; color:rgba(23,53,87,0.55); cursor:pointer; }
+  .onb-icon-btn:hover { background:rgba(23,53,87,0.06); color:#173557; }
+  .onb-icon-btn.danger:hover { background:rgba(196,60,60,0.08); color:#b42828; }
+  .onb-back-btn { background:transparent; border:none; padding:0; color:rgba(23,53,87,0.7); font-size:12px; font-weight:500; cursor:pointer; font-family:inherit; margin-bottom:8px; }
+  .onb-back-btn:hover { color:#173557; }
+
+  /* inputs */
+  .onb-input, .onb-select, .onb-textarea {
+    width:100%; border:1px solid #d4d3ce; border-radius:7px; padding:8px 12px;
+    font-size:13px; font-family:inherit; color:#173557; background:#fff;
+    outline:none; transition:border-color 0.15s, box-shadow 0.15s; box-sizing:border-box;
+  }
+  .onb-input:focus, .onb-select:focus, .onb-textarea:focus { border-color:#59c2ed; box-shadow:0 0 0 3px rgba(89,194,237,0.18); }
+  .onb-textarea { resize:vertical; min-height:64px; }
+  .onb-lbl { display:block; font-size:11px; font-weight:600; color:rgba(23,53,87,0.65); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.05em; }
+
+  /* act status select */
+  .onb-act-status-sel { padding:4px 8px; font-size:11px; border-radius:6px; border:1px solid rgba(15,34,58,0.12); background:#fff; color:#173557; font-family:inherit; width:100%; outline:none; }
+  .onb-act-status-sel:focus { border-color:#59c2ed; }
 `
 
-// ── Constantes ────────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 const FASE_ORDER = ['definicao_escopo', 'preparacao_plataforma', 'treinamento', 'encerrado']
 const MS_ORDER   = ['kickoff', 'projeto_tecnico_aprovado', 'go_live']
 
-const SITUACAO_MAP = {
-  fluindo: { color: '#1D9E75', label: 'Fluindo' },
-  atencao: { color: '#BA7517', label: 'Atenção' },
-  travado: { color: '#E24B4A', label: 'Travado' },
-}
+// milestone icon SVGs (faithfully from the HTML prototype)
+const MS_ICON_KICKOFF = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 3v18"/>
+    <path d="M5 4h12l-2 4 2 4H5"/>
+  </svg>
+)
+const MS_ICON_TECH = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+    <path d="M14 3v6h6"/>
+    <path d="M9 14l2 2 4-4"/>
+  </svg>
+)
+const MS_ICON_GOLIVE = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M5 16l3-7 5 4 6-9"/>
+    <path d="M14 4h5v5"/>
+  </svg>
+)
+const MS_ICONS = { kickoff: MS_ICON_KICKOFF, projeto_tecnico_aprovado: MS_ICON_TECH, go_live: MS_ICON_GOLIVE }
 
-const PRIO_MAP = {
-  bloqueadora: { label: 'Bloqueadora', color: '#E24B4A', bg: 'rgba(226,75,74,0.10)', border: '#E24B4A' },
-  alta:        { label: 'Alta',        color: '#BA7517', bg: 'rgba(186,117,23,0.10)', border: '#BA7517' },
-  normal:      { label: 'Normal',      color: '#888780', bg: 'rgba(136,135,128,0.08)', border: '#d4d3ce' },
-}
-
-const SPEND_MAP = {
-  criada:               { label: 'Criada',               color: '#888780', bg: '#f4f5f7' },
-  em_andamento:         { label: 'Em Andamento',         color: '#185FA5', bg: 'rgba(24,95,165,0.10)' },
-  aguardando_validacao: { label: 'Aguardando Validação', color: '#BA7517', bg: 'rgba(186,117,23,0.10)' },
-  encerrada:            { label: 'Encerrada',            color: '#1D9E75', bg: 'rgba(29,158,117,0.10)' },
-}
-
-const SACT_MAP = {
-  pendente:     { label: 'Pendente',     color: '#888780' },
-  em_andamento: { label: 'Em Andamento', color: '#185FA5' },
-  concluida:    { label: 'Concluída',    color: '#1D9E75' },
-}
-
-const CAP_COLORS = [
-  { color: '#0c447c', bg: 'rgba(89,194,237,0.16)' },
-  { color: '#3b2fa0', bg: 'rgba(83,74,183,0.13)' },
-  { color: '#0f6b4f', bg: 'rgba(29,158,117,0.13)' },
-  { color: '#7a3c00', bg: 'rgba(211,218,71,0.18)' },
-  { color: '#5a0a2a', bg: 'rgba(226,75,74,0.12)' },
+// cap chip colors (rotating palette for catalog items)
+const CAP_PALETTE = [
+  { cls: 'onb-cap-chip', style: { background: 'rgba(89,194,237,0.18)', color: '#0a6a96' } },
+  { cls: 'onb-cap-chip', style: { background: 'rgba(132,93,212,0.16)', color: '#5a3fa5' } },
+  { cls: 'onb-cap-chip', style: { background: 'rgba(34,160,98,0.16)',  color: '#157a47' } },
+  { cls: 'onb-cap-chip', style: { background: 'rgba(23,53,87,0.10)',   color: '#173557' } },
+  { cls: 'onb-cap-chip', style: { background: 'rgba(217,140,30,0.16)', color: '#875111' } },
 ]
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,8 +203,6 @@ function fmt(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 function faseIdx(fase) { return FASE_ORDER.indexOf(fase ?? 'definicao_escopo') }
-
-// primeiro milestone não concluído na ordem
 function getActiveMs(milestones) {
   for (const key of MS_ORDER) {
     const ms = milestones?.find(m => m.type === key)
@@ -79,15 +210,11 @@ function getActiveMs(milestones) {
   }
   return null
 }
-
-// ── Shared style objects ──────────────────────────────────────────────────────
-const card$ = { background: '#fff', borderRadius: 14, border: '1px solid rgba(15,34,58,0.09)', padding: '20px 22px' }
-const input$ = { width: '100%', border: '1px solid #d4d3ce', borderRadius: 7, padding: '8px 12px', fontSize: 13, fontFamily: 'inherit', color: '#173557', background: '#fff', outline: 'none', boxSizing: 'border-box' }
-const label$ = { display: 'block', fontSize: 11, fontWeight: 600, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 5 }
-const secTitle$ = { fontSize: 12, fontWeight: 700, color: '#173557', margin: '0 0 16px', textTransform: 'uppercase', letterSpacing: '0.06em' }
+function initials(name = '') {
+  return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?'
+}
 
 // ── Data hooks ────────────────────────────────────────────────────────────────
-
 function useProjectDetail(projectId) {
   return useQuery({
     queryKey: ['project_detail', projectId],
@@ -163,342 +290,286 @@ function useActivityTypes() {
   })
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+// ── MilestoneEl ───────────────────────────────────────────────────────────────
+function MilestoneEl({ ms, activeMsType, openMsId, onToggle }) {
+  const isDone    = !!ms.occurred_at
+  const isActive  = !isDone && activeMsType === ms.type
+  const stateClass = isDone ? 'done' : isActive ? 'active' : 'future'
 
-function SituacaoBadge({ situacao }) {
-  const m = SITUACAO_MAP[situacao]
-  if (!m) return null
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600, color: m.color, background: m.color + '18', borderRadius: 20, padding: '3px 10px' }}>
-      <span style={{ width: 7, height: 7, borderRadius: '50%', background: m.color, flexShrink: 0 }} />
-      {m.label}
-    </span>
-  )
-}
-
-function PrioBadge({ p }) {
-  const m = PRIO_MAP[p] ?? PRIO_MAP.normal
-  return (
-    <span style={{ fontSize: 11, fontWeight: 600, color: m.color, background: m.bg, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-      {m.label}
-    </span>
-  )
-}
-
-function StatusPendBadge({ s }) {
-  const m = SPEND_MAP[s] ?? SPEND_MAP.criada
-  return (
-    <span style={{ fontSize: 11, fontWeight: 500, color: m.color, background: m.bg, padding: '2px 8px', borderRadius: 4, whiteSpace: 'nowrap' }}>
-      {m.label}
-    </span>
-  )
-}
-
-function StatusActDot({ s }) {
-  const m = SACT_MAP[s] ?? SACT_MAP.pendente
-  return <span style={{ width: 8, height: 8, borderRadius: '50%', background: m.color, flexShrink: 0, display: 'inline-block' }} title={m.label} />
-}
-
-function Connector({ done, active }) {
-  const bg = done
-    ? '#1D9E75'
-    : active
-      ? 'linear-gradient(90deg, #1D9E75 0%, #59c2ed 100%)'
-      : '#d4d3ce'
-  return (
-    <div style={{ flexShrink: 0, width: 28, height: 2, background: bg, alignSelf: 'center' }} />
-  )
-}
-
-// ── MilestoneNode ─────────────────────────────────────────────────────────────
-
-function MilestoneNode({ ms, isActive, onOpen, openMs, onClose, onConfirm, saving, clientId }) {
-  const isDone = !!ms.occurred_at
-  const isOpen = openMs === ms.type
-
-  const ringColor = isDone ? '#1D9E75' : isActive ? '#59c2ed' : '#d4d3ce'
-  const bgColor   = isDone ? '#1D9E75' : isActive ? 'rgba(89,194,237,0.1)' : '#f4f5f7'
-  const textColor = isDone ? '#fff'    : isActive ? '#173557' : '#888780'
-
-  const [form, setForm] = useState({ date: ms.occurred_at?.slice(0, 10) ?? '', notes: '', file: null })
-  const fileRef = useRef()
-
-  function handleFile(e) {
-    const f = e.target.files?.[0]
-    if (f) setForm(p => ({ ...p, file: f }))
-  }
-
-  const canConfirm = form.date && (form.notes.trim() || form.file)
-
-  const MS_ICONS = { kickoff: '🚀', projeto_tecnico_aprovado: '📋', go_live: '🟢' }
-  const icon = MS_ICONS[ms.type] ?? '⭕'
+  const statusLabel = isDone
+    ? 'Concluído'
+    : isActive ? 'Pendente' : 'Pendente'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', minWidth: 80 }}>
-      {/* Circle */}
-      <div
-        className="onb-ms-wrap"
-        onClick={() => isDone ? onClose() : isOpen ? onClose() : onOpen(ms.type)}
-        style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
-      >
-        <div
-          className="onb-ms-ring"
-          style={{
-            width: 56, height: 56, borderRadius: '50%',
-            background: bgColor,
-            border: `2px solid ${ringColor}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20,
-            transition: 'box-shadow 0.2s',
-            position: 'relative',
-          }}
-        >
-          {isDone
-            ? <span style={{ fontSize: 22 }}>✅</span>
-            : <span>{icon}</span>
-          }
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ fontSize: 11, fontWeight: 700, color: isDone ? '#1D9E75' : isActive ? '#173557' : '#888780', margin: 0, lineHeight: 1.3, maxWidth: 80, textAlign: 'center' }}>
-            {FASE_LABELS[ms.type]}
-          </p>
-          {ms.planned_date && (
-            <p style={{ fontSize: 10, color: '#aaa9a3', margin: '2px 0 0', textAlign: 'center' }}>
-              {isDone ? fmt(ms.occurred_at) : 'Prev. ' + fmt(ms.planned_date)}
-            </p>
-          )}
-        </div>
+    <div className={`onb-ms ${stateClass}`} onClick={() => onToggle(ms.type)}>
+      <div className="onb-ms-circle">{MS_ICONS[ms.type]}</div>
+      <div className="onb-ms-label">{FASE_LABELS[ms.type]}</div>
+      <div className="onb-ms-date">
+        {isDone ? fmt(ms.occurred_at) : (ms.planned_date ? 'Prev. ' + fmt(ms.planned_date) : '—')}
       </div>
-
-      {/* Confirm panel */}
-      {isOpen && !isDone && (
-        <div
-          className="onb-panel"
-          style={{
-            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-            zIndex: 20, marginTop: 8,
-            background: '#fff', border: '1px solid rgba(89,194,237,0.35)',
-            borderRadius: 10, padding: '14px 16px', width: 280,
-            boxShadow: '0 4px 20px rgba(15,34,58,0.12)',
-          }}
-        >
-          <p style={{ fontSize: 12, fontWeight: 700, color: '#173557', margin: '0 0 12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Registrar {FASE_LABELS[ms.type]}
-          </p>
-          <div style={{ marginBottom: 10 }}>
-            <label style={label$}>Data de realização *</label>
-            <input type="date" style={input$} value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <label style={label$}>Justificativa / Link *</label>
-            <textarea
-              style={{ ...input$, resize: 'vertical', minHeight: 54 }}
-              placeholder="Link de evidência ou observação..."
-              value={form.notes}
-              onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-            />
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <label style={label$}>Arquivo (opcional)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                className="onb-icon-btn"
-                onClick={() => fileRef.current?.click()}
-                style={{ fontSize: 12, border: '1px solid #d4d3ce', borderRadius: 6, padding: '5px 10px', color: '#173557' }}
-              >
-                {form.file ? '📎 ' + form.file.name.slice(0, 20) : '+ Anexar arquivo'}
-              </button>
-              {form.file && (
-                <button className="onb-icon-btn" onClick={() => setForm(p => ({ ...p, file: null }))} style={{ color: '#E24B4A' }}>✕</button>
-              )}
-              <input type="file" ref={fileRef} style={{ display: 'none' }} onChange={handleFile} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => onConfirm({ ms, occurredAt: form.date, justificativa: form.notes, file: form.file })}
-              disabled={!canConfirm || saving}
-              style={{
-                flex: 1, padding: '7px 0', borderRadius: 7, border: 'none', cursor: canConfirm && !saving ? 'pointer' : 'not-allowed',
-                background: canConfirm && !saving ? '#173557' : '#d4d3ce', color: '#fff', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
-              }}
-            >
-              {saving ? 'Salvando…' : 'Confirmar'}
-            </button>
-            <button className="onb-icon-btn" onClick={onClose} style={{ border: '1px solid #d4d3ce', borderRadius: 7, padding: '7px 12px', fontSize: 12 }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Undo button for done milestone */}
-      {isDone && (
-        <button
-          className="onb-icon-btn"
-          onClick={() => onOpen('reopen_' + ms.type)}
-          style={{ fontSize: 10, marginTop: 2, color: '#aaa9a3' }}
-          title="Desfazer conclusão"
-        >
-          ↩ desfazer
-        </button>
-      )}
+      <div className="onb-ms-status">{statusLabel}</div>
     </div>
   )
 }
 
-// ── PhaseBox ──────────────────────────────────────────────────────────────────
+// ── Connector ─────────────────────────────────────────────────────────────────
+function Connector({ leftDone, rightActive }) {
+  const cls = leftDone && rightActive ? 'active' : leftDone ? 'done' : ''
+  return <div className={`onb-conn ${cls}`} />
+}
 
-function PhaseBox({ fase, faseAtual, onAdvance, onRevert, faseIndex, totalFases }) {
+// ── PhaseEl ───────────────────────────────────────────────────────────────────
+function PhaseEl({ fase, faseAtual, onAdvance, onRevert, isLastPhase }) {
   const thisIdx  = faseIdx(fase.fase)
   const curIdx   = faseIdx(faseAtual)
   const isDone   = curIdx > thisIdx
   const isActive = curIdx === thisIdx
-  const isLast   = thisIdx === totalFases - 1
+  const stateClass = isDone ? 'done' : isActive ? 'active' : 'future'
 
-  const borderColor = isDone ? '#1D9E75' : isActive ? '#59c2ed' : 'rgba(15,34,58,0.09)'
-  const bgColor     = isDone ? 'rgba(29,158,117,0.04)' : isActive ? 'rgba(89,194,237,0.06)' : '#fafaf9'
+  const start = fase.actual_start ?? fase.planned_start
+  const end   = fase.actual_end   ?? fase.planned_end
+  const dateLabel = (start || end) ? `${start ? fmt(start) : '—'} → ${end ? fmt(end) : '—'}` : '—'
 
   return (
-    <div style={{
-      flex: '1 1 170px', minWidth: 150,
-      border: isActive ? `2px solid ${borderColor}` : `1px solid ${borderColor}`,
-      borderRadius: 12, padding: '12px 14px',
-      background: bgColor,
-      opacity: (!isDone && !isActive) ? 0.6 : 1,
-      transition: 'all 0.2s',
-      boxShadow: isActive ? '0 0 0 3px rgba(89,194,237,0.12)' : 'none',
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: isDone ? '#0f6b4f' : isActive ? '#173557' : '#888780', lineHeight: 1.3 }}>
-          {FASE_LABELS[fase.fase]}
-        </span>
-        {isActive && <span style={{ fontSize: 10, fontWeight: 700, color: '#59c2ed', background: 'rgba(89,194,237,0.12)', padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>Ativa</span>}
-        {isDone   && <span style={{ fontSize: 10, fontWeight: 700, color: '#1D9E75', background: 'rgba(29,158,117,0.10)', padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>Concluída</span>}
-        {!isDone && !isActive && <span style={{ fontSize: 10, fontWeight: 600, color: '#aaa9a3', background: '#f0f0ee', padding: '2px 7px', borderRadius: 4, whiteSpace: 'nowrap' }}>Pendente</span>}
+    <div className={`onb-phase ${stateClass}`}>
+      <div className="onb-phase-head">
+        <div className="onb-phase-name">{FASE_LABELS[fase.fase]}</div>
+        {isActive && <span className="onb-tag sky" style={{ fontSize: 10, padding: '2px 7px' }}>Ativa</span>}
+        {isDone   && <span className="onb-tag green" style={{ fontSize: 10, padding: '2px 7px' }}>Concluída</span>}
+        {!isDone && !isActive && <span className="onb-tag gray" style={{ fontSize: 10, padding: '2px 7px' }}>Pendente</span>}
       </div>
-      <p style={{ fontSize: 10, color: '#aaa9a3', margin: '5px 0 0' }}>
-        {fase.actual_start ? fmt(fase.actual_start) : (fase.planned_start ? 'Prev. ' + fmt(fase.planned_start) : '—')}
-        {' → '}
-        {fase.actual_end ? fmt(fase.actual_end) : (fase.planned_end ? 'Prev. ' + fmt(fase.planned_end) : '—')}
-      </p>
-      {isActive && (
-        <div style={{ display: 'flex', gap: 6, marginTop: 9 }}>
-          {!isLast && (
-            <button className="onb-adv-btn" onClick={onAdvance} style={{
-              fontSize: 11, fontWeight: 600, color: '#59c2ed',
-              background: 'rgba(89,194,237,0.10)', border: '1px solid rgba(89,194,237,0.3)',
-              borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontFamily: 'inherit',
-            }}>
-              Avançar →
-            </button>
-          )}
-          {thisIdx > 0 && (
-            <button className="onb-rev-btn" onClick={onRevert} style={{
-              fontSize: 11, fontWeight: 500, color: '#888780',
-              background: 'rgba(15,34,58,0.04)', border: '1px solid rgba(15,34,58,0.12)',
-              borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit',
-            }}>
-              ← Voltar
-            </button>
-          )}
+      <div className="onb-phase-meta">{dateLabel}</div>
+      <div className="onb-phase-bottom">
+        <button
+          className="onb-phase-mini"
+          disabled={!isActive || thisIdx === 0}
+          onClick={e => { e.stopPropagation(); onRevert() }}
+        >
+          ← Voltar
+        </button>
+        <button
+          className="onb-phase-mini fwd"
+          disabled={!isActive || isLastPhase}
+          onClick={e => { e.stopPropagation(); onAdvance() }}
+        >
+          Avançar →
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── MilestonePanel ────────────────────────────────────────────────────────────
+function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving }) {
+  const isDone = !!ms.occurred_at
+  const fileRef = useRef()
+  const [form, setForm] = useState({
+    date:  ms.occurred_at?.slice(0, 10) ?? '',
+    link:  '',
+    notes: '',
+    file:  null,
+  })
+
+  const canConfirm = form.date && (form.notes.trim() || form.link.trim() || form.file)
+
+  return (
+    <div className="onb-ms-panel">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>
+          {isDone ? 'Marco concluído' : 'Registrar conclusão'} — {FASE_LABELS[ms.type]}
         </div>
-      )}
+        <button className="onb-icon-btn" onClick={onClose} title="Fechar">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <path d="M4 4l8 8M12 4l-8 8"/>
+          </svg>
+        </button>
+      </div>
+
+      <div className="onb-ms-panel-grid">
+        <div>
+          <label className="onb-lbl">Data de realização</label>
+          <input type="date" className="onb-input" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
+        </div>
+        <div>
+          <label className="onb-lbl">Evidência (link ou documento)</label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="url" className="onb-input"
+              placeholder="https://… ou /docs/arquivo.pdf"
+              value={form.link}
+              onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
+              style={{ flex: 1 }}
+            />
+            <button
+              className="onb-icon-btn"
+              onClick={() => fileRef.current?.click()}
+              title={form.file ? form.file.name : 'Anexar arquivo'}
+              style={{ flexShrink: 0, border: '1px solid #d4d3ce', width: 'auto', padding: '4px 8px', borderRadius: 6, fontSize: 11, color: '#173557', whiteSpace: 'nowrap' }}
+            >
+              {form.file ? '📎 ' + form.file.name.slice(0, 14) : '+ Arquivo'}
+            </button>
+            <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setForm(p => ({ ...p, file: e.target.files?.[0] ?? null }))} />
+          </div>
+        </div>
+      </div>
+
+      <div className="onb-ms-panel-grid full">
+        <div>
+          <label className="onb-lbl">Justificativa / observações</label>
+          <textarea
+            className="onb-textarea"
+            placeholder="Ex.: reunião realizada com presença de toda equipe operacional…"
+            value={form.notes}
+            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+          />
+        </div>
+      </div>
+
+      <div className="onb-ms-panel-actions">
+        <button className="onb-btn-sec sm" onClick={onClose}>Cancelar</button>
+        {isDone ? (
+          <button className="onb-btn-sec sm" onClick={onReopen} disabled={saving}>
+            {saving ? 'Aguarde…' : 'Reabrir marco'}
+          </button>
+        ) : (
+          <button
+            className="onb-btn-primary sm"
+            disabled={!canConfirm || saving}
+            onClick={() => onConfirm({ ms, occurredAt: form.date, justificativa: form.notes || form.link || null, file: form.file })}
+          >
+            {saving ? 'Salvando…' : 'Confirmar conclusão'}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
 
-// ── PendenciaItem ─────────────────────────────────────────────────────────────
-
-function PendenciaItem({ pend, onStatusChange, onDelete, loading }) {
-  const prio = PRIO_MAP[pend.prioridade] ?? PRIO_MAP.normal
-  const resp = pend.resp_contato?.name ?? pend.resp_interno?.name ?? pend.responsavel_grupo ?? '—'
+// ── PendingItem ───────────────────────────────────────────────────────────────
+function PendingItem({ pend }) {
+  const prioMap = {
+    bloqueadora: { tag: 'red',   label: 'Bloqueadora', cls: 'blocker' },
+    alta:        { tag: 'amber', label: 'Alta',        cls: 'high'    },
+    normal:      { tag: 'gray',  label: 'Normal',      cls: ''        },
+  }
+  const statusMap = {
+    criada:               { tag: 'gray',  label: 'Criada'               },
+    em_andamento:         { tag: 'sky',   label: 'Em Andamento'         },
+    aguardando_validacao: { tag: 'amber', label: 'Ag. Validação'        },
+    encerrada:            { tag: 'green', label: 'Encerrada'            },
+  }
+  const prio   = prioMap[pend.prioridade]   ?? prioMap.normal
+  const status = statusMap[pend.status]     ?? statusMap.criada
+  const resp   = pend.resp_contato?.name ?? pend.resp_interno?.name ?? pend.responsavel_grupo ?? '—'
 
   return (
-    <div
-      className="onb-pend-row"
-      style={{
-        display: 'grid', gridTemplateColumns: '1fr 110px 110px 130px 90px',
-        gap: 8, alignItems: 'center', padding: '8px 12px', borderRadius: 8,
-        borderLeft: `3px solid ${prio.border}`,
-        background: pend.prioridade === 'bloqueadora' ? 'rgba(226,75,74,0.02)' : 'transparent',
-        transition: 'background 0.1s',
-      }}
-    >
-      <div>
-        <p style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18', margin: 0 }}>{pend.title}</p>
-        <p style={{ fontSize: 10, color: '#aaa9a3', margin: '2px 0 0' }}>
-          {resp}
-          {pend.due_date && <span> · {fmt(pend.due_date)}</span>}
-        </p>
-      </div>
-      <PrioBadge p={pend.prioridade} />
-      <StatusPendBadge s={pend.status} />
-      <select
-        value={pend.status}
-        onChange={e => onStatusChange(pend.id, e.target.value)}
-        disabled={loading}
-        style={{ ...input$, fontSize: 11, padding: '4px 8px', width: 'auto' }}
-      >
-        {Object.entries(SPEND_MAP).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-      </select>
-      <button className="onb-icon-btn" onClick={() => onDelete(pend.id)} title="Remover" style={{ color: '#E24B4A', justifySelf: 'center' }}>✕</button>
+    <div className={`onb-pend-item ${prio.cls}`}>
+      <div style={{ fontWeight: 500, color: '#173557', fontSize: 12 }}>{pend.title}</div>
+      <span className={`onb-tag ${prio.tag}`}>{prio.label}</span>
+      <span className={`onb-tag ${status.tag}`}>{status.label}</span>
+      <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resp}</div>
+      <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)' }}>{fmt(pend.due_date)}</div>
     </div>
   )
 }
 
-// ── ActivityRow ───────────────────────────────────────────────────────────────
+// ── PendForm ─────────────────────────────────────────────────────────────────
+function PendForm({ actId, contacts, profiles, onSave, onCancel, saving }) {
+  const [draft, setDraft] = useState({ title: '', desc: '', priority: 'normal', due: '', respId: null, respKind: null, respName: null })
 
-function ActivityRow({ act, onboardingId, clientId, contacts, profiles, qc, logAction, user }) {
-  const [expanded,     setExpanded]    = useState(false)
-  const [showNewPend,  setShowNewPend] = useState(false)
-  const [newPend,      setNewPend]     = useState({ title: '', prioridade: 'normal', resp_tipo: 'interno', resp_contato_id: '', resp_interno_id: '', responsavel_grupo: 'A definir', due_date: '' })
+  function pickResp(id, kind, name) {
+    setDraft(p => ({ ...p, respId: id, respKind: kind, respName: name }))
+  }
 
-  const pendencias = act.pendencias ?? []
-  const pendCnt = pendencias.filter(p => p.status !== 'encerrada').length
+  function handleSave() {
+    if (!draft.title.trim()) { toast.error('Informe um título'); return }
+    onSave(draft)
+  }
 
-  // Pendência CRUD mutations
-  const createPendMut = useMutation({
-    mutationFn: async (payload) => {
-      const { error, data } = await supabase.from('onboarding_pendencias').insert(payload).select().single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
-      logAction('create_pendencia', 'onboarding_pendencia', data.id, newPend.title, null, { activity_id: act.id })
-      toast.success('Pendência adicionada')
-      setShowNewPend(false)
-      setNewPend({ title: '', prioridade: 'normal', resp_tipo: 'interno', resp_contato_id: '', resp_interno_id: '', responsavel_grupo: 'A definir', due_date: '' })
-    },
-    onError: (e) => toast.error(e.message),
-  })
+  return (
+    <div className="onb-pend-form">
+      <div className="onb-pf-grid">
+        <div className="full">
+          <label className="onb-lbl">Título da pendência *</label>
+          <input className="onb-input" placeholder="Ex.: Receber lista de lojas com horários" value={draft.title} onChange={e => setDraft(p => ({ ...p, title: e.target.value }))} />
+        </div>
+        <div className="full">
+          <label className="onb-lbl">Descrição (opcional)</label>
+          <textarea className="onb-textarea" placeholder="Detalhes, contexto, links…" value={draft.desc} onChange={e => setDraft(p => ({ ...p, desc: e.target.value }))} />
+        </div>
+        <div>
+          <label className="onb-lbl">Prioridade</label>
+          <div className="onb-segmented onb-segmented-prio">
+            {[['bloqueadora', 'Bloqueadora'], ['alta', 'Alta'], ['normal', 'Normal']].map(([v, lbl]) => (
+              <button key={v} data-v={v} className={draft.priority === v ? 'on' : ''} onClick={() => setDraft(p => ({ ...p, priority: v }))}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="onb-lbl">Data limite</label>
+          <input type="date" className="onb-input" value={draft.due} onChange={e => setDraft(p => ({ ...p, due: e.target.value }))} />
+        </div>
+        <div className="full">
+          <label className="onb-lbl">Responsável</label>
+          <div className="onb-resp-picker">
+            {contacts.length > 0 && (
+              <>
+                <div className="onb-resp-sec">Contatos do cliente</div>
+                {contacts.map(c => (
+                  <div
+                    key={c.id}
+                    className={`onb-resp-opt${draft.respId === c.id && draft.respKind === 'contato' ? ' selected' : ''}`}
+                    onClick={() => pickResp(c.id, 'contato', c.name)}
+                  >
+                    <span className="onb-mini-avatar client">{initials(c.name)}</span>
+                    <span>{c.name}</span>
+                  </div>
+                ))}
+              </>
+            )}
+            <div className="onb-resp-sec">Equipe interna</div>
+            {profiles.filter(p => p.status === 'active').map(p => (
+              <div
+                key={p.id}
+                className={`onb-resp-opt${draft.respId === p.id && draft.respKind === 'interno' ? ' selected' : ''}`}
+                onClick={() => pickResp(p.id, 'interno', p.name)}
+              >
+                <span className="onb-mini-avatar team">{initials(p.name)}</span>
+                <span>{p.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="onb-pf-actions">
+        <button className="onb-btn-sec sm" onClick={onCancel}>Cancelar</button>
+        <button className="onb-btn-primary sm" onClick={handleSave} disabled={saving}>
+          {saving ? 'Salvando…' : 'Salvar pendência'}
+        </button>
+      </div>
+    </div>
+  )
+}
 
-  const updatePendMut = useMutation({
-    mutationFn: async ({ id, status }) => {
-      const { error } = await supabase.from('onboarding_pendencias').update({ status }).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] }),
-    onError: (e) => toast.error(e.message),
-  })
-
-  const deletePendMut = useMutation({
-    mutationFn: async (id) => {
-      const { error } = await supabase.from('onboarding_pendencias').delete().eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] }),
-    onError: (e) => toast.error(e.message),
-  })
+// ── ActivityItem ──────────────────────────────────────────────────────────────
+function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboardingId, qc, logAction, onToggleExpand, onTogglePendForm }) {
+  const ACT_STATUS = [
+    { v: 'pendente',     label: 'Pendente'     },
+    { v: 'em_andamento', label: 'Em Andamento' },
+    { v: 'concluida',    label: 'Concluída'    },
+  ]
 
   const updateActMut = useMutation({
     mutationFn: async (status) => {
-      const { error } = await supabase.from('onboarding_activities').update({ status, completed_at: status === 'concluida' ? new Date().toISOString() : null }).eq('id', act.id)
+      const { error } = await supabase.from('onboarding_activities')
+        .update({ status, completed_at: status === 'concluida' ? new Date().toISOString() : null })
+        .eq('id', act.id)
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] }),
-    onError: (e) => toast.error(e.message),
+    onError: e => toast.error(e.message),
   })
 
   const deleteActMut = useMutation({
@@ -511,179 +582,193 @@ function ActivityRow({ act, onboardingId, clientId, contacts, profiles, qc, logA
       logAction('delete_activity', 'onboarding_activity', act.id, act.title, { title: act.title }, null)
       toast.success('Atividade removida')
     },
-    onError: (e) => toast.error(e.message),
+    onError: e => toast.error(e.message),
   })
 
-  function submitNewPend() {
-    if (!newPend.title.trim()) return
-    const payload = {
-      onboarding_id: onboardingId,
-      activity_id: act.id,
-      title: newPend.title.trim(),
-      prioridade: newPend.prioridade,
-      status: 'criada',
-      due_date: newPend.due_date || null,
-      responsavel_contato_id: newPend.resp_tipo === 'contato' && newPend.resp_contato_id ? Number(newPend.resp_contato_id) : null,
-      responsavel_interno_id: newPend.resp_tipo === 'interno' && newPend.resp_interno_id ? newPend.resp_interno_id : null,
-      responsavel_grupo:      (!newPend.resp_contato_id && !newPend.resp_interno_id) ? (newPend.responsavel_grupo || 'A definir') : null,
-    }
-    createPendMut.mutate(payload)
-  }
+  const createPendMut = useMutation({
+    mutationFn: async (draft) => {
+      const payload = {
+        onboarding_id: onboardingId,
+        activity_id: act.id,
+        title: draft.title.trim(),
+        description: draft.desc || null,
+        prioridade: draft.priority,
+        status: 'criada',
+        due_date: draft.due || null,
+        responsavel_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null,
+        responsavel_interno_id: draft.respKind === 'interno' ? draft.respId : null,
+        responsavel_grupo: (!draft.respId) ? 'A definir' : null,
+      }
+      const { data, error } = await supabase.from('onboarding_pendencias').insert(payload).select().single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
+      logAction('create_pendencia', 'onboarding_pendencia', data.id, data.title, null, { activity_id: act.id })
+      toast.success('Pendência criada')
+      onTogglePendForm(act.id, false)
+    },
+    onError: e => toast.error(e.message),
+  })
 
-  const resp = act.resp_interno?.name ?? act.resp_contato?.name ?? '—'
-  const sact = SACT_MAP[act.status] ?? SACT_MAP.pendente
+  const resp = act.resp_interno?.name ?? act.resp_contato?.name ?? null
+  const pendencias = act.pendencias ?? []
 
   return (
-    <div style={{ border: '1px solid rgba(15,34,58,0.09)', borderRadius: 10, overflow: 'hidden', background: '#fff' }}>
-      {/* Row header */}
-      <div
-        className="onb-row-hd"
-        style={{ display: 'grid', gridTemplateColumns: '22px 1fr 130px 150px 110px auto', gap: 10, alignItems: 'center', padding: '10px 14px', transition: 'background 0.1s' }}
-        onClick={() => setExpanded(v => !v)}
-      >
-        <StatusActDot s={act.status} />
-        <div>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#173557', margin: 0, lineHeight: 1.3 }}>{act.title}</p>
-          {act.activity_type && <p style={{ fontSize: 10, color: '#888780', margin: '2px 0 0' }}>{act.activity_type.name}</p>}
+    <div className={`onb-act-item${expanded ? ' expanded' : ''}`}>
+      <div className="onb-act-row" onClick={() => onToggleExpand(act.id)}>
+        <div className="onb-act-caret">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 2 8 6 4 10"/>
+          </svg>
         </div>
-        <span style={{ fontSize: 11, color: '#888780', textAlign: 'center' }}>
-          {FASE_LABELS[act.fase] ?? act.fase}
-        </span>
-        <span style={{ fontSize: 11, color: '#888780', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {resp}
-        </span>
-        <span style={{ fontSize: 11, color: act.due_date ? '#173557' : '#aaa9a3', whiteSpace: 'nowrap' }}>
-          {act.due_date ? fmt(act.due_date) : '—'}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {pendCnt > 0 && (
-            <span style={{ fontSize: 10, fontWeight: 700, color: '#E24B4A', background: 'rgba(226,75,74,0.1)', padding: '1px 6px', borderRadius: 10 }}>
-              {pendCnt}
-            </span>
-          )}
-          <span style={{ color: '#aaa9a3', fontSize: 12, transition: 'transform 0.15s', display: 'inline-block', transform: expanded ? 'rotate(180deg)' : 'none' }}>▾</span>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {act.title}
+        </div>
+        <select
+          className="onb-act-status-sel"
+          value={act.status}
+          onClick={e => e.stopPropagation()}
+          onChange={e => { e.stopPropagation(); updateActMut.mutate(e.target.value) }}
+        >
+          {ACT_STATUS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
+        </select>
+        <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {resp
+            ? <span>{resp}{act.resp_contato ? <span style={{ color: 'rgba(23,53,87,0.45)' }}> (cliente)</span> : ''}</span>
+            : <span style={{ color: 'rgba(23,53,87,0.4)', fontStyle: 'italic' }}>— sem responsável</span>
+          }
+        </div>
+        <div style={{ fontSize: 12, color: act.due_date ? 'rgba(23,53,87,0.7)' : 'rgba(23,53,87,0.4)', fontStyle: act.due_date ? 'normal' : 'italic' }}>
+          {act.due_date ? `Limite ${fmt(act.due_date)}` : '— sem prazo'}
+        </div>
+        <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+          <button
+            className="onb-icon-btn danger"
+            title="Remover"
+            onClick={() => { if (window.confirm(`Remover atividade "${act.title}"?`)) deleteActMut.mutate() }}
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 5h10M6 5V3h4v2M5 5l1 9h4l1-9"/>
+            </svg>
+          </button>
         </div>
       </div>
 
-      {/* Expanded body */}
       {expanded && (
-        <div className="onb-panel" style={{ borderTop: '1px solid rgba(15,34,58,0.07)', padding: '12px 14px', background: '#fafaf9' }}>
-          {/* Activity controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: '#888780' }}>Status:</span>
-            {Object.entries(SACT_MAP).map(([k, v]) => (
-              <button
-                key={k}
-                className={'onb-tab' + (act.status === k ? ' active' : '')}
-                onClick={e => { e.stopPropagation(); updateActMut.mutate(k) }}
-              >
-                {v.label}
-              </button>
-            ))}
-            <div style={{ flex: 1 }} />
-            <button className="onb-icon-btn" onClick={e => { e.stopPropagation(); deleteActMut.mutate() }} title="Remover atividade" style={{ color: '#E24B4A', fontSize: 12 }}>
-              🗑 Remover
+        <div className="onb-act-body">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Pendências ({pendencias.length})
+            </div>
+            <button className="onb-btn-link" onClick={() => onTogglePendForm(act.id, !showPendForm)}>
+              {showPendForm ? '× Fechar formulário' : '+ Nova Pendência'}
             </button>
           </div>
 
-          {/* Pendências */}
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <p style={{ ...label$, margin: 0 }}>Pendências {pendencias.length > 0 && `(${pendencias.length})`}</p>
-              <button
-                className="onb-icon-btn"
-                onClick={e => { e.stopPropagation(); setShowNewPend(v => !v) }}
-                style={{ fontSize: 11, border: '1px solid rgba(15,34,58,0.15)', borderRadius: 6, padding: '3px 8px', color: '#173557' }}
-              >
-                {showNewPend ? '✕ Cancelar' : '+ Pendência'}
-              </button>
+          {pendencias.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: showPendForm ? 0 : 0 }}>
+              {pendencias.map(p => <PendingItem key={p.id} pend={p} />)}
             </div>
+          ) : (
+            !showPendForm && <div className="onb-pend-empty">Nenhuma pendência registrada nesta atividade.</div>
+          )}
 
-            {pendencias.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {/* Header */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px 110px 130px 90px', gap: 8, padding: '2px 12px' }}>
-                  {['Título', 'Prioridade', 'Status', 'Alterar status', ''].map((h, i) => (
-                    <span key={i} style={{ ...label$, margin: 0 }}>{h}</span>
-                  ))}
-                </div>
-                {pendencias.map(pend => (
-                  <PendenciaItem
-                    key={pend.id}
-                    pend={pend}
-                    onStatusChange={(pendId, status) => updatePendMut.mutate({ id: pendId, status })}
-                    onDelete={deletePendMut.mutate}
-                    loading={updatePendMut.isPending || deletePendMut.isPending}
-                  />
-                ))}
+          {showPendForm && (
+            <PendForm
+              actId={act.id}
+              contacts={contacts}
+              profiles={profiles}
+              onSave={draft => createPendMut.mutate(draft)}
+              onCancel={() => onTogglePendForm(act.id, false)}
+              saving={createPendMut.isPending}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── CatalogSearch ─────────────────────────────────────────────────────────────
+function CatalogSearch({ actTypes, activities, onboardingId, faseAtual, qc, logAction, user }) {
+  const [search,    setSearch]    = useState('')
+  const [showDd,    setShowDd]    = useState(false)
+  const inputRef = useRef()
+  const ddRef    = useRef()
+
+  const usedNames = new Set(activities.map(a => a.title.toLowerCase()))
+  const filtered  = actTypes.filter(t =>
+    (!search || t.name.toLowerCase().includes(search.toLowerCase())) &&
+    !usedNames.has(t.name.toLowerCase())
+  )
+
+  useEffect(() => {
+    function handler(e) {
+      if (ddRef.current && !ddRef.current.contains(e.target) && !inputRef.current.contains(e.target)) {
+        setShowDd(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const addActMut = useMutation({
+    mutationFn: async (type) => {
+      const payload = {
+        onboarding_id: onboardingId,
+        activity_type_id: type.id,
+        title: type.name,
+        fase: faseAtual,
+        status: 'pendente',
+        created_by: user?.id ?? null,
+        display_order: activities.length,
+      }
+      const { data, error } = await supabase.from('onboarding_activities').insert(payload).select().single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
+      logAction('create_activity', 'onboarding_activity', data.id, data.title, null, { onboarding_id: onboardingId })
+      toast.success(`Atividade adicionada: ${data.title}`)
+      setSearch('')
+      setShowDd(false)
+    },
+    onError: e => toast.error(e.message),
+  })
+
+  return (
+    <div className="onb-cat-wrap">
+      <span className="onb-cat-icon">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="7" cy="7" r="5"/><path d="M14 14l-3.2-3.2"/>
+        </svg>
+      </span>
+      <input
+        ref={inputRef}
+        className="onb-cat-input"
+        placeholder="Buscar no catálogo de atividades…"
+        value={search}
+        onChange={e => { setSearch(e.target.value); setShowDd(true) }}
+        onFocus={() => setShowDd(true)}
+        autoComplete="off"
+      />
+      {showDd && (
+        <div className="onb-cat-dd" ref={ddRef}>
+          {filtered.length === 0 ? (
+            <div className="onb-cat-empty">
+              {search ? 'Nenhuma atividade encontrada no catálogo' : 'Todas as atividades do catálogo já foram adicionadas'}
+            </div>
+          ) : (
+            filtered.map(t => (
+              <div key={t.id} className="onb-cat-item" onClick={() => addActMut.mutate(t)}>
+                <span>{t.name}</span>
+                <span style={{ fontSize: 10, color: 'rgba(23,53,87,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogo</span>
               </div>
-            )}
-
-            {pendencias.length === 0 && !showNewPend && (
-              <p style={{ fontSize: 12, color: '#aaa9a3', padding: '8px 12px' }}>Nenhuma pendência.</p>
-            )}
-
-            {/* New pendência form */}
-            {showNewPend && (
-              <div className="onb-panel" onClick={e => e.stopPropagation()} style={{ marginTop: 10, border: '1px solid rgba(89,194,237,0.3)', borderRadius: 8, padding: '12px 14px', background: 'rgba(89,194,237,0.03)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={label$}>Título *</label>
-                    <input style={input$} placeholder="Descreva a pendência..." value={newPend.title} onChange={e => setNewPend(p => ({ ...p, title: e.target.value }))} />
-                  </div>
-                  <div>
-                    <label style={label$}>Prioridade</label>
-                    <select style={input$} value={newPend.prioridade} onChange={e => setNewPend(p => ({ ...p, prioridade: e.target.value }))}>
-                      <option value="normal">Normal</option>
-                      <option value="alta">Alta</option>
-                      <option value="bloqueadora">Bloqueadora</option>
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px', gap: 10, marginBottom: 10 }}>
-                  <div>
-                    <label style={label$}>Tipo de resp.</label>
-                    <select style={input$} value={newPend.resp_tipo} onChange={e => setNewPend(p => ({ ...p, resp_tipo: e.target.value, resp_contato_id: '', resp_interno_id: '' }))}>
-                      <option value="interno">Interno</option>
-                      <option value="contato">Cliente</option>
-                      <option value="grupo">Grupo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={label$}>Responsável</label>
-                    {newPend.resp_tipo === 'interno' ? (
-                      <select style={input$} value={newPend.resp_interno_id} onChange={e => setNewPend(p => ({ ...p, resp_interno_id: e.target.value }))}>
-                        <option value="">Selecione...</option>
-                        {(profiles ?? []).filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    ) : newPend.resp_tipo === 'contato' ? (
-                      <select style={input$} value={newPend.resp_contato_id} onChange={e => setNewPend(p => ({ ...p, resp_contato_id: e.target.value }))}>
-                        <option value="">Selecione...</option>
-                        {(contacts ?? []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    ) : (
-                      <input style={input$} placeholder="Nome do grupo..." value={newPend.responsavel_grupo} onChange={e => setNewPend(p => ({ ...p, responsavel_grupo: e.target.value }))} />
-                    )}
-                  </div>
-                  <div>
-                    <label style={label$}>Data limite</label>
-                    <input type="date" style={input$} value={newPend.due_date} onChange={e => setNewPend(p => ({ ...p, due_date: e.target.value }))} />
-                  </div>
-                </div>
-                <button
-                  onClick={submitNewPend}
-                  disabled={!newPend.title.trim() || createPendMut.isPending}
-                  style={{
-                    padding: '6px 16px', borderRadius: 7, border: 'none',
-                    background: newPend.title.trim() ? '#173557' : '#d4d3ce', color: '#fff',
-                    fontSize: 12, fontWeight: 600, cursor: newPend.title.trim() ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                  }}
-                >
-                  {createPendMut.isPending ? 'Salvando…' : 'Adicionar pendência'}
-                </button>
-              </div>
-            )}
-          </div>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -691,32 +776,44 @@ function ActivityRow({ act, onboardingId, clientId, contacts, profiles, qc, logA
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-
 export default function OnboardingDetailPage() {
-  const { id }       = useParams()
-  const navigate     = useNavigate()
-  const qc           = useQueryClient()
-  const { user }     = useAuth()
+  const { id }        = useParams()
+  const navigate      = useNavigate()
+  const qc            = useQueryClient()
+  const { user }      = useAuth()
   const { logAction } = useAuditLog()
 
   const { data: project, isLoading, error } = useProjectDetail(id)
   const onboardingId = project?.onboarding?.id
   const clientId     = project?.client?.id
 
-  const { data: activities = [], isLoading: actsLoading } = useActivities(onboardingId)
-  const { data: actTypes   = [] } = useActivityTypes()
-  const { data: contacts   = [] } = useContacts(clientId ? { client_id: clientId } : {})
-  const { data: profiles   = [] } = useProfiles()
+  const { data: activities  = [], isLoading: actsLoading } = useActivities(onboardingId)
+  const { data: actTypes    = [] }                          = useActivityTypes()
+  const { data: contacts    = [] }                          = useContacts(clientId ? { client_id: clientId } : {})
+  const { data: profiles    = [] }                          = useProfiles()
 
   // UI state
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [openMs,        setOpenMs]        = useState(null)  // ms.type or 'reopen_<type>'
+  const [openMsId,      setOpenMsId]      = useState(null)   // milestone type or null
   const [msSaving,      setMsSaving]      = useState(false)
-  const [showNewAct,    setShowNewAct]    = useState(false)
-  const [newAct,        setNewAct]        = useState({ activity_type_id: '', title: '', fase: '', due_date: '', resp_tipo: 'interno', resp_interno_id: '', resp_contato_id: '' })
-  const [actTab,        setActTab]        = useState('todas')  // 'todas' | fase key
+  const [expandedActs,  setExpandedActs]  = useState(new Set())
+  const [showPendForms, setShowPendForms] = useState(new Set())
 
-  // ── Phase advance/revert ───────────────────────────────────────────────────
+  function toggleExpand(actId) {
+    setExpandedActs(prev => {
+      const next = new Set(prev)
+      if (next.has(actId)) { next.delete(actId); setShowPendForms(p => { const n = new Set(p); n.delete(actId); return n }) }
+      else next.add(actId)
+      return next
+    })
+  }
+
+  function togglePendForm(actId, show) {
+    setShowPendForms(prev => { const next = new Set(prev); show ? next.add(actId) : next.delete(actId); return next })
+    if (show) setExpandedActs(prev => new Set([...prev, actId]))
+  }
+
+  // ── Phase mutations ────────────────────────────────────────────────────────
   const phaseMut = useMutation({
     mutationFn: async (direction) => {
       const onb    = project.onboarding
@@ -733,11 +830,11 @@ export default function OnboardingDetailPage() {
       logAction('change_fase', 'onboarding', onboardingId, project.title, { fase: oldFase }, { fase: newFase })
       toast.success(`Fase: ${FASE_LABELS[newFase]}`)
     },
-    onError: (e) => toast.error(e.message),
+    onError: e => toast.error(e.message),
   })
 
   // ── Milestone confirm ──────────────────────────────────────────────────────
-  async function confirmMilestone({ ms, occurredAt, justificativa, file }) {
+  async function handleConfirmMs({ ms, occurredAt, justificativa, file }) {
     setMsSaving(true)
     try {
       if (file) {
@@ -751,8 +848,7 @@ export default function OnboardingDetailPage() {
         })
         if (evErr) throw evErr
       }
-      const { error } = await supabase
-        .from('onboarding_milestones')
+      const { error } = await supabase.from('onboarding_milestones')
         .update({ occurred_at: occurredAt, justificativa: justificativa || null })
         .eq('id', ms.id)
       if (error) throw error
@@ -760,439 +856,268 @@ export default function OnboardingDetailPage() {
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('confirm_milestone', 'onboarding_milestone', ms.id, FASE_LABELS[ms.type], null, { occurred_at: occurredAt })
       toast.success(`${FASE_LABELS[ms.type]} confirmado!`)
-      setOpenMs(null)
-    } catch (e) {
-      toast.error(e.message)
-    } finally {
-      setMsSaving(false)
-    }
+      setOpenMsId(null)
+    } catch (e) { toast.error(e.message) }
+    finally { setMsSaving(false) }
   }
 
-  // ── Milestone reopen ───────────────────────────────────────────────────────
-  const msReopenMut = useMutation({
-    mutationFn: async (msId) => {
-      const { error } = await supabase.from('onboarding_milestones').update({ occurred_at: null, justificativa: null }).eq('id', msId)
+  async function handleReopenMs(ms) {
+    setMsSaving(true)
+    try {
+      const { error } = await supabase.from('onboarding_milestones')
+        .update({ occurred_at: null, justificativa: null })
+        .eq('id', ms.id)
       if (error) throw error
-    },
-    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
-      toast.success('Milestone reaberto')
-      setOpenMs(null)
-    },
-    onError: (e) => toast.error(e.message),
-  })
-
-  // ── Create activity ────────────────────────────────────────────────────────
-  const createActMut = useMutation({
-    mutationFn: async () => {
-      const typeObj = actTypes.find(t => t.id === Number(newAct.activity_type_id))
-      const fase = newAct.fase || project?.onboarding?.fase_atual || 'definicao_escopo'
-      const payload = {
-        onboarding_id: onboardingId,
-        activity_type_id: Number(newAct.activity_type_id),
-        title: newAct.title || typeObj?.name || 'Atividade',
-        fase,
-        status: 'pendente',
-        due_date: newAct.due_date || null,
-        responsible_contato_id: newAct.resp_tipo === 'contato' && newAct.resp_contato_id ? Number(newAct.resp_contato_id) : null,
-        responsible_interno_id: newAct.resp_tipo === 'interno' && newAct.resp_interno_id ? newAct.resp_interno_id : null,
-        created_by: user?.id ?? null,
-        display_order: activities.length,
-      }
-      const { data, error } = await supabase.from('onboarding_activities').insert(payload).select().single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
-      logAction('create_activity', 'onboarding_activity', data.id, data.title, null, { onboarding_id: onboardingId })
-      toast.success('Atividade adicionada')
-      setShowNewAct(false)
-      setNewAct({ activity_type_id: '', title: '', fase: '', due_date: '', resp_tipo: 'interno', resp_interno_id: '', resp_contato_id: '' })
-    },
-    onError: (e) => toast.error(e.message),
-  })
-
-  // ── Derived data ───────────────────────────────────────────────────────────
-  const onb      = project?.onboarding
-  const fases    = (onb?.fases ?? []).sort((a, b) => faseIdx(a.fase) - faseIdx(b.fase))
-  const ms       = (onb?.milestones ?? []).reduce((acc, m) => { acc[m.type] = m; return acc }, {})
-  const caps     = onb?.capabilities ?? []
-  const activeMs = getActiveMs(onb?.milestones ?? [])
-  const faseAtual = onb?.fase_atual ?? 'definicao_escopo'
-
-  // Filtered activities by tab
-  const filteredActs = actTab === 'todas' ? activities : activities.filter(a => a.fase === actTab)
-
-  // Reopen confirm
-  if (openMs?.startsWith('reopen_')) {
-    const msType = openMs.replace('reopen_', '')
-    const msObj  = ms[msType]
-    if (msObj && !msReopenMut.isPending) {
-      // Show confirm via toast — handled below in inline confirm
-    }
+      logAction('reopen_milestone', 'onboarding_milestone', ms.id, FASE_LABELS[ms.type], { occurred_at: ms.occurred_at }, null)
+      toast.success(`Marco reaberto: ${FASE_LABELS[ms.type]}`)
+      setOpenMsId(null)
+    } catch (e) { toast.error(e.message) }
+    finally { setMsSaving(false) }
   }
 
-  // ── Loading / error states ─────────────────────────────────────────────────
+  // ── Loading / error ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <p style={{ color: '#888780', fontSize: 14 }}>Carregando...</p>
+        <p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p>
       </div>
     )
   }
-
   if (error || !project) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
-        <p style={{ color: '#E24B4A', fontSize: 14 }}>Projeto não encontrado.</p>
-        <button onClick={() => navigate('/projetos')} style={{ color: '#59c2ed', fontSize: 13, background: 'none', border: 'none', cursor: 'pointer' }}>← Voltar aos projetos</button>
+        <p style={{ color: '#b42828', fontSize: 14 }}>Projeto não encontrado.</p>
+        <button className="onb-back-btn" onClick={() => navigate('/projetos')}>← Voltar</button>
       </div>
     )
   }
 
-  const clientName = project.client?.fantasy_name || project.client?.name || '—'
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const onb       = project.onboarding
+  const faseAtual = onb?.fase_atual ?? 'definicao_escopo'
+  const fases     = (onb?.fases ?? []).sort((a, b) => faseIdx(a.fase) - faseIdx(b.fase))
+  const msMap     = (onb?.milestones ?? []).reduce((acc, m) => { acc[m.type] = m; return acc }, {})
+  const caps      = onb?.capabilities ?? []
+  const activeMsType = getActiveMs(onb?.milestones ?? [])
+  const clientName   = project.client?.fantasy_name || project.client?.name || '—'
+
+  const totalSteps = 3 + 3 // 3 phases + 3 milestones
+  const doneSteps  = (onb?.milestones ?? []).filter(m => m.occurred_at).length + Math.max(0, faseIdx(faseAtual))
+
+  const situacaoMap = {
+    fluindo: { cls: 'green', label: 'Fluindo', dot: true },
+    atencao: { cls: 'amber', label: 'Atenção',  dot: false },
+    travado: { cls: 'red',   label: 'Travado',  dot: false },
+  }
+  const situacao = situacaoMap[onb?.situacao_geral] ?? situacaoMap.fluindo
+
+  // which milestone panel is open
+  const openMs = openMsId ? msMap[openMsId] : null
+
+  // active phase name (strip for label)
+  const activePhase = fases.find(f => f.fase === faseAtual)
+  const activePhaseName = activePhase ? FASE_LABELS[faseAtual] : '—'
 
   return (
     <>
       <style>{PAGE_CSS}</style>
       <div style={{ background: '#f4f5f7', minHeight: '100vh', paddingBottom: 60 }}>
 
-        {/* Breadcrumb */}
+        {/* ── topbar / breadcrumb ─────────────────────────────────────────── */}
         <div style={{ background: '#fff', borderBottom: '1px solid rgba(15,34,58,0.07)', padding: '10px 32px' }}>
-          <span style={{ fontSize: 12, color: '#888780' }}>
-            <span onClick={() => navigate('/projetos')} style={{ cursor: 'pointer', color: '#59c2ed' }}>Projetos</span>
-            {' / '}
-            <span style={{ color: '#173557', fontWeight: 500 }}>{project.title}</span>
+          <span style={{ fontSize: 13, color: 'rgba(23,53,87,0.6)' }}>
+            <strong style={{ color: '#173557' }}>Projetos</strong>
+            <span style={{ margin: '0 6px', color: 'rgba(23,53,87,0.35)' }}>/</span>
+            <span
+              style={{ cursor: 'pointer', color: '#173557' }}
+            >
+              {project.title}
+            </span>
           </span>
         </div>
 
-        <div style={{ maxWidth: 1160, margin: '0 auto', padding: '24px 24px 0' }}>
+        <div style={{ padding: '22px 28px 60px' }}>
 
-          {/* ── HEADER ────────────────────────────────────────────────────── */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 24 }}>
-            <div>
-              <button
-                onClick={() => navigate('/projetos')}
-                style={{ fontSize: 13, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                ← Voltar
-              </button>
-              <h1 style={{ fontSize: 21, fontWeight: 700, color: '#173557', margin: 0, lineHeight: 1.3 }}>{project.title}</h1>
-              <p style={{ fontSize: 14, color: '#59c2ed', fontWeight: 500, margin: '4px 0 10px' }}>
-                {clientName}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#185FA5', background: 'rgba(24,95,165,0.10)', padding: '3px 10px', borderRadius: 20 }}>
-                  {FASE_LABELS[project.type] ?? project.type}
-                </span>
-                {onb && <SituacaoBadge situacao={onb.situacao_geral} />}
-                {onb?.csm && (
-                  <span style={{ fontSize: 11, color: '#888780', background: '#f4f5f7', padding: '3px 10px', borderRadius: 20 }}>
-                    CSM: {onb.csm.name}
+          {/* ── Page header ─────────────────────────────────────────────────── */}
+          <button className="onb-back-btn" onClick={() => navigate('/projetos')}>← Projetos</button>
+
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
+            <div style={{ minWidth: 0 }}>
+              <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, letterSpacing: '-0.2px', color: '#173557' }}>
+                {project.title}
+              </h1>
+              <div style={{ fontSize: 13, color: '#0a6a96', fontWeight: 500, marginTop: 4 }}>{clientName}</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                <span className="onb-tag sky">{FASE_LABELS[project.type] ?? project.type}</span>
+                {onb && (
+                  <span className={`onb-tag ${situacao.cls}`}>
+                    {situacao.dot && <span className="live-dot" />}
+                    {situacao.label}
                   </span>
                 )}
-                {project.start_date && (
-                  <span style={{ fontSize: 11, color: '#888780' }}>{fmt(project.start_date)} → {fmt(project.end_date)}</span>
+                {onb?.csm && (
+                  <span className="onb-tag gray">CSM: {onb.csm.name}</span>
                 )}
               </div>
             </div>
-            <div style={{ flexShrink: 0, paddingTop: 24 }}>
-              <button
-                onClick={() => setEditModalOpen(true)}
-                style={{
-                  fontSize: 13, fontWeight: 500, color: '#173557',
-                  background: '#fff', border: '1px solid rgba(15,34,58,0.15)',
-                  borderRadius: 8, padding: '7px 16px', cursor: 'pointer', fontFamily: 'inherit',
-                }}
-              >
-                ✏ Editar projeto
-              </button>
-            </div>
+            <button className="onb-btn-sec" onClick={() => setEditModalOpen(true)}>
+              Editar projeto
+            </button>
           </div>
 
-          {/* ── LINHA DO TEMPO ─────────────────────────────────────────────── */}
+          {/* ── Timeline card ───────────────────────────────────────────────── */}
           {onb && (
-            <div style={{ ...card$, marginBottom: 18, overflowX: 'auto' }}>
-              <p style={secTitle$}>Linha do Tempo</p>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, minWidth: 700, paddingBottom: 8 }}>
-
-                {/* Kickoff */}
-                <MilestoneNode
-                  ms={ms.kickoff ?? { id: null, type: 'kickoff', occurred_at: null, planned_date: null }}
-                  isActive={activeMs === 'kickoff'}
-                  openMs={openMs}
-                  onOpen={setOpenMs}
-                  onClose={() => setOpenMs(null)}
-                  onConfirm={confirmMilestone}
-                  saving={msSaving}
-                  clientId={clientId}
-                />
-
-                <Connector done={!!ms.kickoff?.occurred_at} active={activeMs === 'kickoff' && !!ms.kickoff?.occurred_at} />
-
-                {/* Fase 1 */}
-                {fases[0] && (
-                  <PhaseBox
-                    fase={fases[0]}
-                    faseAtual={faseAtual}
-                    onAdvance={() => phaseMut.mutate('advance')}
-                    onRevert={() => phaseMut.mutate('revert')}
-                    faseIndex={0}
-                    totalFases={3}
-                  />
-                )}
-
-                <Connector done={faseIdx(faseAtual) > 0} active={faseAtual === 'preparacao_plataforma'} />
-
-                {/* Projeto Técnico */}
-                <MilestoneNode
-                  ms={ms.projeto_tecnico_aprovado ?? { id: null, type: 'projeto_tecnico_aprovado', occurred_at: null, planned_date: null }}
-                  isActive={activeMs === 'projeto_tecnico_aprovado'}
-                  openMs={openMs}
-                  onOpen={setOpenMs}
-                  onClose={() => setOpenMs(null)}
-                  onConfirm={confirmMilestone}
-                  saving={msSaving}
-                  clientId={clientId}
-                />
-
-                <Connector done={!!ms.projeto_tecnico_aprovado?.occurred_at} active={activeMs === 'projeto_tecnico_aprovado'} />
-
-                {/* Fase 2 */}
-                {fases[1] && (
-                  <PhaseBox
-                    fase={fases[1]}
-                    faseAtual={faseAtual}
-                    onAdvance={() => phaseMut.mutate('advance')}
-                    onRevert={() => phaseMut.mutate('revert')}
-                    faseIndex={1}
-                    totalFases={3}
-                  />
-                )}
-
-                <Connector done={faseIdx(faseAtual) > 1} active={faseAtual === 'treinamento'} />
-
-                {/* Fase 3 */}
-                {fases[2] && (
-                  <PhaseBox
-                    fase={fases[2]}
-                    faseAtual={faseAtual}
-                    onAdvance={() => phaseMut.mutate('advance')}
-                    onRevert={() => phaseMut.mutate('revert')}
-                    faseIndex={2}
-                    totalFases={3}
-                  />
-                )}
-
-                <Connector done={faseIdx(faseAtual) > 2} active={faseAtual === 'encerrado'} />
-
-                {/* Go-Live */}
-                <MilestoneNode
-                  ms={ms.go_live ?? { id: null, type: 'go_live', occurred_at: null, planned_date: null }}
-                  isActive={activeMs === 'go_live'}
-                  openMs={openMs}
-                  onOpen={setOpenMs}
-                  onClose={() => setOpenMs(null)}
-                  onConfirm={confirmMilestone}
-                  saving={msSaving}
-                  clientId={clientId}
-                />
+            <div style={{ background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 14, padding: '20px 22px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  Linha do tempo <span style={{ color: 'rgba(23,53,87,0.55)', fontWeight: 500 }}>— fases e milestones</span>
+                </div>
+                <span className="onb-tag gray">{doneSteps} de {totalSteps} etapas concluídas</span>
               </div>
 
-              {/* Reopen confirm overlay */}
-              {openMs?.startsWith('reopen_') && (() => {
-                const msType = openMs.replace('reopen_', '')
-                const msObj  = ms[msType]
-                return msObj ? (
-                  <div className="onb-panel" style={{ marginTop: 12, border: '1px solid rgba(226,75,74,0.25)', borderRadius: 8, padding: '12px 16px', background: 'rgba(226,75,74,0.03)', display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <p style={{ fontSize: 13, color: '#173557', margin: 0 }}>
-                      Desfazer conclusão de <strong>{FASE_LABELS[msType]}</strong>?
-                    </p>
-                    <button
-                      onClick={() => msReopenMut.mutate(msObj.id)}
-                      disabled={msReopenMut.isPending}
-                      style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: '#E24B4A', color: '#fff', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                    >
-                      {msReopenMut.isPending ? 'Aguarde…' : 'Confirmar'}
-                    </button>
-                    <button className="onb-icon-btn" onClick={() => setOpenMs(null)} style={{ border: '1px solid #d4d3ce', borderRadius: 6, padding: '5px 12px', fontSize: 12 }}>
-                      Cancelar
-                    </button>
-                  </div>
-                ) : null
-              })()}
+              <div className="onb-timeline-wrap">
+                <div className="onb-timeline">
+
+                  {/* Kickoff */}
+                  {msMap.kickoff && (
+                    <MilestoneEl ms={msMap.kickoff} activeMsType={activeMsType} openMsId={openMsId}
+                      onToggle={t => setOpenMsId(prev => prev === t ? null : t)} />
+                  )}
+
+                  <Connector leftDone={!!msMap.kickoff?.occurred_at} rightActive={faseAtual === 'definicao_escopo'} />
+
+                  {/* Fase 1 */}
+                  {fases[0] && (
+                    <PhaseEl fase={fases[0]} faseAtual={faseAtual} isLastPhase={false}
+                      onAdvance={() => phaseMut.mutate('advance')}
+                      onRevert={() => phaseMut.mutate('revert')} />
+                  )}
+
+                  <Connector leftDone={faseIdx(faseAtual) > 0} rightActive={faseAtual === 'preparacao_plataforma'} />
+
+                  {/* Projeto Técnico */}
+                  {msMap.projeto_tecnico_aprovado && (
+                    <MilestoneEl ms={msMap.projeto_tecnico_aprovado} activeMsType={activeMsType} openMsId={openMsId}
+                      onToggle={t => setOpenMsId(prev => prev === t ? null : t)} />
+                  )}
+
+                  <Connector leftDone={!!msMap.projeto_tecnico_aprovado?.occurred_at} rightActive={faseAtual === 'preparacao_plataforma'} />
+
+                  {/* Fase 2 */}
+                  {fases[1] && (
+                    <PhaseEl fase={fases[1]} faseAtual={faseAtual} isLastPhase={false}
+                      onAdvance={() => phaseMut.mutate('advance')}
+                      onRevert={() => phaseMut.mutate('revert')} />
+                  )}
+
+                  <Connector leftDone={faseIdx(faseAtual) > 1} rightActive={faseAtual === 'treinamento'} />
+
+                  {/* Fase 3 */}
+                  {fases[2] && (
+                    <PhaseEl fase={fases[2]} faseAtual={faseAtual} isLastPhase={true}
+                      onAdvance={() => phaseMut.mutate('advance')}
+                      onRevert={() => phaseMut.mutate('revert')} />
+                  )}
+
+                  <Connector leftDone={faseIdx(faseAtual) > 2} rightActive={faseAtual === 'encerrado'} />
+
+                  {/* Go-Live */}
+                  {msMap.go_live && (
+                    <MilestoneEl ms={msMap.go_live} activeMsType={activeMsType} openMsId={openMsId}
+                      onToggle={t => setOpenMsId(prev => prev === t ? null : t)} />
+                  )}
+                </div>
+              </div>
+
+              {/* Milestone panel — inline below timeline */}
+              {openMs && (
+                <MilestonePanel
+                  ms={openMs}
+                  onClose={() => setOpenMsId(null)}
+                  onConfirm={handleConfirmMs}
+                  onReopen={() => handleReopenMs(openMs)}
+                  saving={msSaving}
+                />
+              )}
             </div>
           )}
 
-          {/* ── CAPACIDADES ────────────────────────────────────────────────── */}
+          {/* ── Activities card ─────────────────────────────────────────────── */}
+          <div style={{ background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 14, padding: '20px 22px', marginBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 10 }}>
+                Atividades <span style={{ color: 'rgba(23,53,87,0.55)', fontWeight: 500 }}>— {activePhaseName}</span>
+              </div>
+              <button
+                className="onb-btn-primary sm"
+                onClick={() => document.getElementById('onb-cat-input')?.focus()}
+              >
+                + Adicionar Atividade
+              </button>
+            </div>
+
+            {onb && (
+              <CatalogSearch
+                actTypes={actTypes}
+                activities={activities}
+                onboardingId={onboardingId}
+                faseAtual={faseAtual}
+                qc={qc}
+                logAction={logAction}
+                user={user}
+              />
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {actsLoading ? (
+                <p style={{ fontSize: 13, color: 'rgba(23,53,87,0.5)', padding: '16px 0' }}>Carregando atividades…</p>
+              ) : activities.length === 0 ? (
+                <div className="onb-pend-empty">Nenhuma atividade nesta fase. Adicione uma do catálogo acima.</div>
+              ) : (
+                activities.map(act => (
+                  <ActivityItem
+                    key={act.id}
+                    act={act}
+                    expanded={expandedActs.has(act.id)}
+                    showPendForm={showPendForms.has(act.id)}
+                    contacts={contacts}
+                    profiles={profiles}
+                    onboardingId={onboardingId}
+                    qc={qc}
+                    logAction={logAction}
+                    onToggleExpand={toggleExpand}
+                    onTogglePendForm={togglePendForm}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── Capabilities card ───────────────────────────────────────────── */}
           {caps.length > 0 && (
-            <div style={{ ...card$, marginBottom: 18 }}>
-              <p style={secTitle$}>Capacidades Contratadas</p>
+            <div style={{ background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 14, padding: '20px 22px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
+                <div style={{ fontSize: 14, fontWeight: 600 }}>Capacidades contratadas</div>
+              </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {caps.map((cap, i) => {
                   const item = cap.catalog_item
                   if (!item) return null
-                  const c = CAP_COLORS[i % CAP_COLORS.length]
+                  const palette = CAP_PALETTE[i % CAP_PALETTE.length]
                   return (
-                    <span key={cap.id} style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, color: c.color, background: c.bg, border: `1px solid ${c.color}28` }}>
-                      {item.name}
-                    </span>
+                    <span key={cap.id} className="onb-cap-chip" style={palette.style}>{item.name}</span>
                   )
                 })}
               </div>
             </div>
           )}
 
-          {/* ── ATIVIDADES ─────────────────────────────────────────────────── */}
-          <div style={{ ...card$, marginBottom: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-              <p style={{ ...secTitle$, margin: 0 }}>
-                Atividades
-                {activities.length > 0 && <span style={{ fontWeight: 400, color: '#888780', marginLeft: 6 }}>({activities.length})</span>}
-              </p>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                {/* Phase filter tabs */}
-                {['todas', 'definicao_escopo', 'preparacao_plataforma', 'treinamento'].map(tab => (
-                  <button
-                    key={tab}
-                    className={'onb-tab' + (actTab === tab ? ' active' : '')}
-                    onClick={() => setActTab(tab)}
-                  >
-                    {tab === 'todas' ? 'Todas' : FASE_LABELS[tab]}
-                  </button>
-                ))}
-                <button
-                  onClick={() => setShowNewAct(v => !v)}
-                  style={{
-                    fontSize: 12, fontWeight: 600, color: '#173557',
-                    background: 'rgba(23,53,87,0.07)', border: '1px solid rgba(23,53,87,0.15)',
-                    borderRadius: 7, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  {showNewAct ? '✕ Cancelar' : '+ Atividade'}
-                </button>
-              </div>
-            </div>
-
-            {/* New activity form */}
-            {showNewAct && (
-              <div className="onb-panel" style={{ border: '1px solid rgba(89,194,237,0.3)', borderRadius: 10, padding: '14px 16px', marginBottom: 16, background: 'rgba(89,194,237,0.03)' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                  <div>
-                    <label style={label$}>Tipo de atividade *</label>
-                    <select
-                      style={input$}
-                      value={newAct.activity_type_id}
-                      onChange={e => {
-                        const t = actTypes.find(t => t.id === Number(e.target.value))
-                        setNewAct(p => ({ ...p, activity_type_id: e.target.value, title: t?.name ?? '' }))
-                      }}
-                    >
-                      <option value="">Selecione...</option>
-                      {actTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={label$}>Título (customizável)</label>
-                    <input style={input$} placeholder="Título da atividade" value={newAct.title} onChange={e => setNewAct(p => ({ ...p, title: e.target.value }))} />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px 1fr', gap: 12, marginBottom: 12 }}>
-                  <div>
-                    <label style={label$}>Fase</label>
-                    <select style={input$} value={newAct.fase || faseAtual} onChange={e => setNewAct(p => ({ ...p, fase: e.target.value }))}>
-                      {['definicao_escopo', 'preparacao_plataforma', 'treinamento'].map(f => (
-                        <option key={f} value={f}>{FASE_LABELS[f]}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={label$}>Tipo resp.</label>
-                    <select style={input$} value={newAct.resp_tipo} onChange={e => setNewAct(p => ({ ...p, resp_tipo: e.target.value, resp_interno_id: '', resp_contato_id: '' }))}>
-                      <option value="interno">Interno</option>
-                      <option value="contato">Cliente</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={label$}>Responsável</label>
-                    {newAct.resp_tipo === 'interno' ? (
-                      <select style={input$} value={newAct.resp_interno_id} onChange={e => setNewAct(p => ({ ...p, resp_interno_id: e.target.value }))}>
-                        <option value="">—</option>
-                        {profiles.filter(p => p.status === 'active').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    ) : (
-                      <select style={input$} value={newAct.resp_contato_id} onChange={e => setNewAct(p => ({ ...p, resp_contato_id: e.target.value }))}>
-                        <option value="">—</option>
-                        {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    )}
-                  </div>
-                  <div>
-                    <label style={label$}>Data limite</label>
-                    <input type="date" style={input$} value={newAct.due_date} onChange={e => setNewAct(p => ({ ...p, due_date: e.target.value }))} />
-                  </div>
-                </div>
-                <button
-                  onClick={() => createActMut.mutate()}
-                  disabled={!newAct.activity_type_id || createActMut.isPending}
-                  style={{
-                    padding: '7px 20px', borderRadius: 7, border: 'none',
-                    background: newAct.activity_type_id ? '#173557' : '#d4d3ce',
-                    color: '#fff', fontSize: 13, fontWeight: 600,
-                    cursor: newAct.activity_type_id ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-                  }}
-                >
-                  {createActMut.isPending ? 'Salvando…' : 'Adicionar atividade'}
-                </button>
-              </div>
-            )}
-
-            {/* Activities list */}
-            {actsLoading ? (
-              <p style={{ fontSize: 13, color: '#888780', padding: '16px 0' }}>Carregando atividades...</p>
-            ) : filteredActs.length === 0 ? (
-              <p style={{ fontSize: 13, color: '#aaa9a3', textAlign: 'center', padding: '24px 0' }}>
-                {activities.length === 0 ? 'Nenhuma atividade cadastrada.' : 'Nenhuma atividade nesta fase.'}
-              </p>
-            ) : (
-              <>
-                {/* Column headers */}
-                <div style={{ display: 'grid', gridTemplateColumns: '22px 1fr 130px 150px 110px auto', gap: 10, padding: '4px 14px', marginBottom: 4 }}>
-                  {['', 'Atividade', 'Fase', 'Responsável', 'Prazo', ''].map((h, i) => (
-                    <span key={i} style={{ ...label$, margin: 0 }}>{h}</span>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {filteredActs.map(act => (
-                    <ActivityRow
-                      key={act.id}
-                      act={act}
-                      onboardingId={onboardingId}
-                      clientId={clientId}
-                      contacts={contacts}
-                      profiles={profiles}
-                      qc={qc}
-                      logAction={logAction}
-                      user={user}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-
         </div>
       </div>
 
-      {/* Project edit modal */}
       {editModalOpen && (
-        <ProjectModal
-          isOpen={editModalOpen}
-          onClose={() => setEditModalOpen(false)}
-          clientId={clientId}
-          project={project}
-        />
+        <ProjectModal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} clientId={clientId} project={project} />
       )}
     </>
   )
