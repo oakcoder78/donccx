@@ -164,8 +164,12 @@ const PAGE_CSS = `
 `
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const FASE_ORDER = ['definicao_escopo', 'preparacao_plataforma', 'treinamento', 'encerrado']
-const MS_ORDER   = ['kickoff', 'projeto_tecnico_aprovado', 'go_live']
+const PEND_STATUS = [
+  { v: 'criada', label: 'Criada' },
+  { v: 'em_andamento', label: 'Em Andamento' },
+  { v: 'aguardando_validacao', label: 'Ag. Validação' },
+  { v: 'encerrada', label: 'Encerrada' },
+]
 
 // milestone icon SVGs (faithfully from the HTML prototype)
 const MS_ICON_KICKOFF = (
@@ -203,13 +207,8 @@ function fmt(d) {
   if (!d) return '—'
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
-function faseIdx(fase) { return FASE_ORDER.indexOf(fase ?? 'definicao_escopo') }
-function getActiveMs(milestones) {
-  for (const key of MS_ORDER) {
-    const ms = milestones?.find(m => m.type === key)
-    if (ms && !ms.occurred_at) return key
-  }
-  return null
+function phaseName(fase) {
+  return fase?.onboarding_fase_types?.name || `Fase ${fase?.display_order ?? '—'}`
 }
 function initials(name = '') {
   return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?'
@@ -284,9 +283,8 @@ function useActivityTypes() {
 }
 
 // ── MilestoneEl ───────────────────────────────────────────────────────────────
-function MilestoneEl({ ms, activeMsType, openMsId, onToggle }) {
-  const isDone    = !!ms.occurred_at
-  const isActive  = !isDone && activeMsType === ms.type
+function MilestoneEl({ fase, isActive, onToggle }) {
+  const isDone = fase.status === 'concluida' || !!fase.occurred_at
   const stateClass = isDone ? 'done' : isActive ? 'active' : 'future'
 
   const statusLabel = isDone
@@ -294,11 +292,11 @@ function MilestoneEl({ ms, activeMsType, openMsId, onToggle }) {
     : isActive ? 'Pendente' : 'Pendente'
 
   return (
-    <div className={`onb-ms ${stateClass}`} onClick={() => onToggle(ms.type)}>
-      <div className="onb-ms-circle">{MS_ICONS[ms.type]}</div>
-      <div className="onb-ms-label">{FASE_LABELS[ms.type]}</div>
+    <div className={`onb-ms ${stateClass}`} onClick={() => onToggle(fase.id)}>
+      <div className="onb-ms-circle">{MS_ICONS.go_live}</div>
+      <div className="onb-ms-label">{phaseName(fase)}</div>
       <div className="onb-ms-date">
-        {isDone ? fmt(ms.occurred_at) : (ms.planned_date ? 'Prev. ' + fmt(ms.planned_date) : '—')}
+        {isDone ? fmt(fase.occurred_at) : (fase.planned_start ? 'Prev. ' + fmt(fase.planned_start) : '—')}
       </div>
       <div className="onb-ms-status">{statusLabel}</div>
     </div>
@@ -312,11 +310,7 @@ function Connector({ leftDone, rightActive }) {
 }
 
 // ── PhaseEl ───────────────────────────────────────────────────────────────────
-function PhaseEl({ fase, faseAtual, onAdvance, onRevert, isLastPhase }) {
-  const thisIdx  = faseIdx(fase.fase)
-  const curIdx   = faseIdx(faseAtual)
-  const isDone   = curIdx > thisIdx
-  const isActive = curIdx === thisIdx
+function PhaseEl({ fase, isActive, isDone, onAdvance, onRevert, isLastPhase }) {
   const stateClass = isDone ? 'done' : isActive ? 'active' : 'future'
 
   const start = fase.actual_start ?? fase.planned_start
@@ -326,7 +320,7 @@ function PhaseEl({ fase, faseAtual, onAdvance, onRevert, isLastPhase }) {
   return (
     <div className={`onb-phase ${stateClass}`}>
       <div className="onb-phase-head">
-        <div className="onb-phase-name">{FASE_LABELS[fase.fase]}</div>
+        <div className="onb-phase-name">{phaseName(fase)}</div>
         {isActive && <span className="onb-tag sky" style={{ fontSize: 10, padding: '2px 7px' }}>Ativa</span>}
         {isDone   && <span className="onb-tag green" style={{ fontSize: 10, padding: '2px 7px' }}>Concluída</span>}
         {!isDone && !isActive && <span className="onb-tag gray" style={{ fontSize: 10, padding: '2px 7px' }}>Pendente</span>}
@@ -335,7 +329,7 @@ function PhaseEl({ fase, faseAtual, onAdvance, onRevert, isLastPhase }) {
       <div className="onb-phase-bottom">
         <button
           className="onb-phase-mini"
-          disabled={!isActive || thisIdx === 0}
+          disabled={!isActive || fase.display_order === 1}
           onClick={e => { e.stopPropagation(); onRevert() }}
         >
           ← Voltar
@@ -369,7 +363,7 @@ function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving }) {
     <div className="onb-ms-panel">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ fontSize: 13, fontWeight: 600 }}>
-          {isDone ? 'Marco concluído' : 'Registrar conclusão'} — {FASE_LABELS[ms.type]}
+          {isDone ? 'Marco concluído' : 'Registrar conclusão'} — {phaseName(ms)}
         </div>
         <button className="onb-icon-btn" onClick={onClose} title="Fechar">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -439,7 +433,7 @@ function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving }) {
 }
 
 // ── PendingItem ───────────────────────────────────────────────────────────────
-function PendingItem({ pend }) {
+function PendingItem({ pend, onEdit, onDelete }) {
   const prioMap = {
     bloqueadora: { tag: 'red',   label: 'Bloqueadora', cls: 'blocker' },
     alta:        { tag: 'amber', label: 'Alta',        cls: 'high'    },
@@ -461,14 +455,20 @@ function PendingItem({ pend }) {
       <span className={`onb-tag ${prio.tag}`}>{prio.label}</span>
       <span className={`onb-tag ${status.tag}`}>{status.label}</span>
       <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.65)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{resp}</div>
-      <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)' }}>{fmt(pend.due_date)}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)' }}>{fmt(pend.due_date)}</span>
+        <span style={{ display: 'inline-flex', gap: 4 }}>
+          <button className="onb-icon-btn" title="Editar" onClick={onEdit}>✏</button>
+          <button className="onb-icon-btn danger" title="Remover" onClick={onDelete}>🗑</button>
+        </span>
+      </div>
     </div>
   )
 }
 
 // ── PendForm ─────────────────────────────────────────────────────────────────
-function PendForm({ actId, contacts, profiles, onSave, onCancel, saving }) {
-  const [draft, setDraft] = useState({ title: '', desc: '', priority: 'normal', due: '', respId: null, respKind: null, respName: null })
+function PendForm({ contacts, profiles, onSave, onCancel, saving, initialDraft = null, showStatus = false }) {
+  const [draft, setDraft] = useState(initialDraft ?? { title: '', desc: '', priority: 'normal', status: 'criada', due: '', respId: null, respKind: null, respName: null })
 
   function pickResp(id, kind, name) {
     setDraft(p => ({ ...p, respId: id, respKind: kind, respName: name }))
@@ -504,6 +504,14 @@ function PendForm({ actId, contacts, profiles, onSave, onCancel, saving }) {
           <label className="onb-lbl">Data limite</label>
           <input type="date" className="onb-input" value={draft.due} onChange={e => setDraft(p => ({ ...p, due: e.target.value }))} />
         </div>
+        {showStatus && (
+          <div>
+            <label className="onb-lbl">Status</label>
+            <select className="onb-select" value={draft.status} onChange={e => setDraft(p => ({ ...p, status: e.target.value }))}>
+              {PEND_STATUS.map(s => <option key={s.v} value={s.v}>{s.label}</option>)}
+            </select>
+          </div>
+        )}
         <div className="full">
           <label className="onb-lbl">Responsável</label>
           <div className="onb-resp-picker">
@@ -554,14 +562,31 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
     { v: 'concluida',    label: 'Concluída'    },
   ]
 
+  const [editActOpen, setEditActOpen] = useState(false)
+  const [editPendId, setEditPendId] = useState(null)
+  const [editActDraft, setEditActDraft] = useState({
+    title: act.title,
+    status: act.status,
+    due: act.due_date || '',
+    respId: act.responsible_contato_id || act.responsible_interno_id || null,
+    respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null,
+  })
+
   const updateActMut = useMutation({
-    mutationFn: async (status) => {
+    mutationFn: async (payload) => {
       const { error } = await supabase.from('onboarding_activities')
-        .update({ status, completed_at: status === 'concluida' ? new Date().toISOString() : null })
+        .update(payload)
         .eq('id', act.id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] }),
+    onSuccess: (_, payload) => {
+      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
+      logAction('updated', 'onboarding_activity', act.id, act.title, {
+        title: act.title,
+        status: act.status,
+        due_date: act.due_date,
+      }, payload)
+    },
     onError: e => toast.error(e.message),
   })
 
@@ -605,8 +630,59 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
     onError: e => toast.error(e.message),
   })
 
+  const updatePendMut = useMutation({
+    mutationFn: async ({ pendId, payload }) => {
+      const { error } = await supabase.from('onboarding_pendencias').update(payload).eq('id', pendId)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
+      const target = pendencias.find(p => p.id === vars.pendId)
+      logAction('updated', 'onboarding_pendencia', vars.pendId, target?.title ?? 'Pendência', target ?? null, vars.payload)
+      setEditPendId(null)
+      toast.success('Pendência atualizada')
+    },
+    onError: e => toast.error(e.message),
+  })
+
+  const deletePendMut = useMutation({
+    mutationFn: async (pend) => {
+      const { error } = await supabase.from('onboarding_pendencias').delete().eq('id', pend.id)
+      if (error) throw error
+      return pend
+    },
+    onSuccess: (pend) => {
+      qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
+      logAction('deleted', 'onboarding_pendencia', pend.id, pend.title, pend, null)
+      toast.success('Pendência removida')
+    },
+    onError: e => toast.error(e.message),
+  })
+
   const resp = act.resp_interno?.name ?? act.resp_contato?.name ?? null
   const pendencias = act.pendencias ?? []
+
+  function pickActResp(respId, respKind) {
+    setEditActDraft(p => ({ ...p, respId, respKind }))
+  }
+
+  function saveActivityEdit() {
+    const payload = {
+      title: editActDraft.title.trim(),
+      status: editActDraft.status,
+      due_date: editActDraft.due || null,
+      completed_at: editActDraft.status === 'concluida' ? new Date().toISOString() : null,
+      responsible_contato_id: editActDraft.respKind === 'contato' ? Number(editActDraft.respId) : null,
+      responsible_interno_id: editActDraft.respKind === 'interno' ? editActDraft.respId : null,
+    }
+    if (!payload.title) {
+      toast.error('Informe um título')
+      return
+    }
+    updateActMut.mutate(payload)
+    setEditActOpen(false)
+    toast.success('Atividade atualizada')
+  }
 
   return (
     <div className={`onb-act-item${expanded ? ' expanded' : ''}`}>
@@ -623,7 +699,13 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
           className="onb-act-status-sel"
           value={act.status}
           onClick={e => e.stopPropagation()}
-          onChange={e => { e.stopPropagation(); updateActMut.mutate(e.target.value) }}
+          onChange={e => {
+            e.stopPropagation()
+            updateActMut.mutate({
+              status: e.target.value,
+              completed_at: e.target.value === 'concluida' ? new Date().toISOString() : null,
+            })
+          }}
         >
           {ACT_STATUS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
         </select>
@@ -638,6 +720,22 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
         </div>
         <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
           <button
+            className="onb-icon-btn"
+            title="Editar"
+            onClick={() => {
+              setEditActDraft({
+                title: act.title,
+                status: act.status,
+                due: act.due_date || '',
+                respId: act.responsible_contato_id || act.responsible_interno_id || null,
+                respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null,
+              })
+              setEditActOpen(v => !v)
+            }}
+          >
+            ✏
+          </button>
+          <button
             className="onb-icon-btn danger"
             title="Remover"
             onClick={() => { if (window.confirm(`Remover atividade "${act.title}"?`)) deleteActMut.mutate() }}
@@ -651,6 +749,48 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 
       {expanded && (
         <div className="onb-act-body">
+          {editActOpen && (
+            <div className="onb-pend-form" style={{ marginBottom: 10 }}>
+              <div className="onb-pf-grid">
+                <div className="full">
+                  <label className="onb-lbl">Título</label>
+                  <input className="onb-input" value={editActDraft.title} onChange={e => setEditActDraft(p => ({ ...p, title: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="onb-lbl">Status</label>
+                  <select className="onb-select" value={editActDraft.status} onChange={e => setEditActDraft(p => ({ ...p, status: e.target.value }))}>
+                    {ACT_STATUS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="onb-lbl">Data limite</label>
+                  <input type="date" className="onb-input" value={editActDraft.due} onChange={e => setEditActDraft(p => ({ ...p, due: e.target.value }))} />
+                </div>
+                <div className="full">
+                  <label className="onb-lbl">Responsável</label>
+                  <div className="onb-resp-picker">
+                    {contacts.length > 0 && <div className="onb-resp-sec">Contatos do cliente</div>}
+                    {contacts.map(c => (
+                      <div key={c.id} className={`onb-resp-opt${editActDraft.respId === c.id && editActDraft.respKind === 'contato' ? ' selected' : ''}`} onClick={() => pickActResp(c.id, 'contato')}>
+                        <span className="onb-mini-avatar client">{initials(c.name)}</span><span>{c.name}</span>
+                      </div>
+                    ))}
+                    <div className="onb-resp-sec">Equipe interna</div>
+                    {profiles.filter(p => p.status === 'active').map(p => (
+                      <div key={p.id} className={`onb-resp-opt${editActDraft.respId === p.id && editActDraft.respKind === 'interno' ? ' selected' : ''}`} onClick={() => pickActResp(p.id, 'interno')}>
+                        <span className="onb-mini-avatar team">{initials(p.name)}</span><span>{p.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="onb-pf-actions">
+                <button className="onb-btn-sec sm" onClick={() => setEditActOpen(false)}>Cancelar</button>
+                <button className="onb-btn-primary sm" onClick={saveActivityEdit} disabled={updateActMut.isPending}>Salvar</button>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Pendências ({pendencias.length})
@@ -662,7 +802,48 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 
           {pendencias.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: showPendForm ? 0 : 0 }}>
-              {pendencias.map(p => <PendingItem key={p.id} pend={p} />)}
+              {pendencias.map(p => (
+                <div key={p.id}>
+                  <PendingItem
+                    pend={p}
+                    onEdit={() => setEditPendId(prev => prev === p.id ? null : p.id)}
+                    onDelete={() => {
+                      if (window.confirm(`Remover pendência "${p.title}"?`)) deletePendMut.mutate(p)
+                    }}
+                  />
+                  {editPendId === p.id && (
+                    <PendForm
+                      contacts={contacts}
+                      profiles={profiles}
+                      initialDraft={{
+                        title: p.title || '',
+                        desc: p.description || '',
+                        priority: p.prioridade || 'normal',
+                        status: p.status || 'criada',
+                        due: p.due_date || '',
+                        respId: p.responsavel_contato_id || p.responsavel_interno_id || null,
+                        respKind: p.responsavel_contato_id ? 'contato' : p.responsavel_interno_id ? 'interno' : null,
+                      }}
+                      showStatus
+                      onSave={(draft) => updatePendMut.mutate({
+                        pendId: p.id,
+                        payload: {
+                          title: draft.title.trim(),
+                          description: draft.desc || null,
+                          prioridade: draft.priority,
+                          status: draft.status,
+                          due_date: draft.due || null,
+                          responsavel_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null,
+                          responsavel_interno_id: draft.respKind === 'interno' ? draft.respId : null,
+                          responsavel_grupo: (!draft.respId) ? 'A definir' : null,
+                        },
+                      })}
+                      onCancel={() => setEditPendId(null)}
+                      saving={updatePendMut.isPending}
+                    />
+                  )}
+                </div>
+              ))}
             </div>
           ) : (
             !showPendForm && <div className="onb-pend-empty">Nenhuma pendência registrada nesta atividade.</div>
@@ -670,7 +851,6 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 
           {showPendForm && (
             <PendForm
-              actId={act.id}
               contacts={contacts}
               profiles={profiles}
               onSave={draft => createPendMut.mutate(draft)}
@@ -685,9 +865,10 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 }
 
 // ── CatalogSearch ─────────────────────────────────────────────────────────────
-function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, logAction, user }) {
+function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, contacts, profiles, qc, logAction, user }) {
   const [search,    setSearch]    = useState('')
   const [showDd,    setShowDd]    = useState(false)
+  const [draft, setDraft] = useState({ due: '', respId: null, respKind: null })
   const inputRef = useRef()
   const ddRef    = useRef()
 
@@ -696,6 +877,11 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
     (!search || t.name.toLowerCase().includes(search.toLowerCase())) &&
     !usedNames.has(t.name.toLowerCase())
   )
+  const exactMatch = actTypes.some(t => t.name.toLowerCase() === search.trim().toLowerCase())
+
+  function pickResp(respId, respKind) {
+    setDraft(p => ({ ...p, respId, respKind }))
+  }
 
   useEffect(() => {
     function handler(e) {
@@ -708,13 +894,27 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
   }, [])
 
   const addActMut = useMutation({
-    mutationFn: async (type) => {
+    mutationFn: async (option) => {
+      let type = option
+      if (option?.__new) {
+        const { data: createdType, error: typeErr } = await supabase
+          .from('onboarding_activity_types')
+          .insert({ name: option.name.trim(), active: true })
+          .select('id, name')
+          .single()
+        if (typeErr) throw typeErr
+        type = createdType
+      }
+
       const payload = {
         onboarding_id: onboardingId,
         activity_type_id: type.id,
         title: type.name,
         fase_id: faseAtualId ?? null,
         status: 'pendente',
+        due_date: draft.due || null,
+        responsible_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null,
+        responsible_interno_id: draft.respKind === 'interno' ? draft.respId : null,
         created_by: user?.id ?? null,
         display_order: activities.length,
       }
@@ -727,6 +927,7 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
       logAction('create_activity', 'onboarding_activity', data.id, data.title, null, { onboarding_id: onboardingId })
       toast.success(`Atividade adicionada: ${data.title}`)
       setSearch('')
+      setDraft({ due: '', respId: null, respKind: null })
       setShowDd(false)
     },
     onError: e => toast.error(e.message),
@@ -740,6 +941,7 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
         </svg>
       </span>
       <input
+        id="onb-cat-input"
         ref={inputRef}
         className="onb-cat-input"
         placeholder="Buscar no catálogo de atividades…"
@@ -750,20 +952,47 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
       />
       {showDd && (
         <div className="onb-cat-dd" ref={ddRef}>
-          {filtered.length === 0 ? (
-            <div className="onb-cat-empty">
-              {search ? 'Nenhuma atividade encontrada no catálogo' : 'Todas as atividades do catálogo já foram adicionadas'}
+          {filtered.map(t => (
+            <div key={t.id} className="onb-cat-item" onClick={() => addActMut.mutate(t)}>
+              <span>{t.name}</span>
+              <span style={{ fontSize: 10, color: 'rgba(23,53,87,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogo</span>
             </div>
-          ) : (
-            filtered.map(t => (
-              <div key={t.id} className="onb-cat-item" onClick={() => addActMut.mutate(t)}>
-                <span>{t.name}</span>
-                <span style={{ fontSize: 10, color: 'rgba(23,53,87,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogo</span>
-              </div>
-            ))
+          ))}
+          {search.trim() && !exactMatch && (
+            <div className="onb-cat-item" onClick={() => addActMut.mutate({ __new: true, name: search.trim() })}>
+              <span>Criar atividade: <strong>{search.trim()}</strong></span>
+              <span style={{ fontSize: 10, color: '#0a6a96', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Novo</span>
+            </div>
+          )}
+          {filtered.length === 0 && (!search.trim() || exactMatch) && (
+            <div className="onb-cat-empty">Todas as atividades do catálogo já foram adicionadas</div>
           )}
         </div>
       )}
+
+      <div className="onb-pf-grid" style={{ marginTop: 8 }}>
+        <div>
+          <label className="onb-lbl">Data limite</label>
+          <input type="date" className="onb-input" value={draft.due} onChange={e => setDraft(p => ({ ...p, due: e.target.value }))} />
+        </div>
+        <div>
+          <label className="onb-lbl">Responsável</label>
+          <div className="onb-resp-picker">
+            {contacts.length > 0 && <div className="onb-resp-sec">Contatos do cliente</div>}
+            {contacts.map(c => (
+              <div key={c.id} className={`onb-resp-opt${draft.respId === c.id && draft.respKind === 'contato' ? ' selected' : ''}`} onClick={() => pickResp(c.id, 'contato')}>
+                <span className="onb-mini-avatar client">{initials(c.name)}</span><span>{c.name}</span>
+              </div>
+            ))}
+            <div className="onb-resp-sec">Equipe interna</div>
+            {profiles.filter(p => p.status === 'active').map(p => (
+              <div key={p.id} className={`onb-resp-opt${draft.respId === p.id && draft.respKind === 'interno' ? ' selected' : ''}`} onClick={() => pickResp(p.id, 'interno')}>
+                <span className="onb-mini-avatar team">{initials(p.name)}</span><span>{p.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -814,10 +1043,14 @@ export default function OnboardingDetailPage() {
 
   // UI state
   const [editModalOpen, setEditModalOpen] = useState(false)
-  const [openMsId,      setOpenMsId]      = useState(null)   // milestone type or null
+  const [openMsId,      setOpenMsId]      = useState(null)   // phase id or null
   const [msSaving,      setMsSaving]      = useState(false)
   const [expandedActs,  setExpandedActs]  = useState(new Set())
   const [showPendForms, setShowPendForms] = useState(new Set())
+
+  const orderedFases = (onboarding?.onboarding_fases ?? []).slice().sort((a, b) => a.display_order - b.display_order)
+  const faseAtualId = onboarding?.fase_atual_id ?? onboarding?.fase_atual?.id ?? orderedFases[0]?.id ?? null
+  const currentPhaseIndex = Math.max(0, orderedFases.findIndex(f => f.id === faseAtualId))
 
   function toggleExpand(actId) {
     setExpandedActs(prev => {
@@ -836,21 +1069,55 @@ export default function OnboardingDetailPage() {
   // ── Phase mutations ────────────────────────────────────────────────────────
   const phaseMut = useMutation({
     mutationFn: async (direction) => {
-      const onb    = onboarding
-      if (!onb) throw new Error('Onboarding não carregado')
-      const curIdx = faseIdx(onb.fase_atual)
-      const newIdx = direction === 'advance' ? curIdx + 1 : curIdx - 1
-      const newFase = FASE_ORDER[Math.max(0, Math.min(newIdx, FASE_ORDER.length - 1))]
-      const { error } = await supabase.from('onboardings').update({ fase_atual: newFase }).eq('id', onb.id)
-      if (error) throw error
-      return { oldFase: onb.fase_atual, newFase }
+      const onb = onboarding
+      if (!onb || !orderedFases.length) throw new Error('Onboarding não carregado')
+
+      const curIdx = currentPhaseIndex
+      const targetIdx = direction === 'advance' ? curIdx + 1 : curIdx - 1
+      if (targetIdx < 0 || targetIdx >= orderedFases.length) return null
+
+      const current = orderedFases[curIdx]
+      const target = orderedFases[targetIdx]
+      const today = new Date().toISOString().slice(0, 10)
+
+      if (direction === 'advance' && current) {
+        const { error: closeErr } = await supabase
+          .from('onboarding_fases')
+          .update({ status: 'concluida', actual_end: current.actual_end || today })
+          .eq('id', current.id)
+        if (closeErr) throw closeErr
+      }
+
+      if (direction === 'revert' && current) {
+        const { error: resetErr } = await supabase
+          .from('onboarding_fases')
+          .update({ status: 'pendente', actual_end: null })
+          .eq('id', current.id)
+        if (resetErr) throw resetErr
+      }
+
+      const { error: activeErr } = await supabase
+        .from('onboarding_fases')
+        .update({ status: 'ativa', actual_start: target.actual_start || today })
+        .eq('id', target.id)
+      if (activeErr) throw activeErr
+
+      const { error: onbErr } = await supabase
+        .from('onboardings')
+        .update({ fase_atual_id: target.id })
+        .eq('id', onb.id)
+      if (onbErr) throw onbErr
+
+      return { oldFase: phaseName(current), newFase: phaseName(target) }
     },
-    onSuccess: ({ oldFase, newFase }) => {
+    onSuccess: (res) => {
+      if (!res) return
+      const { oldFase, newFase } = res
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
-      logAction('change_fase', 'onboarding', onboardingId, project.title, { fase: oldFase }, { fase: newFase })
-      toast.success(`Fase: ${FASE_LABELS[newFase]}`)
+      logAction('updated', 'onboarding', onboardingId, project.title, { fase: oldFase }, { fase: newFase })
+      toast.success(`Fase: ${newFase}`)
     },
     onError: e => toast.error(e.message),
   })
@@ -861,24 +1128,40 @@ export default function OnboardingDetailPage() {
     try {
       if (file) {
         const ext  = file.name.split('.').pop()
-        const path = `${clientId}/onboarding/${ms.type}/${Date.now()}.${ext}`
+        const path = `${clientId}/onboarding/fase-${ms.id}/${Date.now()}.${ext}`
         const { error: upErr } = await supabase.storage.from('activity-attachments').upload(path, file)
         if (upErr) throw upErr
         const { error: evErr } = await supabase.from('onboarding_evidencias').insert({
-          milestone_id: ms.id, uploaded_by: user.id, client_id: clientId,
+          fase_id: ms.id, uploaded_by: user.id, client_id: clientId,
           file_name: file.name, file_size: file.size, file_type: file.type, storage_path: path,
         })
         if (evErr) throw evErr
       }
-      const { error } = await supabase.from('onboarding_milestones')
-        .update({ occurred_at: occurredAt, justificativa: justificativa || null })
+      const { error } = await supabase.from('onboarding_fases')
+        .update({ status: 'concluida', occurred_at: occurredAt, justificativa: justificativa || null, actual_end: occurredAt })
         .eq('id', ms.id)
       if (error) throw error
+
+      const idx = orderedFases.findIndex(f => f.id === ms.id)
+      const next = idx >= 0 ? orderedFases[idx + 1] : null
+      if (next) {
+        const { error: nextErr } = await supabase
+          .from('onboarding_fases')
+          .update({ status: 'ativa', actual_start: next.actual_start || occurredAt })
+          .eq('id', next.id)
+        if (nextErr) throw nextErr
+        const { error: onbErr } = await supabase
+          .from('onboardings')
+          .update({ fase_atual_id: next.id })
+          .eq('id', onboardingId)
+        if (onbErr) throw onbErr
+      }
+
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
-      logAction('confirm_milestone', 'onboarding_milestone', ms.id, FASE_LABELS[ms.type], null, { occurred_at: occurredAt })
-      toast.success(`${FASE_LABELS[ms.type]} confirmado!`)
+      logAction('updated', 'onboarding_fase', ms.id, phaseName(ms), null, { occurred_at: occurredAt, status: 'concluida' })
+      toast.success(`${phaseName(ms)} concluído!`)
       setOpenMsId(null)
     } catch (e) { toast.error(e.message) }
     finally { setMsSaving(false) }
@@ -887,14 +1170,21 @@ export default function OnboardingDetailPage() {
   async function handleReopenMs(ms) {
     setMsSaving(true)
     try {
-      const { error } = await supabase.from('onboarding_milestones')
-        .update({ occurred_at: null, justificativa: null })
+      const { error } = await supabase.from('onboarding_fases')
+        .update({ status: 'ativa', occurred_at: null, justificativa: null, actual_end: null })
         .eq('id', ms.id)
       if (error) throw error
+
+      const { error: onbErr } = await supabase
+        .from('onboardings')
+        .update({ fase_atual_id: ms.id })
+        .eq('id', onboardingId)
+      if (onbErr) throw onbErr
+
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      logAction('reopen_milestone', 'onboarding_milestone', ms.id, FASE_LABELS[ms.type], { occurred_at: ms.occurred_at }, null)
-      toast.success(`Marco reaberto: ${FASE_LABELS[ms.type]}`)
+      logAction('updated', 'onboarding_fase', ms.id, phaseName(ms), { occurred_at: ms.occurred_at }, { occurred_at: null, status: 'ativa' })
+      toast.success(`Marco reaberto: ${phaseName(ms)}`)
       setOpenMsId(null)
     } catch (e) { toast.error(e.message) }
     finally { setMsSaving(false) }
@@ -927,16 +1217,13 @@ export default function OnboardingDetailPage() {
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const onb       = onboarding
-  const faseAtual = onb?.fase_atual ?? 'definicao_escopo'
-  const fases     = (onb?.onboarding_fases ?? []).sort((a, b) => faseIdx(a.fase) - faseIdx(b.fase))
-  const msMap     = (onb?.onboarding_milestones ?? []).reduce((acc, m) => { acc[m.type] = m; return acc }, {})
+  const fases     = orderedFases
   const caps      = onb?.onboarding_capabilities ?? []
-  const activeMsType = getActiveMs(onb?.onboarding_milestones ?? [])
-  const faseAtualId = onb?.fase_atual_id ?? onb?.fase_atual?.id ?? null
+  const activePhase = fases[currentPhaseIndex] ?? fases[0] ?? null
   const clientName   = project.client?.fantasy_name || project.client?.name || '—'
 
-  const totalSteps = 3 + 3 // 3 phases + 3 milestones
-  const doneSteps  = (onb?.onboarding_milestones ?? []).filter(m => m.occurred_at).length + Math.max(0, faseIdx(faseAtual))
+  const totalSteps = fases.length
+  const doneSteps  = fases.filter(f => f.status === 'concluida').length
 
   const situacaoMap = {
     fluindo: { cls: 'green', label: 'Fluindo', dot: true },
@@ -946,11 +1233,8 @@ export default function OnboardingDetailPage() {
   const situacao = situacaoMap[onb?.situacao_geral] ?? situacaoMap.fluindo
 
   // which milestone panel is open
-  const openMs = openMsId ? msMap[openMsId] : null
-
-  // active phase name (strip for label)
-  const activePhase = fases.find(f => f.fase === faseAtual)
-  const activePhaseName = activePhase ? FASE_LABELS[faseAtual] : '—'
+  const openMs = openMsId ? fases.find(f => f.id === openMsId) : null
+  const activePhaseName = activePhase ? phaseName(activePhase) : '—'
 
   return (
     <>
@@ -1011,55 +1295,34 @@ export default function OnboardingDetailPage() {
 
               <div className="onb-timeline-wrap">
                 <div className="onb-timeline">
+                  {fases.map((fase, idx) => {
+                    const isActive = fase.id === faseAtualId || (fase.status === 'ativa' && faseAtualId == null)
+                    const isDone = fase.status === 'concluida'
+                    const isLast = idx === fases.length - 1
+                    const next = fases[idx + 1]
 
-                  {/* Kickoff */}
-                  {msMap.kickoff && (
-                    <MilestoneEl ms={msMap.kickoff} activeMsType={activeMsType} openMsId={openMsId}
-                      onToggle={t => setOpenMsId(prev => prev === t ? null : t)} />
-                  )}
-
-                  <Connector leftDone={!!msMap.kickoff?.occurred_at} rightActive={faseAtual === 'definicao_escopo'} />
-
-                  {/* Fase 1 */}
-                  {fases[0] && (
-                    <PhaseEl fase={fases[0]} faseAtual={faseAtual} isLastPhase={false}
-                      onAdvance={() => phaseMut.mutate('advance')}
-                      onRevert={() => phaseMut.mutate('revert')} />
-                  )}
-
-                  <Connector leftDone={faseIdx(faseAtual) > 0} rightActive={faseAtual === 'preparacao_plataforma'} />
-
-                  {/* Projeto Técnico */}
-                  {msMap.projeto_tecnico_aprovado && (
-                    <MilestoneEl ms={msMap.projeto_tecnico_aprovado} activeMsType={activeMsType} openMsId={openMsId}
-                      onToggle={t => setOpenMsId(prev => prev === t ? null : t)} />
-                  )}
-
-                  <Connector leftDone={!!msMap.projeto_tecnico_aprovado?.occurred_at} rightActive={faseAtual === 'preparacao_plataforma'} />
-
-                  {/* Fase 2 */}
-                  {fases[1] && (
-                    <PhaseEl fase={fases[1]} faseAtual={faseAtual} isLastPhase={false}
-                      onAdvance={() => phaseMut.mutate('advance')}
-                      onRevert={() => phaseMut.mutate('revert')} />
-                  )}
-
-                  <Connector leftDone={faseIdx(faseAtual) > 1} rightActive={faseAtual === 'treinamento'} />
-
-                  {/* Fase 3 */}
-                  {fases[2] && (
-                    <PhaseEl fase={fases[2]} faseAtual={faseAtual} isLastPhase={true}
-                      onAdvance={() => phaseMut.mutate('advance')}
-                      onRevert={() => phaseMut.mutate('revert')} />
-                  )}
-
-                  <Connector leftDone={faseIdx(faseAtual) > 2} rightActive={faseAtual === 'encerrado'} />
-
-                  {/* Go-Live */}
-                  {msMap.go_live && (
-                    <MilestoneEl ms={msMap.go_live} activeMsType={activeMsType} openMsId={openMsId}
-                      onToggle={t => setOpenMsId(prev => prev === t ? null : t)} />
-                  )}
+                    return (
+                      <div key={fase.id} style={{ display: 'contents' }}>
+                        {fase.onboarding_fase_types?.is_milestone ? (
+                          <MilestoneEl
+                            fase={fase}
+                            isActive={isActive}
+                            onToggle={(phaseId) => setOpenMsId(prev => prev === phaseId ? null : phaseId)}
+                          />
+                        ) : (
+                          <PhaseEl
+                            fase={fase}
+                            isActive={isActive}
+                            isDone={isDone}
+                            isLastPhase={isLast}
+                            onAdvance={() => phaseMut.mutate('advance')}
+                            onRevert={() => phaseMut.mutate('revert')}
+                          />
+                        )}
+                        {next ? <Connector leftDone={isDone} rightActive={next.id === faseAtualId} /> : null}
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
@@ -1096,6 +1359,8 @@ export default function OnboardingDetailPage() {
                 activities={activities}
                 onboardingId={onboardingId}
                 faseAtualId={faseAtualId}
+                contacts={contacts}
+                profiles={profiles}
                 qc={qc}
                 logAction={logAction}
                 user={user}
