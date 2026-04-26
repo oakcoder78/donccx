@@ -64,6 +64,7 @@ export function useOnboarding(onboardingId) {
         `)
         .eq('id', onboardingId)
         .single()
+      console.log('[useOnboarding] result', { data, error })
       if (error) { console.error('[useOnboarding]', error); return null }
       return data
     },
