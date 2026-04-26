@@ -8,7 +8,7 @@ import { useAuditLog } from '../hooks/useAuditLog'
 import { useContacts } from '../hooks/useContacts'
 import { useProfiles } from '../hooks/useProfiles'
 import { FASE_LABELS } from '../lib/onboardingLabels'
-import ProjectModal from '../components/projects/ProjectModal'
+import { ProjectModal } from '../components/projects/ProjectModal'
 
 // ── CSS injetado ──────────────────────────────────────────────────────────────
 const PAGE_CSS = `
