@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAuditLog } from '../hooks/useAuditLog'
 import { useContacts } from '../hooks/useContacts'
 import { useProfiles } from '../hooks/useProfiles'
+import { useOnboarding } from '../hooks/useOnboardings'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { ProjectModal } from '../components/projects/ProjectModal'
 
@@ -220,25 +221,17 @@ function useProjectDetail(projectId) {
     queryKey: ['project_detail', projectId],
     enabled: !!projectId,
     queryFn: async () => {
+      console.log('[OnboardingDetailPage] route project id:', projectId)
       const { data, error } = await supabase
         .from('projects')
         .select(`
           *,
-          client:clients(id, name, fantasy_name),
-          onboarding:onboardings!onboarding_id(
-            *,
-            csm:profiles!csm_id(id, name),
-            fases:onboarding_fases(*),
-            milestones:onboarding_milestones(*),
-            capabilities:onboarding_capabilities(
-              id, catalog_item_id,
-              catalog_item:catalog_items(id, name, type)
-            )
-          )
+          client:clients(id, name, fantasy_name)
         `)
         .eq('id', projectId)
         .single()
       if (error) throw error
+      console.log('[OnboardingDetailPage] project fetched:', { id: data.id, onboarding_id: data.onboarding_id })
       return data
     },
     retry: 1,
@@ -784,13 +777,40 @@ export default function OnboardingDetailPage() {
   const { logAction } = useAuditLog()
 
   const { data: project, isLoading, error } = useProjectDetail(id)
-  const onboardingId = project?.onboarding?.id
+  const onboardingId = project?.onboarding_id
   const clientId     = project?.client?.id
+
+  const {
+    data: onboarding,
+    isLoading: onboardingLoading,
+    error: onboardingError,
+  } = useOnboarding(onboardingId)
 
   const { data: activities  = [], isLoading: actsLoading } = useActivities(onboardingId)
   const { data: actTypes    = [] }                          = useActivityTypes()
   const { data: contacts    = [] }                          = useContacts(clientId ? { client_id: clientId } : {})
   const { data: profiles    = [] }                          = useProfiles()
+
+  useEffect(() => {
+    console.log('[OnboardingDetailPage] route param id:', id)
+  }, [id])
+
+  useEffect(() => {
+    if (!project) return
+    console.log('[OnboardingDetailPage] resolved project -> onboarding:', {
+      project_id: project.id,
+      onboarding_id: project.onboarding_id,
+      route_id: id,
+    })
+  }, [project, id])
+
+  useEffect(() => {
+    if (!onboardingId) return
+    console.log('[OnboardingDetailPage] useOnboarding input/output:', {
+      onboarding_id: onboardingId,
+      loaded_onboarding_id: onboarding?.id ?? null,
+    })
+  }, [onboardingId, onboarding])
 
   // UI state
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -816,7 +836,8 @@ export default function OnboardingDetailPage() {
   // ── Phase mutations ────────────────────────────────────────────────────────
   const phaseMut = useMutation({
     mutationFn: async (direction) => {
-      const onb    = project.onboarding
+      const onb    = onboarding
+      if (!onb) throw new Error('Onboarding não carregado')
       const curIdx = faseIdx(onb.fase_atual)
       const newIdx = direction === 'advance' ? curIdx + 1 : curIdx - 1
       const newFase = FASE_ORDER[Math.max(0, Math.min(newIdx, FASE_ORDER.length - 1))]
@@ -826,6 +847,7 @@ export default function OnboardingDetailPage() {
     },
     onSuccess: ({ oldFase, newFase }) => {
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('change_fase', 'onboarding', onboardingId, project.title, { fase: oldFase }, { fase: newFase })
       toast.success(`Fase: ${FASE_LABELS[newFase]}`)
@@ -853,6 +875,7 @@ export default function OnboardingDetailPage() {
         .eq('id', ms.id)
       if (error) throw error
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('confirm_milestone', 'onboarding_milestone', ms.id, FASE_LABELS[ms.type], null, { occurred_at: occurredAt })
       toast.success(`${FASE_LABELS[ms.type]} confirmado!`)
@@ -869,6 +892,7 @@ export default function OnboardingDetailPage() {
         .eq('id', ms.id)
       if (error) throw error
       qc.invalidateQueries({ queryKey: ['project_detail', id] })
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       logAction('reopen_milestone', 'onboarding_milestone', ms.id, FASE_LABELS[ms.type], { occurred_at: ms.occurred_at }, null)
       toast.success(`Marco reaberto: ${FASE_LABELS[ms.type]}`)
       setOpenMsId(null)
@@ -877,7 +901,7 @@ export default function OnboardingDetailPage() {
   }
 
   // ── Loading / error ────────────────────────────────────────────────────────
-  if (isLoading) {
+  if (isLoading || (onboardingId && onboardingLoading)) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p>
@@ -892,18 +916,26 @@ export default function OnboardingDetailPage() {
       </div>
     )
   }
+  if (onboardingError) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
+        <p style={{ color: '#b42828', fontSize: 14 }}>Onboarding vinculado não encontrado.</p>
+        <button className="onb-back-btn" onClick={() => navigate('/projetos')}>← Voltar</button>
+      </div>
+    )
+  }
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const onb       = project.onboarding
+  const onb       = onboarding
   const faseAtual = onb?.fase_atual ?? 'definicao_escopo'
-  const fases     = (onb?.fases ?? []).sort((a, b) => faseIdx(a.fase) - faseIdx(b.fase))
-  const msMap     = (onb?.milestones ?? []).reduce((acc, m) => { acc[m.type] = m; return acc }, {})
-  const caps      = onb?.capabilities ?? []
-  const activeMsType = getActiveMs(onb?.milestones ?? [])
+  const fases     = (onb?.onboarding_fases ?? []).sort((a, b) => faseIdx(a.fase) - faseIdx(b.fase))
+  const msMap     = (onb?.onboarding_milestones ?? []).reduce((acc, m) => { acc[m.type] = m; return acc }, {})
+  const caps      = onb?.onboarding_capabilities ?? []
+  const activeMsType = getActiveMs(onb?.onboarding_milestones ?? [])
   const clientName   = project.client?.fantasy_name || project.client?.name || '—'
 
   const totalSteps = 3 + 3 // 3 phases + 3 milestones
-  const doneSteps  = (onb?.milestones ?? []).filter(m => m.occurred_at).length + Math.max(0, faseIdx(faseAtual))
+  const doneSteps  = (onb?.onboarding_milestones ?? []).filter(m => m.occurred_at).length + Math.max(0, faseIdx(faseAtual))
 
   const situacaoMap = {
     fluindo: { cls: 'green', label: 'Fluindo', dot: true },

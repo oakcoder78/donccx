@@ -12,7 +12,7 @@ export function useOnboardings(clientId) {
         .select(`
           *,
           csm:profiles(id, name),
-          onboarding_fases(*),
+          onboarding_fases!onboarding_fases_onboarding_id_fkey(*),
           onboarding_milestones(*),
           onboarding_capabilities(*, capability_type:onboarding_capability_types(*))
         `)
@@ -35,7 +35,7 @@ export function useAllOnboardings() {
           *,
           client:clients(id, name, fantasy_name),
           csm:profiles(id, name),
-          onboarding_fases(*),
+          onboarding_fases!onboarding_fases_onboarding_id_fkey(*),
           onboarding_milestones(*)
         `)
         .order('created_at', { ascending: false })
@@ -53,7 +53,18 @@ export function useOnboarding(onboardingId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboardings')
-        .select('*, onboarding_milestones(id, type, planned_date)')
+        .select(`
+          *,
+          csm:profiles(id, name),
+          onboarding_fases:onboarding_fases!onboarding_fases_onboarding_id_fkey(*),
+          fase_atual:onboarding_fases!onboardings_fase_atual_id_fkey(*),
+          onboarding_milestones(id, type, planned_date, occurred_at, justificativa),
+          onboarding_capabilities(
+            id,
+            catalog_item_id,
+            catalog_item:catalog_items(id, name, type)
+          )
+        `)
         .eq('id', onboardingId)
         .single()
       if (error) { console.error('[useOnboarding]', error); return null }
