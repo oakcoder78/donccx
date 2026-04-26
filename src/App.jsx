@@ -18,6 +18,7 @@ import ClientDetail from './components/clients/ClientDetail'
 import ContactsPage from './components/contacts/ContactsPage'
 import ActivitiesPage from './components/activities/ActivitiesPage'
 import ProjectsPage from './components/projects/ProjectsPage'
+import OnboardingDetailPage from './pages/OnboardingDetailPage'
 import SettingsPage from './components/settings/SettingsPage'
 import FreshdeskPendingPage from './pages/FreshdeskPendingPage'
 import DoncAPIPendentes from './pages/DoncAPIPendentes'
@@ -145,6 +146,7 @@ function AppRoutes() {
         <Route path="/contatos"     element={<ContactsPage />} />
         <Route path="/atividades"   element={<ActivitiesPage />} />
         <Route path="/projetos"     element={<ProjectsPage />} />
+        <Route path="/projetos/:id" element={<OnboardingDetailPage />} />
 
         <Route element={<AdminRoute />}>
           <Route path="/configuracoes" element={<SettingsPage />} />
