@@ -158,13 +158,26 @@ export function useCreateOnboardingFlow() {
         .single()
       if (onbErr) throw onbErr
 
-      // 3. Insert 3 fases
-      const { error: fasesErr } = await supabase.from('onboarding_fases').insert([
-        { onboarding_id: onb.id, fase: 'definicao_escopo',     actual_start: start_date || null },
-        { onboarding_id: onb.id, fase: 'preparacao_plataforma' },
-        { onboarding_id: onb.id, fase: 'treinamento' },
-      ])
+      // 3. Create default onboarding phases (migration 033 schema)
+      const { error: fasesErr } = await supabase.rpc('create_default_fases', { p_onboarding_id: onb.id })
       if (fasesErr) throw fasesErr
+
+      const { data: firstFase, error: firstFaseErr } = await supabase
+        .from('onboarding_fases')
+        .select('id')
+        .eq('onboarding_id', onb.id)
+        .order('display_order', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+      if (firstFaseErr) throw firstFaseErr
+
+      if (firstFase?.id) {
+        const { error: faseAtualErr } = await supabase
+          .from('onboardings')
+          .update({ fase_atual_id: firstFase.id })
+          .eq('id', onb.id)
+        if (faseAtualErr) throw faseAtualErr
+      }
 
       // 4. Planned dates — kickoff from form override or SLA fallback
       const base           = start_date || new Date().toISOString().slice(0, 10)
