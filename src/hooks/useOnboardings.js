@@ -12,8 +12,7 @@ export function useOnboardings(clientId) {
         .select(`
           *,
           csm:profiles(id, name),
-          onboarding_fases!onboarding_fases_onboarding_id_fkey(*),
-          onboarding_milestones(*),
+          onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*)),
           onboarding_capabilities(*, capability_type:onboarding_capability_types(*))
         `)
         .eq('client_id', clientId)
@@ -35,8 +34,7 @@ export function useAllOnboardings() {
           *,
           client:clients(id, name, fantasy_name),
           csm:profiles(id, name),
-          onboarding_fases!onboarding_fases_onboarding_id_fkey(*),
-          onboarding_milestones(*)
+          onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*))
         `)
         .order('created_at', { ascending: false })
       if (error) { console.error('[useAllOnboardings]', error); return [] }
@@ -56,9 +54,8 @@ export function useOnboarding(onboardingId) {
         .select(`
           *,
           csm:profiles(id, name),
-          onboarding_fases:onboarding_fases!onboarding_fases_onboarding_id_fkey(*),
-          fase_atual:onboarding_fases!onboardings_fase_atual_id_fkey(*),
-          onboarding_milestones(id, type, planned_date, occurred_at, justificativa),
+          onboarding_fases:onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*)),
+          fase_atual:onboarding_fases!onboardings_fase_atual_id_fkey(*, onboarding_fase_types(*)),
           onboarding_capabilities(
             id,
             catalog_item_id,
@@ -179,21 +176,29 @@ export function useCreateOnboardingFlow() {
         if (faseAtualErr) throw faseAtualErr
       }
 
-      // 4. Planned dates — kickoff from form override or SLA fallback
-      const base           = start_date || new Date().toISOString().slice(0, 10)
+      // 4. Planned dates on unified onboarding_fases (schema 033)
+      const base = start_date || new Date().toISOString().slice(0, 10)
       const kickoffPlanned = kickoff_date || addDays(base, kickoffSla)
-      const ptPlanned      = addDays(kickoffPlanned, ptSla)
-      const golivePlanned  = addDays(base, goliveSla)
+      const ptPlanned = addDays(kickoffPlanned, ptSla)
+      const golivePlanned = addDays(base, goliveSla)
 
-      // 5. Insert 3 milestones
-      const { error: msErr } = await supabase.from('onboarding_milestones').insert([
-        { onboarding_id: onb.id, type: 'kickoff',                 planned_date: kickoffPlanned },
-        { onboarding_id: onb.id, type: 'projeto_tecnico_aprovado', planned_date: ptPlanned     },
-        { onboarding_id: onb.id, type: 'go_live',                 planned_date: golivePlanned  },
-      ])
-      if (msErr) throw msErr
+      const { data: fases, error: fasesPlanErr } = await supabase
+        .from('onboarding_fases')
+        .select('id, display_order')
+        .eq('onboarding_id', onb.id)
+        .order('display_order', { ascending: true })
+      if (fasesPlanErr) throw fasesPlanErr
 
-      // 6. Insert capabilities (catalog_item_id)
+      const updates = []
+      if (fases?.[0]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: kickoffPlanned }).eq('id', fases[0].id))
+      if (fases?.[2]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: ptPlanned }).eq('id', fases[2].id))
+      if (fases?.[5]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: golivePlanned }).eq('id', fases[5].id))
+      for (const req of updates) {
+        const { error: updErr } = await req
+        if (updErr) throw updErr
+      }
+
+      // 5. Insert capabilities (catalog_item_id)
       if (capabilities?.length > 0) {
         const capPayload = capabilities.map(itemId => ({ onboarding_id: onb.id, catalog_item_id: itemId }))
         console.log('[createOnboardingFlow] capabilities payload', capPayload)
@@ -201,7 +206,7 @@ export function useCreateOnboardingFlow() {
         if (capErr) throw capErr
       }
 
-      // 7. Insert linked project
+      // 6. Insert linked project
       const { data: proj, error: projErr } = await supabase
         .from('projects')
         .insert({ client_id: clientId, title, type, onboarding_id: onb.id, status: 'em_andamento', start_date: start_date || null, end_date: end_date || null })
@@ -242,14 +247,23 @@ export function useUpdateOnboardingFlow() {
         .eq('id', project.onboarding_id)
       if (onbErr) throw onbErr
 
-      // 3. Update kickoff milestone planned_date if provided
+      // 3. Update kickoff phase planned_start if provided
       if (kickoff_date) {
-        const { error: msErr } = await supabase
-          .from('onboarding_milestones')
-          .update({ planned_date: kickoff_date })
+        const { data: kickoffFase, error: kickoffFaseErr } = await supabase
+          .from('onboarding_fases')
+          .select('id')
           .eq('onboarding_id', project.onboarding_id)
-          .eq('type', 'kickoff')
-        if (msErr) throw msErr
+          .order('display_order', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        if (kickoffFaseErr) throw kickoffFaseErr
+        if (kickoffFase?.id) {
+          const { error: faseErr } = await supabase
+            .from('onboarding_fases')
+            .update({ planned_start: kickoff_date })
+            .eq('id', kickoffFase.id)
+          if (faseErr) throw faseErr
+        }
       }
 
       // 4. Replace capabilities

@@ -148,12 +148,15 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   // Fill onboarding-specific fields when data loads (edit mode)
   useEffect(() => {
     if (!onboardingData || !isOpen) return
-    const kickoffMs = (onboardingData.onboarding_milestones ?? []).find(m => m.type === 'kickoff')
+    const kickoffFase = (onboardingData.onboarding_fases ?? [])
+      .slice()
+      .sort((a, b) => a.display_order - b.display_order)
+      .find(f => f.onboarding_fase_types?.is_milestone)
     setForm(p => ({
       ...p,
       description:    onboardingData.notes  || '',
       responsible_id: onboardingData.csm_id || '',
-      kickoff_date:   kickoffMs?.planned_date ? kickoffMs.planned_date.slice(0, 10) : '',
+      kickoff_date:   kickoffFase?.planned_start ? kickoffFase.planned_start.slice(0, 10) : '',
       start_date:     p.start_date || (onboardingData.start_date ? onboardingData.start_date.slice(0, 10) : ''),
       end_date:       p.end_date   || (onboardingData.end_date   ? onboardingData.end_date.slice(0, 10)   : ''),
     }))
