@@ -49,7 +49,9 @@
       "Bash(tar -xf design.html)",
       "Bash(ls -la donccx-dashboard/)",
       "mcp__Claude_Preview__preview_start",
-      "Bash(xargs grep *)"
+      "Bash(xargs grep *)",
+      "Bash(grep -v \"=== \\\\|!== \\\\|=== '\\\\|!== '\\\\|\\\\.eq\\(\\\\|\\\\.filter\\(\\\\|\\\\.match\\\\|\\\\.includes\\\\|value=\\\\|queryKey\\\\|\\\\.from\\(\\\\|\\\\.insert\\\\|\\\\.update\\\\|\\\\.select\\\\|supabase\\\\|console\\\\|import\\\\|export\\\\|check\\\\|IN \\(\\\\|WHERE\\\\|interface\\\\|type \\\\|const \\\\|: '\\\\|payload\\\\|enum\\\\|CHECK\\\\|REFERENCES\\\\|const.*=.*{$\")",
+      "Bash(node --input-type=module --experimental-vm-modules)"
     ]
   }
 }
