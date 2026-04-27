@@ -157,126 +157,176 @@ function useActivityTypes() {
 
 // ── RespPicker ────────────────────────────────────────────────────────────────
 function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef()
+
+  useEffect(() => {
+    if (!open) return
+    function handler(e) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const selectedName = selectedId
+    ? selectedKind === 'contato'
+      ? contacts.find(c => c.id === selectedId)?.name
+      : profiles.find(p => p.id === selectedId)?.name
+    : null
+
   return (
-    <div style={styles.respPicker.wrap}>
-      {contacts.length > 0 && (
-        <>
-          <div style={styles.respPicker.section}>Contatos do cliente</div>
-          {contacts.map(c => {
-            const sel = selectedId === c.id && selectedKind === 'contato'
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(p => !p)}
+        style={{
+          ...S.select, textAlign: 'left', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        }}
+      >
+        <span style={{ color: selectedName ? '#173557' : 'rgba(23,53,87,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedName || '— Selecionar responsável —'}
+        </span>
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+          <polyline points="2 4 6 8 10 4"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+          background: '#fff', border: '1px solid rgba(15,34,58,0.12)',
+          borderRadius: 9, boxShadow: '0 8px 24px rgba(10,22,40,0.14)',
+          zIndex: 300, maxHeight: 220, overflowY: 'auto', padding: '4px',
+        }}>
+          {contacts.length > 0 && (
+            <>
+              <div style={styles.respPicker.section}>Contatos do cliente</div>
+              {contacts.map(c => {
+                const sel = selectedId === c.id && selectedKind === 'contato'
+                return (
+                  <div
+                    key={c.id}
+                    style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }}
+                    onClick={() => { onChange(c.id, 'contato', c.name); setOpen(false) }}
+                  >
+                    <span style={styles.respPicker.miniAvatar}>{initials(c.name)}</span>
+                    <span>{c.name}</span>
+                  </div>
+                )
+              })}
+            </>
+          )}
+          <div style={styles.respPicker.section}>Equipe interna</div>
+          {profiles.filter(p => p.status === 'active').map(p => {
+            const sel = selectedId === p.id && selectedKind === 'interno'
             return (
               <div
-                key={c.id}
+                key={p.id}
                 style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }}
-                onClick={() => onChange(c.id, 'contato', c.name)}
+                onClick={() => { onChange(p.id, 'interno', p.name); setOpen(false) }}
               >
-                <span style={styles.respPicker.miniAvatar}>{initials(c.name)}</span>
-                <span>{c.name}</span>
+                <span style={{ ...styles.respPicker.miniAvatar, ...styles.respPicker.miniAvatarTeam }}>{initials(p.name)}</span>
+                <span>{p.name}</span>
               </div>
             )
           })}
-        </>
+        </div>
       )}
-      <div style={styles.respPicker.section}>Equipe interna</div>
-      {profiles.filter(p => p.status === 'active').map(p => {
-        const sel = selectedId === p.id && selectedKind === 'interno'
-        return (
-          <div
-            key={p.id}
-            style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }}
-            onClick={() => onChange(p.id, 'interno', p.name)}
-          >
-            <span style={{ ...styles.respPicker.miniAvatar, ...styles.respPicker.miniAvatarTeam }}>{initials(p.name)}</span>
-            <span>{p.name}</span>
-          </div>
-        )
-      })}
     </div>
   )
 }
 
-// ── MilestoneEl ───────────────────────────────────────────────────────────────
-const MsIcon = ActivityIcons.tarefa
+// ── PhaseCircle ───────────────────────────────────────────────────────────────
+function PhaseCircle({ fase, isActive, isDone, isLastPhase, onMilestoneClick, onAdvance, onRevert }) {
+  const isMilestone = !!fase.onboarding_fase_types?.is_milestone
+  const canClick    = isMilestone && (isDone || isActive)
+  const canRevert   = !isMilestone && fase.display_order > 1
+  const canAdvance  = !isMilestone && !isLastPhase
 
-function MilestoneEl({ fase, isActive, onToggle }) {
-  const isDone = fase.status === 'concluida' || !!fase.occurred_at
-  const circleStyle = {
-    ...styles.timeline.milestoneCircle,
-    ...(isDone ? styles.timeline.milestoneCircleDone : isActive ? styles.timeline.milestoneCircleActive : styles.timeline.milestoneCircleFuture),
+  let circleBg, circleBorder, circleColor, circleShadow
+  if (isDone) {
+    circleBg = '#1aa56a'; circleBorder = '#1aa56a'; circleColor = '#fff'; circleShadow = 'none'
+  } else if (isActive) {
+    circleBg = 'rgba(89,194,237,0.12)'; circleBorder = '#59c2ed'; circleColor = '#0a6a96'
+    circleShadow = '0 0 0 4px rgba(89,194,237,0.18)'
+  } else {
+    circleBg = '#f4f5f7'; circleBorder = '#d4d3ce'; circleColor = 'rgba(23,53,87,0.35)'; circleShadow = 'none'
   }
-  const statusLabel = isDone ? 'Concluído' : isActive ? 'Ativa' : 'Pendente'
-  const statusColor = isDone ? '#157a47' : isActive ? '#0a6a96' : undefined
+
+  const labelColor = isDone ? '#157a47' : isActive ? '#0a6a96' : 'rgba(23,53,87,0.4)'
 
   return (
-    <div style={styles.timeline.milestone} onClick={() => onToggle(fase.id)}>
-      <div style={circleStyle}>
-        <MsIcon size={22} />
-        {isDone && (
-          <div style={{ position: 'absolute', bottom: -3, right: -3, width: 18, height: 18, borderRadius: '50%', background: '#1aa56a', border: '2px solid #fff', display: 'grid', placeItems: 'center' }}>
-            <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"/>
-            </svg>
-          </div>
-        )}
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 72, maxWidth: 96 }}>
+      <div
+        onClick={canClick ? onMilestoneClick : undefined}
+        style={{
+          width: 48, height: 48, borderRadius: '50%',
+          border: `2.5px solid ${circleBorder}`,
+          background: circleBg, color: circleColor,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          position: 'relative', flexShrink: 0,
+          cursor: canClick ? 'pointer' : 'default',
+          boxShadow: circleShadow,
+          transition: 'box-shadow 0.2s, border-color 0.2s',
+        }}
+      >
+        {isDone ? (
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 8.5 6.5 12 13 4.5"/>
+          </svg>
+        ) : isMilestone ? (
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <rect x="2.5" y="1" width="11" height="14" rx="2"/>
+            <line x1="5" y1="5.5" x2="11" y2="5.5"/>
+            <line x1="5" y1="8" x2="11" y2="8"/>
+            <line x1="5" y1="10.5" x2="8.5" y2="10.5"/>
+          </svg>
+        ) : isActive ? (
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#59c2ed' }} />
+        ) : null}
       </div>
-      <div style={styles.timeline.milestoneLabel}>{phaseName(fase)}</div>
-      <div style={styles.timeline.milestoneDate}>
+
+      <div style={{ fontSize: 11, textAlign: 'center', fontWeight: isDone || isActive ? 600 : 400, color: labelColor, lineHeight: 1.3, maxWidth: 88, wordBreak: 'break-word' }}>
+        {phaseName(fase)}
+      </div>
+
+      <div style={{ fontSize: 10, textAlign: 'center', color: 'rgba(23,53,87,0.5)', lineHeight: 1.3 }}>
         {isDone
           ? fmt(fase.occurred_at ?? fase.actual_end)
-          : fase.planned_start ? 'Prev. ' + fmt(fase.planned_start) : '—'}
+          : fase.planned_start ? `Prev. ${fmt(fase.planned_start)}` : '—'}
       </div>
-      <div style={{ ...styles.timeline.milestoneStatus, ...(statusColor ? { color: statusColor } : {}) }}>
-        {statusLabel}
-      </div>
+
+      {isActive && !isMilestone && (
+        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button
+            style={{ fontSize: 10, background: 'transparent', border: 'none', padding: '2px 5px', borderRadius: 4, fontFamily: 'inherit', cursor: canRevert ? 'pointer' : 'default', color: canRevert ? 'rgba(23,53,87,0.6)' : 'rgba(23,53,87,0.25)' }}
+            disabled={!canRevert}
+            onClick={e => { e.stopPropagation(); if (canRevert) onRevert() }}
+          >
+            ← Voltar
+          </button>
+          <button
+            style={{ fontSize: 10, background: 'transparent', border: 'none', padding: '2px 5px', borderRadius: 4, fontFamily: 'inherit', cursor: canAdvance ? 'pointer' : 'default', color: canAdvance ? '#0a6a96' : 'rgba(23,53,87,0.25)', fontWeight: 500 }}
+            disabled={!canAdvance}
+            onClick={e => { e.stopPropagation(); if (canAdvance) onAdvance() }}
+          >
+            Avançar →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Connector ─────────────────────────────────────────────────────────────────
 function Connector({ leftDone, rightActive }) {
-  const extra = leftDone && rightActive
-    ? styles.timeline.connectorActive
-    : leftDone
-      ? styles.timeline.connectorDone
-      : {}
-  return <div style={{ ...styles.timeline.connector, ...extra }} />
-}
-
-// ── PhaseEl ───────────────────────────────────────────────────────────────────
-function PhaseEl({ fase, isActive, isDone, onAdvance, onRevert, isLastPhase }) {
-  const boxStyle = isDone ? S.phaseBoxDone : isActive ? S.phaseBoxActive : S.phaseBoxFuture
-  const start = fase.actual_start ?? fase.planned_start
-  const end   = fase.actual_end   ?? fase.planned_end
-  const dateLabel = (start || end) ? `${start ? fmt(start) : '—'} → ${end ? fmt(end) : '—'}` : '—'
-  const canRevert  = isActive && fase.display_order > 1
-  const canAdvance = isActive && !isLastPhase
-
+  const bg = leftDone && rightActive
+    ? 'linear-gradient(90deg, #1aa56a, #59c2ed)'
+    : leftDone ? '#1aa56a' : '#d4d3ce'
   return (
-    <div style={boxStyle}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#173557' }}>{phaseName(fase)}</div>
-        {isActive && <Tag color="sky" style={{ fontSize: 10, padding: '2px 7px' }}>Ativa</Tag>}
-        {isDone   && <Tag color="green" style={{ fontSize: 10, padding: '2px 7px' }}>Concluída</Tag>}
-        {!isDone && !isActive && <Tag color="gray" style={{ fontSize: 10, padding: '2px 7px' }}>Pendente</Tag>}
-      </div>
-      <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)', marginTop: 2 }}>{dateLabel}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: 8 }}>
-        <button
-          style={canRevert ? S.phaseMiniBtn : S.phaseMiniBtnDis}
-          disabled={!canRevert}
-          onClick={e => { e.stopPropagation(); onRevert() }}
-        >
-          ← Voltar
-        </button>
-        <button
-          style={canAdvance ? S.phaseMiniFwd : S.phaseMiniFwdDis}
-          disabled={!canAdvance}
-          onClick={e => { e.stopPropagation(); onAdvance() }}
-        >
-          Avançar →
-        </button>
-      </div>
-    </div>
+    <div style={{ flex: 1, minWidth: 10, height: 2, background: bg, marginTop: 23, flexShrink: 0, alignSelf: 'flex-start' }} />
   )
 }
 
@@ -750,10 +800,9 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 }
 
 // ── CatalogSearch ─────────────────────────────────────────────────────────────
-function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, contacts, profiles, qc, logAction, user }) {
+function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, logAction, user }) {
   const [search, setSearch] = useState('')
   const [showDd, setShowDd] = useState(false)
-  const [draft,  setDraft]  = useState({ due: '', respId: null, respKind: null })
   const inputRef = useRef()
   const ddRef    = useRef()
 
@@ -792,9 +841,9 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, contac
         title: type.name,
         fase_id: faseAtualId ?? null,
         status: 'pendente',
-        due_date: draft.due || null,
-        responsible_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null,
-        responsible_interno_id: draft.respKind === 'interno' ? draft.respId : null,
+        due_date: null,
+        responsible_contato_id: null,
+        responsible_interno_id: null,
         created_by: user?.id ?? null,
         display_order: activities.length,
       }
@@ -807,7 +856,6 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, contac
       logAction('create_activity', 'onboarding_activity', data.id, data.title, null, { onboarding_id: onboardingId })
       toast.success(`Atividade adicionada: ${data.title}`)
       setSearch('')
-      setDraft({ due: '', respId: null, respKind: null })
       setShowDd(false)
     },
     onError: e => toast.error(e.message),
@@ -863,22 +911,6 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, contac
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 14px', marginTop: 8 }}>
-        <div>
-          <label style={S.label}>Data limite</label>
-          <input type="date" style={S.input} value={draft.due} onChange={e => setDraft(p => ({ ...p, due: e.target.value }))} />
-        </div>
-        <div>
-          <label style={S.label}>Responsável</label>
-          <RespPicker
-            contacts={contacts}
-            profiles={profiles}
-            selectedId={draft.respId}
-            selectedKind={draft.respKind}
-            onChange={(id, kind) => setDraft(p => ({ ...p, respId: id, respKind: kind }))}
-          />
-        </div>
-      </div>
     </div>
   )
 }
@@ -1133,43 +1165,32 @@ export default function OnboardingDetailPage() {
                 <Tag color="gray">{doneSteps} de {totalSteps} etapas concluídas</Tag>
               </div>
 
-              <div style={styles.timeline.wrap}>
-                <div style={styles.timeline.row}>
-                  {fases.map((fase, idx) => {
-                    const isActive    = fase.id === faseAtualId || (!faseAtualId && fase.status === 'ativa')
-                    const isDone      = fase.status === 'concluida'
-                    const isLast      = idx === fases.length - 1
-                    const next        = fases[idx + 1]
-                    const isMilestone = !!fase.onboarding_fase_types?.is_milestone
-
-                    return (
-                      <div key={fase.id} style={{ display: 'contents' }}>
-                        {isMilestone ? (
-                          <MilestoneEl
-                            fase={fase}
-                            isActive={isActive}
-                            onToggle={phaseId => setOpenMsId(prev => prev === phaseId ? null : phaseId)}
-                          />
-                        ) : (
-                          <PhaseEl
-                            fase={fase}
-                            isActive={isActive}
-                            isDone={isDone}
-                            isLastPhase={isLast}
-                            onAdvance={() => phaseMut.mutate('advance')}
-                            onRevert={() => phaseMut.mutate('revert')}
-                          />
-                        )}
-                        {next && (
-                          <Connector
-                            leftDone={isDone}
-                            rightActive={next.id === faseAtualId || next.status === 'ativa'}
-                          />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', paddingBottom: 8, gap: 0 }}>
+                {fases.map((fase, idx) => {
+                  const isActive = fase.id === faseAtualId || (!faseAtualId && fase.status === 'ativa')
+                  const isDone   = fase.status === 'concluida'
+                  const isLast   = idx === fases.length - 1
+                  const next     = fases[idx + 1]
+                  return (
+                    <div key={fase.id} style={{ display: 'contents' }}>
+                      <PhaseCircle
+                        fase={fase}
+                        isActive={isActive}
+                        isDone={isDone}
+                        isLastPhase={isLast}
+                        onMilestoneClick={() => setOpenMsId(prev => prev === fase.id ? null : fase.id)}
+                        onAdvance={() => phaseMut.mutate('advance')}
+                        onRevert={() => phaseMut.mutate('revert')}
+                      />
+                      {!isLast && (
+                        <Connector
+                          leftDone={isDone}
+                          rightActive={!!(next?.id === faseAtualId || next?.status === 'ativa')}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
 
               {openMs && (
@@ -1202,8 +1223,6 @@ export default function OnboardingDetailPage() {
                 activities={activities}
                 onboardingId={onboardingId}
                 faseAtualId={faseAtualId}
-                contacts={contacts}
-                profiles={profiles}
                 qc={qc}
                 logAction={logAction}
                 user={user}
