@@ -892,7 +892,9 @@ export default function OnboardingDetailPage() {
   const { logAction } = useAuditLog()
 
   const { data: project, isLoading, error } = useProjectDetail(id)
+  console.log('[detail] project:', project)
   const onboardingId = project?.onboarding_id
+  console.log('[detail] onboardingId:', onboardingId)
   const clientId     = project?.client?.id
 
   const { data: onboarding, isLoading: onboardingLoading, error: onboardingError } = useOnboarding(onboardingId)
