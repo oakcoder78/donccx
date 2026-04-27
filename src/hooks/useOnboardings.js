@@ -54,8 +54,7 @@ export function useOnboarding(onboardingId) {
         .select(`
           *,
           csm:profiles(id, name),
-          onboarding_fases:onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*)),
-          fase_atual:onboarding_fases!onboardings_fase_atual_id_fkey(*, onboarding_fase_types(*)),
+          onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*)),
           onboarding_capabilities(
             id,
             catalog_item_id,
