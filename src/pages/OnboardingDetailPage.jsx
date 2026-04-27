@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import toast from 'react-hot-toast'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
@@ -11,9 +12,9 @@ import { useOnboarding } from '../hooks/useOnboardings'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { ProjectModal } from '../components/projects/ProjectModal'
 import { styles } from '../components/onboarding/OnboardingStyles'
-import { ActionIcons, ActivityIcons } from '../lib/icons'
+import { ActionIcons } from '../lib/icons'
 
-// ── Local style constants (values not covered by OnboardingStyles.js) ─────────
+// ── Local style constants ─────────────────────────────────────────────────────
 const S = {
   tag: { fontSize: 11, padding: '3px 9px', borderRadius: 999, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 5, lineHeight: 1.5, whiteSpace: 'nowrap' },
   tagColors: {
@@ -39,19 +40,9 @@ const S = {
   segmented: { display: 'inline-flex', background: '#f4f5f7', borderRadius: 9, padding: 3, gap: 2 },
   segBtn:    { background: 'transparent', border: 'none', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: 'rgba(23,53,87,0.65)', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit' },
   segBtnOn:  { background: '#fff', border: 'none', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: '#173557', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(15,34,58,0.08)' },
-  phaseBox:       { flex: '1 1 230px', minWidth: 230, background: '#fff', border: '1px solid rgba(15,34,58,0.10)', borderRadius: 12, padding: '12px 14px 10px', margin: '14px 0', display: 'flex', flexDirection: 'column', transition: 'all 0.18s ease' },
-  phaseBoxActive: { flex: '1 1 230px', minWidth: 230, background: 'linear-gradient(180deg,#fff,#f4fbfe)', border: '1px solid #59c2ed', borderRadius: 12, padding: '12px 14px 10px', margin: '14px 0', display: 'flex', flexDirection: 'column', transition: 'all 0.18s ease', boxShadow: '0 0 0 3px rgba(89,194,237,0.18),0 6px 18px -10px rgba(89,194,237,0.4)' },
-  phaseBoxDone:   { flex: '1 1 230px', minWidth: 230, background: '#f6fbf8', border: '1px solid rgba(34,160,98,0.32)', borderRadius: 12, padding: '12px 14px 10px', margin: '14px 0', display: 'flex', flexDirection: 'column', transition: 'all 0.18s ease' },
-  phaseBoxFuture: { flex: '1 1 230px', minWidth: 230, background: '#fff', border: '1px solid rgba(15,34,58,0.10)', borderRadius: 12, padding: '12px 14px 10px', margin: '14px 0', display: 'flex', flexDirection: 'column', transition: 'all 0.18s ease', opacity: 0.55 },
-  phaseMiniBtn:      { background: 'transparent', border: 'none', padding: '3px 6px', fontSize: 11, color: 'rgba(23,53,87,0.6)', borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit' },
-  phaseMiniBtnDis:   { background: 'transparent', border: 'none', padding: '3px 6px', fontSize: 11, color: 'rgba(23,53,87,0.25)', borderRadius: 5, cursor: 'not-allowed', fontFamily: 'inherit' },
-  phaseMiniFwd:      { background: 'transparent', border: 'none', padding: '3px 6px', fontSize: 11, color: '#0a6a96', fontWeight: 500, borderRadius: 5, cursor: 'pointer', fontFamily: 'inherit' },
-  phaseMiniFwdDis:   { background: 'transparent', border: 'none', padding: '3px 6px', fontSize: 11, color: 'rgba(23,53,87,0.25)', fontWeight: 500, borderRadius: 5, cursor: 'not-allowed', fontFamily: 'inherit' },
   actStatusSel: { padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(15,34,58,0.12)', background: '#fff', color: '#173557', fontFamily: 'inherit', width: '100%', outline: 'none' },
   capChipBase:  { fontSize: 12, fontWeight: 500, padding: '5px 11px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6 },
-  msPanelGrid:     { display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12, marginBottom: 12 },
-  msPanelGridFull: { display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 12 },
-  msPanelActions:  { display: 'flex', gap: 8, justifyContent: 'flex-end' },
+  msPanelActions: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
 }
 
 function Tag({ color, children, style: extra }) {
@@ -90,6 +81,9 @@ function phaseName(fase) {
 }
 function initials(name = '') {
   return (name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?'
+}
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 // ── Data hooks ────────────────────────────────────────────────────────────────
@@ -196,10 +190,7 @@ function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) 
       <button
         type="button"
         onClick={() => setOpen(p => !p)}
-        style={{
-          ...S.select, textAlign: 'left', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
-        }}
+        style={{ ...S.select, textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
       >
         <span style={{ color: selectedName ? '#173557' : 'rgba(23,53,87,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selectedName || '— Selecionar responsável —'}
@@ -208,25 +199,15 @@ function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) 
           <polyline points="2 4 6 8 10 4"/>
         </svg>
       </button>
-
       {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-          background: '#fff', border: '1px solid rgba(15,34,58,0.12)',
-          borderRadius: 9, boxShadow: '0 8px 24px rgba(10,22,40,0.14)',
-          zIndex: 300, maxHeight: 220, overflowY: 'auto', padding: '4px',
-        }}>
+        <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1px solid rgba(15,34,58,0.12)', borderRadius: 9, boxShadow: '0 8px 24px rgba(10,22,40,0.14)', zIndex: 300, maxHeight: 220, overflowY: 'auto', padding: '4px' }}>
           {contacts.length > 0 && (
             <>
               <div style={styles.respPicker.section}>Contatos do cliente</div>
               {contacts.map(c => {
                 const sel = selectedId === c.id && selectedKind === 'contato'
                 return (
-                  <div
-                    key={c.id}
-                    style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }}
-                    onClick={() => { onChange(c.id, 'contato', c.name); setOpen(false) }}
-                  >
+                  <div key={c.id} style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }} onClick={() => { onChange(c.id, 'contato', c.name); setOpen(false) }}>
                     <span style={styles.respPicker.miniAvatar}>{initials(c.name)}</span>
                     <span>{c.name}</span>
                   </div>
@@ -238,11 +219,7 @@ function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) 
           {profiles.filter(p => p.status === 'active').map(p => {
             const sel = selectedId === p.id && selectedKind === 'interno'
             return (
-              <div
-                key={p.id}
-                style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }}
-                onClick={() => { onChange(p.id, 'interno', p.name); setOpen(false) }}
-              >
+              <div key={p.id} style={{ ...styles.respPicker.option, ...(sel ? styles.respPicker.optionSelected : {}) }} onClick={() => { onChange(p.id, 'interno', p.name); setOpen(false) }}>
                 <span style={{ ...styles.respPicker.miniAvatar, ...styles.respPicker.miniAvatarTeam }}>{initials(p.name)}</span>
                 <span>{p.name}</span>
               </div>
@@ -254,12 +231,9 @@ function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) 
   )
 }
 
-// ── PhaseCircle ───────────────────────────────────────────────────────────────
-function PhaseCircle({ fase, isActive, isDone, isLastPhase, onMilestoneClick, onAdvance, onRevert }) {
+// ── PhaseCircle — all clickable ───────────────────────────────────────────────
+function PhaseCircle({ fase, isActive, isDone, onClick }) {
   const isMilestone = !!fase.onboarding_fase_types?.is_milestone
-  const canClick    = isMilestone && (isDone || isActive)
-  const canRevert   = !isMilestone && fase.display_order > 1
-  const canAdvance  = !isMilestone && !isLastPhase
 
   let circleBg, circleBorder, circleColor, circleShadow
   if (isDone) {
@@ -276,14 +250,14 @@ function PhaseCircle({ fase, isActive, isDone, isLastPhase, onMilestoneClick, on
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 72, maxWidth: 96 }}>
       <div
-        onClick={canClick ? onMilestoneClick : undefined}
+        onClick={onClick}
         style={{
           width: 48, height: 48, borderRadius: '50%',
           border: `2.5px solid ${circleBorder}`,
           background: circleBg, color: circleColor,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           position: 'relative', flexShrink: 0,
-          cursor: canClick ? 'pointer' : 'default',
+          cursor: 'pointer',
           boxShadow: circleShadow,
           transition: 'box-shadow 0.2s, border-color 0.2s',
         }}
@@ -303,35 +277,12 @@ function PhaseCircle({ fase, isActive, isDone, isLastPhase, onMilestoneClick, on
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#59c2ed' }} />
         ) : null}
       </div>
-
       <div style={{ fontSize: 11, textAlign: 'center', fontWeight: isDone || isActive ? 600 : 400, color: labelColor, lineHeight: 1.3, maxWidth: 88, wordBreak: 'break-word' }}>
         {phaseName(fase)}
       </div>
-
       <div style={{ fontSize: 10, textAlign: 'center', color: 'rgba(23,53,87,0.5)', lineHeight: 1.3 }}>
-        {isDone
-          ? fmt(fase.occurred_at ?? fase.actual_end)
-          : fase.planned_start ? `Prev. ${fmt(fase.planned_start)}` : '—'}
+        {isDone ? fmt(fase.occurred_at ?? fase.actual_end) : fase.planned_start ? `Prev. ${fmt(fase.planned_start)}` : '—'}
       </div>
-
-      {isActive && !isMilestone && (
-        <div style={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button
-            style={{ fontSize: 10, background: 'transparent', border: 'none', padding: '2px 5px', borderRadius: 4, fontFamily: 'inherit', cursor: canRevert ? 'pointer' : 'default', color: canRevert ? 'rgba(23,53,87,0.6)' : 'rgba(23,53,87,0.25)' }}
-            disabled={!canRevert}
-            onClick={e => { e.stopPropagation(); if (canRevert) onRevert() }}
-          >
-            ← Voltar
-          </button>
-          <button
-            style={{ fontSize: 10, background: 'transparent', border: 'none', padding: '2px 5px', borderRadius: 4, fontFamily: 'inherit', cursor: canAdvance ? 'pointer' : 'default', color: canAdvance ? '#0a6a96' : 'rgba(23,53,87,0.25)', fontWeight: 500 }}
-            disabled={!canAdvance}
-            onClick={e => { e.stopPropagation(); if (canAdvance) onAdvance() }}
-          >
-            Avançar →
-          </button>
-        </div>
-      )}
     </div>
   )
 }
@@ -341,162 +292,327 @@ function Connector({ leftDone, rightActive }) {
   const bg = leftDone && rightActive
     ? 'linear-gradient(90deg, #1aa56a, #59c2ed)'
     : leftDone ? '#1aa56a' : '#d4d3ce'
+  return <div style={{ flex: 1, minWidth: 10, height: 2, background: bg, marginTop: 23, flexShrink: 0, alignSelf: 'flex-start' }} />
+}
+
+// ── EvidenceRow ───────────────────────────────────────────────────────────────
+function EvidenceRow({ ev, onView, onDelete }) {
   return (
-    <div style={{ flex: 1, minWidth: 10, height: 2, background: bg, marginTop: 23, flexShrink: 0, alignSelf: 'flex-start' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f8f9fb', borderRadius: 7 }}>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(23,53,87,0.55)" strokeWidth="1.5" strokeLinecap="round">
+        <rect x="2.5" y="1" width="11" height="14" rx="2"/>
+        <line x1="5" y1="5.5" x2="11" y2="5.5"/>
+        <line x1="5" y1="8" x2="11" y2="8"/>
+        <line x1="5" y1="10.5" x2="8.5" y2="10.5"/>
+      </svg>
+      <span style={{ flex: 1, fontSize: 12, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.file_name}</span>
+      <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)', whiteSpace: 'nowrap' }}>{ev.uploaded_by?.name ?? '—'}</span>
+      <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.4)', whiteSpace: 'nowrap' }}>{fmt(ev.created_at?.slice(0, 10))}</span>
+      <button style={S.btnLink} onClick={onView}>Ver</button>
+      <button style={{ ...S.btnLink, color: '#b42828' }} onClick={onDelete}>Remover</button>
+    </div>
   )
 }
 
-// ── MilestonePanel ────────────────────────────────────────────────────────────
-function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving, user, clientId, qc }) {
-  const isDone = ms.status === 'concluida' || !!ms.occurred_at
-  const fileRef = useRef()
-  const [form, setForm] = useState({
-    date:  ms.occurred_at?.slice(0, 10) ?? '',
-    link:  '',
-    notes: ms.justificativa ?? '',
-    file:  null,
-  })
-  const [savingJust, setSavingJust] = useState(false)
-  const canConfirm = form.date && (form.notes.trim() || form.link.trim() || form.file)
+// ── FasePanel ─────────────────────────────────────────────────────────────────
+function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities }) {
+  const isMilestone   = !!fase.onboarding_fase_types?.is_milestone
+  const needsEvidence = isMilestone || !!fase.onboarding_fase_types?.requires_evidence
+  const today         = todayISO()
+  const fileRef       = useRef()
+
+  const [plannedEnd,    setPlannedEnd]    = useState(fase.planned_end?.slice(0, 10) ?? '')
+  const [actualEnd,     setActualEnd]     = useState(fase.actual_end?.slice(0, 10) ?? '')
+  const [justificativa, setJustificativa] = useState(fase.justificativa ?? '')
+  const [saving,        setSaving]        = useState(false)
+  const [uploadingEv,   setUploadingEv]   = useState(false)
+
+  const phaseActs    = activities.filter(a => a.fase_id === fase.id)
+  const maxDueDate   = phaseActs.reduce((mx, a) => (!a.due_date ? mx : !mx || a.due_date > mx ? a.due_date : mx), null)
 
   const { data: evidencias = [] } = useQuery({
-    queryKey: ['ms_evidencias', ms.id],
-    enabled: !!ms.id,
+    queryKey: ['fase_evidencias', fase.id],
+    enabled: needsEvidence && !!fase.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboarding_evidencias')
         .select('*, uploaded_by:profiles!uploaded_by(id, name)')
-        .eq('fase_id', ms.id)
-      if (error) { console.error('[ms_evidencias]', error); return [] }
+        .eq('fase_id', fase.id)
+      if (error) { console.error(error); return [] }
       return (data ?? []).filter(e => !e.is_deleted)
     },
   })
 
-  async function handleViewEvidence(ev) {
-    const { data, error } = await supabase.storage
-      .from('activity-attachments')
-      .createSignedUrl(ev.storage_path, 3600)
+  async function savePlannedEnd() {
+    const { error } = await supabase.from('onboarding_fases').update({ planned_end: plannedEnd || null }).eq('id', fase.id)
+    if (error) { toast.error(error.message); return }
+    qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+    toast.success('Previsão salva')
+  }
+
+  async function saveActualEnd() {
+    const { error } = await supabase.from('onboarding_fases').update({ actual_end: actualEnd || null }).eq('id', fase.id)
+    if (error) { toast.error(error.message); return }
+    qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+    toast.success('Data de conclusão salva')
+  }
+
+  async function saveJust() {
+    const { error } = await supabase.from('onboarding_fases').update({ justificativa: justificativa || null }).eq('id', fase.id)
+    if (error) { toast.error(error.message); return }
+    qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+    toast.success('Justificativa salva')
+  }
+
+  async function handleViewEv(ev) {
+    const { data, error } = await supabase.storage.from('activity-attachments').createSignedUrl(ev.storage_path, 3600)
     if (error) { toast.error('Erro ao gerar link'); return }
     window.open(data.signedUrl, '_blank')
   }
 
-  async function handleDeleteEvidence(ev) {
+  async function handleDeleteEv(ev) {
     if (!window.confirm(`Remover evidência "${ev.file_name}"?`)) return
-    const { error: storErr } = await supabase.storage
-      .from('activity-attachments')
-      .remove([ev.storage_path])
+    const { error: storErr } = await supabase.storage.from('activity-attachments').remove([ev.storage_path])
     if (storErr) { toast.error(storErr.message); return }
-    const { error: dbErr } = await supabase
-      .from('onboarding_evidencias')
-      .update({ is_deleted: true })
-      .eq('id', ev.id)
+    const { error: dbErr } = await supabase.from('onboarding_evidencias').update({ is_deleted: true }).eq('id', ev.id)
     if (dbErr) { toast.error(dbErr.message); return }
-    if (qc) qc.invalidateQueries({ queryKey: ['ms_evidencias', ms.id] })
+    qc.invalidateQueries({ queryKey: ['fase_evidencias', fase.id] })
     toast.success('Evidência removida')
   }
 
-  async function handleSaveJustificativa() {
-    setSavingJust(true)
-    const { error } = await supabase.from('onboarding_fases')
-      .update({ justificativa: form.notes || null })
-      .eq('id', ms.id)
-    setSavingJust(false)
-    if (error) { toast.error(error.message); return }
-    if (qc) qc.invalidateQueries({ queryKey: ['onboarding', ms.onboarding_id] })
-    toast.success('Justificativa salva')
+  async function handleUploadEv(file) {
+    if (!file) return
+    setUploadingEv(true)
+    try {
+      const ext  = file.name.split('.').pop()
+      const path = `${clientId}/onboarding/fase_${fase.id}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from('activity-attachments').upload(path, file)
+      if (upErr) throw upErr
+      const { error: dbErr } = await supabase.from('onboarding_evidencias').insert({
+        fase_id: fase.id, uploaded_by: user.id, client_id: clientId,
+        file_name: file.name, file_size: file.size, file_type: file.type, storage_path: path,
+      })
+      if (dbErr) throw dbErr
+      qc.invalidateQueries({ queryKey: ['fase_evidencias', fase.id] })
+      toast.success('Evidência adicionada')
+    } catch (e) { toast.error(e.message) }
+    finally { setUploadingEv(false) }
   }
+
+  async function handleActivate() {
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', fase.id)
+      if (error) throw error
+      const { error: onbErr } = await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
+      if (onbErr) throw onbErr
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      logAction('activated', 'onboarding_fase', fase.id, phaseName(fase), { status: 'pendente' }, { status: 'ativa' })
+      toast.success(`Fase ativada: ${phaseName(fase)}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function handleComplete() {
+    const hasConcluida = activities.some(a => a.fase_id === fase.id && a.status === 'concluida')
+    if (!hasConcluida) { toast.error('Conclua pelo menos uma atividade desta fase antes de avançar'); return }
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('onboarding_fases')
+        .update({ status: 'concluida', actual_end: actualEnd || today })
+        .eq('id', fase.id)
+      if (error) throw error
+      const faseIdx      = orderedFases.findIndex(f => f.id === fase.id)
+      const nextPendente = orderedFases.slice(faseIdx + 1).find(f => f.status === 'pendente')
+      if (nextPendente) {
+        const { error: nErr } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', nextPendente.id)
+        if (nErr) throw nErr
+        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: nextPendente.id }).eq('id', onboardingId)
+        if (oErr) throw oErr
+      }
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      logAction('advanced', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida' })
+      toast.success(`Fase concluída: ${phaseName(fase)}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function handleCompleteMilestone() {
+    if (evidencias.length === 0 && !justificativa.trim()) {
+      toast.error('Adicione uma evidência ou preencha a justificativa'); return
+    }
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('onboarding_fases')
+        .update({ status: 'concluida', occurred_at: today, actual_end: today, justificativa: justificativa || null })
+        .eq('id', fase.id)
+      if (error) throw error
+      const faseIdx      = orderedFases.findIndex(f => f.id === fase.id)
+      const nextPendente = orderedFases.slice(faseIdx + 1).find(f => f.status === 'pendente')
+      if (nextPendente) {
+        const { error: nErr } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', nextPendente.id)
+        if (nErr) throw nErr
+        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: nextPendente.id }).eq('id', onboardingId)
+        if (oErr) throw oErr
+      }
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      logAction('marco_concluido', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida', occurred_at: today })
+      toast.success(`Marco concluído: ${phaseName(fase)}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function handleRevert() {
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('onboarding_fases').update({ status: 'pendente', actual_start: null }).eq('id', fase.id)
+      if (error) throw error
+      const faseIdx = orderedFases.findIndex(f => f.id === fase.id)
+      const prevFase = faseIdx > 0 ? orderedFases[faseIdx - 1] : null
+      if (prevFase) {
+        const { error: pErr } = await supabase.from('onboarding_fases').update({ status: 'ativa' }).eq('id', prevFase.id)
+        if (pErr) throw pErr
+        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: prevFase.id }).eq('id', onboardingId)
+        if (oErr) throw oErr
+      } else {
+        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: null }).eq('id', onboardingId)
+        if (oErr) throw oErr
+      }
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      logAction('reverted', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'pendente' })
+      toast.success(`Fase revertida: ${phaseName(fase)}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  async function handleReopen() {
+    setSaving(true)
+    try {
+      const { error } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_end: null, occurred_at: null }).eq('id', fase.id)
+      if (error) throw error
+      const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
+      if (oErr) throw oErr
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      logAction('reopened', 'onboarding_fase', fase.id, phaseName(fase), { status: 'concluida' }, { status: 'ativa' })
+      toast.success(`Fase reaberta: ${phaseName(fase)}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
+  }
+
+  const statusBadgeColor = fase.status === 'concluida' ? 'green' : fase.status === 'ativa' ? 'sky' : 'gray'
+  const statusBadgeLabel = fase.status === 'concluida' ? 'Concluída' : fase.status === 'ativa' ? 'Ativa' : 'Pendente'
 
   return (
     <div style={styles.timeline.milestonePanel}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#173557' }}>
-          {isDone ? 'Marco concluído' : 'Registrar conclusão'} — {phaseName(ms)}
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#173557', marginBottom: 6 }}>Fase: {phaseName(fase)}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {isMilestone && <Tag color="sky">Marco</Tag>}
+            <Tag color={statusBadgeColor}>{statusBadgeLabel}</Tag>
+          </div>
         </div>
         <button style={S.iconBtn} onClick={onClose} title="Fechar">
           <ActionIcons.remove size={14} />
         </button>
       </div>
 
-      {evidencias.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={S.label}>Evidências ({evidencias.length})</label>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {evidencias.map(ev => (
-              <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f8f9fb', borderRadius: 7 }}>
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(23,53,87,0.55)" strokeWidth="1.5" strokeLinecap="round">
-                  <rect x="2.5" y="1" width="11" height="14" rx="2"/>
-                  <line x1="5" y1="5.5" x2="11" y2="5.5"/>
-                  <line x1="5" y1="8" x2="11" y2="8"/>
-                  <line x1="5" y1="10.5" x2="8.5" y2="10.5"/>
-                </svg>
-                <span style={{ flex: 1, fontSize: 12, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.file_name}</span>
-                <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)', whiteSpace: 'nowrap' }}>{ev.uploaded_by?.name ?? '—'}</span>
-                <button style={S.btnLink} onClick={() => handleViewEvidence(ev)}>Ver</button>
-                <button style={{ ...S.btnLink, color: '#b42828' }} onClick={() => handleDeleteEvidence(ev)}>Remover</button>
-              </div>
-            ))}
+      {/* Datas */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div>
+          <label style={S.label}>Previsão de conclusão</label>
+          {maxDueDate && (
+            <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)', marginBottom: 4 }}>Sugestão: {fmt(maxDueDate)}</div>
+          )}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input type="date" style={{ ...S.input, flex: 1 }} value={plannedEnd} onChange={e => setPlannedEnd(e.target.value)} />
+            <button style={S.btnSecSm} onClick={savePlannedEnd}>✓</button>
           </div>
+        </div>
+        <div>
+          <label style={S.label}>Data de conclusão</label>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="date"
+              style={{ ...S.input, flex: 1, opacity: fase.status === 'pendente' ? 0.5 : 1 }}
+              value={actualEnd}
+              disabled={fase.status === 'pendente'}
+              onChange={e => setActualEnd(e.target.value)}
+            />
+            {fase.status !== 'pendente' && <button style={S.btnSecSm} onClick={saveActualEnd}>✓</button>}
+          </div>
+        </div>
+      </div>
+
+      {/* Evidências */}
+      {needsEvidence && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={S.label}>Evidências {evidencias.length > 0 ? `(${evidencias.length})` : ''}</label>
+          {evidencias.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+              {evidencias.map(ev => (
+                <EvidenceRow key={ev.id} ev={ev} onView={() => handleViewEv(ev)} onDelete={() => handleDeleteEv(ev)} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.45)', marginBottom: 8 }}>Nenhuma evidência registrada</div>
+          )}
+          <button
+            style={{ ...S.btnSecSm, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            disabled={uploadingEv}
+            onClick={() => fileRef.current?.click()}
+          >
+            <ActionIcons.attachment size={12} />
+            {uploadingEv ? 'Enviando…' : '+ Adicionar evidência'}
+          </button>
+          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadEv(f); e.target.value = '' }} />
         </div>
       )}
 
-      <div style={S.msPanelGrid}>
-        <div>
-          <label style={S.label}>Data de realização</label>
-          <input type="date" style={S.input} value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
-        </div>
-        <div>
-          <label style={S.label}>Evidência (link ou documento)</label>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input
-              type="url"
-              style={{ ...S.input, flex: 1 }}
-              placeholder="https://…"
-              value={form.link}
-              onChange={e => setForm(p => ({ ...p, link: e.target.value }))}
-            />
-            <button
-              style={{ ...S.iconBtn, width: 'auto', padding: '4px 8px', border: '1px solid #d4d3ce', borderRadius: 6, fontSize: 11, color: '#173557', whiteSpace: 'nowrap', flexShrink: 0, gap: 4, display: 'inline-flex', alignItems: 'center' }}
-              onClick={() => fileRef.current?.click()}
-              title={form.file ? form.file.name : 'Anexar arquivo'}
-            >
-              <ActionIcons.attachment size={12} />
-              {form.file ? form.file.name.slice(0, 14) : '+ Arquivo'}
-            </button>
-            <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => setForm(p => ({ ...p, file: e.target.files?.[0] ?? null }))} />
-          </div>
+      {/* Justificativa */}
+      <div style={{ marginBottom: 16 }}>
+        <label style={S.label}>Justificativa / observações</label>
+        <textarea style={S.textarea} placeholder="Observações sobre esta fase…" value={justificativa} onChange={e => setJustificativa(e.target.value)} />
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+          <button style={S.btnSecSm} onClick={saveJust}>Salvar justificativa</button>
         </div>
       </div>
 
-      <div style={S.msPanelGridFull}>
-        <div>
-          <label style={S.label}>Justificativa / observações</label>
-          <textarea
-            style={S.textarea}
-            placeholder="Ex.: reunião realizada com presença de toda equipe operacional…"
-            value={form.notes}
-            onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
-          />
-        </div>
-      </div>
-
-      <div style={S.msPanelActions}>
-        <button style={S.btnSecSm} onClick={onClose}>Cancelar</button>
-        {isDone ? (
+      {/* Actions */}
+      <div style={{ borderTop: '1px solid rgba(15,34,58,0.07)', paddingTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        {fase.status === 'pendente' && (
+          <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={handleActivate}>
+            {saving ? 'Salvando…' : 'Marcar como Ativa'}
+          </button>
+        )}
+        {fase.status === 'ativa' && !isMilestone && (
           <>
-            <button style={S.btnSecSm} onClick={onReopen} disabled={saving}>
-              {saving ? 'Aguarde…' : 'Reabrir marco'}
-            </button>
-            <button style={savingJust ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={savingJust} onClick={handleSaveJustificativa}>
-              {savingJust ? 'Salvando…' : 'Salvar justificativa'}
+            <button style={saving ? S.btnPrimarySmDis : S.btnSecSm} disabled={saving} onClick={handleRevert}>Voltar para Pendente</button>
+            <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={handleComplete}>
+              {saving ? 'Salvando…' : 'Concluir fase'}
             </button>
           </>
-        ) : (
-          <button
-            style={canConfirm && !saving ? S.btnPrimarySm : S.btnPrimarySmDis}
-            disabled={!canConfirm || saving}
-            onClick={() => onConfirm({ ms, occurredAt: form.date, justificativa: form.notes || form.link || null, file: form.file })}
-          >
-            {saving ? 'Salvando…' : 'Confirmar conclusão'}
+        )}
+        {fase.status === 'ativa' && isMilestone && (
+          <>
+            <button style={saving ? S.btnPrimarySmDis : S.btnSecSm} disabled={saving} onClick={handleRevert}>Voltar para Pendente</button>
+            <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={handleCompleteMilestone}>
+              {saving ? 'Salvando…' : 'Registrar conclusão'}
+            </button>
+          </>
+        )}
+        {fase.status === 'concluida' && (
+          <button style={saving ? S.btnPrimarySmDis : S.btnSecSm} disabled={saving} onClick={handleReopen}>
+            {saving ? 'Salvando…' : 'Reabrir fase'}
           </button>
         )}
       </div>
@@ -517,8 +633,8 @@ function PendingItem({ pend, onEdit, onDelete }) {
     aguardando_validacao: { color: 'amber', label: 'Ag. Validação' },
     encerrada:            { color: 'green', label: 'Encerrada'     },
   }
-  const prio   = prioMap[pend.prioridade]   ?? prioMap.normal
-  const status = statusMap[pend.status]     ?? statusMap.criada
+  const prio   = prioMap[pend.prioridade] ?? prioMap.normal
+  const status = statusMap[pend.status]   ?? statusMap.criada
   const resp   = pend.resp_contato?.name ?? pend.resp_interno?.name ?? pend.responsavel_grupo ?? '—'
 
   return (
@@ -583,25 +699,12 @@ function PendForm({ contacts, profiles, onSave, onCancel, saving, initialDraft =
         )}
         <div style={{ gridColumn: '1 / -1' }}>
           <label style={S.label}>Responsável</label>
-          <RespPicker
-            contacts={contacts}
-            profiles={profiles}
-            selectedId={draft.respId}
-            selectedKind={draft.respKind}
-            onChange={(id, kind) => setDraft(p => ({ ...p, respId: id, respKind: kind }))}
-          />
+          <RespPicker contacts={contacts} profiles={profiles} selectedId={draft.respId} selectedKind={draft.respKind} onChange={(id, kind) => setDraft(p => ({ ...p, respId: id, respKind: kind }))} />
         </div>
       </div>
       <div style={styles.pending.formActions}>
         <button style={S.btnSecSm} onClick={onCancel}>Cancelar</button>
-        <button
-          style={saving ? S.btnPrimarySmDis : S.btnPrimarySm}
-          disabled={saving}
-          onClick={() => {
-            if (!draft.title.trim()) { toast.error('Informe um título'); return }
-            onSave(draft)
-          }}
-        >
+        <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={() => { if (!draft.title.trim()) { toast.error('Informe um título'); return } onSave(draft) }}>
           {saving ? 'Salvando…' : 'Salvar pendência'}
         </button>
       </div>
@@ -628,8 +731,7 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
     },
     onSuccess: (_, payload) => {
       qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
-      logAction('updated', 'onboarding_activity', act.id, act.title,
-        { title: act.title, status: act.status, due_date: act.due_date }, payload)
+      logAction('updated', 'onboarding_activity', act.id, act.title, { title: act.title, status: act.status, due_date: act.due_date }, payload)
     },
     onError: e => toast.error(e.message),
   })
@@ -650,12 +752,8 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
   const createPendMut = useMutation({
     mutationFn: async (draft) => {
       const payload = {
-        onboarding_id: onboardingId,
-        activity_id: act.id,
-        title: draft.title.trim(),
-        description: draft.desc || null,
-        prioridade: draft.priority,
-        status: 'criada',
+        onboarding_id: onboardingId, activity_id: act.id, title: draft.title.trim(),
+        description: draft.desc || null, prioridade: draft.priority, status: 'criada',
         due_date: draft.due || null,
         responsavel_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null,
         responsavel_interno_id: draft.respKind === 'interno' ? draft.respId : null,
@@ -703,13 +801,12 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
     onError: e => toast.error(e.message),
   })
 
-  const resp = act.resp_interno?.name ?? act.resp_contato?.name ?? null
+  const resp      = act.resp_interno?.name ?? act.resp_contato?.name ?? null
   const pendencias = act.pendencias ?? []
 
   function saveActivityEdit() {
     const payload = {
-      title: editActDraft.title.trim(),
-      status: editActDraft.status,
+      title: editActDraft.title.trim(), status: editActDraft.status,
       due_date: editActDraft.due || null,
       completed_at: editActDraft.status === 'concluida' ? new Date().toISOString() : null,
       responsible_contato_id: editActDraft.respKind === 'contato' ? Number(editActDraft.respId) : null,
@@ -721,16 +818,8 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
     toast.success('Atividade atualizada')
   }
 
-  const caretStyle = {
-    ...styles.activity.caret,
-    transform: expanded ? 'rotate(90deg)' : 'none',
-    color: expanded ? '#173557' : 'rgba(23,53,87,0.4)',
-  }
-
-  const itemStyle = {
-    ...styles.activity.item,
-    ...(expanded ? { borderColor: 'rgba(89,194,237,0.5)', boxShadow: '0 4px 14px -8px rgba(89,194,237,0.4)' } : {}),
-  }
+  const caretStyle = { ...styles.activity.caret, transform: expanded ? 'rotate(90deg)' : 'none', color: expanded ? '#173557' : 'rgba(23,53,87,0.4)' }
+  const itemStyle  = { ...styles.activity.item, ...(expanded ? { borderColor: 'rgba(89,194,237,0.5)', boxShadow: '0 4px 14px -8px rgba(89,194,237,0.4)' } : {}) }
 
   return (
     <div style={itemStyle}>
@@ -740,49 +829,21 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
             <polyline points="4 2 8 6 4 10"/>
           </svg>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {act.title}
-        </div>
-        <select
-          style={S.actStatusSel}
-          value={act.status}
-          onClick={e => e.stopPropagation()}
-          onChange={e => {
-            e.stopPropagation()
-            updateActMut.mutate({ status: e.target.value, completed_at: e.target.value === 'concluida' ? new Date().toISOString() : null })
-          }}
-        >
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{act.title}</div>
+        <select style={S.actStatusSel} value={act.status} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); updateActMut.mutate({ status: e.target.value, completed_at: e.target.value === 'concluida' ? new Date().toISOString() : null }) }}>
           {ACT_STATUS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
         </select>
         <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {resp
-            ? <span>{resp}{act.resp_contato && <span style={{ color: 'rgba(23,53,87,0.45)' }}> (cliente)</span>}</span>
-            : <span style={{ color: 'rgba(23,53,87,0.4)', fontStyle: 'italic' }}>— sem responsável</span>}
+          {resp ? <span>{resp}{act.resp_contato && <span style={{ color: 'rgba(23,53,87,0.45)' }}> (cliente)</span>}</span> : <span style={{ color: 'rgba(23,53,87,0.4)', fontStyle: 'italic' }}>— sem responsável</span>}
         </div>
         <div style={{ fontSize: 12, color: act.due_date ? 'rgba(23,53,87,0.7)' : 'rgba(23,53,87,0.4)', fontStyle: act.due_date ? 'normal' : 'italic' }}>
           {act.due_date ? `Limite ${fmt(act.due_date)}` : '— sem prazo'}
         </div>
         <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
-          <button
-            style={S.iconBtn}
-            title="Editar"
-            onClick={() => {
-              setEditActDraft({
-                title: act.title, status: act.status, due: act.due_date || '',
-                respId: act.responsible_contato_id || act.responsible_interno_id || null,
-                respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null,
-              })
-              if (!expanded) onToggleExpand(act.id)
-              setEditActOpen(true)
-            }}
-          >
+          <button style={S.iconBtn} title="Editar" onClick={() => { setEditActDraft({ title: act.title, status: act.status, due: act.due_date || '', respId: act.responsible_contato_id || act.responsible_interno_id || null, respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null }); if (!expanded) onToggleExpand(act.id); setEditActOpen(true) }}>
             <ActionIcons.edit size={13} />
           </button>
-          <button
-            style={S.iconBtn}
-            title="Remover"
-            onClick={() => { if (window.confirm(`Remover atividade "${act.title}"?`)) deleteActMut.mutate() }}
-          >
+          <button style={S.iconBtn} title="Remover" onClick={() => { if (window.confirm(`Remover atividade "${act.title}"?`)) deleteActMut.mutate() }}>
             <ActionIcons.delete size={13} />
           </button>
         </div>
@@ -809,13 +870,7 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={S.label}>Responsável</label>
-                  <RespPicker
-                    contacts={contacts}
-                    profiles={profiles}
-                    selectedId={editActDraft.respId}
-                    selectedKind={editActDraft.respKind}
-                    onChange={(id, kind) => setEditActDraft(p => ({ ...p, respId: id, respKind: kind }))}
-                  />
+                  <RespPicker contacts={contacts} profiles={profiles} selectedId={editActDraft.respId} selectedKind={editActDraft.respKind} onChange={(id, kind) => setEditActDraft(p => ({ ...p, respId: id, respKind: kind }))} />
                 </div>
               </div>
               <div style={styles.pending.formActions}>
@@ -826,44 +881,21 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
           )}
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Pendências ({pendencias.length})
-            </div>
-            <button style={S.btnLink} onClick={() => onTogglePendForm(act.id, !showPendForm)}>
-              {showPendForm ? '× Fechar formulário' : '+ Nova Pendência'}
-            </button>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pendências ({pendencias.length})</div>
+            <button style={S.btnLink} onClick={() => onTogglePendForm(act.id, !showPendForm)}>{showPendForm ? '× Fechar formulário' : '+ Nova Pendência'}</button>
           </div>
 
           {pendencias.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {pendencias.map(p => (
                 <div key={p.id}>
-                  <PendingItem
-                    pend={p}
-                    onEdit={() => setEditPendId(prev => prev === p.id ? null : p.id)}
-                    onDelete={() => { if (window.confirm(`Remover pendência "${p.title}"?`)) deletePendMut.mutate(p) }}
-                  />
+                  <PendingItem pend={p} onEdit={() => setEditPendId(prev => prev === p.id ? null : p.id)} onDelete={() => { if (window.confirm(`Remover pendência "${p.title}"?`)) deletePendMut.mutate(p) }} />
                   {editPendId === p.id && (
                     <PendForm
-                      contacts={contacts}
-                      profiles={profiles}
-                      initialDraft={{
-                        title: p.title || '', desc: p.description || '', priority: p.prioridade || 'normal',
-                        status: p.status || 'criada', due: p.due_date || '',
-                        respId: p.responsavel_contato_id || p.responsavel_interno_id || null,
-                        respKind: p.responsavel_contato_id ? 'contato' : p.responsavel_interno_id ? 'interno' : null,
-                      }}
+                      contacts={contacts} profiles={profiles}
+                      initialDraft={{ title: p.title || '', desc: p.description || '', priority: p.prioridade || 'normal', status: p.status || 'criada', due: p.due_date || '', respId: p.responsavel_contato_id || p.responsavel_interno_id || null, respKind: p.responsavel_contato_id ? 'contato' : p.responsavel_interno_id ? 'interno' : null }}
                       showStatus
-                      onSave={draft => updatePendMut.mutate({
-                        pendId: p.id,
-                        payload: {
-                          title: draft.title.trim(), description: draft.desc || null,
-                          prioridade: draft.priority, status: draft.status, due_date: draft.due || null,
-                          responsavel_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null,
-                          responsavel_interno_id: draft.respKind === 'interno' ? draft.respId : null,
-                          responsavel_grupo: !draft.respId ? 'A definir' : null,
-                        },
-                      })}
+                      onSave={draft => updatePendMut.mutate({ pendId: p.id, payload: { title: draft.title.trim(), description: draft.desc || null, prioridade: draft.priority, status: draft.status, due_date: draft.due || null, responsavel_contato_id: draft.respKind === 'contato' ? Number(draft.respId) : null, responsavel_interno_id: draft.respKind === 'interno' ? draft.respId : null, responsavel_grupo: !draft.respId ? 'A definir' : null } })}
                       onCancel={() => setEditPendId(null)}
                       saving={updatePendMut.isPending}
                     />
@@ -871,18 +903,10 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
                 </div>
               ))}
             </div>
-          ) : (
-            !showPendForm && <div style={styles.pending.empty}>Nenhuma pendência registrada nesta atividade.</div>
-          )}
+          ) : (!showPendForm && <div style={styles.pending.empty}>Nenhuma pendência registrada nesta atividade.</div>)}
 
           {showPendForm && (
-            <PendForm
-              contacts={contacts}
-              profiles={profiles}
-              onSave={draft => createPendMut.mutate(draft)}
-              onCancel={() => onTogglePendForm(act.id, false)}
-              saving={createPendMut.isPending}
-            />
+            <PendForm contacts={contacts} profiles={profiles} onSave={draft => createPendMut.mutate(draft)} onCancel={() => onTogglePendForm(act.id, false)} saving={createPendMut.isPending} />
           )}
         </div>
       )}
@@ -898,17 +922,12 @@ function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, l
   const ddRef    = useRef()
 
   const usedNames  = new Set(activities.map(a => a.title.toLowerCase()))
-  const filtered   = actTypes.filter(t =>
-    (!search || t.name.toLowerCase().includes(search.toLowerCase())) &&
-    !usedNames.has(t.name.toLowerCase())
-  )
+  const filtered   = actTypes.filter(t => (!search || t.name.toLowerCase().includes(search.toLowerCase())) && !usedNames.has(t.name.toLowerCase()))
   const exactMatch = actTypes.some(t => t.name.toLowerCase() === search.trim().toLowerCase())
 
   useEffect(() => {
     function handler(e) {
-      if (ddRef.current && !ddRef.current.contains(e.target) && !inputRef.current?.contains(e.target)) {
-        setShowDd(false)
-      }
+      if (ddRef.current && !ddRef.current.contains(e.target) && !inputRef.current?.contains(e.target)) setShowDd(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -918,26 +937,11 @@ function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, l
     mutationFn: async (option) => {
       let type = option
       if (option?.__new) {
-        const { data: created, error: typeErr } = await supabase
-          .from('onboarding_activity_types')
-          .insert({ name: option.name.trim(), active: true })
-          .select('id, name')
-          .single()
+        const { data: created, error: typeErr } = await supabase.from('onboarding_activity_types').insert({ name: option.name.trim(), active: true }).select('id, name').single()
         if (typeErr) throw typeErr
         type = created
       }
-      const payload = {
-        onboarding_id: onboardingId,
-        activity_type_id: type.id,
-        title: type.name,
-        fase_id: targetFaseId ?? null,
-        status: 'pendente',
-        due_date: null,
-        responsible_contato_id: null,
-        responsible_interno_id: null,
-        created_by: user?.id ?? null,
-        display_order: activities.length,
-      }
+      const payload = { onboarding_id: onboardingId, activity_type_id: type.id, title: type.name, fase_id: targetFaseId ?? null, status: 'pendente', due_date: null, responsible_contato_id: null, responsible_interno_id: null, created_by: user?.id ?? null, display_order: activities.length }
       const { data, error } = await supabase.from('onboarding_activities').insert(payload).select().single()
       if (error) throw error
       return data
@@ -946,102 +950,79 @@ function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, l
       qc.invalidateQueries({ queryKey: ['onb_activities', onboardingId] })
       logAction('create_activity', 'onboarding_activity', data.id, data.title, null, { onboarding_id: onboardingId })
       toast.success(`Atividade adicionada: ${data.title}`)
-      setSearch('')
-      setShowDd(false)
+      setSearch(''); setShowDd(false)
     },
     onError: e => toast.error(e.message),
   })
 
   if (!targetFaseId) {
-    return (
-      <div style={{ padding: '8px 2px 12px', fontSize: 13, color: 'rgba(23,53,87,0.5)', fontStyle: 'italic' }}>
-        Selecione uma fase para adicionar atividades
-      </div>
-    )
+    return <div style={{ padding: '8px 2px 12px', fontSize: 13, color: 'rgba(23,53,87,0.5)', fontStyle: 'italic' }}>Selecione uma fase para adicionar atividades</div>
   }
 
   return (
     <div>
       <div style={styles.activity.searchWrap}>
-        <span style={styles.activity.searchIcon}>
-          <ActionIcons.search size={14} />
-        </span>
-        <input
-          id="onb-cat-input"
-          ref={inputRef}
-          style={styles.activity.search}
-          placeholder="Buscar no catálogo de atividades…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setShowDd(true) }}
-          onFocus={() => setShowDd(true)}
-          autoComplete="off"
-        />
+        <span style={styles.activity.searchIcon}><ActionIcons.search size={14} /></span>
+        <input id="onb-cat-input" ref={inputRef} style={styles.activity.search} placeholder="Buscar no catálogo de atividades…" value={search} onChange={e => { setSearch(e.target.value); setShowDd(true) }} onFocus={() => setShowDd(true)} autoComplete="off" />
         {showDd && (
           <div style={styles.activity.catalogDropdown} ref={ddRef}>
             {filtered.map(t => (
-              <div
-                key={t.id}
-                style={styles.activity.catalogItem}
-                onMouseEnter={e => e.currentTarget.style.background = '#f4f5f7'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}
-                onClick={() => addActMut.mutate(t)}
-              >
+              <div key={t.id} style={styles.activity.catalogItem} onMouseEnter={e => e.currentTarget.style.background = '#f4f5f7'} onMouseLeave={e => e.currentTarget.style.background = ''} onClick={() => addActMut.mutate(t)}>
                 <span>{t.name}</span>
                 <span style={{ fontSize: 10, color: 'rgba(23,53,87,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Catálogo</span>
               </div>
             ))}
             {search.trim() && !exactMatch && (
-              <div
-                style={styles.activity.catalogItem}
-                onMouseEnter={e => e.currentTarget.style.background = '#f4f5f7'}
-                onMouseLeave={e => e.currentTarget.style.background = ''}
-                onClick={() => addActMut.mutate({ __new: true, name: search.trim() })}
-              >
+              <div style={styles.activity.catalogItem} onMouseEnter={e => e.currentTarget.style.background = '#f4f5f7'} onMouseLeave={e => e.currentTarget.style.background = ''} onClick={() => addActMut.mutate({ __new: true, name: search.trim() })}>
                 <span>Criar atividade: <strong>{search.trim()}</strong></span>
                 <span style={{ fontSize: 10, color: '#0a6a96', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Novo</span>
               </div>
             )}
             {filtered.length === 0 && (!search.trim() || exactMatch) && (
-              <div style={{ padding: 10, fontSize: 12, color: 'rgba(23,53,87,0.55)', textAlign: 'center' }}>
-                Todas as atividades do catálogo já foram adicionadas
-              </div>
+              <div style={{ padding: 10, fontSize: 12, color: 'rgba(23,53,87,0.55)', textAlign: 'center' }}>Todas as atividades do catálogo já foram adicionadas</div>
             )}
           </div>
         )}
       </div>
-
     </div>
   )
 }
 
-// ── FaseMgmtPanel ─────────────────────────────────────────────────────────────
+// ── FaseMgmtPanel — com drag and drop ────────────────────────────────────────
 function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
-  const [search, setSearch] = useState('')
+  const [search, setSearch]         = useState('')
+  const [localFases, setLocalFases] = useState(fases)
 
-  const usedTypeIds = new Set(fases.map(f => f.fase_type_id))
-  const available = faseTypes.filter(t =>
-    !usedTypeIds.has(t.id) &&
-    (!search || t.name.toLowerCase().includes(search.toLowerCase()))
-  )
+  useEffect(() => { setLocalFases(fases) }, [fases])
+
+  const usedTypeIds = new Set(localFases.map(f => f.fase_type_id))
+  const available   = faseTypes.filter(t => !usedTypeIds.has(t.id) && (!search || t.name.toLowerCase().includes(search.toLowerCase())))
+
+  const reorderMut = useMutation({
+    mutationFn: async (orderedIds) => {
+      await Promise.all(orderedIds.map((faseId, idx) => supabase.from('onboarding_fases').update({ display_order: idx + 1 }).eq('id', faseId)))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }),
+    onError: e => toast.error(e.message),
+  })
+
+  function onDragEnd(result) {
+    if (!result.destination) return
+    const items = Array.from(localFases)
+    const [moved] = items.splice(result.source.index, 1)
+    items.splice(result.destination.index, 0, moved)
+    setLocalFases(items)
+    reorderMut.mutate(items.map(f => f.id))
+  }
 
   const addFaseMut = useMutation({
     mutationFn: async (faseType) => {
-      const maxOrder = fases.length > 0 ? Math.max(...fases.map(f => f.display_order)) : 0
-      const { data, error } = await supabase.from('onboarding_fases').insert({
-        onboarding_id: onboardingId,
-        fase_type_id:  faseType.id,
-        display_order: maxOrder + 1,
-        status:        'pendente',
-        evidence_required: faseType.requires_evidence,
-      }).select('*, onboarding_fase_types(*)').single()
+      const maxOrder = localFases.length > 0 ? Math.max(...localFases.map(f => f.display_order)) : 0
+      const { data, error } = await supabase.from('onboarding_fases').insert({ onboarding_id: onboardingId, fase_type_id: faseType.id, display_order: maxOrder + 1, status: 'pendente', evidence_required: faseType.requires_evidence }).select('*, onboarding_fase_types(*)').single()
       if (error) throw error
       return data
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      toast.success('Fase adicionada')
-      setSearch('')
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }); toast.success('Fase adicionada'); setSearch('') },
     onError: e => toast.error(e.message),
   })
 
@@ -1050,10 +1031,7 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
       const { error } = await supabase.from('onboarding_fases').delete().eq('id', faseId)
       if (error) throw error
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      toast.success('Fase removida')
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }); toast.success('Fase removida') },
     onError: e => toast.error(e.message),
   })
 
@@ -1067,36 +1045,47 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
         <button style={S.btnLink} onClick={onClose}>Fechar</button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
-        {fases.map(f => (
-          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#f8f9fb', borderRadius: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 500, color: '#173557', flex: 1 }}>{phaseName(f)}</span>
-            {f.onboarding_fase_types?.is_milestone && <Tag color="sky">Marco</Tag>}
-            {f.onboarding_fase_types?.requires_evidence && <Tag color="amber">Evidência</Tag>}
-            <Tag color={statusColor(f.status)}>{statusLabel(f.status)}</Tag>
-            {f.status === 'pendente' ? (
-              <button
-                style={{ ...S.btnLink, color: '#b42828' }}
-                disabled={removeFaseMut.isPending}
-                onClick={() => { if (window.confirm(`Remover fase "${phaseName(f)}"?`)) removeFaseMut.mutate(f.id) }}
-              >
-                Remover
-              </button>
-            ) : (
-              <span style={{ width: 52 }} />
-            )}
-          </div>
-        ))}
-      </div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="fases-list">
+          {(provided) => (
+            <div {...provided.droppableProps} ref={provided.innerRef} style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
+              {localFases.map((f, idx) => (
+                <Draggable key={f.id} draggableId={String(f.id)} index={idx}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: snapshot.isDragging ? '#edf4fa' : '#f8f9fb', borderRadius: 8, border: snapshot.isDragging ? '1px solid rgba(89,194,237,0.4)' : '1px solid transparent', ...provided.draggableProps.style }}
+                    >
+                      <div {...provided.dragHandleProps} style={{ cursor: 'grab', color: 'rgba(23,53,87,0.3)', flexShrink: 0, display: 'flex' }}>
+                        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+                          <circle cx="3" cy="2" r="1.5"/><circle cx="7" cy="2" r="1.5"/>
+                          <circle cx="3" cy="7" r="1.5"/><circle cx="7" cy="7" r="1.5"/>
+                          <circle cx="3" cy="12" r="1.5"/><circle cx="7" cy="12" r="1.5"/>
+                        </svg>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#173557', flex: 1 }}>{phaseName(f)}</span>
+                      {f.onboarding_fase_types?.is_milestone   && <Tag color="sky">Marco</Tag>}
+                      {f.onboarding_fase_types?.requires_evidence && <Tag color="amber">Evidência</Tag>}
+                      <Tag color={statusColor(f.status)}>{statusLabel(f.status)}</Tag>
+                      {f.status === 'pendente' ? (
+                        <button style={{ ...S.btnLink, color: '#b42828' }} disabled={removeFaseMut.isPending} onClick={() => { if (window.confirm(`Remover fase "${phaseName(f)}"?`)) removeFaseMut.mutate(f.id) }}>Remover</button>
+                      ) : (
+                        <span style={{ width: 52 }} />
+                      )}
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       <div>
         <label style={S.label}>Adicionar fase</label>
-        <input
-          style={{ ...S.input, marginBottom: 6 }}
-          placeholder="Buscar tipo de fase…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <input style={{ ...S.input, marginBottom: 6 }} placeholder="Buscar tipo de fase…" value={search} onChange={e => setSearch(e.target.value)} />
         {available.length === 0 ? (
           <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.5)', padding: '6px 2px' }}>
             {search ? 'Nenhum tipo encontrado' : 'Todos os tipos já estão neste projeto'}
@@ -1112,7 +1101,7 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
                 onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
               >
                 <span style={{ fontSize: 12, color: '#173557', flex: 1 }}>{t.name}</span>
-                {t.is_milestone && <Tag color="sky">Marco</Tag>}
+                {t.is_milestone    && <Tag color="sky">Marco</Tag>}
                 {t.requires_evidence && <Tag color="amber">Evidência</Tag>}
                 <span style={{ fontSize: 11, color: '#0a6a96', fontWeight: 500 }}>+ Adicionar</span>
               </div>
@@ -1133,9 +1122,7 @@ export default function OnboardingDetailPage() {
   const { logAction } = useAuditLog()
 
   const { data: project, isLoading, error } = useProjectDetail(id)
-  console.log('[detail] project:', project)
   const onboardingId = project?.onboarding_id
-  console.log('[detail] onboardingId:', onboardingId)
   const clientId     = project?.client?.id
 
   const { data: onboarding, isLoading: onboardingLoading, error: onboardingError } = useOnboarding(onboardingId)
@@ -1146,8 +1133,7 @@ export default function OnboardingDetailPage() {
   const { data: faseTypes  = [] }                          = useFaseTypes()
 
   const [editModalOpen,   setEditModalOpen]   = useState(false)
-  const [openMsId,        setOpenMsId]        = useState(null)
-  const [msSaving,        setMsSaving]        = useState(false)
+  const [openFaseId,      setOpenFaseId]      = useState(null)
   const [expandedActs,    setExpandedActs]    = useState(new Set())
   const [showPendForms,   setShowPendForms]   = useState(new Set())
   const [selectedFaseTab, setSelectedFaseTab] = useState(null)
@@ -1160,12 +1146,8 @@ export default function OnboardingDetailPage() {
   function toggleExpand(actId) {
     setExpandedActs(prev => {
       const next = new Set(prev)
-      if (next.has(actId)) {
-        next.delete(actId)
-        setShowPendForms(p => { const n = new Set(p); n.delete(actId); return n })
-      } else {
-        next.add(actId)
-      }
+      if (next.has(actId)) { next.delete(actId); setShowPendForms(p => { const n = new Set(p); n.delete(actId); return n }) }
+      else next.add(actId)
       return next
     })
   }
@@ -1175,150 +1157,23 @@ export default function OnboardingDetailPage() {
     if (show) setExpandedActs(prev => new Set([...prev, actId]))
   }
 
-  // ── Phase mutations ──────────────────────────────────────────────────────────
-  const phaseMut = useMutation({
-    mutationFn: async (direction) => {
-      if (!onboarding || !orderedFases.length) throw new Error('Onboarding não carregado')
-      const curIdx    = currentPhaseIndex
-      const targetIdx = direction === 'advance' ? curIdx + 1 : curIdx - 1
-      if (targetIdx < 0 || targetIdx >= orderedFases.length) return null
-
-      const current = orderedFases[curIdx]
-      const target  = orderedFases[targetIdx]
-      const today   = new Date().toISOString().slice(0, 10)
-
-      if (direction === 'advance' && current) {
-        const { error } = await supabase.from('onboarding_fases')
-          .update({ status: 'concluida', actual_end: current.actual_end || today })
-          .eq('id', current.id)
-        if (error) throw error
-      }
-      if (direction === 'revert' && current) {
-        const { error } = await supabase.from('onboarding_fases')
-          .update({ status: 'pendente', actual_end: null })
-          .eq('id', current.id)
-        if (error) throw error
-      }
-
-      const { error: activeErr } = await supabase.from('onboarding_fases')
-        .update({ status: 'ativa', actual_start: target.actual_start || today })
-        .eq('id', target.id)
-      if (activeErr) throw activeErr
-
-      const { error: onbErr } = await supabase.from('onboardings')
-        .update({ fase_atual_id: target.id })
-        .eq('id', onboarding.id)
-      if (onbErr) throw onbErr
-
-      return { oldFase: phaseName(current), newFase: phaseName(target) }
-    },
-    onSuccess: (res) => {
-      if (!res) return
-      qc.invalidateQueries({ queryKey: ['project_detail', id] })
-      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      qc.invalidateQueries({ queryKey: ['projects_all'] })
-      logAction('updated', 'onboarding', onboardingId, project.title, { fase: res.oldFase }, { fase: res.newFase })
-      toast.success(`Fase: ${res.newFase}`)
-    },
-    onError: e => toast.error(e.message),
-  })
-
-  // ── Milestone confirm ────────────────────────────────────────────────────────
-  async function handleConfirmMs({ ms, occurredAt, justificativa, file }) {
-    setMsSaving(true)
-    try {
-      if (file) {
-        const ext  = file.name.split('.').pop()
-        const path = `${clientId}/onboarding/fase-${ms.id}/${Date.now()}.${ext}`
-        const { error: upErr } = await supabase.storage.from('activity-attachments').upload(path, file)
-        if (upErr) throw upErr
-        const { error: evErr } = await supabase.from('onboarding_evidencias').insert({
-          fase_id: ms.id, uploaded_by: user.id, client_id: clientId,
-          file_name: file.name, file_size: file.size, file_type: file.type, storage_path: path,
-        })
-        if (evErr) throw evErr
-      }
-
-      const { error } = await supabase.from('onboarding_fases')
-        .update({ status: 'concluida', occurred_at: occurredAt, justificativa: justificativa || null, actual_end: occurredAt })
-        .eq('id', ms.id)
-      if (error) throw error
-
-      const idx  = orderedFases.findIndex(f => f.id === ms.id)
-      const next = idx >= 0 ? orderedFases[idx + 1] : null
-      if (next) {
-        const { error: nextErr } = await supabase.from('onboarding_fases')
-          .update({ status: 'ativa', actual_start: next.actual_start || occurredAt })
-          .eq('id', next.id)
-        if (nextErr) throw nextErr
-        const { error: onbErr } = await supabase.from('onboardings')
-          .update({ fase_atual_id: next.id })
-          .eq('id', onboardingId)
-        if (onbErr) throw onbErr
-      }
-
-      qc.invalidateQueries({ queryKey: ['project_detail', id] })
-      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      qc.invalidateQueries({ queryKey: ['projects_all'] })
-      logAction('updated', 'onboarding_fase', ms.id, phaseName(ms), null, { occurred_at: occurredAt, status: 'concluida' })
-      toast.success(`${phaseName(ms)} concluído!`)
-      setOpenMsId(null)
-    } catch (e) { toast.error(e.message) }
-    finally { setMsSaving(false) }
-  }
-
-  async function handleReopenMs(ms) {
-    setMsSaving(true)
-    try {
-      const { error } = await supabase.from('onboarding_fases')
-        .update({ status: 'ativa', occurred_at: null, justificativa: null, actual_end: null })
-        .eq('id', ms.id)
-      if (error) throw error
-      const { error: onbErr } = await supabase.from('onboardings')
-        .update({ fase_atual_id: ms.id })
-        .eq('id', onboardingId)
-      if (onbErr) throw onbErr
-      qc.invalidateQueries({ queryKey: ['project_detail', id] })
-      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      logAction('updated', 'onboarding_fase', ms.id, phaseName(ms), { occurred_at: ms.occurred_at }, { occurred_at: null, status: 'ativa' })
-      toast.success(`Marco reaberto: ${phaseName(ms)}`)
-      setOpenMsId(null)
-    } catch (e) { toast.error(e.message) }
-    finally { setMsSaving(false) }
-  }
-
   // ── Loading / error ──────────────────────────────────────────────────────────
   if (isLoading || (onboardingId && onboardingLoading)) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        <p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p>
-      </div>
-    )
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p></div>
   }
   if (error || !project) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
-        <p style={{ color: '#b42828', fontSize: 14 }}>Projeto não encontrado.</p>
-        <button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button>
-      </div>
-    )
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Projeto não encontrado.</p><button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button></div>
   }
   if (onboardingError) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
-        <p style={{ color: '#b42828', fontSize: 14 }}>Onboarding vinculado não encontrado.</p>
-        <button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button>
-      </div>
-    )
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Onboarding vinculado não encontrado.</p><button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button></div>
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────────
-  const onb         = onboarding
-  const fases       = orderedFases
-  const caps        = onb?.onboarding_capabilities ?? []
-  const activePhase  = fases[currentPhaseIndex] ?? fases[0] ?? null
-  const visibleActs  = selectedFaseTab ? activities.filter(a => a.fase_id === selectedFaseTab) : activities
-  const clientName   = project.client?.fantasy_name || project.client?.name || '—'
+  const onb        = onboarding
+  const fases      = orderedFases
+  const caps       = onb?.onboarding_capabilities ?? []
+  const visibleActs = selectedFaseTab ? activities.filter(a => a.fase_id === selectedFaseTab) : activities
+  const clientName  = project.client?.fantasy_name || project.client?.name || '—'
   const totalSteps  = fases.length
   const doneSteps   = fases.filter(f => f.status === 'concluida').length
 
@@ -1327,9 +1182,25 @@ export default function OnboardingDetailPage() {
     atencao: { color: 'amber', label: 'Atenção',  dot: false },
     travado: { color: 'red',   label: 'Travado',  dot: false },
   }
-  const situacao    = situacaoMap[onb?.situacao_geral] ?? situacaoMap.fluindo
-  const openMs      = openMsId ? fases.find(f => f.id === openMsId) : null
+  const situacao     = situacaoMap[onb?.situacao_geral] ?? situacaoMap.fluindo
+  const openFase     = openFaseId ? fases.find(f => f.id === openFaseId) : null
   const contextLabel = FASE_LABELS[onb?.context] ?? onb?.context ?? ''
+
+  // grouped capabilities
+  const capsServico = caps.filter(c => c.catalog_item?.type === 'servico')
+  const capsSolucao = caps.filter(c => c.catalog_item?.type === 'solucao')
+
+  function renderCapChip(cap, i) {
+    const item = cap.catalog_item
+    if (!item) return null
+    const palette = CAP_PALETTE[i % CAP_PALETTE.length]
+    return (
+      <span key={cap.id} style={{ ...S.capChipBase, ...palette }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block', flexShrink: 0 }} />
+        {item.name}
+      </span>
+    )
+  }
 
   return (
     <>
@@ -1348,19 +1219,13 @@ export default function OnboardingDetailPage() {
 
           {/* header */}
           <button style={S.btnBack} onClick={() => navigate('/projetos')}>← Projetos</button>
-
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
             <div style={{ minWidth: 0 }}>
               <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, letterSpacing: '-0.2px', color: '#173557' }}>{project.title}</h1>
               <div style={{ fontSize: 13, color: '#0a6a96', fontWeight: 500, marginTop: 4 }}>{clientName}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
                 {contextLabel && <Tag color="sky">{contextLabel}</Tag>}
-                {onb && (
-                  <Tag color={situacao.color}>
-                    {situacao.dot && <span style={S.liveDot} />}
-                    {situacao.label}
-                  </Tag>
-                )}
+                {onb && <Tag color={situacao.color}>{situacao.dot && <span style={S.liveDot} />}{situacao.label}</Tag>}
                 {onb?.csm && <Tag color="gray">CSM: {onb.csm.name}</Tag>}
               </div>
             </div>
@@ -1395,32 +1260,25 @@ export default function OnboardingDetailPage() {
                         fase={fase}
                         isActive={isActive}
                         isDone={isDone}
-                        isLastPhase={isLast}
-                        onMilestoneClick={() => setOpenMsId(prev => prev === fase.id ? null : fase.id)}
-                        onAdvance={() => phaseMut.mutate('advance')}
-                        onRevert={() => phaseMut.mutate('revert')}
+                        onClick={() => setOpenFaseId(prev => prev === fase.id ? null : fase.id)}
                       />
-                      {!isLast && (
-                        <Connector
-                          leftDone={isDone}
-                          rightActive={!!(next?.id === faseAtualId || next?.status === 'ativa')}
-                        />
-                      )}
+                      {!isLast && <Connector leftDone={isDone} rightActive={!!(next?.id === faseAtualId || next?.status === 'ativa')} />}
                     </div>
                   )
                 })}
               </div>
 
-              {openMs && (
-                <MilestonePanel
-                  ms={openMs}
-                  onClose={() => setOpenMsId(null)}
-                  onConfirm={handleConfirmMs}
-                  onReopen={() => handleReopenMs(openMs)}
-                  saving={msSaving}
+              {openFase && (
+                <FasePanel
+                  fase={openFase}
+                  orderedFases={orderedFases}
+                  onboardingId={onboardingId}
+                  onClose={() => setOpenFaseId(null)}
                   user={user}
                   clientId={clientId}
                   qc={qc}
+                  logAction={logAction}
+                  activities={activities}
                 />
               )}
 
@@ -1440,22 +1298,14 @@ export default function OnboardingDetailPage() {
           <div style={{ background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 14, padding: '20px 22px', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#173557' }}>Atividades</div>
-              <button style={S.btnPrimarySm} onClick={() => document.getElementById('onb-cat-input')?.focus()}>
-                + Adicionar Atividade
-              </button>
+              <button style={S.btnPrimarySm} onClick={() => document.getElementById('onb-cat-input')?.focus()}>+ Adicionar Atividade</button>
             </div>
 
             {fases.length > 0 && (
               <div style={{ display: 'flex', gap: 4, marginBottom: 14, overflowX: 'auto', paddingBottom: 4 }}>
-                <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>
-                  Todas
-                </button>
+                <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>Todas</button>
                 {fases.map(f => (
-                  <button
-                    key={f.id}
-                    style={{ ...(selectedFaseTab === f.id ? S.segBtnOn : S.segBtn), whiteSpace: 'nowrap' }}
-                    onClick={() => setSelectedFaseTab(f.id)}
-                  >
+                  <button key={f.id} style={{ ...(selectedFaseTab === f.id ? S.segBtnOn : S.segBtn), whiteSpace: 'nowrap' }} onClick={() => setSelectedFaseTab(f.id)}>
                     {phaseName(f)}
                   </button>
                 ))}
@@ -1484,17 +1334,12 @@ export default function OnboardingDetailPage() {
               ) : (
                 visibleActs.map(act => (
                   <ActivityItem
-                    key={act.id}
-                    act={act}
+                    key={act.id} act={act}
                     expanded={expandedActs.has(act.id)}
                     showPendForm={showPendForms.has(act.id)}
-                    contacts={contacts}
-                    profiles={profiles}
-                    onboardingId={onboardingId}
-                    qc={qc}
-                    logAction={logAction}
-                    onToggleExpand={toggleExpand}
-                    onTogglePendForm={togglePendForm}
+                    contacts={contacts} profiles={profiles}
+                    onboardingId={onboardingId} qc={qc} logAction={logAction}
+                    onToggleExpand={toggleExpand} onTogglePendForm={togglePendForm}
                   />
                 ))
               )}
@@ -1505,19 +1350,28 @@ export default function OnboardingDetailPage() {
           {caps.length > 0 && (
             <div style={{ background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 14, padding: '20px 22px', marginBottom: 16 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: '#173557', marginBottom: 16 }}>Capacidades contratadas</div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {caps.map((cap, i) => {
-                  const item = cap.catalog_item
-                  if (!item) return null
-                  const palette = CAP_PALETTE[i % CAP_PALETTE.length]
-                  return (
-                    <span key={cap.id} style={{ ...S.capChipBase, ...palette }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', display: 'inline-block', flexShrink: 0 }} />
-                      {item.name}
-                    </span>
-                  )
-                })}
-              </div>
+
+              {capsServico.length > 0 && (
+                <div style={{ marginBottom: capsSolucao.length > 0 ? 0 : 0 }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(23,53,87,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Serviços</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {capsServico.map((cap, i) => renderCapChip(cap, i))}
+                  </div>
+                </div>
+              )}
+
+              {capsServico.length > 0 && capsSolucao.length > 0 && (
+                <div style={{ height: 1, background: 'rgba(15,34,58,0.06)', margin: '12px 0' }} />
+              )}
+
+              {capsSolucao.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(23,53,87,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Soluções</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {capsSolucao.map((cap, i) => renderCapChip(cap, i))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
