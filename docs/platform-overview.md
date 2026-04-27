@@ -2,6 +2,16 @@
 
 ## Visão Geral
 
+**Documentação relacionada**
+
+- Sistema: `docs/system/system-overview.md`
+- Módulos: `docs/modules/`
+- Arquitetura: `docs/system/high-level-architecture.md`
+- Fluxo de dados: `docs/system/data-flow.md`
+- Pontos de integração: `docs/system/integration-points.md`
+- Contexto de implantação: `docs/system/deployment-context.md`
+- Futuro da arquitetura: `docs/system/future-architecture.md`
+
 O doncCX Hub é uma plataforma de inteligência projetada especificamente para apoiar Customer Success Managers (CSMs) na tomada de decisão estratégica sobre sua carteira de clientes. Diferentemente de CRMs tradicionais focados principalmente no registro operacional, o doncCX Hub tem como propósito central transformar dados em inteligência acionável, atuando como um copiloto estratégico que ajuda a antecipar riscos, identificar oportunidades e orientar ações com base em evidências.
 
 ## Problema que Resolve

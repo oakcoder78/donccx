@@ -1,54 +1,52 @@
 # Shared Modules
 
-Descreve os módulos técnicos reutilizáveis que dão suporte aos módulos principais do sistema, facilitando a reutilização de código e o desacoplamento entre funcionalidades.
+Describes reusable technical modules that support the main system modules, facilitating code reuse and decoupling between functionalities.
 
 ## UI
 
-- **Papel técnico:** Componentes de interface visual reutilizáveis que abstraem elementos de UI comuns.
-- **Funcionalidade:** Botões, inputs, ícones, cards, modais, carregadores etc.
-- **Dependências:** Utilizado por quase todas as páginas e módulos de layout para compor a experiência do usuário.
-- **Contribuição:** Centraliza o estilo e a lógica visual, reduzindo duplicação e permitindo mudanças globais de UI em um único ponto.
+- **Technical role:** Reusable visual interface components abstracting common UI elements.
+- **Functionality:** Buttons, inputs, icons, cards, modals, loaders, etc.
+- **Dependencies:** Used by almost all pages and layout modules to compose the user experience.
+- **Contribution:** Centralizes style and visual logic, reducing duplication and enabling global UI changes from a single point.
 
 ## Layout
 
-- **Papel técnico:** Estruturas de layout que organizam a disposição da UI em páginas e rotas.
-- **Funcionalidade:** Grid, contêineres, cabeçalhos, barras laterais, áreas de conteúdo responsivas.
-- **Dependências:** Consumido por `pages/*` e pelos módulos de UI para posicionamento consistente.
-- **Contribuição:** Garante consistência visual entre diferentes partes da aplicação e facilita a reordenação de seções sem tocar na lógica de negócios.
+- **Technical role:** Layout structures that organize UI placement on pages and routes.
+- **Functionality:** Grid, containers, headers, sidebars, responsive content areas.
+- **Dependencies:** Consumed by `pages/*` and UI modules for consistent positioning.
+- **Contribution:** Guarantees visual consistency across the application and eases section reordering without touching business logic.
 
 ## Hooks
 
-- **Papel técnico:** Funções customizadas de React que encapsulam lógica de estado e efeitos reutilizáveis.
-- **Funcionalidade:** Hooks como `useClients`, `useActivities`, `useProjects`, `useHealthScore`, `useSegments`, `useStages`, entre outros, responsáveis por encapsular acesso a dados e lógica reutilizável.
-- **Dependências:** Usado por componentes de UI, contextos e serviços que precisam de lógica reativa.
-- **Contribuição:** Evita repetição de código de efeito/estado e promove testes unitários isolados.
+- **Technical role:** Custom React functions encapsulating reusable state and effect logic.
+- **Functionality:** Hooks such as `useClients`, `useActivities`, `useProjects`, `useHealthScore`, `useSegments`, `useStages`, among others, encapsulating data access and reusable logic.
+- **Dependencies:** Used by UI components, contexts and services needing reactive logic.
+- **Contribution:** Avoids repeated effect/state code and promotes isolated unit testing.
 
 ## Contexts
 
-- **Papel técnico:** Provedores de estado global que compartilham dados entre componentes sem prop drilling.
-- **Funcionalidade:** Gerenciamento de autenticação e sessão do usuário através do `AuthContext`.
-- **Dependências:** Qualquer componente que precise acessar informações globais (UI, hooks, serviços).
-- **Contribuição:** Centraliza o gerenciamento de estado compartilhado, melhorando a escalabilidade e a manutenção.
+- **Technical role:** Global state providers sharing data among components without prop drilling.
+- **Functionality:** Manages user authentication and session via `AuthContext`.
+- **Dependencies:** Any component requiring global information (UI, hooks, services).
+- **Contribution:** Centralizes shared state management, improving scalability and maintainability.
 
 ## Lib
 
-- **Papel técnico:** Bibliotecas utilitárias de baixo nível que não dependem de React.
-- **Funcionalidade:** Helpers de formatação, manipulação de datas, validação, wrappers de API, etc.
-- **Dependências:** Utilizado por hooks, serviços e, ocasionalmente, por componentes que precisam de lógica pura.
-- **Contribuição:** Isola funcionalidades genéricas, facilitando a reutilização em diferentes contextos (frontend, scripts, tests).
+- **Technical role:** Low‑level utility libraries that do not depend on React.
+- **Functionality:** Formatting helpers, date manipulation, validation, API wrappers, etc.
+- **Dependencies:** Used by hooks, services and occasionally by components needing pure logic.
+- **Contribution:** Isolates generic functionality, facilitating reuse across contexts (frontend, scripts, tests).
 
 ## Services
 
-- **Papel técnico:** Camada de abstração para chamadas externas e lógica de negócio.
-- **Funcionalidade:** Integrações com Supabase, gerenciamento de anexos de atividades e comunicação com serviços externos configurados no sistema.
-- **Dependências:** Consumido por hooks, componentes de UI (via callbacks) e scripts de backend.
-- **Contribuição:** Mantém a separação entre comunicação externa e a UI, permitindo mockar/ substituir serviços facilmente.
+- **Technical role:** Abstraction layer for external calls and business logic.
+- **Functionality:** Integrations with Supabase, activity‑attachment management and communication with externally configured services.
+- **Dependencies:** Consumed by hooks, UI components (via callbacks) and backend scripts.
+- **Contribution:** Keeps external communication separate from UI, allowing easy mocking/replacement of services.
 
 ## Donkie
 
-## Donkie
-
-- **Papel técnico:** Interface de assistente interno da aplicação, integrada à experiência do usuário.
-- **Funcionalidade:** Componentes como `DonkieButton` e `DonkiePanel` que permitem abrir e interagir com o assistente dentro da interface.
-- **Dependências:** Utilizado por páginas e componentes que integram funcionalidades assistidas ou automatizadas.
-- **Contribuição:** Introduz uma camada interativa adicional para suporte operacional e automação interna.
+- **Technical role:** Internal assistant interface integrated into the user experience.
+- **Functionality:** Components like `DonkieButton` and `DonkiePanel` enabling opening and interacting with the assistant within the UI.
+- **Dependencies:** Used by pages and components that integrate assisted or automated features.
+- **Contribution:** Adds an interactive layer for operational support and internal automation.
