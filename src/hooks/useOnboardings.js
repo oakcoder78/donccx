@@ -211,7 +211,6 @@ export function useCreateOnboardingFlow() {
       // 5. Insert capabilities (catalog_item_id)
       if (capabilities?.length > 0) {
         const capPayload = capabilities.map(itemId => ({ onboarding_id: onb.id, catalog_item_id: itemId }))
-        console.log('[createOnboardingFlow] capabilities payload', capPayload)
         const { error: capErr } = await supabase.from('onboarding_capabilities').insert(capPayload)
         if (capErr) throw capErr
       }
@@ -285,7 +284,6 @@ export function useUpdateOnboardingFlow() {
 
       if (capabilities?.length > 0) {
         const capPayload = capabilities.map(itemId => ({ onboarding_id: project.onboarding_id, catalog_item_id: itemId }))
-        console.log('[updateOnboardingFlow] capabilities payload', capPayload)
         const { error: capErr } = await supabase.from('onboarding_capabilities').insert(capPayload)
         if (capErr) throw capErr
       }
