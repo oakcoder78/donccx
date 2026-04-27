@@ -69,12 +69,13 @@ export function useOnboarding(onboardingId) {
         .eq('id', onboardingId)
         .single()
       if (error) { console.error('[useOnboarding]', error); return null }
-      const { data: fases, error: fasesErr } = await supabase
+      const { data: fases, error: fasesError } = await supabase
         .from('onboarding_fases')
         .select('*, onboarding_fase_types(*)')
         .eq('onboarding_id', onboardingId)
         .order('display_order')
-      if (fasesErr) console.error('[useOnboarding] fases', fasesErr)
+      console.log('[useOnboarding] fases query:', { onboardingId, fases, fasesError })
+      if (fasesError) console.error('[useOnboarding] fases', fasesError)
       return { ...onb, onboarding_fases: fases ?? [] }
     },
     retry: 0,
