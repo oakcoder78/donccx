@@ -7,18 +7,25 @@ export function useOnboardings(clientId) {
     queryKey: ['onboardings', clientId],
     enabled: !!clientId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: onbs, error } = await supabase
         .from('onboardings')
-        .select(`
-          *,
-          csm:profiles(id, name),
-          onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*)),
-          onboarding_capabilities(*, capability_type:onboarding_capability_types(*))
-        `)
+        .select('*, csm:profiles(id, name), onboarding_capabilities(*, capability_type:onboarding_capability_types(*))')
         .eq('client_id', clientId)
         .order('created_at', { ascending: false })
       if (error) { console.error('[useOnboardings]', error); return [] }
-      return data ?? []
+      if (!onbs?.length) return []
+      const ids = onbs.map(o => o.id)
+      const { data: fases } = await supabase
+        .from('onboarding_fases')
+        .select('*, onboarding_fase_types(*)')
+        .in('onboarding_id', ids)
+        .order('display_order')
+      const fasesMap = {}
+      for (const f of fases ?? []) {
+        if (!fasesMap[f.onboarding_id]) fasesMap[f.onboarding_id] = []
+        fasesMap[f.onboarding_id].push(f)
+      }
+      return onbs.map(o => ({ ...o, onboarding_fases: fasesMap[o.id] ?? [] }))
     },
     retry: 0,
   })
@@ -28,17 +35,24 @@ export function useAllOnboardings() {
   return useQuery({
     queryKey: ['onboardings_all'],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: onbs, error } = await supabase
         .from('onboardings')
-        .select(`
-          *,
-          client:clients(id, name, fantasy_name),
-          csm:profiles(id, name),
-          onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*))
-        `)
+        .select('*, client:clients(id, name, fantasy_name), csm:profiles(id, name)')
         .order('created_at', { ascending: false })
       if (error) { console.error('[useAllOnboardings]', error); return [] }
-      return data ?? []
+      if (!onbs?.length) return []
+      const ids = onbs.map(o => o.id)
+      const { data: fases } = await supabase
+        .from('onboarding_fases')
+        .select('*, onboarding_fase_types(*)')
+        .in('onboarding_id', ids)
+        .order('display_order')
+      const fasesMap = {}
+      for (const f of fases ?? []) {
+        if (!fasesMap[f.onboarding_id]) fasesMap[f.onboarding_id] = []
+        fasesMap[f.onboarding_id].push(f)
+      }
+      return onbs.map(o => ({ ...o, onboarding_fases: fasesMap[o.id] ?? [] }))
     },
     retry: 0,
   })
@@ -49,23 +63,19 @@ export function useOnboarding(onboardingId) {
     queryKey: ['onboarding', onboardingId],
     enabled: !!onboardingId,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: onb, error } = await supabase
         .from('onboardings')
-        .select(`
-          *,
-          csm:profiles(id, name),
-          onboarding_fases!onboarding_fases_onboarding_id_fkey(*, onboarding_fase_types(*)),
-          onboarding_capabilities(
-            id,
-            catalog_item_id,
-            catalog_item:catalog_items(id, name, type)
-          )
-        `)
+        .select('*, csm:profiles(id, name), onboarding_capabilities(id, catalog_item_id, catalog_item:catalog_items(id, name, type))')
         .eq('id', onboardingId)
         .single()
-      console.log('[useOnboarding] result', { data, error })
       if (error) { console.error('[useOnboarding]', error); return null }
-      return data
+      const { data: fases, error: fasesErr } = await supabase
+        .from('onboarding_fases')
+        .select('*, onboarding_fase_types(*)')
+        .eq('onboarding_id', onboardingId)
+        .order('display_order')
+      if (fasesErr) console.error('[useOnboarding] fases', fasesErr)
+      return { ...onb, onboarding_fases: fases ?? [] }
     },
     retry: 0,
   })
