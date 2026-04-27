@@ -12,7 +12,7 @@ import { useOnboarding } from '../hooks/useOnboardings'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { ProjectModal } from '../components/projects/ProjectModal'
 import { styles } from '../components/onboarding/OnboardingStyles'
-import { ActionIcons } from '../lib/icons'
+import { ActionIcons, PhaseIcons } from '../lib/icons'
 
 // ── Local style constants ─────────────────────────────────────────────────────
 const S = {
@@ -42,11 +42,37 @@ const S = {
   segBtnOn:  { background: '#fff', border: 'none', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: '#173557', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(15,34,58,0.08)' },
   actStatusSel: { padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(15,34,58,0.12)', background: '#fff', color: '#173557', fontFamily: 'inherit', width: '100%', outline: 'none' },
   capChipBase:  { fontSize: 12, fontWeight: 500, padding: '5px 11px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6 },
-  msPanelActions: { display: 'flex', gap: 8, justifyContent: 'flex-end' },
 }
 
 function Tag({ color, children, style: extra }) {
   return <span style={{ ...S.tag, ...S.tagColors[color], ...extra }}>{children}</span>
+}
+
+// ── Toggle switch ─────────────────────────────────────────────────────────────
+function Toggle({ checked, onChange, disabled, title: ttl }) {
+  return (
+    <span title={ttl}>
+      <button
+        type="button"
+        onClick={() => !disabled && onChange(!checked)}
+        disabled={disabled}
+        style={{
+          width: 30, height: 17, borderRadius: 9,
+          background: checked ? '#173557' : '#d4d3ce',
+          border: 'none', padding: 0, cursor: disabled ? 'default' : 'pointer',
+          position: 'relative', flexShrink: 0, display: 'inline-block',
+          transition: 'background 0.2s',
+          verticalAlign: 'middle',
+        }}
+      >
+        <span style={{
+          position: 'absolute', top: 2, left: checked ? 13 : 2,
+          width: 13, height: 13, borderRadius: '50%', background: '#fff',
+          display: 'block', transition: 'left 0.18s',
+        }} />
+      </button>
+    </span>
+  )
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -231,7 +257,7 @@ function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) 
   )
 }
 
-// ── PhaseCircle — all clickable ───────────────────────────────────────────────
+// ── PhaseCircle — all clickable, icons from PhaseIcons ───────────────────────
 function PhaseCircle({ fase, isActive, isDone, onClick }) {
   const isMilestone = !!fase.onboarding_fase_types?.is_milestone
 
@@ -246,6 +272,8 @@ function PhaseCircle({ fase, isActive, isDone, onClick }) {
   }
 
   const labelColor = isDone ? '#157a47' : isActive ? '#0a6a96' : 'rgba(23,53,87,0.4)'
+  const Icon = isDone ? PhaseIcons.done : isMilestone ? PhaseIcons.milestone : PhaseIcons.normal
+  const iconSize = isDone ? 18 : 15
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, minWidth: 72, maxWidth: 96 }}>
@@ -262,20 +290,7 @@ function PhaseCircle({ fase, isActive, isDone, onClick }) {
           transition: 'box-shadow 0.2s, border-color 0.2s',
         }}
       >
-        {isDone ? (
-          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 8.5 6.5 12 13 4.5"/>
-          </svg>
-        ) : isMilestone ? (
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <rect x="2.5" y="1" width="11" height="14" rx="2"/>
-            <line x1="5" y1="5.5" x2="11" y2="5.5"/>
-            <line x1="5" y1="8" x2="11" y2="8"/>
-            <line x1="5" y1="10.5" x2="8.5" y2="10.5"/>
-          </svg>
-        ) : isActive ? (
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#59c2ed' }} />
-        ) : null}
+        <Icon size={iconSize} color={circleColor} strokeWidth={isDone ? 2.4 : 1.6} />
       </div>
       <div style={{ fontSize: 11, textAlign: 'center', fontWeight: isDone || isActive ? 600 : 400, color: labelColor, lineHeight: 1.3, maxWidth: 88, wordBreak: 'break-word' }}>
         {phaseName(fase)}
@@ -295,40 +310,64 @@ function Connector({ leftDone, rightActive }) {
   return <div style={{ flex: 1, minWidth: 10, height: 2, background: bg, marginTop: 23, flexShrink: 0, alignSelf: 'flex-start' }} />
 }
 
-// ── EvidenceRow ───────────────────────────────────────────────────────────────
+// ── EvidenceRow — redesigned ──────────────────────────────────────────────────
 function EvidenceRow({ ev, onView, onDelete }) {
+  const ext = (ev.file_name?.split('.').pop() || '').toLowerCase()
+  const extConf = {
+    pdf:  { bg: 'rgba(196,60,60,0.12)',  color: '#a02020' },
+    png:  { bg: 'rgba(132,93,212,0.14)', color: '#5a3fa5' },
+    jpg:  { bg: 'rgba(132,93,212,0.14)', color: '#5a3fa5' },
+    jpeg: { bg: 'rgba(132,93,212,0.14)', color: '#5a3fa5' },
+  }
+  const ic = extConf[ext] || { bg: 'rgba(89,194,237,0.12)', color: '#0a6a96' }
+  const extLabel = ext.slice(0, 3).toUpperCase() || 'DOC'
+  const sizeKB = ev.file_size ? Math.max(1, Math.round(ev.file_size / 1024)) : null
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f8f9fb', borderRadius: 7 }}>
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(23,53,87,0.55)" strokeWidth="1.5" strokeLinecap="round">
-        <rect x="2.5" y="1" width="11" height="14" rx="2"/>
-        <line x1="5" y1="5.5" x2="11" y2="5.5"/>
-        <line x1="5" y1="8" x2="11" y2="8"/>
-        <line x1="5" y1="10.5" x2="8.5" y2="10.5"/>
-      </svg>
-      <span style={{ flex: 1, fontSize: 12, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.file_name}</span>
-      <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)', whiteSpace: 'nowrap' }}>{ev.uploaded_by?.name ?? '—'}</span>
-      <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.4)', whiteSpace: 'nowrap' }}>{fmt(ev.created_at?.slice(0, 10))}</span>
-      <button style={S.btnLink} onClick={onView}>Ver</button>
-      <button style={{ ...S.btnLink, color: '#b42828' }} onClick={onDelete}>Remover</button>
+    <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr auto', alignItems: 'center', gap: 12, background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 10, padding: '9px 12px 9px 10px' }}>
+      <div style={{ width: 30, height: 36, borderRadius: 5, background: ic.bg, color: ic.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 700, letterSpacing: '0.04em', flexShrink: 0 }}>
+        {extLabel}
+      </div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.file_name}</div>
+        <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <span>{ev.uploaded_by?.name ?? '—'}</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span>{ev.created_at ? new Date(ev.created_at).toLocaleDateString('pt-BR') : '—'}</span>
+          {sizeKB && <><span style={{ opacity: 0.4 }}>·</span><span>{sizeKB} KB</span></>}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 2 }}>
+        <button style={{ background: 'transparent', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, color: '#0a6a96', cursor: 'pointer', fontFamily: 'inherit' }} onClick={onView}>Ver</button>
+        <button style={{ background: 'transparent', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, color: 'rgba(180,40,40,0.85)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={onDelete}>Remover</button>
+      </div>
     </div>
   )
 }
 
-// ── FasePanel ─────────────────────────────────────────────────────────────────
-function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities }) {
+// ── FasePanel — modal overlay, design do HTML aprovado ───────────────────────
+function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities, onboardingTitle }) {
   const isMilestone   = !!fase.onboarding_fase_types?.is_milestone
-  const needsEvidence = isMilestone || !!fase.onboarding_fase_types?.requires_evidence
+  const needsEvidence = isMilestone || !!fase.onboarding_fase_types?.requires_evidence || !!fase.evidence_required
   const today         = todayISO()
-  const fileRef       = useRef()
+  const fileInputId   = `ev-input-${fase.id}`
 
   const [plannedEnd,    setPlannedEnd]    = useState(fase.planned_end?.slice(0, 10) ?? '')
   const [actualEnd,     setActualEnd]     = useState(fase.actual_end?.slice(0, 10) ?? '')
   const [justificativa, setJustificativa] = useState(fase.justificativa ?? '')
   const [saving,        setSaving]        = useState(false)
   const [uploadingEv,   setUploadingEv]   = useState(false)
+  const [saveState,     setSaveState]     = useState('idle')
+  const [savedAt,       setSavedAt]       = useState('')
 
-  const phaseActs    = activities.filter(a => a.fase_id === fase.id)
-  const maxDueDate   = phaseActs.reduce((mx, a) => (!a.due_date ? mx : !mx || a.due_date > mx ? a.due_date : mx), null)
+  const phaseActs  = activities.filter(a => a.fase_id === fase.id)
+  const maxDueDate = phaseActs.reduce((mx, a) => (!a.due_date ? mx : !mx || a.due_date > mx ? a.due_date : mx), null)
+
+  useEffect(() => {
+    const fn = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', fn)
+    return () => document.removeEventListener('keydown', fn)
+  }, [onClose])
 
   const { data: evidencias = [] } = useQuery({
     queryKey: ['fase_evidencias', fase.id],
@@ -343,25 +382,33 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     },
   })
 
-  async function savePlannedEnd() {
-    const { error } = await supabase.from('onboarding_fases').update({ planned_end: plannedEnd || null }).eq('id', fase.id)
-    if (error) { toast.error(error.message); return }
-    qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-    toast.success('Previsão salva')
+  function markSaved() {
+    setSaveState('saved')
+    setSavedAt(new Date().toLocaleTimeString('pt-BR'))
   }
 
-  async function saveActualEnd() {
-    const { error } = await supabase.from('onboarding_fases').update({ actual_end: actualEnd || null }).eq('id', fase.id)
+  async function savePlannedEndBlur(val) {
+    if (val === (fase.planned_end?.slice(0, 10) ?? '')) return
+    const { error } = await supabase.from('onboarding_fases').update({ planned_end: val || null }).eq('id', fase.id)
     if (error) { toast.error(error.message); return }
     qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-    toast.success('Data de conclusão salva')
+    markSaved()
   }
 
-  async function saveJust() {
-    const { error } = await supabase.from('onboarding_fases').update({ justificativa: justificativa || null }).eq('id', fase.id)
+  async function saveActualEndBlur(val) {
+    if (val === (fase.actual_end?.slice(0, 10) ?? '')) return
+    const { error } = await supabase.from('onboarding_fases').update({ actual_end: val || null }).eq('id', fase.id)
     if (error) { toast.error(error.message); return }
     qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-    toast.success('Justificativa salva')
+    markSaved()
+  }
+
+  async function saveJustBlur(val) {
+    if (val === (fase.justificativa ?? '')) return
+    const { error } = await supabase.from('onboarding_fases').update({ justificativa: val || null }).eq('id', fase.id)
+    if (error) { toast.error(error.message); return }
+    qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+    markSaved()
   }
 
   async function handleViewEv(ev) {
@@ -372,29 +419,30 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
 
   async function handleDeleteEv(ev) {
     if (!window.confirm(`Remover evidência "${ev.file_name}"?`)) return
-    const { error: storErr } = await supabase.storage.from('activity-attachments').remove([ev.storage_path])
-    if (storErr) { toast.error(storErr.message); return }
-    const { error: dbErr } = await supabase.from('onboarding_evidencias').update({ is_deleted: true }).eq('id', ev.id)
-    if (dbErr) { toast.error(dbErr.message); return }
+    await supabase.storage.from('activity-attachments').remove([ev.storage_path])
+    const { error } = await supabase.from('onboarding_evidencias').update({ is_deleted: true }).eq('id', ev.id)
+    if (error) { toast.error(error.message); return }
     qc.invalidateQueries({ queryKey: ['fase_evidencias', fase.id] })
     toast.success('Evidência removida')
   }
 
-  async function handleUploadEv(file) {
-    if (!file) return
+  async function handleUploadEv(files) {
+    if (!files?.length) return
     setUploadingEv(true)
     try {
-      const ext  = file.name.split('.').pop()
-      const path = `${clientId}/onboarding/fase_${fase.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from('activity-attachments').upload(path, file)
-      if (upErr) throw upErr
-      const { error: dbErr } = await supabase.from('onboarding_evidencias').insert({
-        fase_id: fase.id, uploaded_by: user.id, client_id: clientId,
-        file_name: file.name, file_size: file.size, file_type: file.type, storage_path: path,
-      })
-      if (dbErr) throw dbErr
+      for (const file of Array.from(files)) {
+        const ext  = file.name.split('.').pop()
+        const path = `${clientId}/onboarding/fase_${fase.id}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`
+        const { error: upErr } = await supabase.storage.from('activity-attachments').upload(path, file)
+        if (upErr) throw upErr
+        const { error: dbErr } = await supabase.from('onboarding_evidencias').insert({
+          fase_id: fase.id, uploaded_by: user.id, client_id: clientId,
+          file_name: file.name, file_size: file.size, file_type: file.type, storage_path: path,
+        })
+        if (dbErr) throw dbErr
+      }
       qc.invalidateQueries({ queryKey: ['fase_evidencias', fase.id] })
-      toast.success('Evidência adicionada')
+      toast.success('Evidência(s) adicionada(s)')
     } catch (e) { toast.error(e.message) }
     finally { setUploadingEv(false) }
   }
@@ -404,8 +452,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     try {
       const { error } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', fase.id)
       if (error) throw error
-      const { error: onbErr } = await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
-      if (onbErr) throw onbErr
+      await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('activated', 'onboarding_fase', fase.id, phaseName(fase), { status: 'pendente' }, { status: 'ativa' })
@@ -420,17 +467,12 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     if (!hasConcluida) { toast.error('Conclua pelo menos uma atividade desta fase antes de avançar'); return }
     setSaving(true)
     try {
-      const { error } = await supabase.from('onboarding_fases')
-        .update({ status: 'concluida', actual_end: actualEnd || today })
-        .eq('id', fase.id)
-      if (error) throw error
-      const faseIdx      = orderedFases.findIndex(f => f.id === fase.id)
-      const nextPendente = orderedFases.slice(faseIdx + 1).find(f => f.status === 'pendente')
-      if (nextPendente) {
-        const { error: nErr } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', nextPendente.id)
-        if (nErr) throw nErr
-        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: nextPendente.id }).eq('id', onboardingId)
-        if (oErr) throw oErr
+      await supabase.from('onboarding_fases').update({ status: 'concluida', actual_end: actualEnd || today }).eq('id', fase.id)
+      const idx  = orderedFases.findIndex(f => f.id === fase.id)
+      const next = orderedFases.slice(idx + 1).find(f => f.status === 'pendente')
+      if (next) {
+        await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', next.id)
+        await supabase.from('onboardings').update({ fase_atual_id: next.id }).eq('id', onboardingId)
       }
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
@@ -447,17 +489,14 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     }
     setSaving(true)
     try {
-      const { error } = await supabase.from('onboarding_fases')
+      await supabase.from('onboarding_fases')
         .update({ status: 'concluida', occurred_at: today, actual_end: today, justificativa: justificativa || null })
         .eq('id', fase.id)
-      if (error) throw error
-      const faseIdx      = orderedFases.findIndex(f => f.id === fase.id)
-      const nextPendente = orderedFases.slice(faseIdx + 1).find(f => f.status === 'pendente')
-      if (nextPendente) {
-        const { error: nErr } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', nextPendente.id)
-        if (nErr) throw nErr
-        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: nextPendente.id }).eq('id', onboardingId)
-        if (oErr) throw oErr
+      const idx  = orderedFases.findIndex(f => f.id === fase.id)
+      const next = orderedFases.slice(idx + 1).find(f => f.status === 'pendente')
+      if (next) {
+        await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', next.id)
+        await supabase.from('onboardings').update({ fase_atual_id: next.id }).eq('id', onboardingId)
       }
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
@@ -471,18 +510,14 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   async function handleRevert() {
     setSaving(true)
     try {
-      const { error } = await supabase.from('onboarding_fases').update({ status: 'pendente', actual_start: null }).eq('id', fase.id)
-      if (error) throw error
-      const faseIdx = orderedFases.findIndex(f => f.id === fase.id)
-      const prevFase = faseIdx > 0 ? orderedFases[faseIdx - 1] : null
-      if (prevFase) {
-        const { error: pErr } = await supabase.from('onboarding_fases').update({ status: 'ativa' }).eq('id', prevFase.id)
-        if (pErr) throw pErr
-        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: prevFase.id }).eq('id', onboardingId)
-        if (oErr) throw oErr
+      await supabase.from('onboarding_fases').update({ status: 'pendente', actual_start: null }).eq('id', fase.id)
+      const idx  = orderedFases.findIndex(f => f.id === fase.id)
+      const prev = idx > 0 ? orderedFases[idx - 1] : null
+      if (prev) {
+        await supabase.from('onboarding_fases').update({ status: 'ativa' }).eq('id', prev.id)
+        await supabase.from('onboardings').update({ fase_atual_id: prev.id }).eq('id', onboardingId)
       } else {
-        const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: null }).eq('id', onboardingId)
-        if (oErr) throw oErr
+        await supabase.from('onboardings').update({ fase_atual_id: null }).eq('id', onboardingId)
       }
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       logAction('reverted', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'pendente' })
@@ -495,10 +530,8 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   async function handleReopen() {
     setSaving(true)
     try {
-      const { error } = await supabase.from('onboarding_fases').update({ status: 'ativa', actual_end: null, occurred_at: null }).eq('id', fase.id)
-      if (error) throw error
-      const { error: oErr } = await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
-      if (oErr) throw oErr
+      await supabase.from('onboarding_fases').update({ status: 'ativa', actual_end: null, occurred_at: null }).eq('id', fase.id)
+      await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       logAction('reopened', 'onboarding_fase', fase.id, phaseName(fase), { status: 'concluida' }, { status: 'ativa' })
       toast.success(`Fase reaberta: ${phaseName(fase)}`)
@@ -507,114 +540,259 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     finally { setSaving(false) }
   }
 
-  const statusBadgeColor = fase.status === 'concluida' ? 'green' : fase.status === 'ativa' ? 'sky' : 'gray'
-  const statusBadgeLabel = fase.status === 'concluida' ? 'Concluída' : fase.status === 'ativa' ? 'Ativa' : 'Pendente'
+  // Status pill
+  const pillConf = {
+    ativa:    { bg: 'rgba(89,194,237,0.14)', fg: '#0a6a96',             dot: true,  label: 'Ativo'     },
+    concluida:{ bg: 'rgba(34,160,98,0.14)',  fg: '#157a47',             dot: false, label: 'Concluído' },
+    pendente: { bg: 'rgba(23,53,87,0.06)',   fg: 'rgba(23,53,87,0.65)', dot: false, label: 'Pendente'  },
+  }
+  const pc = pillConf[fase.status] || pillConf.pendente
+
+  const dateInputStyle = (confirmed) => ({
+    width: '100%', border: `1px solid ${confirmed ? 'rgba(34,160,98,0.45)' : '#d4d3ce'}`,
+    borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit',
+    color: '#173557', background: confirmed ? '#f6fbf8' : '#fff', outline: 'none', boxSizing: 'border-box',
+  })
+
+  const sectionDiv = (last) => ({
+    padding: '14px 0 18px',
+    borderBottom: last ? 'none' : '1px solid rgba(15,34,58,0.06)',
+  })
+
+  const footBtnStyle = (primary, dis) => ({
+    background: primary ? (dis ? '#aaa9a3' : '#173557') : 'transparent',
+    color: primary ? '#fff' : 'rgba(23,53,87,0.7)',
+    border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500,
+    cursor: dis ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+    display: 'inline-flex', alignItems: 'center', gap: 6,
+  })
+
+  const footBtnSecStyle = (dis) => ({
+    background: '#fff', color: '#173557',
+    border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 16px',
+    fontSize: 13, fontWeight: 500, cursor: dis ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+  })
 
   return (
-    <div style={styles.timeline.milestonePanel}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#173557', marginBottom: 6 }}>Fase: {phaseName(fase)}</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {isMilestone && <Tag color="sky">Marco</Tag>}
-            <Tag color={statusBadgeColor}>{statusBadgeLabel}</Tag>
-          </div>
-        </div>
-        <button style={S.iconBtn} onClick={onClose} title="Fechar">
-          <ActionIcons.remove size={14} />
-        </button>
-      </div>
-
-      {/* Datas */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-        <div>
-          <label style={S.label}>Previsão de conclusão</label>
-          {maxDueDate && (
-            <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)', marginBottom: 4 }}>Sugestão: {fmt(maxDueDate)}</div>
-          )}
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input type="date" style={{ ...S.input, flex: 1 }} value={plannedEnd} onChange={e => setPlannedEnd(e.target.value)} />
-            <button style={S.btnSecSm} onClick={savePlannedEnd}>✓</button>
-          </div>
-        </div>
-        <div>
-          <label style={S.label}>Data de conclusão</label>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              type="date"
-              style={{ ...S.input, flex: 1, opacity: fase.status === 'pendente' ? 0.5 : 1 }}
-              value={actualEnd}
-              disabled={fase.status === 'pendente'}
-              onChange={e => setActualEnd(e.target.value)}
-            />
-            {fase.status !== 'pendente' && <button style={S.btnSecSm} onClick={saveActualEnd}>✓</button>}
-          </div>
-        </div>
-      </div>
-
-      {/* Evidências */}
-      {needsEvidence && (
-        <div style={{ marginBottom: 16 }}>
-          <label style={S.label}>Evidências {evidencias.length > 0 ? `(${evidencias.length})` : ''}</label>
-          {evidencias.length > 0 ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
-              {evidencias.map(ev => (
-                <EvidenceRow key={ev.id} ev={ev} onView={() => handleViewEv(ev)} onDelete={() => handleDeleteEv(ev)} />
-              ))}
+    <div
+      style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, left: 0,
+        background: 'rgba(15,28,48,0.45)',
+        backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+        display: 'grid', placeItems: 'center',
+        padding: '32px 16px', zIndex: 200, overflowY: 'auto',
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        style={{
+          width: 'min(720px, 100%)',
+          background: '#fff', borderRadius: 16,
+          boxShadow: '0 24px 60px -12px rgba(15,28,48,0.35), 0 0 0 1px rgba(15,28,48,0.06)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: '20px 24px 18px', borderBottom: '1px solid rgba(15,34,58,0.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(23,53,87,0.55)', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(89,194,237,0.16)', color: '#0a6a96', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                {isMilestone
+                  ? <PhaseIcons.milestone size={10} strokeWidth={1.6} />
+                  : <PhaseIcons.normal    size={10} strokeWidth={1.6} />}
+              </span>
+              {isMilestone ? 'Marco' : 'Fase'} · {onboardingTitle}
             </div>
-          ) : (
-            <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.45)', marginBottom: 8 }}>Nenhuma evidência registrada</div>
-          )}
+            <h2 style={{ fontSize: 19, fontWeight: 600, letterSpacing: '-0.2px', color: '#173557', margin: 0, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {phaseName(fase)}
+              <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 999, background: pc.bg, color: pc.fg, display: 'inline-flex', alignItems: 'center', gap: 5, lineHeight: 1.5 }}>
+                {pc.dot && <span style={{ width: 6, height: 6, borderRadius: '50%', background: pc.fg, boxShadow: `0 0 0 3px ${pc.fg}28` }} />}
+                {pc.label}
+              </span>
+            </h2>
+            <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.6)', marginTop: 6 }}>
+              {isMilestone
+                ? 'Registre as datas, evidências e observações para concluir este marco.'
+                : 'Registre as datas e observações desta fase.'}
+            </div>
+          </div>
           <button
-            style={{ ...S.btnSecSm, display: 'inline-flex', alignItems: 'center', gap: 4 }}
-            disabled={uploadingEv}
-            onClick={() => fileRef.current?.click()}
+            style={{ width: 32, height: 32, borderRadius: 8, background: 'transparent', border: 'none', color: 'rgba(23,53,87,0.55)', display: 'grid', placeItems: 'center', flexShrink: 0, cursor: 'pointer' }}
+            onClick={onClose} title="Fechar (Esc)"
           >
-            <ActionIcons.attachment size={12} />
-            {uploadingEv ? 'Enviando…' : '+ Adicionar evidência'}
+            <ActionIcons.remove size={14} />
           </button>
-          <input ref={fileRef} type="file" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleUploadEv(f); e.target.value = '' }} />
         </div>
-      )}
 
-      {/* Justificativa */}
-      <div style={{ marginBottom: 16 }}>
-        <label style={S.label}>Justificativa / observações</label>
-        <textarea style={S.textarea} placeholder="Observações sobre esta fase…" value={justificativa} onChange={e => setJustificativa(e.target.value)} />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-          <button style={S.btnSecSm} onClick={saveJust}>Salvar justificativa</button>
+        {/* Body */}
+        <div style={{ padding: '20px 24px 4px', maxHeight: 'calc(100vh - 300px)', overflowY: 'auto' }}>
+
+          {/* Datas */}
+          <div style={sectionDiv(false)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Datas {isMilestone ? 'do Marco' : 'da Fase'}
+              </div>
+              <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)' }}>Sugestão baseada nas atividades</div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                  <span>Previsão de conclusão</span>
+                  {maxDueDate && (
+                    <button type="button" style={{ fontSize: 10, fontWeight: 500, textTransform: 'none', letterSpacing: 0, color: '#0a6a96', background: 'rgba(89,194,237,0.12)', padding: '2px 8px', borderRadius: 999, cursor: 'pointer', border: 'none', fontFamily: 'inherit' }} onClick={() => { setPlannedEnd(maxDueDate); setSaveState('dirty') }}>
+                      Sugestão · {fmt(maxDueDate)}
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  style={dateInputStyle(!!plannedEnd)}
+                  value={plannedEnd}
+                  onChange={e => { setPlannedEnd(e.target.value); setSaveState('dirty') }}
+                  onBlur={e => savePlannedEndBlur(e.target.value)}
+                />
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                  <span>Data de conclusão</span>
+                  {fase.status !== 'pendente' && (
+                    <button type="button" style={{ fontSize: 10, fontWeight: 500, textTransform: 'none', letterSpacing: 0, color: '#0a6a96', background: 'rgba(89,194,237,0.12)', padding: '2px 8px', borderRadius: 999, cursor: 'pointer', border: 'none', fontFamily: 'inherit' }} onClick={() => { setActualEnd(today); setSaveState('dirty') }}>
+                      Hoje
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  style={{ ...dateInputStyle(!!actualEnd), opacity: fase.status === 'pendente' ? 0.5 : 1 }}
+                  value={actualEnd}
+                  disabled={fase.status === 'pendente'}
+                  onChange={e => { setActualEnd(e.target.value); setSaveState('dirty') }}
+                  onBlur={e => saveActualEndBlur(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Evidências */}
+          {needsEvidence && (
+            <div style={sectionDiv(false)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  Evidências
+                  {evidencias.length > 0 && <span style={{ fontSize: 10, background: 'rgba(23,53,87,0.08)', color: 'rgba(23,53,87,0.7)', padding: '1px 7px', borderRadius: 999, fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>{evidencias.length}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)' }}>Atas, fotos, e-mails ou aprovações</div>
+              </div>
+              {evidencias.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                  {evidencias.map(ev => (
+                    <EvidenceRow key={ev.id} ev={ev} onView={() => handleViewEv(ev)} onDelete={() => handleDeleteEv(ev)} />
+                  ))}
+                </div>
+              )}
+              <label
+                htmlFor={fileInputId}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  border: '1.5px dashed rgba(15,34,58,0.18)', borderRadius: 10,
+                  padding: '14px 16px', background: uploadingEv ? 'rgba(89,194,237,0.06)' : '#fafbfc',
+                  color: 'rgba(23,53,87,0.65)', fontSize: 12,
+                  cursor: uploadingEv ? 'default' : 'pointer', boxSizing: 'border-box', width: '100%',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M8 2v9"/><polyline points="4.5 6 8 2.5 11.5 6"/>
+                  <path d="M2.5 11v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/>
+                </svg>
+                {uploadingEv
+                  ? 'Enviando…'
+                  : <span>Arraste arquivos aqui ou <strong style={{ color: '#0a6a96', fontWeight: 600 }}>clique para selecionar</strong></span>}
+              </label>
+              <input
+                id={fileInputId}
+                type="file"
+                multiple
+                style={{ display: 'none' }}
+                disabled={uploadingEv}
+                onChange={e => { if (e.target.files?.length) handleUploadEv(e.target.files); e.target.value = '' }}
+              />
+            </div>
+          )}
+
+          {/* Justificativa */}
+          <div style={sectionDiv(true)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Justificativa &amp; Observações</div>
+              <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)' }}>Opcional — aparece no histórico</div>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <textarea
+                maxLength={600}
+                placeholder="Ex.: reunião realizada com presença de toda equipe operacional do cliente. Ata anexa."
+                style={{ width: '100%', border: '1px solid #d4d3ce', borderRadius: 8, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', color: '#173557', background: '#fff', outline: 'none', resize: 'vertical', minHeight: 86, lineHeight: 1.55, boxSizing: 'border-box' }}
+                value={justificativa}
+                onChange={e => { setJustificativa(e.target.value); setSaveState('dirty') }}
+                onBlur={e => saveJustBlur(e.target.value)}
+              />
+              <div style={{ position: 'absolute', right: 12, bottom: 10, fontSize: 10, color: 'rgba(23,53,87,0.4)', pointerEvents: 'none' }}>
+                {justificativa.length}/600
+              </div>
+            </div>
+          </div>
+
         </div>
-      </div>
 
-      {/* Actions */}
-      <div style={{ borderTop: '1px solid rgba(15,34,58,0.07)', paddingTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        {fase.status === 'pendente' && (
-          <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={handleActivate}>
-            {saving ? 'Salvando…' : 'Marcar como Ativa'}
-          </button>
-        )}
-        {fase.status === 'ativa' && !isMilestone && (
-          <>
-            <button style={saving ? S.btnPrimarySmDis : S.btnSecSm} disabled={saving} onClick={handleRevert}>Voltar para Pendente</button>
-            <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={handleComplete}>
-              {saving ? 'Salvando…' : 'Concluir fase'}
-            </button>
-          </>
-        )}
-        {fase.status === 'ativa' && isMilestone && (
-          <>
-            <button style={saving ? S.btnPrimarySmDis : S.btnSecSm} disabled={saving} onClick={handleRevert}>Voltar para Pendente</button>
-            <button style={saving ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={saving} onClick={handleCompleteMilestone}>
-              {saving ? 'Salvando…' : 'Registrar conclusão'}
-            </button>
-          </>
-        )}
-        {fase.status === 'concluida' && (
-          <button style={saving ? S.btnPrimarySmDis : S.btnSecSm} disabled={saving} onClick={handleReopen}>
-            {saving ? 'Salvando…' : 'Reabrir fase'}
-          </button>
-        )}
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', background: '#fafbfc', borderTop: '1px solid rgba(15,34,58,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)', display: 'flex', alignItems: 'center', gap: 6, minHeight: 20 }}>
+            {saveState !== 'idle' && (
+              <>
+                <span style={{
+                  width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                  background: saveState === 'saved' ? '#1aa56a' : 'rgba(217,140,30,0.7)',
+                  boxShadow: saveState === 'saved' ? '0 0 0 3px rgba(26,165,106,0.18)' : '0 0 0 3px rgba(217,140,30,0.18)',
+                }} />
+                <span>{saveState === 'saved' ? `Salvo · ${savedAt}` : 'Alterações não salvas'}</span>
+              </>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            {fase.status === 'pendente' && (
+              <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleActivate}>
+                {saving ? 'Salvando…' : 'Marcar como Ativa'}
+              </button>
+            )}
+            {fase.status === 'ativa' && !isMilestone && (
+              <>
+                <button style={footBtnStyle(false, saving)} disabled={saving} onClick={handleRevert}>Voltar para pendente</button>
+                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={onClose}>Cancelar</button>
+                <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleComplete}>
+                  {saving ? 'Salvando…' : 'Concluir fase'}
+                </button>
+              </>
+            )}
+            {fase.status === 'ativa' && isMilestone && (
+              <>
+                <button style={footBtnStyle(false, saving)} disabled={saving} onClick={handleRevert}>Voltar para pendente</button>
+                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={onClose}>Cancelar</button>
+                <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleCompleteMilestone}>
+                  {saving ? 'Salvando…' : 'Registrar conclusão'}
+                </button>
+              </>
+            )}
+            {fase.status === 'concluida' && (
+              <>
+                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={onClose}>Fechar</button>
+                <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleReopen}>
+                  {saving ? 'Salvando…' : 'Reabrir fase'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -988,7 +1166,7 @@ function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, l
   )
 }
 
-// ── FaseMgmtPanel — com drag and drop ────────────────────────────────────────
+// ── FaseMgmtPanel — drag and drop + toggles + criar nova fase ────────────────
 function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
   const [search, setSearch]         = useState('')
   const [localFases, setLocalFases] = useState(fases)
@@ -997,10 +1175,83 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
 
   const usedTypeIds = new Set(localFases.map(f => f.fase_type_id))
   const available   = faseTypes.filter(t => !usedTypeIds.has(t.id) && (!search || t.name.toLowerCase().includes(search.toLowerCase())))
+  const exactMatch  = faseTypes.some(t => t.name.toLowerCase() === search.trim().toLowerCase())
+  const showCreate  = search.trim() && !exactMatch
 
   const reorderMut = useMutation({
     mutationFn: async (orderedIds) => {
       await Promise.all(orderedIds.map((faseId, idx) => supabase.from('onboarding_fases').update({ display_order: idx + 1 }).eq('id', faseId)))
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }),
+    onError: e => toast.error(e.message),
+  })
+
+  const addFaseMut = useMutation({
+    mutationFn: async (faseType) => {
+      const maxOrder = localFases.length > 0 ? Math.max(...localFases.map(f => f.display_order ?? 0)) : 0
+      const { data, error } = await supabase.from('onboarding_fases')
+        .insert({ onboarding_id: onboardingId, fase_type_id: faseType.id, display_order: maxOrder + 1, status: 'pendente', evidence_required: faseType.requires_evidence })
+        .select('*, onboarding_fase_types(*)')
+        .single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }); toast.success('Fase adicionada'); setSearch('') },
+    onError: e => toast.error(e.message),
+  })
+
+  const createFaseMut = useMutation({
+    mutationFn: async (name) => {
+      const maxTypeOrder = faseTypes.length > 0 ? Math.max(...faseTypes.map(t => t.display_order ?? 0)) : 0
+      const { data: newType, error: typeErr } = await supabase
+        .from('onboarding_fase_types')
+        .insert({ name: name.trim(), active: true, display_order: maxTypeOrder + 1, is_milestone: false, requires_evidence: false })
+        .select('id, name, is_milestone, requires_evidence, display_order, active')
+        .single()
+      if (typeErr) throw typeErr
+      const maxOrder = localFases.length > 0 ? Math.max(...localFases.map(f => f.display_order ?? 0)) : 0
+      const { data: newFase, error: faseErr } = await supabase
+        .from('onboarding_fases')
+        .insert({ onboarding_id: onboardingId, fase_type_id: newType.id, display_order: maxOrder + 1, status: 'pendente', evidence_required: false })
+        .select('*, onboarding_fase_types(*)')
+        .single()
+      if (faseErr) throw faseErr
+      return { newType, newFase }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      qc.invalidateQueries({ queryKey: ['onb_fase_types'] })
+      toast.success('Fase criada e adicionada')
+      setSearch('')
+    },
+    onError: e => toast.error(e.message),
+  })
+
+  const removeFaseMut = useMutation({
+    mutationFn: async (faseId) => {
+      const { error } = await supabase.from('onboarding_fases').delete().eq('id', faseId)
+      if (error) throw error
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }); toast.success('Fase removida') },
+    onError: e => toast.error(e.message),
+  })
+
+  const updateTypeMut = useMutation({
+    mutationFn: async ({ typeId, updates }) => {
+      const { error } = await supabase.from('onboarding_fase_types').update(updates).eq('id', typeId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      qc.invalidateQueries({ queryKey: ['onb_fase_types'] })
+    },
+    onError: e => toast.error(e.message),
+  })
+
+  const updateFaseInstMut = useMutation({
+    mutationFn: async ({ faseId, updates }) => {
+      const { error } = await supabase.from('onboarding_fases').update(updates).eq('id', faseId)
+      if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }),
     onError: e => toast.error(e.message),
@@ -1015,28 +1266,13 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
     reorderMut.mutate(items.map(f => f.id))
   }
 
-  const addFaseMut = useMutation({
-    mutationFn: async (faseType) => {
-      const maxOrder = localFases.length > 0 ? Math.max(...localFases.map(f => f.display_order)) : 0
-      const { data, error } = await supabase.from('onboarding_fases').insert({ onboarding_id: onboardingId, fase_type_id: faseType.id, display_order: maxOrder + 1, status: 'pendente', evidence_required: faseType.requires_evidence }).select('*, onboarding_fase_types(*)').single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }); toast.success('Fase adicionada'); setSearch('') },
-    onError: e => toast.error(e.message),
-  })
-
-  const removeFaseMut = useMutation({
-    mutationFn: async (faseId) => {
-      const { error } = await supabase.from('onboarding_fases').delete().eq('id', faseId)
-      if (error) throw error
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] }); toast.success('Fase removida') },
-    onError: e => toast.error(e.message),
-  })
-
   const statusLabel = (s) => s === 'concluida' ? 'Concluída' : s === 'ativa' ? 'Ativa' : 'Pendente'
   const statusColor = (s) => s === 'concluida' ? 'green' : s === 'ativa' ? 'sky' : 'gray'
+
+  const catalogItemStyle = {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+    borderRadius: 7, cursor: 'pointer', border: '1px solid rgba(15,34,58,0.08)', background: '#fff',
+  }
 
   return (
     <div style={{ marginTop: 20, borderTop: '1px solid rgba(15,34,58,0.08)', paddingTop: 16 }}>
@@ -1055,7 +1291,13 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: snapshot.isDragging ? '#edf4fa' : '#f8f9fb', borderRadius: 8, border: snapshot.isDragging ? '1px solid rgba(89,194,237,0.4)' : '1px solid transparent', ...provided.draggableProps.style }}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+                        background: snapshot.isDragging ? '#edf4fa' : '#f8f9fb',
+                        borderRadius: 8,
+                        border: snapshot.isDragging ? '1px solid rgba(89,194,237,0.4)' : '1px solid transparent',
+                        ...provided.draggableProps.style,
+                      }}
                     >
                       <div {...provided.dragHandleProps} style={{ cursor: 'grab', color: 'rgba(23,53,87,0.3)', flexShrink: 0, display: 'flex' }}>
                         <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
@@ -1064,14 +1306,29 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
                           <circle cx="3" cy="12" r="1.5"/><circle cx="7" cy="12" r="1.5"/>
                         </svg>
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 500, color: '#173557', flex: 1 }}>{phaseName(f)}</span>
-                      {f.onboarding_fase_types?.is_milestone   && <Tag color="sky">Marco</Tag>}
-                      {f.onboarding_fase_types?.requires_evidence && <Tag color="amber">Evidência</Tag>}
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#173557', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{phaseName(f)}</span>
+                      {/* is_milestone toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(23,53,87,0.55)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <Toggle
+                          checked={!!f.onboarding_fase_types?.is_milestone}
+                          onChange={(val) => updateTypeMut.mutate({ typeId: f.fase_type_id, updates: { is_milestone: val } })}
+                          title="Afeta todos os projetos com este tipo de fase"
+                        />
+                        Marco
+                      </div>
+                      {/* evidence_required toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(23,53,87,0.55)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <Toggle
+                          checked={!!f.evidence_required}
+                          onChange={(val) => updateFaseInstMut.mutate({ faseId: f.id, updates: { evidence_required: val } })}
+                        />
+                        Evidência
+                      </div>
                       <Tag color={statusColor(f.status)}>{statusLabel(f.status)}</Tag>
                       {f.status === 'pendente' ? (
-                        <button style={{ ...S.btnLink, color: '#b42828' }} disabled={removeFaseMut.isPending} onClick={() => { if (window.confirm(`Remover fase "${phaseName(f)}"?`)) removeFaseMut.mutate(f.id) }}>Remover</button>
+                        <button style={{ ...S.btnLink, color: '#b42828', flexShrink: 0 }} disabled={removeFaseMut.isPending} onClick={() => { if (window.confirm(`Remover fase "${phaseName(f)}"?`)) removeFaseMut.mutate(f.id) }}>Remover</button>
                       ) : (
-                        <span style={{ width: 52 }} />
+                        <span style={{ width: 52, flexShrink: 0 }} />
                       )}
                     </div>
                   )}
@@ -1085,29 +1342,44 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
 
       <div>
         <label style={S.label}>Adicionar fase</label>
-        <input style={{ ...S.input, marginBottom: 6 }} placeholder="Buscar tipo de fase…" value={search} onChange={e => setSearch(e.target.value)} />
-        {available.length === 0 ? (
-          <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.5)', padding: '6px 2px' }}>
-            {search ? 'Nenhum tipo encontrado' : 'Todos os tipos já estão neste projeto'}
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {available.map(t => (
-              <div
-                key={t.id}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, cursor: addFaseMut.isPending ? 'default' : 'pointer', border: '1px solid rgba(15,34,58,0.08)', background: '#fff' }}
-                onClick={() => { if (!addFaseMut.isPending) addFaseMut.mutate(t) }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#f4f5f7' }}
-                onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
-              >
-                <span style={{ fontSize: 12, color: '#173557', flex: 1 }}>{t.name}</span>
-                {t.is_milestone    && <Tag color="sky">Marco</Tag>}
-                {t.requires_evidence && <Tag color="amber">Evidência</Tag>}
-                <span style={{ fontSize: 11, color: '#0a6a96', fontWeight: 500 }}>+ Adicionar</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <input
+          style={{ ...S.input, marginBottom: 6 }}
+          placeholder="Buscar ou criar tipo de fase…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {showCreate && (
+            <div
+              style={catalogItemStyle}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f4f5f7' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+              onClick={() => { if (!createFaseMut.isPending) createFaseMut.mutate(search.trim()) }}
+            >
+              <span style={{ fontSize: 12, color: '#173557', flex: 1 }}>Criar fase: <strong>{search.trim()}</strong></span>
+              <span style={{ fontSize: 11, color: '#0a6a96', fontWeight: 500 }}>Novo</span>
+            </div>
+          )}
+          {available.map(t => (
+            <div
+              key={t.id}
+              style={{ ...catalogItemStyle, cursor: addFaseMut.isPending ? 'default' : 'pointer' }}
+              onClick={() => { if (!addFaseMut.isPending) addFaseMut.mutate(t) }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f4f5f7' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+            >
+              <span style={{ fontSize: 12, color: '#173557', flex: 1 }}>{t.name}</span>
+              {t.is_milestone    && <Tag color="sky">Marco</Tag>}
+              {t.requires_evidence && <Tag color="amber">Evidência</Tag>}
+              <span style={{ fontSize: 11, color: '#0a6a96', fontWeight: 500 }}>+ Adicionar</span>
+            </div>
+          ))}
+          {!showCreate && available.length === 0 && (
+            <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.5)', padding: '6px 2px' }}>
+              {search ? 'Nenhum tipo encontrado' : 'Todos os tipos já estão neste projeto'}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -1157,7 +1429,6 @@ export default function OnboardingDetailPage() {
     if (show) setExpandedActs(prev => new Set([...prev, actId]))
   }
 
-  // ── Loading / error ──────────────────────────────────────────────────────────
   if (isLoading || (onboardingId && onboardingLoading)) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p></div>
   }
@@ -1168,7 +1439,6 @@ export default function OnboardingDetailPage() {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Onboarding vinculado não encontrado.</p><button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button></div>
   }
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
   const onb        = onboarding
   const fases      = orderedFases
   const caps       = onb?.onboarding_capabilities ?? []
@@ -1186,7 +1456,6 @@ export default function OnboardingDetailPage() {
   const openFase     = openFaseId ? fases.find(f => f.id === openFaseId) : null
   const contextLabel = FASE_LABELS[onb?.context] ?? onb?.context ?? ''
 
-  // grouped capabilities
   const capsServico = caps.filter(c => c.catalog_item?.type === 'servico')
   const capsSolucao = caps.filter(c => c.catalog_item?.type === 'solucao')
 
@@ -1206,7 +1475,6 @@ export default function OnboardingDetailPage() {
     <>
       <div style={{ background: '#f4f5f7', minHeight: '100vh', paddingBottom: 60 }}>
 
-        {/* breadcrumb */}
         <div style={{ background: '#fff', borderBottom: '1px solid rgba(15,34,58,0.07)', padding: '10px 32px' }}>
           <span style={{ fontSize: 13, color: 'rgba(23,53,87,0.6)' }}>
             <strong style={{ color: '#173557' }}>Projetos</strong>
@@ -1217,7 +1485,6 @@ export default function OnboardingDetailPage() {
 
         <div style={{ padding: '22px 28px 60px' }}>
 
-          {/* header */}
           <button style={S.btnBack} onClick={() => navigate('/projetos')}>← Projetos</button>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
             <div style={{ minWidth: 0 }}>
@@ -1267,20 +1534,6 @@ export default function OnboardingDetailPage() {
                   )
                 })}
               </div>
-
-              {openFase && (
-                <FasePanel
-                  fase={openFase}
-                  orderedFases={orderedFases}
-                  onboardingId={onboardingId}
-                  onClose={() => setOpenFaseId(null)}
-                  user={user}
-                  clientId={clientId}
-                  qc={qc}
-                  logAction={logAction}
-                  activities={activities}
-                />
-              )}
 
               {showFaseMgmt && (
                 <FaseMgmtPanel
@@ -1352,7 +1605,7 @@ export default function OnboardingDetailPage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: '#173557', marginBottom: 16 }}>Capacidades contratadas</div>
 
               {capsServico.length > 0 && (
-                <div style={{ marginBottom: capsSolucao.length > 0 ? 0 : 0 }}>
+                <div>
                   <div style={{ fontSize: 10, fontWeight: 600, color: 'rgba(23,53,87,0.4)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Serviços</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {capsServico.map((cap, i) => renderCapChip(cap, i))}
@@ -1377,6 +1630,21 @@ export default function OnboardingDetailPage() {
 
         </div>
       </div>
+
+      {openFase && (
+        <FasePanel
+          fase={openFase}
+          orderedFases={orderedFases}
+          onboardingId={onboardingId}
+          onClose={() => setOpenFaseId(null)}
+          user={user}
+          clientId={clientId}
+          qc={qc}
+          logAction={logAction}
+          activities={activities}
+          onboardingTitle={project?.title ?? ''}
+        />
+      )}
 
       {editModalOpen && (
         <ProjectModal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} clientId={clientId} project={project} />
