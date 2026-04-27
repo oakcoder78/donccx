@@ -1,36 +1,36 @@
 # Data Flow
 
-Este documento descreve como os dados fluem dentro da aplicação, desde a interação do usuário até a persistência e o retorno visual na interface.
+This document describes how data flows within the application, from user interaction to persistence and visual return on the interface.
 
-O fluxo de dados segue a arquitetura modular baseada em:
+The data flow follows a modular architecture based on:
 
-- Pages (orquestração de telas)
-- Components (interface do usuário)
-- Hooks (lógica de dados)
-- Services (operações externas e persistência)
-- Lib (regras e utilidades)
-- Contexts (estado global)
+- Pages (screen orchestration)
+- Components (user interface)
+- Hooks (data logic)
+- Services (external operations and persistence)
+- Lib (rules and utilities)
+- Contexts (global state)
 
-A separação entre essas camadas garante previsibilidade, reutilização e desacoplamento entre partes do sistema.
+The separation between these layers ensures predictability, reusability, and decoupling across the system.
 
 ---
 
 ## User Interaction Flow
 
-Este fluxo descreve o comportamento típico quando um usuário executa uma ação na interface.
+This flow describes the typical behavior when a user performs an action in the interface.
 
-1. **Interação do usuário**  
-   O usuário executa uma ação na interface, como:
+1. **User Interaction**  
+   The user performs an action in the UI, such as:
 
-   - Criar um cliente
-   - Registrar uma atividade
-   - Atualizar um projeto
-   - Editar um contato
+   - Create a client
+   - Register an activity
+   - Update a project
+   - Edit a contact
 
-2. **Componente chama Hook**  
-   O componente React responsável pela interface chama um hook específico.
+2. **Component Calls Hook**  
+   The React component responsible for the UI calls a specific hook.
 
-   Exemplos reais:
+   Real examples:
 
    - `useClients`
    - `useActivities`
@@ -38,48 +38,48 @@ Este fluxo descreve o comportamento típico quando um usuário executa uma açã
    - `useContacts`
    - `useHealthScore`
 
-3. **Hook executa lógica de estado**  
-   O hook gerencia:
+3. **Hook Executes State Logic**  
+   The hook manages:
 
-   - estados locais (`loading`, `data`, `error`)
-   - validação
-   - preparação de dados
+   - local states (`loading`, `data`, `error`)
+   - validation
+   - data preparation
 
-4. **Hook chama Service ou Supabase Client**  
-   O hook utiliza:
+4. **Hook Calls Service or Supabase Client**  
+   The hook uses:
 
    - `supabaseClient`
-   - funções da camada `services`
-   - utilidades da camada `lib`
+   - functions from the `services` layer
+   - utilities from the `lib` layer
 
-   Isso permite comunicação com:
+   This enables communication with:
 
-   - banco de dados
-   - armazenamento de arquivos
-   - integrações externas
+   - the database
+   - file storage
+   - external integrations
 
-5. **Resultado retorna ao Hook**  
-   Após a execução:
+5. **Result Returns to Hook**  
+   After execution:
 
-   - dados são retornados
-   - erros são tratados
-   - estado é atualizado
+   - data is returned
+   - errors are handled
+   - state is updated
 
-6. **UI é re-renderizada**  
-   A atualização de estado provoca a atualização visual da interface.
+6. **UI Re‑renders**  
+   State updates trigger a visual refresh of the interface.
 
 ---
 
 ## Read Flow (Data Fetch)
 
-Este fluxo descreve como os dados são carregados quando uma página é aberta.
+This flow describes how data is loaded when a page is opened.
 
-Fluxo típico:
+Typical flow:
 
-1. Uma página é carregada (ex.: Clients, Dashboard, Projects).
-2. O componente inicial chama um hook de leitura.
+1. A page loads (e.g., Clients, Dashboard, Projects).
+2. The initial component calls a read hook.
 
-Exemplos:
+Examples:
 
 - `useClients`
 - `useActivities`
@@ -88,89 +88,89 @@ Exemplos:
 - `useSegments`
 - `useStages`
 
-3. O hook executa `useEffect` para buscar dados.
-4. O hook usa:
+3. The hook runs a `useEffect` to fetch data.
+4. The hook uses:
 
    - `supabaseClient`
-   - funções da camada `lib`
-   - serviços externos configurados
+   - functions from the `lib` layer
+   - configured external services
 
-5. Os dados retornam e são armazenados no estado do hook.
-6. O componente consome esses dados e renderiza:
+5. The data returns and is stored in the hook's state.
+6. The component consumes this data and renders:
 
-   - listas
+   - lists
    - cards
-   - tabelas
-   - gráficos
+   - tables
+   - charts
 
-Esse padrão é usado em praticamente todas as telas do sistema.
+This pattern is used across virtually all system screens.
 
 ---
 
 ## Write Flow (Data Mutation)
 
-Este fluxo descreve como dados são criados, atualizados ou removidos.
+This flow describes how data is created, updated, or removed.
 
-### Criação
+### Creation
 
-Exemplo:
+Examples:
 
-- Criar cliente
-- Registrar atividade
-- Criar projeto
+- Create a client
+- Register an activity
+- Create a project
 
-Fluxo:
+Flow:
 
-1. Usuário preenche um formulário.
-2. Componente envia os dados para um hook.
-3. O hook executa validações.
-4. O hook chama:
+1. User fills out a form.
+2. Component sends the data to a hook.
+3. The hook performs validations.
+4. The hook calls:
 
    - `supabaseClient.insert`
-   - ou funções da camada `services`
+   - or functions from the `services` layer
 
-5. O registro é persistido.
-6. O estado local é atualizado ou os dados são recarregados.
-
----
-
-### Atualização
-
-Exemplo:
-
-- Editar cliente
-- Atualizar status de projeto
-- Modificar atividade
-
-Fluxo:
-
-1. Usuário altera dados existentes.
-2. Hook chama operação `update`.
-3. O banco é atualizado.
-4. O estado local reflete a alteração.
+5. The record is persisted.
+6. Local state is updated or data is re‑fetched.
 
 ---
 
-### Exclusão
+### Update
 
-Exemplo:
+Examples:
 
-- Remover atividade
-- Excluir contato
-- Soft delete de anexos
+- Edit a client
+- Update project status
+- Modify an activity
 
-Fluxo:
+Flow:
 
-1. Usuário confirma remoção.
-2. Hook executa operação de exclusão.
-3. O registro é removido ou marcado como inativo.
-4. A interface é atualizada.
+1. User changes existing data.
+2. Hook calls an `update` operation.
+3. The database is updated.
+4. Local state reflects the change.
+
+---
+
+### Deletion
+
+Examples:
+
+- Remove an activity
+- Delete a contact
+- Soft‑delete attachments
+
+Flow:
+
+1. User confirms deletion.
+2. Hook performs a delete operation.
+3. The record is removed or marked inactive.
+4. The interface is updated.
 
 ---
 
 ## Global State Flow
 
-O estado global é gerenciado através do:
+Global state is managed through:
 
 ```text
 AuthContext
