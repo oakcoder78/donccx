@@ -34,6 +34,7 @@ import {
   Plug,
   Flag,
   Info,
+  Check,
 } from "lucide-react"
 
 export const ActivityIcons = {
@@ -130,3 +131,9 @@ export const SectionIcons = {
 }
 
 export const FallbackSectionIcon = FileText
+
+export const PhaseIcons = {
+  done:      Check,
+  milestone: Flag,
+  normal:    FileText,
+}
