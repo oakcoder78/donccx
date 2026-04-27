@@ -155,6 +155,22 @@ function useActivityTypes() {
   })
 }
 
+function useFaseTypes() {
+  return useQuery({
+    queryKey: ['onb_fase_types'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboarding_fase_types')
+        .select('id, name, is_milestone, requires_evidence, display_order, active')
+        .order('display_order', { ascending: true })
+      if (error) throw error
+      return data ?? []
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: 0,
+  })
+}
+
 // ── RespPicker ────────────────────────────────────────────────────────────────
 function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) {
   const [open, setOpen] = useState(false)
@@ -331,16 +347,64 @@ function Connector({ leftDone, rightActive }) {
 }
 
 // ── MilestonePanel ────────────────────────────────────────────────────────────
-function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving }) {
+function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving, user, clientId, qc }) {
   const isDone = ms.status === 'concluida' || !!ms.occurred_at
   const fileRef = useRef()
   const [form, setForm] = useState({
     date:  ms.occurred_at?.slice(0, 10) ?? '',
     link:  '',
-    notes: '',
+    notes: ms.justificativa ?? '',
     file:  null,
   })
+  const [savingJust, setSavingJust] = useState(false)
   const canConfirm = form.date && (form.notes.trim() || form.link.trim() || form.file)
+
+  const { data: evidencias = [] } = useQuery({
+    queryKey: ['ms_evidencias', ms.id],
+    enabled: !!ms.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('onboarding_evidencias')
+        .select('*, uploaded_by:profiles!uploaded_by(id, name)')
+        .eq('fase_id', ms.id)
+      if (error) { console.error('[ms_evidencias]', error); return [] }
+      return (data ?? []).filter(e => !e.is_deleted)
+    },
+  })
+
+  async function handleViewEvidence(ev) {
+    const { data, error } = await supabase.storage
+      .from('activity-attachments')
+      .createSignedUrl(ev.storage_path, 3600)
+    if (error) { toast.error('Erro ao gerar link'); return }
+    window.open(data.signedUrl, '_blank')
+  }
+
+  async function handleDeleteEvidence(ev) {
+    if (!window.confirm(`Remover evidência "${ev.file_name}"?`)) return
+    const { error: storErr } = await supabase.storage
+      .from('activity-attachments')
+      .remove([ev.storage_path])
+    if (storErr) { toast.error(storErr.message); return }
+    const { error: dbErr } = await supabase
+      .from('onboarding_evidencias')
+      .update({ is_deleted: true })
+      .eq('id', ev.id)
+    if (dbErr) { toast.error(dbErr.message); return }
+    if (qc) qc.invalidateQueries({ queryKey: ['ms_evidencias', ms.id] })
+    toast.success('Evidência removida')
+  }
+
+  async function handleSaveJustificativa() {
+    setSavingJust(true)
+    const { error } = await supabase.from('onboarding_fases')
+      .update({ justificativa: form.notes || null })
+      .eq('id', ms.id)
+    setSavingJust(false)
+    if (error) { toast.error(error.message); return }
+    if (qc) qc.invalidateQueries({ queryKey: ['onboarding', ms.onboarding_id] })
+    toast.success('Justificativa salva')
+  }
 
   return (
     <div style={styles.timeline.milestonePanel}>
@@ -352,6 +416,28 @@ function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving }) {
           <ActionIcons.remove size={14} />
         </button>
       </div>
+
+      {evidencias.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <label style={S.label}>Evidências ({evidencias.length})</label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {evidencias.map(ev => (
+              <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f8f9fb', borderRadius: 7 }}>
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="rgba(23,53,87,0.55)" strokeWidth="1.5" strokeLinecap="round">
+                  <rect x="2.5" y="1" width="11" height="14" rx="2"/>
+                  <line x1="5" y1="5.5" x2="11" y2="5.5"/>
+                  <line x1="5" y1="8" x2="11" y2="8"/>
+                  <line x1="5" y1="10.5" x2="8.5" y2="10.5"/>
+                </svg>
+                <span style={{ flex: 1, fontSize: 12, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.file_name}</span>
+                <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)', whiteSpace: 'nowrap' }}>{ev.uploaded_by?.name ?? '—'}</span>
+                <button style={S.btnLink} onClick={() => handleViewEvidence(ev)}>Ver</button>
+                <button style={{ ...S.btnLink, color: '#b42828' }} onClick={() => handleDeleteEvidence(ev)}>Remover</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={S.msPanelGrid}>
         <div>
@@ -396,9 +482,14 @@ function MilestonePanel({ ms, onClose, onConfirm, onReopen, saving }) {
       <div style={S.msPanelActions}>
         <button style={S.btnSecSm} onClick={onClose}>Cancelar</button>
         {isDone ? (
-          <button style={S.btnSecSm} onClick={onReopen} disabled={saving}>
-            {saving ? 'Aguarde…' : 'Reabrir marco'}
-          </button>
+          <>
+            <button style={S.btnSecSm} onClick={onReopen} disabled={saving}>
+              {saving ? 'Aguarde…' : 'Reabrir marco'}
+            </button>
+            <button style={savingJust ? S.btnPrimarySmDis : S.btnPrimarySm} disabled={savingJust} onClick={handleSaveJustificativa}>
+              {savingJust ? 'Salvando…' : 'Salvar justificativa'}
+            </button>
+          </>
         ) : (
           <button
             style={canConfirm && !saving ? S.btnPrimarySm : S.btnPrimarySmDis}
@@ -800,7 +891,7 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 }
 
 // ── CatalogSearch ─────────────────────────────────────────────────────────────
-function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, logAction, user }) {
+function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, logAction, user }) {
   const [search, setSearch] = useState('')
   const [showDd, setShowDd] = useState(false)
   const inputRef = useRef()
@@ -839,7 +930,7 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
         onboarding_id: onboardingId,
         activity_type_id: type.id,
         title: type.name,
-        fase_id: faseAtualId ?? null,
+        fase_id: targetFaseId ?? null,
         status: 'pendente',
         due_date: null,
         responsible_contato_id: null,
@@ -860,6 +951,14 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
     },
     onError: e => toast.error(e.message),
   })
+
+  if (!targetFaseId) {
+    return (
+      <div style={{ padding: '8px 2px 12px', fontSize: 13, color: 'rgba(23,53,87,0.5)', fontStyle: 'italic' }}>
+        Selecione uma fase para adicionar atividades
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -915,6 +1014,116 @@ function CatalogSearch({ actTypes, activities, onboardingId, faseAtualId, qc, lo
   )
 }
 
+// ── FaseMgmtPanel ─────────────────────────────────────────────────────────────
+function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
+  const [search, setSearch] = useState('')
+
+  const usedTypeIds = new Set(fases.map(f => f.fase_type_id))
+  const available = faseTypes.filter(t =>
+    !usedTypeIds.has(t.id) &&
+    (!search || t.name.toLowerCase().includes(search.toLowerCase()))
+  )
+
+  const addFaseMut = useMutation({
+    mutationFn: async (faseType) => {
+      const maxOrder = fases.length > 0 ? Math.max(...fases.map(f => f.display_order)) : 0
+      const { data, error } = await supabase.from('onboarding_fases').insert({
+        onboarding_id: onboardingId,
+        fase_type_id:  faseType.id,
+        display_order: maxOrder + 1,
+        status:        'pendente',
+        evidence_required: faseType.requires_evidence,
+      }).select('*, onboarding_fase_types(*)').single()
+      if (error) throw error
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      toast.success('Fase adicionada')
+      setSearch('')
+    },
+    onError: e => toast.error(e.message),
+  })
+
+  const removeFaseMut = useMutation({
+    mutationFn: async (faseId) => {
+      const { error } = await supabase.from('onboarding_fases').delete().eq('id', faseId)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      toast.success('Fase removida')
+    },
+    onError: e => toast.error(e.message),
+  })
+
+  const statusLabel = (s) => s === 'concluida' ? 'Concluída' : s === 'ativa' ? 'Ativa' : 'Pendente'
+  const statusColor = (s) => s === 'concluida' ? 'green' : s === 'ativa' ? 'sky' : 'gray'
+
+  return (
+    <div style={{ marginTop: 20, borderTop: '1px solid rgba(15,34,58,0.08)', paddingTop: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#173557' }}>Personalizar fases deste projeto</div>
+        <button style={S.btnLink} onClick={onClose}>Fechar</button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
+        {fases.map(f => (
+          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', background: '#f8f9fb', borderRadius: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: '#173557', flex: 1 }}>{phaseName(f)}</span>
+            {f.onboarding_fase_types?.is_milestone && <Tag color="sky">Marco</Tag>}
+            {f.onboarding_fase_types?.requires_evidence && <Tag color="amber">Evidência</Tag>}
+            <Tag color={statusColor(f.status)}>{statusLabel(f.status)}</Tag>
+            {f.status === 'pendente' ? (
+              <button
+                style={{ ...S.btnLink, color: '#b42828' }}
+                disabled={removeFaseMut.isPending}
+                onClick={() => { if (window.confirm(`Remover fase "${phaseName(f)}"?`)) removeFaseMut.mutate(f.id) }}
+              >
+                Remover
+              </button>
+            ) : (
+              <span style={{ width: 52 }} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <label style={S.label}>Adicionar fase</label>
+        <input
+          style={{ ...S.input, marginBottom: 6 }}
+          placeholder="Buscar tipo de fase…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        {available.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.5)', padding: '6px 2px' }}>
+            {search ? 'Nenhum tipo encontrado' : 'Todos os tipos já estão neste projeto'}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {available.map(t => (
+              <div
+                key={t.id}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, cursor: addFaseMut.isPending ? 'default' : 'pointer', border: '1px solid rgba(15,34,58,0.08)', background: '#fff' }}
+                onClick={() => { if (!addFaseMut.isPending) addFaseMut.mutate(t) }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#f4f5f7' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+              >
+                <span style={{ fontSize: 12, color: '#173557', flex: 1 }}>{t.name}</span>
+                {t.is_milestone && <Tag color="sky">Marco</Tag>}
+                {t.requires_evidence && <Tag color="amber">Evidência</Tag>}
+                <span style={{ fontSize: 11, color: '#0a6a96', fontWeight: 500 }}>+ Adicionar</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function OnboardingDetailPage() {
   const { id }        = useParams()
@@ -934,12 +1143,15 @@ export default function OnboardingDetailPage() {
   const { data: actTypes   = [] }                          = useActivityTypes()
   const { data: contacts   = [] }                          = useContacts(clientId ? { client_id: clientId } : {})
   const { data: profiles   = [] }                          = useProfiles()
+  const { data: faseTypes  = [] }                          = useFaseTypes()
 
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [openMsId,      setOpenMsId]      = useState(null)
-  const [msSaving,      setMsSaving]      = useState(false)
-  const [expandedActs,  setExpandedActs]  = useState(new Set())
-  const [showPendForms, setShowPendForms] = useState(new Set())
+  const [editModalOpen,   setEditModalOpen]   = useState(false)
+  const [openMsId,        setOpenMsId]        = useState(null)
+  const [msSaving,        setMsSaving]        = useState(false)
+  const [expandedActs,    setExpandedActs]    = useState(new Set())
+  const [showPendForms,   setShowPendForms]   = useState(new Set())
+  const [selectedFaseTab, setSelectedFaseTab] = useState(null)
+  const [showFaseMgmt,    setShowFaseMgmt]    = useState(false)
 
   const orderedFases      = (onboarding?.onboarding_fases ?? []).slice().sort((a, b) => a.display_order - b.display_order)
   const faseAtualId       = onboarding?.fase_atual_id ?? orderedFases[0]?.id ?? null
@@ -1104,8 +1316,9 @@ export default function OnboardingDetailPage() {
   const onb         = onboarding
   const fases       = orderedFases
   const caps        = onb?.onboarding_capabilities ?? []
-  const activePhase = fases[currentPhaseIndex] ?? fases[0] ?? null
-  const clientName  = project.client?.fantasy_name || project.client?.name || '—'
+  const activePhase  = fases[currentPhaseIndex] ?? fases[0] ?? null
+  const visibleActs  = selectedFaseTab ? activities.filter(a => a.fase_id === selectedFaseTab) : activities
+  const clientName   = project.client?.fantasy_name || project.client?.name || '—'
   const totalSteps  = fases.length
   const doneSteps   = fases.filter(f => f.status === 'concluida').length
 
@@ -1162,7 +1375,12 @@ export default function OnboardingDetailPage() {
                   Linha do tempo
                   <span style={{ color: 'rgba(23,53,87,0.55)', fontWeight: 500 }}>— fases e milestones</span>
                 </div>
-                <Tag color="gray">{doneSteps} de {totalSteps} etapas concluídas</Tag>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <Tag color="gray">{doneSteps} de {totalSteps} etapas concluídas</Tag>
+                  <button style={S.btnSecSm} onClick={() => setShowFaseMgmt(p => !p)}>
+                    {showFaseMgmt ? 'Fechar' : 'Gerenciar fases'}
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-start', overflowX: 'auto', paddingBottom: 8, gap: 0 }}>
@@ -1200,6 +1418,19 @@ export default function OnboardingDetailPage() {
                   onConfirm={handleConfirmMs}
                   onReopen={() => handleReopenMs(openMs)}
                   saving={msSaving}
+                  user={user}
+                  clientId={clientId}
+                  qc={qc}
+                />
+              )}
+
+              {showFaseMgmt && (
+                <FaseMgmtPanel
+                  fases={orderedFases}
+                  faseTypes={faseTypes}
+                  onboardingId={onboardingId}
+                  qc={qc}
+                  onClose={() => setShowFaseMgmt(false)}
                 />
               )}
             </div>
@@ -1207,22 +1438,36 @@ export default function OnboardingDetailPage() {
 
           {/* activities */}
           <div style={{ background: '#fff', border: '1px solid rgba(15,34,58,0.09)', borderRadius: 14, padding: '20px 22px', marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, gap: 12 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#173557', display: 'flex', alignItems: 'center', gap: 10 }}>
-                Atividades
-                <span style={{ color: 'rgba(23,53,87,0.55)', fontWeight: 500 }}>— {activePhase ? phaseName(activePhase) : '—'}</span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#173557' }}>Atividades</div>
               <button style={S.btnPrimarySm} onClick={() => document.getElementById('onb-cat-input')?.focus()}>
                 + Adicionar Atividade
               </button>
             </div>
+
+            {fases.length > 0 && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 14, overflowX: 'auto', paddingBottom: 4 }}>
+                <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>
+                  Todas
+                </button>
+                {fases.map(f => (
+                  <button
+                    key={f.id}
+                    style={{ ...(selectedFaseTab === f.id ? S.segBtnOn : S.segBtn), whiteSpace: 'nowrap' }}
+                    onClick={() => setSelectedFaseTab(f.id)}
+                  >
+                    {phaseName(f)}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {onb && (
               <CatalogSearch
                 actTypes={actTypes}
                 activities={activities}
                 onboardingId={onboardingId}
-                faseAtualId={faseAtualId}
+                targetFaseId={selectedFaseTab ?? faseAtualId}
                 qc={qc}
                 logAction={logAction}
                 user={user}
@@ -1232,10 +1477,12 @@ export default function OnboardingDetailPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {actsLoading ? (
                 <p style={{ fontSize: 13, color: 'rgba(23,53,87,0.5)', padding: '16px 0' }}>Carregando atividades…</p>
-              ) : activities.length === 0 ? (
-                <div style={styles.pending.empty}>Nenhuma atividade nesta fase. Adicione uma do catálogo acima.</div>
+              ) : visibleActs.length === 0 ? (
+                <div style={styles.pending.empty}>
+                  {selectedFaseTab ? 'Nenhuma atividade nesta fase.' : 'Nenhuma atividade. Adicione uma do catálogo acima.'}
+                </div>
               ) : (
-                activities.map(act => (
+                visibleActs.map(act => (
                   <ActivityItem
                     key={act.id}
                     act={act}
