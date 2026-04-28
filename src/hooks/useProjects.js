@@ -9,7 +9,7 @@ export function useProjects(clientId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, responsible:profiles(id, name), milestones(*, milestone_tasks(*))')
+        .select('*, responsible:profiles(id, name), milestones(*)')
         .eq('client_id', clientId)
         .order('created_at')
       if (error) { console.error('[useProjects]', error); return [] }
@@ -25,7 +25,7 @@ export function useAllProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), milestones(id, status, milestone_tasks(id, done)), onboarding:onboardings!onboarding_id(id, situacao_geral)')
+        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), milestones(id, status), onboarding:onboardings!onboarding_id(id, situacao_geral)')
         .order('created_at', { ascending: false })
       if (error) { console.error('[useAllProjects]', error); return [] }
       return data ?? []

@@ -10,8 +10,8 @@ const FULL_CLIENT_SELECT = `
   client_catalog(id, catalog_item_id, status, catalog_items(*)),
   contact_links(*, contacts(*, contact_phones(*))),
   activities(*, responsible:profiles(id,name), contacts(id,name)),
-  milestones(*, milestone_tasks(*)),
-  projects(id, status, end_date, milestones(id, title, due_date, status, milestone_tasks(id, done, due_date))),
+  milestones(*),
+  projects(id, status, end_date, milestones(id, title, due_date, status)),
   client_usage(*),
   client_support(*),
   client_catalog_history(*, catalog_items(type))
@@ -63,7 +63,7 @@ async function fetchClientArrays(clientId) {
       .gte('activity_date', activityCutoff),
     supabase
       .from('milestones')
-      .select('id, title, due_date, status, milestone_tasks(id, done, due_date)')
+      .select('id, title, due_date, status')
       .eq('client_id', clientId),
     supabase
       .from('client_catalog_history')
@@ -72,7 +72,7 @@ async function fetchClientArrays(clientId) {
       .order('changed_at', { ascending: false }),
     supabase
       .from('projects')
-      .select('id, status, end_date, milestones(id, title, due_date, status, milestone_tasks(id, done, due_date))')
+      .select('id, status, end_date, milestones(id, title, due_date, status)')
       .eq('client_id', clientId),
   ])
 
