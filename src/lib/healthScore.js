@@ -39,7 +39,7 @@ function isNeutralStage(client) {
 
 function resolveStageGroup(client) {
   const stageName = (client.stage?.name ?? '').toLowerCase().trim()
-  const onboardingStages = ['onboarding', 'estabilização']
+  const onboardingStages = ['onboarding']
   if (onboardingStages.includes(stageName)) return 'onboarding'
 
   const hasActiveProject = (client.projects ?? []).some(p =>
@@ -229,80 +229,61 @@ function calcFinanceiro(client, rules) {
 // ─── PROJETO ───────────────────────────────────────────────────────────────────
 function calcProjeto(client, rules) {
   if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
-  if (isNeutralStage(client)) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
   let mod = 0
 
   const todayStr = new Date().toISOString().slice(0, 10)
-  const projects  = client.projects ?? []
+  const activeOnboardings = (client.onboardings ?? []).filter(o =>
+    o.status !== 'concluido' && o.status !== 'cancelado'
+  )
 
-  // ── Sem projetos: fallback para lógica legada de milestones ────────────────
-  if (projects.length === 0) {
-    const milestones = client.milestones ?? []
-    if (milestones.length === 0) {
-      applyRule(rules, 'no_proj', appliedRules)
-      return { score: 20, appliedRules }
-    }
-    if (client.golive) {
-      const cutoff90 = new Date(new Date(client.golive + 'T00:00:00').getTime() + 90 * 86400000)
-      if (new Date() > cutoff90) {
-        if (milestones.some(m => /onboarding/i.test(m.title) && m.status !== 'done')) {
-          mod += applyRule(rules, 'ob_late', appliedRules)
-        }
-      }
-    }
-    const late = milestones.filter(m => m.status !== 'done' && m.due_date && m.due_date < todayStr)
-    for (let i = 0; i < Math.min(late.length, 3); i++) mod += applyRule(rules, 'mp_late', appliedRules)
-    if (late.length === 0) applyRule(rules, 'mp_ok', appliedRules)
-    return { score: clamp(20 + mod, 0, 20), appliedRules }
-  }
-
-  // ── Com projetos: ignorar suspensos ────────────────────────────────────────
-  const active = projects.filter(p => p.status !== 'suspenso')
-
-  if (active.length === 0) {
+  if (activeOnboardings.length === 0) {
     applyRule(rules, 'no_proj', appliedRules)
     return { score: 20, appliedRules }
   }
 
-  // projeto_atrasado: projeto em_andamento ou planejado com end_date vencida
-  const hasOverdueProject = active.some(p =>
-    (p.status === 'em_andamento' || p.status === 'planejado') &&
-    p.end_date && p.end_date < todayStr
-  )
-  if (hasOverdueProject) mod += applyRule(rules, 'projeto_atrasado', appliedRules)
-
-  // Milestones dos projetos ativos
-  const activeMilestones = active.flatMap(p => p.milestones ?? [])
-
-  if (activeMilestones.length === 0) {
-    applyRule(rules, 'no_proj', appliedRules)
-    return { score: clamp(20 + mod, 0, 20), appliedRules }
+  // onb_travado: onboarding bloqueado
+  if (activeOnboardings.some(o => o.status === 'travado')) {
+    mod += applyRule(rules, 'onb_travado', appliedRules)
   }
 
-  // ob_late: onboarding não concluído após 90 dias do go-live
+  // onb_atencao: onboarding requer atenção
+  if (activeOnboardings.some(o => o.status === 'atencao')) {
+    mod += applyRule(rules, 'onb_atencao', appliedRules)
+  }
+
+  // mp_late: fases com planned_end vencido (máx. 3)
+  const lateFases = activeOnboardings.flatMap(o =>
+    (o.onboarding_fases ?? []).filter(f =>
+      f.status !== 'done' && f.planned_end && f.planned_end < todayStr
+    )
+  )
+  for (let i = 0; i < Math.min(lateFases.length, 3); i++) {
+    mod += applyRule(rules, 'mp_late', appliedRules)
+  }
+  if (lateFases.length === 0) applyRule(rules, 'mp_ok', appliedRules)
+
+  // onb_atividade_vencida: atividade de onboarding vencida
+  const hasOverdueActivity = activeOnboardings.some(o =>
+    (o.onboarding_activities ?? []).some(a =>
+      a.status !== 'concluido' && a.due_date && a.due_date < todayStr
+    )
+  )
+  if (hasOverdueActivity) mod += applyRule(rules, 'onb_atividade_vencida', appliedRules)
+
+  // ob_late: Go-Live não concluído após 90 dias do go-live
   if (client.golive) {
     const cutoff90 = new Date(new Date(client.golive + 'T00:00:00').getTime() + 90 * 86400000)
     if (new Date() > cutoff90) {
-      if (activeMilestones.some(m => /onboarding/i.test(m.title) && m.status !== 'done')) {
-        mod += applyRule(rules, 'ob_late', appliedRules)
-      }
+      const hasIncompleteGoLive = activeOnboardings.some(o =>
+        (o.onboarding_fases ?? []).some(f =>
+          f.onboarding_fase_types?.name === 'Go-Live' && f.status !== 'done'
+        )
+      )
+      if (hasIncompleteGoLive) mod += applyRule(rules, 'ob_late', appliedRules)
     }
   }
-
-  // mp_late: milestones atrasados (máx. 3)
-  const lateMilestones = activeMilestones.filter(m =>
-    m.status !== 'done' && m.due_date && m.due_date < todayStr
-  )
-  for (let i = 0; i < Math.min(lateMilestones.length, 3); i++) {
-    mod += applyRule(rules, 'mp_late', appliedRules)
-  }
-  if (lateMilestones.length === 0) applyRule(rules, 'mp_ok', appliedRules)
-
-  // tarefa_atrasada: milestone_tasks com due_date vencida e não concluídas
-  const hasOverdueTask = false
-  if (hasOverdueTask) mod += applyRule(rules, 'tarefa_atrasada', appliedRules)
 
   return { score: clamp(20 + mod, 0, 20), appliedRules }
 }
