@@ -11,7 +11,7 @@ const FULL_CLIENT_SELECT = `
   contact_links(*, contacts(*, contact_phones(*))),
   activities(*, responsible:profiles(id,name), contacts(id,name)),
   projects(id, status, end_date),
-  onboardings(*, onboarding_fases(*, onboarding_fase_types(*)), onboarding_activities(id, due_date, status)),
+  onboardings(id, context, status, situacao_geral, created_at, end_date),
   client_usage(*),
   client_support(*),
   client_catalog_history(*, catalog_items(type))
@@ -72,7 +72,7 @@ async function fetchClientArrays(clientId) {
       .eq('client_id', clientId),
     supabase
       .from('onboardings')
-      .select('*, onboarding_fases(*, onboarding_fase_types(*)), onboarding_activities(id, due_date, status)')
+      .select('id, context, status, situacao_geral, created_at, end_date')
       .eq('client_id', clientId),
   ])
 
@@ -83,13 +83,42 @@ async function fetchClientArrays(clientId) {
   if (projectsRes.error)    console.error('[fetchClientArrays] projects error:', projectsRes.error)
   if (onboardingsRes.error) console.error('[fetchClientArrays] onboardings error:', onboardingsRes.error)
 
+  const onboardings = onboardingsRes.data ?? []
+  const onboardingIds = onboardings.map(o => o.id)
+
+  let fases = []
+  let atividades = []
+
+  if (onboardingIds.length > 0) {
+    const [fasesRes, atividadesRes] = await Promise.all([
+      supabase
+        .from('onboarding_fases')
+        .select('id, onboarding_id, status, planned_end, onboarding_fase_types(name, is_milestone)')
+        .in('onboarding_id', onboardingIds),
+      supabase
+        .from('onboarding_activities')
+        .select('id, onboarding_id, status, due_date, fase_id')
+        .in('onboarding_id', onboardingIds),
+    ])
+    if (fasesRes.error)     console.error('[fetchClientArrays] onboarding_fases error:', fasesRes.error)
+    if (atividadesRes.error) console.error('[fetchClientArrays] onboarding_activities error:', atividadesRes.error)
+    fases = fasesRes.data ?? []
+    atividades = atividadesRes.data ?? []
+  }
+
+  const onboardingsComFases = onboardings.map(o => ({
+    ...o,
+    onboarding_fases: fases.filter(f => f.onboarding_id === o.id),
+    onboarding_activities: atividades.filter(a => a.onboarding_id === o.id),
+  }))
+
   return {
-    client_usage:           usageRes.data       ?? [],
-    client_support:         supportRes.data     ?? [],
-    activities:             activitiesRes.data  ?? [],
-    client_catalog_history: historyRes.data     ?? [],
-    projects:               projectsRes.data    ?? [],
-    onboardings:            onboardingsRes.data ?? [],
+    client_usage:           usageRes.data      ?? [],
+    client_support:         supportRes.data    ?? [],
+    activities:             activitiesRes.data ?? [],
+    client_catalog_history: historyRes.data    ?? [],
+    projects:               projectsRes.data   ?? [],
+    onboardings:            onboardingsComFases,
   }
 }
 
