@@ -20,12 +20,43 @@ export function useClient(id) {
           client_usage(*, client_donc_instances(id, label)),
           client_support(*),
           client_catalog_history(*, catalog_items(type)),
-          onboardings(*, onboarding_fases(*, onboarding_fase_types(*)), onboarding_activities(id, due_date, status))
+          onboardings(id, context, status, situacao_geral, created_at, end_date)
         `)
         .eq('id', id)
         .single()
       if (error) { console.error('[useClient] query error:', error); throw error }
-      return data
+
+      const onboardings = data.onboardings ?? []
+      const onboardingIds = onboardings.map(o => o.id)
+
+      if (onboardingIds.length === 0) {
+        return { ...data, onboardings: [] }
+      }
+
+      const [fasesRes, atividadesRes] = await Promise.all([
+        supabase
+          .from('onboarding_fases')
+          .select('id, onboarding_id, status, planned_end, onboarding_fase_types(name, is_milestone)')
+          .in('onboarding_id', onboardingIds),
+        supabase
+          .from('onboarding_activities')
+          .select('id, onboarding_id, status, due_date, fase_id')
+          .in('onboarding_id', onboardingIds),
+      ])
+
+      if (fasesRes.error) console.error('[useClient] onboarding_fases error:', fasesRes.error)
+      if (atividadesRes.error) console.error('[useClient] onboarding_activities error:', atividadesRes.error)
+
+      const fases = fasesRes.data ?? []
+      const atividades = atividadesRes.data ?? []
+
+      const onboardingsComFases = onboardings.map(o => ({
+        ...o,
+        onboarding_fases: fases.filter(f => f.onboarding_id === o.id),
+        onboarding_activities: atividades.filter(a => a.onboarding_id === o.id),
+      }))
+
+      return { ...data, onboardings: onboardingsComFases }
     },
   })
 }
