@@ -111,6 +111,11 @@ function initials(name = '') {
 function todayISO() {
   return new Date().toISOString().slice(0, 10)
 }
+function addDaysToISO(dateStr, days) {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
 
 // ── Data hooks ────────────────────────────────────────────────────────────────
 function useProjectDetail(projectId) {
@@ -346,7 +351,7 @@ function EvidenceRow({ ev, onView, onDelete }) {
 }
 
 // ── FasePanel — modal overlay, design do HTML aprovado ───────────────────────
-function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities, onboardingTitle }) {
+function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities, onboardingTitle, onboarding }) {
   const isMilestone   = !!fase.onboarding_fase_types?.is_milestone
   const needsEvidence = isMilestone || !!fase.onboarding_fase_types?.requires_evidence || !!fase.evidence_required
   const today         = todayISO()
@@ -501,7 +506,31 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('marco_concluido', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida', occurred_at: today })
-      toast.success(`Marco concluído: ${phaseName(fase)}`)
+
+      const isGoLive     = fase.onboarding_fase_types?.name === 'Go-Live'
+      const isImplantacao = onboarding?.context === 'implantacao_inicial'
+      if (isGoLive && isImplantacao) {
+        const dueDate = addDaysToISO(today, 2)
+        const { error: actErr } = await supabase.from('activities').insert({
+          type:           'tarefa',
+          title:          'Go-Live concluído — revisar stage do cliente para Estabilização',
+          description:    'O onboarding de implantação inicial foi concluído. Revise o stage do cliente e altere para Estabilização para que o Health Score passe a ser calculado normalmente.',
+          client_id:      clientId,
+          responsible_id: onboarding.csm_id || null,
+          status:         'pendente',
+          due_date:       dueDate,
+          notes:          `Gerado automaticamente pelo sistema ao concluir o Go-Live do onboarding: ${onboardingTitle}`,
+        })
+        if (actErr) console.error('[GoLive alert]', actErr)
+        else {
+          logAction('golive_alerta_criado', 'onboarding_fase', fase.id, onboardingTitle, null, { activity_title: 'Go-Live concluído — revisar stage do cliente para Estabilização' })
+          qc.invalidateQueries({ queryKey: ['activities'] })
+        }
+        toast.success('🎉 Go-Live registrado! Uma tarefa foi criada para revisão do stage do cliente.')
+      } else {
+        toast.success(`Marco concluído: ${phaseName(fase)}`)
+      }
+
       onClose()
     } catch (e) { toast.error(e.message) }
     finally { setSaving(false) }
@@ -1643,6 +1672,7 @@ export default function OnboardingDetailPage() {
           logAction={logAction}
           activities={activities}
           onboardingTitle={project?.title ?? ''}
+          onboarding={onboarding}
         />
       )}
 
