@@ -228,6 +228,9 @@ function calcFinanceiro(client, rules) {
 
 // ─── PROJETO ───────────────────────────────────────────────────────────────────
 function calcProjeto(client, rules) {
+  if (client.id === 22) {
+    console.log('[calcProjeto 22] projects:', JSON.stringify(client.projects))
+  }
   if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
