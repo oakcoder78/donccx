@@ -442,8 +442,8 @@ export default function ProjectsPage() {
                         let pct        = 0
                         let totalMs    = 0
                         let doneMs     = 0
-                        if (proj.onboarding_id && proj.onboarding?.onboarding_fases) {
-                          const fases = proj.onboarding.onboarding_fases
+                        if (proj.onboarding_id && proj.onboarding_fases) {
+                          const fases = proj.onboarding_fases
                           totalMs = fases.length
                           doneMs  = fases.filter(f => f.status === 'concluida').length
                           pct     = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
