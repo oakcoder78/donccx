@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjects, useProjectMutations } from '../../../../hooks/useProjects'
-import { useMilestoneMutations } from '../../../../hooks/useMilestones'
 import { useProfiles } from '../../../../hooks/useProfiles'
 import { Button } from '../../../ui/Button'
 import { Badge } from '../../../ui/Badge'
@@ -52,8 +51,8 @@ export function ClientSubProjetos({ client }) {
   const navigate = useNavigate()
   const { data: projects = [], isLoading } = useProjects(client.id)
   const { createProject, updateProject, removeProject } = useProjectMutations(client.id)
-  const { createMilestone, updateMilestone, removeMilestone, toggleTask, createTask } =
-    useMilestoneMutations(client.id)
+  const { createMilestone, updateMilestone, removeMilestone } =
+    useProjectMutations(client.id)
   const { data: profiles = [] } = useProfiles()
 
   // accordion
@@ -135,10 +134,7 @@ export function ClientSubProjetos({ client }) {
     setShowMsModal(true)
   }
 
-  // confirmação: concluir milestone com tarefas abertas
-  const [showConfirmMs,    setShowConfirmMs]    = useState(false)
-  const [pendingMsPayload, setPendingMsPayload] = useState(null)
-  const [pendingOpenTasks, setPendingOpenTasks] = useState([])
+  
 
   async function handleSaveMs() {
     const payload = { ...msForm }
@@ -146,48 +142,15 @@ export function ClientSubProjetos({ client }) {
     if (!payload.description)    delete payload.description
     if (!payload.due_date)       delete payload.due_date
 
-    // Verificar tarefas em aberto ao concluir um milestone já existente
-    if (payload.status === 'done' && editMs) {
-      const openTasks = (editMs.milestone_tasks ?? []).filter(t => !t.done)
-      if (openTasks.length > 0) {
-        setPendingMsPayload(payload)
-        setPendingOpenTasks(openTasks)
-        setShowConfirmMs(true)
-        return
-      }
-    }
-
-    await doSaveMs(payload)
-  }
-
-  async function doSaveMs(payload) {
     if (editMs) {
       await updateMilestone.mutateAsync({ id: editMs.id, ...payload })
     } else {
       await createMilestone.mutateAsync({ ...payload, project_id: msProjectId })
     }
     setShowMsModal(false)
-    setShowConfirmMs(false)
   }
 
-  async function confirmConcluirTodas() {
-    await Promise.all(pendingOpenTasks.map(t => toggleTask.mutateAsync({ id: t.id, done: true })))
-    await doSaveMs(pendingMsPayload)
-  }
-
-  async function confirmSalvarAssim() {
-    await doSaveMs(pendingMsPayload)
-  }
-
-  // tarefas inline
-  const [newTask, setNewTask] = useState({})
-
-  async function addTask(milestoneId) {
-    const t = newTask[milestoneId]?.trim()
-    if (!t) return
-    await createTask.mutateAsync({ milestone_id: milestoneId, title: t })
-    setNewTask(p => ({ ...p, [milestoneId]: '' }))
-  }
+  
 
   if (isLoading) return <p className="text-sm text-text-tertiary py-8 text-center">Carregando...</p>
 
@@ -275,9 +238,7 @@ export function ClientSubProjetos({ client }) {
                 )}
 
                 {milestones.map(m => {
-                  const tasks   = m.milestone_tasks ?? []
-                  const done    = tasks.filter(t => t.done).length
-                  const msPct   = tasks.length ? Math.round((done / tasks.length) * 100) : m.progress || 0
+                  const msPct   = m.progress || 0
                   const ms      = MS_STATUS[m.status] ?? MS_STATUS.planejado
 
                   return (
@@ -302,40 +263,7 @@ export function ClientSubProjetos({ client }) {
                         </div>
                       </div>
 
-                      {tasks.length > 0 && (
-                        <>
-                          <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden mb-1">
-                            <div className="h-full bg-donc-sky rounded-full" style={{ width: `${msPct}%` }} />
-                          </div>
-                          <p className="text-xs text-text-tertiary mb-2">{done}/{tasks.length} · {msPct}%</p>
-                          <div className="space-y-1 mb-2">
-                            {tasks.map(t => (
-                              <label key={t.id} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={t.done}
-                                  onChange={e => toggleTask.mutate({ id: t.id, done: e.target.checked })}
-                                  className="rounded accent-donc-sky"
-                                />
-                                <span className={`text-sm ${t.done ? 'line-through text-text-tertiary' : 'text-text-primary'}`}>
-                                  {t.title}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                        </>
-                      )}
-
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          value={newTask[m.id] || ''}
-                          onChange={e => setNewTask(p => ({ ...p, [m.id]: e.target.value }))}
-                          placeholder="Nova tarefa..."
-                          className="input-base flex-1 text-xs"
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTask(m.id) } }}
-                        />
-                        <Button size="sm" variant="ghost" onClick={() => addTask(m.id)}>+</Button>
-                      </div>
+                      
                     </div>
                   )
                 })}
@@ -521,46 +449,7 @@ export function ClientSubProjetos({ client }) {
         </div>
       </Modal>
 
-      {/* Modal: Confirmação tarefas em aberto — renderizado após o modal de milestone para z-index superior */}
-      <Modal
-        isOpen={showConfirmMs}
-        onClose={() => setShowConfirmMs(false)}
-        title="Milestone com tarefas em aberto"
-        maxWidth="max-w-sm"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-text-secondary">
-            Este milestone tem{' '}
-            <span className="font-semibold text-text-primary">{pendingOpenTasks.length}</span>{' '}
-            tarefa{pendingOpenTasks.length !== 1 ? 's' : ''} em aberto. Milestones com tarefas pendentes
-            podem impactar o Health Score do cliente. Como deseja prosseguir?
-          </p>
-          <div className="flex flex-col gap-2 pt-1">
-            <Button
-              onClick={confirmConcluirTodas}
-              disabled={updateMilestone.isPending || toggleTask.isPending}
-              className="w-full justify-center"
-            >
-              Concluir todas as tarefas e salvar
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={confirmSalvarAssim}
-              disabled={updateMilestone.isPending}
-              className="w-full justify-center"
-            >
-              Salvar assim mesmo
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setShowConfirmMs(false)}
-              className="w-full justify-center"
-            >
-              Cancelar
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      
     </div>
   )
 }

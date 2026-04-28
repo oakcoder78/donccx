@@ -301,9 +301,7 @@ function calcProjeto(client, rules) {
   if (lateMilestones.length === 0) applyRule(rules, 'mp_ok', appliedRules)
 
   // tarefa_atrasada: milestone_tasks com due_date vencida e não concluídas
-  const hasOverdueTask = activeMilestones
-    .filter(m => m.status !== 'done')
-    .some(m => (m.milestone_tasks ?? []).some(t => !t.done && t.due_date && t.due_date < todayStr))
+  const hasOverdueTask = false
   if (hasOverdueTask) mod += applyRule(rules, 'tarefa_atrasada', appliedRules)
 
   return { score: clamp(20 + mod, 0, 20), appliedRules }

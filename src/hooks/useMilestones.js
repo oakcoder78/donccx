@@ -9,7 +9,7 @@ export function useMilestones(clientId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('milestones')
-        .select('*, milestone_tasks(*)')
+        .select('*')
         .eq('client_id', clientId)
         .order('created_at')
       if (error) { console.error('[useMilestones] query error:', error); return [] }
@@ -25,7 +25,7 @@ export function useAllMilestones() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('milestones')
-        .select('*, milestone_tasks(*), client:clients(id,name)')
+        .select('*, client:clients(id,name)')
         .order('due_date', { nullsFirst: false })
       if (error) { console.error('[useAllMilestones] query error:', error); return [] }
       return data ?? []
@@ -89,24 +89,5 @@ export function useMilestoneMutations(clientId) {
     onError: (e) => toast.error(e.message),
   })
 
-  const toggleTask = useMutation({
-    mutationFn: async ({ id, done }) => {
-      const { error } = await supabase.from('milestone_tasks').update({ done }).eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => invalidate(),
-    onError: (e) => toast.error(e.message),
-  })
-
-  const createTask = useMutation({
-    mutationFn: async (payload) => {
-      const { data, error } = await supabase.from('milestone_tasks').insert(payload).select().single()
-      if (error) throw error
-      return data
-    },
-    onSuccess: () => invalidate(),
-    onError: (e) => toast.error(e.message),
-  })
-
-  return { createMilestone, updateMilestone, removeMilestone, toggleTask, createTask }
+  return { createMilestone, updateMilestone, removeMilestone }
 }
