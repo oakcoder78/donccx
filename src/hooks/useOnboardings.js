@@ -74,7 +74,7 @@ export function useOnboarding(onboardingId) {
         .select('*, onboarding_fase_types(*)')
         .eq('onboarding_id', onboardingId)
         .order('display_order')
-      console.log('[useOnboarding] fases query:', { onboardingId, fases, fasesError })
+      
       if (fasesError) console.error('[useOnboarding] fases', fasesError)
       return { ...onb, onboarding_fases: fases ?? [] }
     },
