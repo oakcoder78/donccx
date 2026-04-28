@@ -139,6 +139,7 @@ export async function recalculateAndSave(client, rules, weights) {
   if (client.id === 22) {
     console.log('[recalc simonetti] onboardings:', JSON.stringify(enrichedClient.onboardings))
     console.log('[recalc simonetti] projects:', JSON.stringify(enrichedClient.projects?.map(p => ({ id: p.id, status: p.status, end_date: p.end_date }))))
+    console.log('[recalc simonetti] full enrichedClient.projects:', JSON.stringify(enrichedClient.projects))
   }
 
   const scores = calculateHealthScore(enrichedClient, effectiveRules, effectiveWeights)
