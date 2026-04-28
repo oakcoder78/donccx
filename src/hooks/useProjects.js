@@ -9,7 +9,7 @@ export function useProjects(clientId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, responsible:profiles(id, name), milestones(*)')
+        .select('*, responsible:profiles(id, name), onboarding:onboardings!onboarding_id(id, situacao_geral, onboarding_fases(*))')
         .eq('client_id', clientId)
         .order('created_at')
       if (error) { console.error('[useProjects]', error); return [] }
@@ -25,7 +25,7 @@ export function useAllProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), milestones(id, status), onboarding:onboardings!onboarding_id(id, situacao_geral)')
+        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), onboarding:onboardings!onboarding_id(id, situacao_geral, onboarding_fases(*))')
         .order('created_at', { ascending: false })
       if (error) { console.error('[useAllProjects]', error); return [] }
       return data ?? []
@@ -109,7 +109,6 @@ export function useProjectMutations(clientId) {
 
   const removeProject = useMutation({
     mutationFn: async (id) => {
-      await supabase.from('milestones').update({ project_id: null }).eq('project_id', id)
       const { error } = await supabase.from('projects').delete().eq('id', id)
       if (error) throw error
     },

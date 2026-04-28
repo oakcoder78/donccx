@@ -439,10 +439,15 @@ export default function ProjectsPage() {
                       }}
                     >
                       {items.map((proj, index) => {
-                        const milestones = proj.milestones ?? []
-                        const totalMs    = milestones.length
-                        const doneMs     = milestones.filter(m => m.status === 'done').length
-                        const pct        = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
+                        let pct        = 0
+                        let totalMs    = 0
+                        let doneMs     = 0
+                        if (proj.onboarding_id && proj.onboarding?.onboarding_fases) {
+                          const fases = proj.onboarding.onboarding_fases
+                          totalMs = fases.length
+                          doneMs  = fases.filter(f => f.status === 'concluida').length
+                          pct     = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
+                        }
                         const isOverdue  = proj.end_date && proj.status !== 'concluido' && proj.end_date < todayStr
                         const clientName = proj.client?.fantasy_name || proj.client?.name || '—'
                         const respName   = proj.responsible?.name || null

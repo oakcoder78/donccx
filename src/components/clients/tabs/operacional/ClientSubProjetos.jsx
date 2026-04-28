@@ -166,10 +166,15 @@ export function ClientSubProjetos({ client }) {
 
       {projects.map(proj => {
         const isOpen     = openSet.has(proj.id)
-        const milestones = proj.milestones ?? []
-        const totalMs    = milestones.length
-        const doneMs     = milestones.filter(m => m.status === 'done').length
-        const pct        = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
+        let totalMs    = 0
+        let doneMs     = 0
+        let pct        = 0
+        if (proj.onboarding_id && proj.onboarding?.onboarding_fases) {
+          const fases = proj.onboarding.onboarding_fases
+          totalMs = fases.length
+          doneMs  = fases.filter(f => f.status === 'concluida').length
+          pct     = totalMs ? Math.round((doneMs / totalMs) * 100) : 0
+        }
         const ps         = PROJ_STATUS[proj.status] ?? PROJ_STATUS.em_andamento
 
         return (
