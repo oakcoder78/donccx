@@ -9,11 +9,27 @@ export function useProjects(clientId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, responsible:profiles(id, name), onboarding:onboardings!onboarding_id(id, situacao_geral, onboarding_fases(*))')
+        .select('*, responsible:profiles(id, name), onboarding:onboardings!onboarding_id(id, situacao_geral)')
         .eq('client_id', clientId)
         .order('created_at')
       if (error) { console.error('[useProjects]', error); return [] }
-      return data ?? []
+
+      if (!data?.length) return data ?? []
+
+      const onbIds = data.filter(p => p.onboarding_id).map(p => p.onboarding_id)
+      if (onbIds.length) {
+        const { data: fases } = await supabase
+          .from('onboarding_fases')
+          .select('*')
+          .in('onboarding_id', onbIds)
+        const fasesMap = {}
+        for (const f of fases ?? []) {
+          if (!fasesMap[f.onboarding_id]) fasesMap[f.onboarding_id] = []
+          fasesMap[f.onboarding_id].push(f)
+        }
+        return data.map(p => ({ ...p, onboarding_fases: fasesMap[p.onboarding_id] ?? [] }))
+      }
+      return data
     },
     retry: 0,
   })
@@ -25,10 +41,26 @@ export function useAllProjects() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), onboarding:onboardings!onboarding_id(id, situacao_geral, onboarding_fases(*))')
+        .select('*, client:clients(id, name, fantasy_name), responsible:profiles(id, name), onboarding:onboardings!onboarding_id(id, situacao_geral)')
         .order('created_at', { ascending: false })
       if (error) { console.error('[useAllProjects]', error); return [] }
-      return data ?? []
+
+      if (!data?.length) return data ?? []
+
+      const onbIds = data.filter(p => p.onboarding_id).map(p => p.onboarding_id)
+      if (onbIds.length) {
+        const { data: fases } = await supabase
+          .from('onboarding_fases')
+          .select('*')
+          .in('onboarding_id', onbIds)
+        const fasesMap = {}
+        for (const f of fases ?? []) {
+          if (!fasesMap[f.onboarding_id]) fasesMap[f.onboarding_id] = []
+          fasesMap[f.onboarding_id].push(f)
+        }
+        return data.map(p => ({ ...p, onboarding_fases: fasesMap[p.onboarding_id] ?? [] }))
+      }
+      return data
     },
     retry: 0,
   })
