@@ -262,7 +262,7 @@ function calcProjeto(client, rules) {
   // mp_late: fases com planned_end vencido (máx. 3)
   const lateFases = activeOnboardings.flatMap(o =>
     (o.onboarding_fases ?? []).filter(f =>
-      f.status !== 'done' && f.planned_end && f.planned_end < todayStr
+      f.status !== 'concluida' && f.planned_end && f.planned_end < todayStr
     )
   )
   for (let i = 0; i < Math.min(lateFases.length, 3); i++) {
@@ -284,7 +284,7 @@ function calcProjeto(client, rules) {
     if (new Date() > cutoff90) {
       const hasIncompleteGoLive = activeOnboardings.some(o =>
         (o.onboarding_fases ?? []).some(f =>
-          f.onboarding_fase_types?.name === 'Go-Live' && f.status !== 'done'
+          f.onboarding_fase_types?.name === 'Go-Live' && f.status !== 'concluida'
         )
       )
       if (hasIncompleteGoLive) mod += applyRule(rules, 'ob_late', appliedRules)
