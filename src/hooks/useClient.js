@@ -20,8 +20,7 @@ export function useClient(id) {
           projects(*, responsible:profiles(id, name), milestones(*)),
           client_usage(*, client_donc_instances(id, label)),
           client_support(*),
-          client_catalog_history(*, catalog_items(type)),
-          
+          client_catalog_history(*, catalog_items(type))
         `)
         .eq('id', id)
         .single()
