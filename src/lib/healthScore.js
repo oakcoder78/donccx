@@ -228,6 +228,8 @@ function calcFinanceiro(client, rules) {
 
 // ─── PROJETO ───────────────────────────────────────────────────────────────────
 function calcProjeto(client, rules) {
+  console.log('[calcProjeto] client.onboardings:', client.onboardings)
+  console.log('[calcProjeto] client.projects:', client.projects?.map(p => ({ id: p.id, title: p.title, milestones: p.milestones })))
   if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
