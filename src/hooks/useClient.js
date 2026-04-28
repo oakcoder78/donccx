@@ -16,8 +16,7 @@ export function useClient(id) {
           client_catalog(id, catalog_item_id, status, catalog_items(*)),
           contact_links(*, contacts(*, contact_phones(*))),
           activities(*, responsible:profiles(id,name), contacts(id,name)),
-          milestones(*),
-          projects(*, responsible:profiles(id, name), milestones(*)),
+          projects(*, responsible:profiles(id, name)),
           client_usage(*, client_donc_instances(id, label)),
           client_support(*),
           client_catalog_history(*, catalog_items(type))
