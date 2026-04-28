@@ -10,8 +10,8 @@ const FULL_CLIENT_SELECT = `
   client_catalog(id, catalog_item_id, status, catalog_items(*)),
   contact_links(*, contacts(*, contact_phones(*))),
   activities(*, responsible:profiles(id,name), contacts(id,name)),
-  milestones(*),
-  projects(id, status, end_date, milestones(id, title, due_date, status)),
+  projects(id, status, end_date),
+  onboardings(*, onboarding_fases(*, onboarding_fase_types(*)), onboarding_activities(id, due_date, status)),
   client_usage(*),
   client_support(*),
   client_catalog_history(*, catalog_items(type))
@@ -45,7 +45,7 @@ async function fetchClientArrays(clientId) {
   const d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   const activityCutoff = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-  const [usageRes, supportRes, activitiesRes, milestonesRes, historyRes, projectsRes] = await Promise.all([
+  const [usageRes, supportRes, activitiesRes, historyRes, projectsRes, onboardingsRes] = await Promise.all([
     supabase
       .from('client_usage')
       .select('ref_month, os_created, active_users, pending, partial_day')
@@ -62,34 +62,34 @@ async function fetchClientArrays(clientId) {
       .eq('client_id', clientId)
       .gte('activity_date', activityCutoff),
     supabase
-      .from('milestones')
-      .select('id, title, due_date, status')
-      .eq('client_id', clientId),
-    supabase
       .from('client_catalog_history')
       .select('catalog_item_id, status_novo, status_anterior, changed_at, catalog_items(type)')
       .eq('client_id', clientId)
       .order('changed_at', { ascending: false }),
     supabase
       .from('projects')
-      .select('id, status, end_date, milestones(id, title, due_date, status)')
+      .select('id, status, end_date')
+      .eq('client_id', clientId),
+    supabase
+      .from('onboardings')
+      .select('*, onboarding_fases(*, onboarding_fase_types(*)), onboarding_activities(id, due_date, status)')
       .eq('client_id', clientId),
   ])
 
-  if (usageRes.error)      console.error('[fetchClientArrays] client_usage error:', usageRes.error)
-  if (supportRes.error)    console.error('[fetchClientArrays] client_support error:', supportRes.error)
-  if (activitiesRes.error) console.error('[fetchClientArrays] activities error:', activitiesRes.error)
-  if (milestonesRes.error) console.error('[fetchClientArrays] milestones error:', milestonesRes.error)
-  if (historyRes.error)    console.error('[fetchClientArrays] catalog_history error:', historyRes.error)
-  if (projectsRes.error)   console.error('[fetchClientArrays] projects error:', projectsRes.error)
+  if (usageRes.error)       console.error('[fetchClientArrays] client_usage error:', usageRes.error)
+  if (supportRes.error)     console.error('[fetchClientArrays] client_support error:', supportRes.error)
+  if (activitiesRes.error)  console.error('[fetchClientArrays] activities error:', activitiesRes.error)
+  if (historyRes.error)     console.error('[fetchClientArrays] catalog_history error:', historyRes.error)
+  if (projectsRes.error)    console.error('[fetchClientArrays] projects error:', projectsRes.error)
+  if (onboardingsRes.error) console.error('[fetchClientArrays] onboardings error:', onboardingsRes.error)
 
   return {
-    client_usage:           usageRes.data      ?? [],
-    client_support:         supportRes.data    ?? [],
-    activities:             activitiesRes.data ?? [],
-    milestones:             milestonesRes.data ?? [],
-    client_catalog_history: historyRes.data    ?? [],
-    projects:               projectsRes.data   ?? [],
+    client_usage:           usageRes.data       ?? [],
+    client_support:         supportRes.data     ?? [],
+    activities:             activitiesRes.data  ?? [],
+    client_catalog_history: historyRes.data     ?? [],
+    projects:               projectsRes.data    ?? [],
+    onboardings:            onboardingsRes.data ?? [],
   }
 }
 

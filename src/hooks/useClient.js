@@ -19,7 +19,8 @@ export function useClient(id) {
           projects(*, responsible:profiles(id, name)),
           client_usage(*, client_donc_instances(id, label)),
           client_support(*),
-          client_catalog_history(*, catalog_items(type))
+          client_catalog_history(*, catalog_items(type)),
+          onboardings(*, onboarding_fases(*, onboarding_fase_types(*)), onboarding_activities(id, due_date, status))
         `)
         .eq('id', id)
         .single()
