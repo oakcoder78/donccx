@@ -511,7 +511,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
       const isImplantacao = onboarding?.context === 'implantacao_inicial'
       if (isGoLive && isImplantacao) {
         const dueDate = addDaysToISO(today, 2)
-        const { error: actErr } = await supabase.from('activities').insert({
+        const payload = {
           type:           'tarefa',
           title:          'Go-Live concluído — revisar stage do cliente para Estabilização',
           description:    'O onboarding de implantação inicial foi concluído. Revise o stage do cliente e altere para Estabilização para que o Health Score passe a ser calculado normalmente.',
@@ -520,8 +520,11 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
           status:         'pendente',
           due_date:       dueDate,
           notes:          `Gerado automaticamente pelo sistema ao concluir o Go-Live do onboarding: ${onboardingTitle}`,
-        })
-        if (actErr) console.error('[GoLive alert]', actErr)
+        }
+        console.log('[golive] payload activities:', payload)
+        const { data, error } = await supabase.from('activities').insert(payload).select().single()
+        console.log('[golive] result:', { data, error })
+        if (error) console.error('[GoLive alert]', error)
         else {
           logAction('golive_alerta_criado', 'onboarding_fase', fase.id, onboardingTitle, null, { activity_title: 'Go-Live concluído — revisar stage do cliente para Estabilização' })
           qc.invalidateQueries({ queryKey: ['activities'] })
