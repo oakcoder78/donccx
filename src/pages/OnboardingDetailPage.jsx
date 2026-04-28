@@ -522,11 +522,8 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
           due_date:       dueDate,
           notes:          `Gerado automaticamente pelo sistema ao concluir o Go-Live do onboarding: ${onboardingTitle}`,
         }
-        console.log('[golive] payload activities:', payload)
         const { data, error } = await supabase.from('activities').insert(payload).select().single()
-        console.log('[golive] result:', { data, error })
-        if (error) console.error('[GoLive alert]', error)
-        else {
+        if (!error) {
           logAction('golive_alerta_criado', 'onboarding_fase', fase.id, onboardingTitle, null, { activity_title: 'Go-Live concluído — revisar stage do cliente para Estabilização' })
           qc.invalidateQueries({ queryKey: ['activities'] })
         }
