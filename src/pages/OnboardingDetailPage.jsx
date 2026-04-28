@@ -518,6 +518,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
           client_id:      clientId,
           responsible_id: onboarding.csm_id || null,
           status:         'pendente',
+          activity_date:  today,
           due_date:       dueDate,
           notes:          `Gerado automaticamente pelo sistema ao concluir o Go-Live do onboarding: ${onboardingTitle}`,
         }
