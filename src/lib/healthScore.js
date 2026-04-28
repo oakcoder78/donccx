@@ -228,12 +228,6 @@ function calcFinanceiro(client, rules) {
 
 // ─── PROJETO ───────────────────────────────────────────────────────────────────
 function calcProjeto(client, rules) {
-  if (client.id === 22) {
-    console.log('[calcProjeto 22] projects:', JSON.stringify(client.projects))
-    console.log('[calcProjeto 22] rules length:', rules?.length)
-    console.log('[calcProjeto 22] stageGroup:', resolveStageGroup(client))
-    console.log('[calcProjeto 22] isNeutralStage:', isNeutralStage(client))
-  }
   if (!Array.isArray(rules) || !rules.length) return { score: 20, appliedRules: [] }
 
   const appliedRules = []
@@ -314,10 +308,7 @@ export function calculateHealthScore(client, rules = [], weights = null) {
   const suporte        = calcSuporte(client, rules)
   const relacionamento = calcRelacionamento(client, rules)
   const financeiro     = calcFinanceiro(client, rules)
-  const projeto        = calcProjeto(client, rules)
-  if (client.id === 22) {
-    console.log('[calcProjeto 22] score:', JSON.stringify(projeto))
-  }
+  const projeto = calcProjeto(client, rules)
   const temperaturaVal = calcTemperatura(client)
 
   const weightedUso            = W.uso            > 0 ? (uso.score            / 20) * W.uso            : 0
