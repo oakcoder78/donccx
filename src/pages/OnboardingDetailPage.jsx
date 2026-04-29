@@ -498,19 +498,39 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     setSaving(true)
     try {
       await supabase.from('onboarding_fases').update({ status: 'concluida', actual_end: actualEnd || today }).eq('id', fase.id)
-      const idx  = orderedFases.findIndex(f => f.id === fase.id)
+      const idx = orderedFases.findIndex(f => f.id === fase.id)
       const next = orderedFases.slice(idx + 1).find(f => f.status === 'pendente')
-      if (next) {
-        await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', next.id)
-        await supabase.from('onboardings').update({ fase_atual_id: next.id }).eq('id', onboardingId)
-      }
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('advanced', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida' })
-      toast.success(`Fase concluída: ${phaseName(fase)}`)
+      
+      if (next) {
+        toast.success(`Fase concluída: ${phaseName(fase)}`, {
+          action: {
+            label: `Ativar: ${next.onboarding_fase_types?.name || 'Próxima fase'}`,
+            onClick: () => handleActivateNext(next.id)
+          },
+          duration: 8000
+        })
+      } else {
+        toast.success(`Fase concluída: ${phaseName(fase)}`)
+      }
       onClose()
     } catch (e) { toast.error(e.message) }
     finally { setSaving(false) }
+  }
+
+  async function handleActivateNext(faseId) {
+    try {
+      await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', faseId)
+      await supabase.from('onboardings').update({ fase_atual_id: faseId }).eq('id', onboardingId)
+      qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      const nextFase = orderedFases.find(f => f.id === faseId)
+      logAction('activated', 'onboarding_fase', faseId, phaseName(nextFase), { status: 'pendente' }, { status: 'ativa' })
+      toast.success(`Fase ativada: ${phaseName(nextFase)}`)
+      onClose()
+    } catch (e) { toast.error(e.message) }
   }
 
   async function handleCompleteMilestone() {
@@ -522,30 +542,26 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
       await supabase.from('onboarding_fases')
         .update({ status: 'concluida', occurred_at: today, actual_end: today, justificativa: justificativa || null })
         .eq('id', fase.id)
-      const idx  = orderedFases.findIndex(f => f.id === fase.id)
+      const idx = orderedFases.findIndex(f => f.id === fase.id)
       const next = orderedFases.slice(idx + 1).find(f => f.status === 'pendente')
-      if (next) {
-        await supabase.from('onboarding_fases').update({ status: 'ativa', actual_start: today }).eq('id', next.id)
-        await supabase.from('onboardings').update({ fase_atual_id: next.id }).eq('id', onboardingId)
-      }
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('marco_concluido', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida', occurred_at: today })
 
-      const isGoLive     = fase.onboarding_fase_types?.name === 'Go-Live'
+      const isGoLive = fase.onboarding_fase_types?.name === 'Go-Live'
       const isImplantacao = onboarding?.context === 'implantacao_inicial'
       if (isGoLive && isImplantacao) {
         const dueDate = addDaysToISO(today, 2)
         const payload = {
-          type:           'tarefa',
-          title:          'Go-Live concluído — revisar stage do cliente para Estabilização',
-          description:    'O onboarding de implantação inicial foi concluído. Revise o stage do cliente e altere para Estabilização para que o Health Score passe a ser calculado normalmente.',
-          client_id:      clientId,
+          type: 'tarefa',
+          title: 'Go-Live concluído — revisar stage do cliente para Estabilização',
+          description: 'O onboarding de implantação inicial foi concluído. Revise o stage do cliente e altere para Estabilização para que o Health Score passe a ser calculado normalmente.',
+          client_id: clientId,
           responsible_id: onboarding.csm_id || null,
-          status:         'pendente',
-          activity_date:  today,
-          due_date:       dueDate,
-          notes:          `Gerado automaticamente pelo sistema ao concluir o Go-Live do onboarding: ${onboardingTitle}`,
+          status: 'pendente',
+          activity_date: today,
+          due_date: dueDate,
+          notes: `Gerado automaticamente pelo sistema ao concluir o Go-Live do onboarding: ${onboardingTitle}`,
         }
         const { data, error } = await supabase.from('activities').insert(payload).select().single()
         if (!error) {
@@ -553,6 +569,14 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
           qc.invalidateQueries({ queryKey: ['activities'] })
         }
         toast.success('🎉 Go-Live registrado! Uma tarefa foi criada para revisão do stage do cliente.')
+      } else if (next) {
+        toast.success(`Marco concluído: ${phaseName(fase)}`, {
+          action: {
+            label: `Ativar: ${next.onboarding_fase_types?.name || 'Próxima fase'}`,
+            onClick: () => handleActivateNext(next.id)
+          },
+          duration: 8000
+        })
       } else {
         toast.success(`Marco concluído: ${phaseName(fase)}`)
       }
@@ -585,10 +609,9 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   async function handleReopen() {
     setSaving(true)
     try {
-      await supabase.from('onboarding_fases').update({ status: 'ativa', actual_end: null, occurred_at: null }).eq('id', fase.id)
-      await supabase.from('onboardings').update({ fase_atual_id: fase.id }).eq('id', onboardingId)
+      await supabase.from('onboarding_fases').update({ status: 'pendente', actual_end: null, occurred_at: null }).eq('id', fase.id)
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
-      logAction('reopened', 'onboarding_fase', fase.id, phaseName(fase), { status: 'concluida' }, { status: 'ativa' })
+      logAction('reopened', 'onboarding_fase', fase.id, phaseName(fase), { status: 'concluida' }, { status: 'pendente' })
       toast.success(`Fase reaberta: ${phaseName(fase)}`)
       onClose()
     } catch (e) { toast.error(e.message) }
