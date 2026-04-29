@@ -496,12 +496,12 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     finally { setSaving(false) }
   }
 
-  async function handleComplete() {
+async function handleComplete() {
     const hasConcluida = activities.some(a => a.fase_id === fase.id && a.status === 'concluida')
     if (!hasConcluida) { toast.error('Conclua pelo menos uma atividade desta fase antes de avançar'); return }
     setSaving(true)
     try {
-      await supabase.from('onboarding_fases').update({ status: 'concluida', actual_end: actualEnd || today }).eq('id', fase.id)
+      await supabase.from('onboarding_fases').update({ status: 'concluida', actual_end: actualEnd || null }).eq('id', fase.id)
       const idx = orderedFases.findIndex(f => f.id === fase.id)
       const next = orderedFases.slice(idx + 1).find(f => f.status === 'pendente')
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
@@ -544,13 +544,13 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     setSaving(true)
     try {
       await supabase.from('onboarding_fases')
-        .update({ status: 'concluida', occurred_at: today, actual_end: today, justificativa: justificativa || null })
+        .update({ status: 'concluida', occurred_at: actualEnd || today, actual_end: actualEnd || today, justificativa: justificativa || null })
         .eq('id', fase.id)
       const idx = orderedFases.findIndex(f => f.id === fase.id)
       const next = orderedFases.slice(idx + 1).find(f => f.status === 'pendente')
       qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
       qc.invalidateQueries({ queryKey: ['projects_all'] })
-      logAction('marco_concluido', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida', occurred_at: today })
+      logAction('marco_concluido', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida', occurred_at: actualEnd || today })
 
       const isGoLive = fase.onboarding_fase_types?.name === 'Go-Live'
       const isImplantacao = onboarding?.context === 'implantacao_inicial'
