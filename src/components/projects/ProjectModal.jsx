@@ -645,7 +645,11 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
                     <label style={label$}>{isEdit ? 'Fase atual' : 'Fase inicial'}</label>
                     <input
                       type="text"
-                      value={isEdit ? (FASE_LABELS[onboardingData?.fase_atual] || onboardingData?.fase_atual || '—') : FASE_LABELS.definicao_escopo}
+                      value={isEdit ? (() => {
+                        const currentFaseId = onboardingData?.fase_atual_id
+                        const currentFase = (onboardingData?.onboarding_fases ?? []).find(f => f.id === currentFaseId)
+                        return currentFase?.onboarding_fase_types?.name || currentFase?.display_order ? `Fase ${currentFase.display_order}` : '—'
+                      })() : FASE_LABELS.definicao_escopo}
                       readOnly
                       style={inputRO$}
                     />
