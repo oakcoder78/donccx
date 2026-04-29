@@ -245,7 +245,7 @@ export function SettingsFaseTypes() {
   const colSpan = isAdmin ? 8 : 6
 
   return (
-    <div className="max-w-4xl space-y-4">
+    <div className="w-full max-w-6xl space-y-4">
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -260,7 +260,7 @@ export function SettingsFaseTypes() {
       </div>
 
       {/* Card */}
-      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
 
         {/* Hint */}
         <div className="px-4 py-2 border-b border-border-tertiary bg-bg-secondary">
@@ -285,7 +285,7 @@ export function SettingsFaseTypes() {
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto max-w-full">
+        <div className="overflow-x-auto w-full">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-tertiary bg-bg-secondary">
