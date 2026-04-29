@@ -1532,6 +1532,13 @@ export default function OnboardingDetailPage() {
   const orderedFases      = (onboarding?.onboarding_fases ?? []).slice().sort((a, b) => a.display_order - b.display_order)
   const faseAtualId       = onboarding?.fase_atual_id ?? orderedFases[0]?.id ?? null
   const currentPhaseIndex = Math.max(0, orderedFases.findIndex(f => f.id === faseAtualId))
+  const activeFaseId = orderedFases.find(f => f.status === 'ativa')?.id ?? faseAtualId
+
+  useEffect(() => {
+    if (selectedFaseTab === null && activeFaseId) {
+      setSelectedFaseTab(activeFaseId)
+    }
+  }, [])
 
   function toggleExpand(actId) {
     setExpandedActs(prev => {
