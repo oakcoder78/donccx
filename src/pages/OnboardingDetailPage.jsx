@@ -40,6 +40,7 @@ const S = {
   segmented: { display: 'inline-flex', background: '#f4f5f7', borderRadius: 9, padding: 3, gap: 2 },
   segBtn:    { background: 'transparent', border: 'none', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: 'rgba(23,53,87,0.65)', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit' },
   segBtnOn:  { background: '#fff', border: 'none', padding: '6px 12px', fontSize: 12, fontWeight: 500, color: '#173557', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(15,34,58,0.08)' },
+  segBtnAtiva: { background: '#DFEDF5', border: 'none', padding: '6px 12px', fontSize: 12, fontWeight: 600, color: '#173557', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit' },
   actStatusSel: { padding: '4px 8px', fontSize: 11, borderRadius: 6, border: '1px solid rgba(15,34,58,0.12)', background: '#fff', color: '#173557', fontFamily: 'inherit', width: '100%', outline: 'none' },
   capChipBase:  { fontSize: 12, fontWeight: 500, padding: '5px 11px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 6 },
 }
@@ -1534,11 +1535,10 @@ export default function OnboardingDetailPage() {
   const activeFaseId = orderedFases.find(f => f.status === 'ativa')?.id ?? faseAtualId
 
   useEffect(() => {
-    const activeFase = orderedFases.find(f => f.status === 'ativa')
-    if (activeFase && selectedFaseTab === null) {
-      setSelectedFaseTab(activeFase.id)
+    if (selectedFaseTab === null && activeFaseId) {
+      setSelectedFaseTab(activeFaseId)
     }
-  }, [orderedFases, selectedFaseTab])
+  }, [])
 
   function toggleExpand(actId) {
     setExpandedActs(prev => {
@@ -1684,12 +1684,9 @@ export default function OnboardingDetailPage() {
                 <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>Todas</button>
                 {fases.map(f => {
                   const isFaseAtiva = f.status === 'ativa'
-                  const isSelected = selectedFaseTab === f.id
-                  const shouldHighlight = selectedFaseTab === null && isFaseAtiva
                   return (
                     <button key={f.id} style={{ 
-                      ...(isSelected || shouldHighlight ? S.segBtnOn : S.segBtn), 
-                      ...(shouldHighlight ? { background: 'rgba(89,194,237,0.18)', color: '#0a6a96' } : {}),
+                      ...(isFaseAtiva ? S.segBtnAtiva : selectedFaseTab === f.id ? S.segBtnOn : S.segBtn), 
                       whiteSpace: 'nowrap' 
                     }} onClick={() => setSelectedFaseTab(f.id)}>
                       {phaseName(f)}
