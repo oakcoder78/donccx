@@ -1528,6 +1528,7 @@ export default function OnboardingDetailPage() {
   const [showPendForms,   setShowPendForms]   = useState(new Set())
   const [selectedFaseTab, setSelectedFaseTab] = useState(null)
   const [showFaseMgmt,    setShowFaseMgmt]    = useState(false)
+  const faseTabInitialized = useRef(false)
 
   const orderedFases      = (onboarding?.onboarding_fases ?? []).slice().sort((a, b) => a.display_order - b.display_order)
   const faseAtualId       = onboarding?.fase_atual_id ?? orderedFases[0]?.id ?? null
@@ -1535,9 +1536,13 @@ export default function OnboardingDetailPage() {
   const activeFaseId = orderedFases.find(f => f.status === 'ativa')?.id ?? faseAtualId
 
   useEffect(() => {
-    if (orderedFases.length > 0 && selectedFaseTab === null) {
+    if (faseTabInitialized.current) return
+    if (orderedFases.length > 0) {
       const faseAtiva = orderedFases.find(f => f.status === 'ativa')
-      if (faseAtiva) setSelectedFaseTab(faseAtiva.id)
+      if (faseAtiva) {
+        setSelectedFaseTab(faseAtiva.id)
+        faseTabInitialized.current = true
+      }
     }
   }, [orderedFases])
 
