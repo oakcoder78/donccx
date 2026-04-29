@@ -272,16 +272,16 @@ function calcProjeto(client, rules) {
   )
   if (hasOverdueActivity) mod += applyRule(rules, 'onb_atividade_vencida', appliedRules)
 
-  // ob_late: Go-Live não concluído após 90 dias do go-live
-  if (client.golive) {
-    const cutoff90 = new Date(new Date(client.golive + 'T00:00:00').getTime() + 90 * 86400000)
-    if (new Date() > cutoff90) {
-      const hasIncompleteGoLive = activeOnboardings.some(o =>
-        (o.onboarding_fases ?? []).some(f =>
-          f.onboarding_fase_types?.name === 'Go-Live' && f.status !== 'concluida'
-        )
-      )
-      if (hasIncompleteGoLive) mod += applyRule(rules, 'ob_late', appliedRules)
+  // ob_late: Go-Live concluído há 90+ dias e ainda há fases pendentes
+  const onboarding = activeOnboardings[0]
+  if (onboarding) {
+    const goLiveFase = onboarding.onboarding_fases?.find(f => f.onboarding_fase_types?.name === 'Go-Live')
+    if (goLiveFase?.occurred_at) {
+      const daysSinceGoLive = (Date.now() - new Date(goLiveFase.occurred_at).getTime()) / (1000 * 60 * 60 * 24)
+      if (daysSinceGoLive > 90) {
+        const hasPendingFases = onboarding.onboarding_fases?.some(f => f.status !== 'concluida')
+        if (hasPendingFases) mod += applyRule(rules, 'ob_late', appliedRules)
+      }
     }
   }
 
