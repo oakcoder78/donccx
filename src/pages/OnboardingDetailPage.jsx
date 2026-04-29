@@ -1535,10 +1535,11 @@ export default function OnboardingDetailPage() {
   const activeFaseId = orderedFases.find(f => f.status === 'ativa')?.id ?? faseAtualId
 
   useEffect(() => {
-    if (selectedFaseTab === null && activeFaseId) {
-      setSelectedFaseTab(activeFaseId)
+    if (orderedFases.length > 0 && selectedFaseTab === null) {
+      const faseAtiva = orderedFases.find(f => f.status === 'ativa')
+      if (faseAtiva) setSelectedFaseTab(faseAtiva.id)
     }
-  }, [])
+  }, [orderedFases])
 
   function toggleExpand(actId) {
     setExpandedActs(prev => {
