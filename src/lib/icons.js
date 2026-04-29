@@ -35,6 +35,9 @@ import {
   Flag,
   Info,
   Check,
+  FolderKanban,
+  Activity,
+  Settings,
 } from "lucide-react"
 
 export const ActivityIcons = {
@@ -102,10 +105,13 @@ export const SettingsMenuIcons = {
   users:         Users,
   logs:          ClipboardList,
   freshdesk:     Headphones,
-  donkie:        Bot,
+  donkie:       Bot,
   ai:            Sparkles,
   'donc-api':    Plug,
   features:      Flag,
+  'fase-types':        FolderKanban,
+  'activity-types':    Activity,
+  default:           Settings,
 }
 
 export const HealthDimensionIcons = {
