@@ -12,9 +12,37 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const allowedOrigins = [
+  "https://donccx.vercel.app",
+  "http://localhost:5173",
+]
+
+function getCorsHeaders(origin: string | null) {
+  if (!origin) {
+    return {
+      "Access-Control-Allow-Origin": "https://donccx.vercel.app",
+      "Access-Control-Allow-Headers":
+        "authorization, x-client-info, apikey, content-type",
+    }
+  }
+
+  const isVercelPreview =
+    origin.includes("vercel.app") &&
+    origin.includes("donccx")
+
+  if (allowedOrigins.includes(origin) || isVercelPreview) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Headers":
+        "authorization, x-client-info, apikey, content-type",
+    }
+  }
+
+  return {
+    "Access-Control-Allow-Origin": "https://donccx.vercel.app",
+    "Access-Control-Allow-Headers":
+      "authorization, x-client-info, apikey, content-type",
+  }
 }
 
 /** Fallback hardcoded — usado quando Supabase não retornar modelos configurados. */
@@ -75,18 +103,54 @@ async function loadModels(): Promise<string[]> {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+  const origin = req.headers.get("origin")
+
+if (req.method === "OPTIONS") {
+  return new Response("ok", {
+    headers: getCorsHeaders(origin),
+  })
+}
 
   const json = (body: unknown, status = 200) =>
     new Response(JSON.stringify(body), {
       status,
-      headers: { ...cors, 'Content-Type': 'application/json' },
+      headers: {
+  ...getCorsHeaders(origin),
+  "Content-Type": "application/json",
+},
     })
 
-  try {
-    // Loga se o header existe — sem validação ou rejeição por auth (gateway trata)
-    const authHeader = req.headers.get('Authorization')
-    console.log('openrouter-proxy: Authorization header present:', !!authHeader)
+try {
+  // ── VALIDAR TOKEN JWT (CORREÇÃO CRÍTICA)
+
+  const authHeader = req.headers.get('Authorization') ?? ''
+
+  if (!authHeader) {
+    return json({ error: 'Missing authorization token' }, 401)
+  }
+
+  const token = authHeader
+    .replace(/^Bearer\s+/i, '')
+    .trim()
+
+  if (!token) {
+    return json({ error: 'Invalid authorization token' }, 401)
+  }
+
+  // Validar usuário no Supabase
+  const sbUrl = Deno.env.get('SUPABASE_URL')
+  const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+  const authRes = await fetch(`${sbUrl}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: sbKey!,
+    },
+  })
+
+  if (!authRes.ok) {
+    return json({ error: 'Unauthorized' }, 401)
+  }
 
     // ── Parse body ──────────────────────────────────────────────────────────
     const body = await req.json()

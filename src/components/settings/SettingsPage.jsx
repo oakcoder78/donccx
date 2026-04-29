@@ -33,7 +33,12 @@ const BASE_MENU = [
 export default function SettingsPage() {
   const { canManageUsers } = usePermissions()
   const { isAdmin } = useAuth()
-  const [section, setSection] = useState('minha-conta')
+  const [section, setSection] = useState(() => localStorage.getItem('settings_section') || 'minha-conta')
+
+  const handleSetSection = (key) => {
+    localStorage.setItem('settings_section', key)
+    setSection(key)
+  }
 
   const { isManager } = useAuth()
 
@@ -55,7 +60,7 @@ export default function SettingsPage() {
             return (
               <button
                 key={item.key}
-                onClick={() => setSection(item.key)}
+                onClick={() => handleSetSection(item.key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   section === item.key
                     ? 'bg-donc-navy text-white'
