@@ -15,8 +15,8 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
 import { SettingsMenuIcons } from '../../lib/icons'
 
-const SettingsFaseTypes = () => null
-const SettingsActivityTypes = () => null
+import { SettingsFaseTypes } from './SettingsFaseTypes'
+import { SettingsActivityTypes } from './SettingsActivityTypes'
 
 const MENU_GROUPS = [
   { label: 'Conta', items: [
