@@ -1587,6 +1587,12 @@ export default function OnboardingDetailPage() {
   const openFase     = openFaseId ? fases.find(f => f.id === openFaseId) : null
   const contextLabel = FASE_LABELS[onb?.context] ?? onb?.context ?? ''
 
+  const projectTypeLabel = { onboarding: 'Onboarding', expansao: 'Expansão', interno: 'Interno' }[project?.type ?? ''] || ''
+
+  const goLiveFase = fases.find(f => f.onboarding_fase_types?.name === 'Go-Live')
+  const startDateLabel = onb?.start_date ? fmt(onb.start_date) : '—'
+  const goLiveLabel = goLiveFase?.planned_end ? fmt(goLiveFase.planned_end) : 'a definir'
+
   const capsServico = caps.filter(c => c.catalog_item?.type === 'servico')
   const capsSolucao = caps.filter(c => c.catalog_item?.type === 'solucao')
 
@@ -1622,10 +1628,23 @@ export default function OnboardingDetailPage() {
               <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, letterSpacing: '-0.2px', color: '#173557' }}>{project.title}</h1>
               <div style={{ fontSize: 13, color: '#0a6a96', fontWeight: 500, marginTop: 4 }}>{clientName}</div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                {projectTypeLabel && <Tag color="amber">{projectTypeLabel}</Tag>}
                 {contextLabel && <Tag color="sky">{contextLabel}</Tag>}
                 {onb && <Tag color={situacao.color}>{situacao.dot && <span style={S.liveDot} />}{situacao.label}</Tag>}
                 {onb?.csm && <Tag color="gray">CSM: {onb.csm.name}</Tag>}
               </div>
+              {onb && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 12, color: 'rgba(23,53,87,0.65)' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ActionIcons.calendar size={12} />
+                    Início: {startDateLabel}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ActionIcons.calendar size={12} />
+                    Go-Live previsto: {goLiveLabel}
+                  </span>
+                </div>
+              )}
             </div>
             <button style={S.btnSec} onClick={() => setEditModalOpen(true)}>Editar projeto</button>
           </div>
