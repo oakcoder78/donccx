@@ -100,7 +100,11 @@ const CAP_PALETTE = [
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(d) {
   if (!d) return '—'
-  return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
+  try {
+    const dateStr = typeof d === 'string' ? d.slice(0, 10) : d
+    if (!dateStr || dateStr.length < 10) return '—'
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('pt-BR')
+  } catch { return '—' }
 }
 function phaseName(fase) {
   return fase?.onboarding_fase_types?.name || `Fase ${fase?.display_order ?? '—'}`
@@ -357,16 +361,16 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   const today         = todayISO()
   const fileInputId   = `ev-input-${fase.id}`
 
-  const [plannedStart,   setPlannedStart]   = useState(fase.planned_start?.slice(0, 10) ?? '')
-  const [plannedEnd,    setPlannedEnd]    = useState(fase.planned_end?.slice(0, 10) ?? '')
-  const [actualEnd,     setActualEnd]     = useState(fase.actual_end?.slice(0, 10) ?? '')
+  const [plannedStart,   setPlannedStart]   = useState(fase.planned_start?.slice(0, 10) || '')
+  const [plannedEnd,    setPlannedEnd]    = useState(fase.planned_end?.slice(0, 10) || '')
+  const [actualEnd,     setActualEnd]     = useState(fase.actual_end?.slice(0, 10) || '')
   const [justificativa, setJustificativa] = useState(fase.justificativa ?? '')
   const [saving,        setSaving]        = useState(false)
   const [uploadingEv,   setUploadingEv]   = useState(false)
   const [saveState,     setSaveState]     = useState('idle')
   const [savedAt,       setSavedAt]       = useState('')
 
-  const [plannedStartOrig, setPlannedStartOrig] = useState(fase.planned_start?.slice(0, 10) ?? '')
+  const [plannedStartOrig, setPlannedStartOrig] = useState(fase.planned_start?.slice(0, 10) || '')
 
   const phaseActs  = activities.filter(a => a.fase_id === fase.id)
   const maxDueDate = phaseActs.reduce((mx, a) => (!a.due_date ? mx : !mx || a.due_date > mx ? a.due_date : mx), null)
@@ -403,7 +407,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
         updates.planned_start = plannedStart || null
         setPlannedStartOrig(plannedStart)
       }
-      if (plannedEnd !== (fase.planned_end?.slice(0, 10) ?? '')) updates.planned_end = plannedEnd || null
+      if (plannedEnd !== (fase.planned_end?.slice(0, 10) || '')) updates.planned_end = plannedEnd || null
       if (justificativa !== (fase.justificativa ?? '')) updates.justificativa = justificativa || null
 
       if (Object.keys(updates).length > 0) {
@@ -418,7 +422,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   }
 
   async function savePlannedEndBlur(val) {
-    if (val === (fase.planned_end?.slice(0, 10) ?? '')) return
+    if (val === (fase.planned_end?.slice(0, 10) || '')) return
     const { error } = await supabase.from('onboarding_fases').update({ planned_end: val || null }).eq('id', fase.id)
     if (error) { toast.error(error.message); return }
     qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
@@ -426,7 +430,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   }
 
   async function saveActualEndBlur(val) {
-    if (val === (fase.actual_end?.slice(0, 10) ?? '')) return
+    if (val === (fase.actual_end?.slice(0, 10) || '')) return
     const { error } = await supabase.from('onboarding_fases').update({ actual_end: val || null }).eq('id', fase.id)
     if (error) { toast.error(error.message); return }
     qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
