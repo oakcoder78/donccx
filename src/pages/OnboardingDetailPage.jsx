@@ -84,10 +84,15 @@ const PEND_STATUS = [
 ]
 
 const ACT_STATUS = [
-  { v: 'pendente',     label: 'Pendente'     },
-  { v: 'em_andamento', label: 'Em Andamento' },
-  { v: 'concluida',    label: 'Concluída'    },
+  { v: 'pendente', label: 'Pendente', color: '#d99020', bg: 'rgba(217,140,30,0.14)' },
+  { v: 'em_andamento', label: 'Em Andamento', color: '#0a6a96', bg: 'rgba(89,194,237,0.14)' },
+  { v: 'concluida', label: 'Concluída', color: '#157a47', bg: 'rgba(34,160,98,0.14)' },
 ]
+
+const getActStatusColor = (status) => {
+  const s = ACT_STATUS.find(o => o.v === status)
+  return s ? { color: s.color, bg: s.bg } : { color: 'rgba(23,53,87,0.7)', bg: 'rgba(23,53,87,0.08)' }
+}
 
 const CAP_PALETTE = [
   { background: 'rgba(89,194,237,0.18)', color: '#0a6a96' },
@@ -1103,6 +1108,10 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
 
   const caretStyle = { ...styles.activity.caret, transform: expanded ? 'rotate(90deg)' : 'none', color: expanded ? '#173557' : 'rgba(23,53,87,0.4)' }
   const itemStyle  = { ...styles.activity.item, ...(expanded ? { borderColor: 'rgba(89,194,237,0.5)', boxShadow: '0 4px 14px -8px rgba(89,194,237,0.4)' } : {}) }
+  const statusColors = getActStatusColor(act.status)
+  const todayStr = new Date().toISOString().slice(0, 10)
+  const isOverdue = act.due_date && act.due_date < todayStr && act.status !== 'concluida'
+  const hasPendingItems = pendencias.length > 0
 
   return (
     <div style={itemStyle}>
@@ -1112,15 +1121,16 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
             <polyline points="4 2 8 6 4 10"/>
           </svg>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{act.title}</div>
-        <select style={S.actStatusSel} value={act.status} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); updateActMut.mutate({ status: e.target.value, completed_at: e.target.value === 'concluida' ? new Date().toISOString() : null }) }}>
+        <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, padding: '4px 8px', borderRadius: 6, background: statusColors.bg, color: statusColors.color }}>{act.title}</div>
+        <select style={{ ...S.actStatusSel, background: statusColors.bg, color: statusColors.color, borderColor: statusColors.color }} value={act.status} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); updateActMut.mutate({ status: e.target.value, completed_at: e.target.value === 'concluida' ? new Date().toISOString() : null }) }}>
           {ACT_STATUS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
         </select>
         <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {resp ? <span>{resp}{act.resp_contato && <span style={{ color: 'rgba(23,53,87,0.45)' }}> (cliente)</span>}</span> : <span style={{ color: 'rgba(23,53,87,0.4)', fontStyle: 'italic' }}>— sem responsável</span>}
         </div>
-        <div style={{ fontSize: 12, color: act.due_date ? 'rgba(23,53,87,0.7)' : 'rgba(23,53,87,0.4)', fontStyle: act.due_date ? 'normal' : 'italic' }}>
+        <div style={{ fontSize: 12, color: isOverdue ? '#c44' : (act.due_date ? 'rgba(23,53,87,0.7)' : 'rgba(23,53,87,0.4)'), fontWeight: isOverdue ? 700 : 400, fontStyle: act.due_date ? 'normal' : 'italic', display: 'flex', alignItems: 'center', gap: 4 }}>
           {act.due_date ? `Limite ${fmt(act.due_date)}` : '— sem prazo'}
+          {hasPendingItems && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d99020', display: 'inline-block', marginLeft: 2 }} title={`${pendencias.length} pendência(s)`} />}
         </div>
         <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
           <button style={S.iconBtn} title="Editar" onClick={() => { setEditActDraft({ title: act.title, status: act.status, due: act.due_date || '', respId: act.responsible_contato_id || act.responsible_interno_id || null, respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null }); if (!expanded) onToggleExpand(act.id); setEditActOpen(true) }}>
@@ -1662,11 +1672,17 @@ export default function OnboardingDetailPage() {
             {fases.length > 0 && (
               <div style={{ display: 'flex', gap: 4, marginBottom: 14, overflowX: 'auto', paddingBottom: 4 }}>
                 <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>Todas</button>
-                {fases.map(f => (
-                  <button key={f.id} style={{ ...(selectedFaseTab === f.id ? S.segBtnOn : S.segBtn), whiteSpace: 'nowrap' }} onClick={() => setSelectedFaseTab(f.id)}>
-                    {phaseName(f)}
-                  </button>
-                ))}
+                {fases.map(f => {
+                  const isFaseAtiva = f.status === 'ativa'
+                  return (
+                    <button key={f.id} style={{ 
+                      ...(selectedFaseTab === f.id ? S.segBtnOn : isFaseAtiva ? { ...S.segBtnOn, background: 'rgba(89,194,237,0.18)', color: '#0a6a96' } : S.segBtn), 
+                      whiteSpace: 'nowrap' 
+                    }} onClick={() => setSelectedFaseTab(f.id)}>
+                      {phaseName(f)}
+                    </button>
+                  )
+                })}
               </div>
             )}
 
