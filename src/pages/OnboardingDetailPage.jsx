@@ -1532,13 +1532,6 @@ export default function OnboardingDetailPage() {
   const orderedFases      = (onboarding?.onboarding_fases ?? []).slice().sort((a, b) => a.display_order - b.display_order)
   const faseAtualId       = onboarding?.fase_atual_id ?? orderedFases[0]?.id ?? null
   const currentPhaseIndex = Math.max(0, orderedFases.findIndex(f => f.id === faseAtualId))
-  const activeFaseId = orderedFases.find(f => f.status === 'ativa')?.id ?? faseAtualId
-
-  useEffect(() => {
-    if (selectedFaseTab === null && activeFaseId) {
-      setSelectedFaseTab(activeFaseId)
-    }
-  }, [])
 
   function toggleExpand(actId) {
     setExpandedActs(prev => {
@@ -1681,18 +1674,15 @@ export default function OnboardingDetailPage() {
 
             {fases.length > 0 && (
               <div style={{ display: 'flex', gap: 4, marginBottom: 14, overflowX: 'auto', paddingBottom: 4 }}>
-                <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>Todas</button>
-                {fases.map(f => {
-                  const isFaseAtiva = f.status === 'ativa'
-                  return (
-                    <button key={f.id} style={{ 
-                      ...(isFaseAtiva ? S.segBtnAtiva : selectedFaseTab === f.id ? S.segBtnOn : S.segBtn), 
-                      whiteSpace: 'nowrap' 
-                    }} onClick={() => setSelectedFaseTab(f.id)}>
-                      {phaseName(f)}
-                    </button>
-                  )
-                })}
+                <button style={selectedFaseTab === null ? S.segBtnAtiva : S.segBtn} onClick={() => setSelectedFaseTab(null)}>Todas</button>
+                {fases.map(f => (
+                  <button key={f.id} style={{ 
+                    ...(selectedFaseTab === f.id ? S.segBtnAtiva : S.segBtn), 
+                    whiteSpace: 'nowrap' 
+                  }} onClick={() => setSelectedFaseTab(f.id)}>
+                    {phaseName(f)}
+                  </button>
+                ))}
               </div>
             )}
 
