@@ -357,6 +357,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   const today         = todayISO()
   const fileInputId   = `ev-input-${fase.id}`
 
+  const [plannedStart,   setPlannedStart]   = useState(fase.planned_start?.slice(0, 10) ?? '')
   const [plannedEnd,    setPlannedEnd]    = useState(fase.planned_end?.slice(0, 10) ?? '')
   const [actualEnd,     setActualEnd]     = useState(fase.actual_end?.slice(0, 10) ?? '')
   const [justificativa, setJustificativa] = useState(fase.justificativa ?? '')
@@ -364,6 +365,8 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   const [uploadingEv,   setUploadingEv]   = useState(false)
   const [saveState,     setSaveState]     = useState('idle')
   const [savedAt,       setSavedAt]       = useState('')
+
+  const [plannedStartOrig, setPlannedStartOrig] = useState(fase.planned_start?.slice(0, 10) ?? '')
 
   const phaseActs  = activities.filter(a => a.fase_id === fase.id)
   const maxDueDate = phaseActs.reduce((mx, a) => (!a.due_date ? mx : !mx || a.due_date > mx ? a.due_date : mx), null)
@@ -390,6 +393,28 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
   function markSaved() {
     setSaveState('saved')
     setSavedAt(new Date().toLocaleTimeString('pt-BR'))
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const updates = {}
+      if (plannedStart !== plannedStartOrig) {
+        updates.planned_start = plannedStart || null
+        setPlannedStartOrig(plannedStart)
+      }
+      if (plannedEnd !== (fase.planned_end?.slice(0, 10) ?? '')) updates.planned_end = plannedEnd || null
+      if (justificativa !== (fase.justificativa ?? '')) updates.justificativa = justificativa || null
+
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase.from('onboarding_fases').update(updates).eq('id', fase.id)
+        if (error) throw error
+        logAction('updated', 'onboarding_fase', fase.id, phaseName(fase), null, updates)
+        qc.invalidateQueries({ queryKey: ['onboarding', onboardingId] })
+      }
+      markSaved()
+    } catch (e) { toast.error(e.message) }
+    finally { setSaving(false) }
   }
 
   async function savePlannedEndBlur(val) {
@@ -603,6 +628,12 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
     fontSize: 13, fontWeight: 500, cursor: dis ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
   })
 
+  const footBtnGhostStyle = (dis) => ({
+    background: 'transparent', color: 'rgba(23,53,87,0.6)',
+    border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500,
+    cursor: dis ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+  })
+
   return (
     <div
       style={{
@@ -668,6 +699,17 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
               <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)' }}>Sugestão baseada nas atividades</div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                  <span>Previsão de início</span>
+                </div>
+                <input
+                  type="date"
+                  style={dateInputStyle(!!plannedStart)}
+                  value={plannedStart}
+                  onChange={e => { setPlannedStart(e.target.value); setSaveState('dirty') }}
+                />
+              </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
                   <span>Previsão de conclusão</span>
@@ -791,35 +833,41 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             {fase.status === 'pendente' && (
-              <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleActivate}>
-                {saving ? 'Salvando…' : 'Marcar como Ativa'}
-              </button>
+              <>
+                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={handleSave}>
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </button>
+                <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleActivate}>
+                  {saving ? 'Salvando…' : 'Tornar ativa'}
+                </button>
+              </>
             )}
             {fase.status === 'ativa' && !isMilestone && (
               <>
-                <button style={footBtnStyle(false, saving)} disabled={saving} onClick={handleRevert}>Voltar para pendente</button>
-                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={onClose}>Cancelar</button>
+                <button style={footBtnGhostStyle(saving)} disabled={saving} onClick={handleRevert}>Voltar para pendente</button>
+                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={handleSave}>
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </button>
                 <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleComplete}>
-                  {saving ? 'Salvando…' : 'Concluir fase'}
+                  {saving ? 'Salvando…' : 'Registrar conclusão'}
                 </button>
               </>
             )}
             {fase.status === 'ativa' && isMilestone && (
               <>
-                <button style={footBtnStyle(false, saving)} disabled={saving} onClick={handleRevert}>Voltar para pendente</button>
-                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={onClose}>Cancelar</button>
+                <button style={footBtnGhostStyle(saving)} disabled={saving} onClick={handleRevert}>Voltar para pendente</button>
+                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={handleSave}>
+                  {saving ? 'Salvando…' : 'Salvar'}
+                </button>
                 <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleCompleteMilestone}>
                   {saving ? 'Salvando…' : 'Registrar conclusão'}
                 </button>
               </>
             )}
             {fase.status === 'concluida' && (
-              <>
-                <button style={footBtnSecStyle(saving)} disabled={saving} onClick={onClose}>Fechar</button>
-                <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleReopen}>
-                  {saving ? 'Salvando…' : 'Reabrir fase'}
-                </button>
-              </>
+              <button style={footBtnStyle(true, saving)} disabled={saving} onClick={handleReopen}>
+                {saving ? 'Salvando…' : 'Reabrir fase'}
+              </button>
             )}
           </div>
         </div>
