@@ -113,10 +113,10 @@ export function SettingsActivityTypes() {
   function startEdit(item) {
     setEditingId(item.id)
     setEditForm({
-      nome: item.nome,
-      descricao: item.descricao || '',
+      nome: item.name,
+      descricao: item.description || '',
       display_order: item.display_order,
-      ativo: item.ativo,
+      ativo: item.active,
     })
   }
 
@@ -159,14 +159,14 @@ export function SettingsActivityTypes() {
   async function handleToggleAtivo(item) {
     const { error } = await supabase
       .from('onboarding_activity_types')
-      .update({ ativo: !item.ativo })
+      .update({ ativo: !item.active })
       .eq('id', item.id)
     if (error) { toast.error(error.message); return }
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, ativo: !i.ativo } : i))
   }
 
   async function handleDelete(item) {
-    if (!window.confirm(`Excluir "${item.nome}"?`)) return
+    if (!window.confirm(`Excluir "${item.name}"?`)) return
     setDeletingId(item.id)
     const { count, error: countErr } = await supabase
       .from('onboarding_activities')
@@ -304,12 +304,12 @@ export function SettingsActivityTypes() {
                                   </svg>
                                 </td>
                               )}
-                              <td className="px-4 py-2.5 font-medium text-text-primary whitespace-nowrap">{item.nome}</td>
-                              <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate">{item.descricao || <span className="text-text-tertiary">—</span>}</td>
+                              <td className="px-4 py-2.5 font-medium text-text-primary whitespace-nowrap">{item.name}</td>
+                              <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate">{item.description || <span className="text-text-tertiary">—</span>}</td>
                               <td className="px-4 py-2.5 text-center text-text-secondary">{item.display_order}</td>
                               <td className="px-4 py-2.5 text-center">
                                 <Toggle
-                                  value={item.ativo}
+                                  value={item.active}
                                   onChange={() => handleToggleAtivo(item)}
                                   disabled={!isAdmin}
                                 />
