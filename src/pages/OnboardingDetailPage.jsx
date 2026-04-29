@@ -1111,7 +1111,7 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
   const statusColors = getActStatusColor(act.status)
   const todayStr = new Date().toISOString().slice(0, 10)
   const isOverdue = act.due_date && act.due_date < todayStr && act.status !== 'concluida'
-  const hasPendingItems = pendencias.length > 0
+  const pendingCount = pendencias.length
 
   return (
     <div style={itemStyle}>
@@ -1121,16 +1121,18 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
             <polyline points="4 2 8 6 4 10"/>
           </svg>
         </div>
-        <div style={{ fontSize: 13, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, padding: '4px 8px', borderRadius: 6, background: statusColors.bg, color: statusColors.color }}>{act.title}</div>
+        <div style={{ fontSize: 13, fontWeight: 500, color: '#173557', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {act.title}
+          {pendingCount > 0 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, color: '#d99020', background: 'rgba(217,140,30,0.14)', padding: '2px 6px', borderRadius: 4 }}>{pendingCount} Pendência{pendingCount > 1 ? 's' : ''}</span>}
+        </div>
         <select style={{ ...S.actStatusSel, background: statusColors.bg, color: statusColors.color, borderColor: statusColors.color }} value={act.status} onClick={e => e.stopPropagation()} onChange={e => { e.stopPropagation(); updateActMut.mutate({ status: e.target.value, completed_at: e.target.value === 'concluida' ? new Date().toISOString() : null }) }}>
           {ACT_STATUS.map(o => <option key={o.v} value={o.v}>{o.label}</option>)}
         </select>
         <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {resp ? <span>{resp}{act.resp_contato && <span style={{ color: 'rgba(23,53,87,0.45)' }}> (cliente)</span>}</span> : <span style={{ color: 'rgba(23,53,87,0.4)', fontStyle: 'italic' }}>— sem responsável</span>}
         </div>
-        <div style={{ fontSize: 12, color: isOverdue ? '#c44' : (act.due_date ? 'rgba(23,53,87,0.7)' : 'rgba(23,53,87,0.4)'), fontWeight: isOverdue ? 700 : 400, fontStyle: act.due_date ? 'normal' : 'italic', display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div style={{ fontSize: 12, color: isOverdue ? '#c44' : (act.due_date ? 'rgba(23,53,87,0.7)' : 'rgba(23,53,87,0.4)'), fontWeight: isOverdue ? 700 : 400, fontStyle: act.due_date ? 'normal' : 'italic' }}>
           {act.due_date ? `Limite ${fmt(act.due_date)}` : '— sem prazo'}
-          {hasPendingItems && <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d99020', display: 'inline-block', marginLeft: 2 }} title={`${pendencias.length} pendência(s)`} />}
         </div>
         <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
           <button style={S.iconBtn} title="Editar" onClick={() => { setEditActDraft({ title: act.title, status: act.status, due: act.due_date || '', respId: act.responsible_contato_id || act.responsible_interno_id || null, respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null }); if (!expanded) onToggleExpand(act.id); setEditActOpen(true) }}>
@@ -1526,9 +1528,17 @@ export default function OnboardingDetailPage() {
   const [selectedFaseTab, setSelectedFaseTab] = useState(null)
   const [showFaseMgmt,    setShowFaseMgmt]    = useState(false)
 
+  useEffect(() => {
+    const activeFase = orderedFases.find(f => f.status === 'ativa')
+    if (activeFase && selectedFaseTab === null) {
+      setSelectedFaseTab(activeFase.id)
+    }
+  }, [orderedFases])
+
   const orderedFases      = (onboarding?.onboarding_fases ?? []).slice().sort((a, b) => a.display_order - b.display_order)
   const faseAtualId       = onboarding?.fase_atual_id ?? orderedFases[0]?.id ?? null
   const currentPhaseIndex = Math.max(0, orderedFases.findIndex(f => f.id === faseAtualId))
+  const activeFaseId = orderedFases.find(f => f.status === 'ativa')?.id ?? faseAtualId
 
   function toggleExpand(actId) {
     setExpandedActs(prev => {
