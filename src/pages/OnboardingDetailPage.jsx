@@ -1684,9 +1684,12 @@ export default function OnboardingDetailPage() {
                 <button style={selectedFaseTab === null ? S.segBtnOn : S.segBtn} onClick={() => setSelectedFaseTab(null)}>Todas</button>
                 {fases.map(f => {
                   const isFaseAtiva = f.status === 'ativa'
+                  const isSelected = selectedFaseTab === f.id
+                  const shouldHighlight = selectedFaseTab === null && isFaseAtiva
                   return (
                     <button key={f.id} style={{ 
-                      ...(selectedFaseTab === f.id ? S.segBtnOn : isFaseAtiva ? { ...S.segBtnOn, background: 'rgba(89,194,237,0.18)', color: '#0a6a96' } : S.segBtn), 
+                      ...(isSelected || shouldHighlight ? S.segBtnOn : S.segBtn), 
+                      ...(shouldHighlight ? { background: 'rgba(89,194,237,0.18)', color: '#0a6a96' } : {}),
                       whiteSpace: 'nowrap' 
                     }} onClick={() => setSelectedFaseTab(f.id)}>
                       {phaseName(f)}
