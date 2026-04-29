@@ -285,7 +285,7 @@ export function SettingsFaseTypes() {
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-w-full">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-tertiary bg-bg-secondary">
