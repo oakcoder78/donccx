@@ -1587,7 +1587,7 @@ export default function OnboardingDetailPage() {
   const openFase     = openFaseId ? fases.find(f => f.id === openFaseId) : null
   const contextLabel = FASE_LABELS[onb?.context] ?? onb?.context ?? ''
 
-  const projectTypeLabel = { onboarding: 'Onboarding', expansao: 'Expansão', interno: 'Interno' }[project?.type ?? ''] || ''
+  const projectTypeLabel = project?.type ? { onboarding: 'Onboarding', expansao: 'Expansão', interno: 'Interno' }[project.type] : ''
 
   const goLiveFase = fases.find(f => f.onboarding_fase_types?.name === 'Go-Live')
   const startDateLabel = onb?.start_date ? fmt(onb.start_date) : '—'

@@ -90,6 +90,7 @@ export const ActionIcons = {
   smartphone: Smartphone,
   recalculate: RefreshCw,
   info: Info,
+  calendar: Calendar,
 }
 
 export const SettingsMenuIcons = {
