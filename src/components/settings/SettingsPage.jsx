@@ -92,7 +92,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)]">
+    <div className="flex min-h-[calc(100vh-3.5rem)] overflow-x-hidden">
       <aside className="w-52 bg-bg-primary border-r border-border-tertiary p-3 flex-shrink-0">
         <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider px-2 mb-3">Configurações</p>
         <nav className="space-y-4">
@@ -124,7 +124,7 @@ export default function SettingsPage() {
           ))}
         </nav>
       </aside>
-      <main className="flex-1 p-6">
+      <main className="flex-1 p-6 overflow-x-hidden max-w-full">
         {renderSection(section)}
       </main>
     </div>
