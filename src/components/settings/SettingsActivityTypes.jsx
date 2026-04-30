@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
+import { Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { useAuth } from '../../contexts/AuthContext'
@@ -250,13 +251,13 @@ export function SettingsActivityTypes() {
         <div className="overflow-x-auto w-full">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-tertiary bg-bg-secondary">
+              <tr className="border-b border-border-tertiary bg-donc-navy text-white">
                 {isAdmin && <th className="w-8 px-3 py-2.5" />}
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Nome</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Descrição</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Ordem</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Ativo</th>
-                {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Ações</th>}
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Nome</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Descrição</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ordem</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ativo</th>
+                {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ações</th>}
               </tr>
             </thead>
 
@@ -318,16 +319,18 @@ export function SettingsActivityTypes() {
                                   <div className="flex items-center justify-center gap-3">
                                     <button
                                       onClick={() => startEdit(item)}
-                                      className="text-xs font-medium text-donc-sky hover:underline"
+                                      className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                                      title="Editar"
                                     >
-                                      Editar
+                                      <Pencil size={14} />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
                                       disabled={deletingId === item.id}
-                                      className="text-xs font-medium text-red-500 hover:underline disabled:opacity-40"
+                                      className="p-1 text-text-secondary hover:text-red-500 rounded disabled:opacity-40"
+                                      title="Excluir"
                                     >
-                                      {deletingId === item.id ? '...' : 'Excluir'}
+                                      {deletingId === item.id ? '...' : <Trash2 size={14} />}
                                     </button>
                                   </div>
                                 </td>
