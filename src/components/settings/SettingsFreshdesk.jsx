@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Save } from 'lucide-react'
 import { SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
-import { fetchAndSaveFreshdeskConfig } from '../../lib/freshdeskConfig'
+import { fetchAndSaveFreshdeskConfig, getFreshdeskConfig } from '../../lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import SettingsTabs from './SettingsTabs'
@@ -205,6 +205,7 @@ function MappingSection() {
 
 // ── Seção Sincronização ───────────────────────────────────────────────────────
 function SyncSection() {
+  const navigate = useNavigate()
   const SyncIcon = ActionIcons.recalculate
   const LogsIcon = SettingsMenuIcons['logs']
   const now          = new Date()
@@ -213,6 +214,40 @@ function SyncSection() {
   const [syncing, setSyncing]     = useState(false)
   const [lastResult, setLastResult] = useState(null)
   const [updatingConfig, setUpdatingConfig] = useState(false)
+  const [lastDataSync, setLastDataSync] = useState(null)
+  const [lastConfigSync, setLastConfigSync] = useState(null)
+
+  useEffect(() => {
+    async function loadLastDataSync() {
+      try {
+        const { data } = await supabase
+          .from('freshdesk_config')
+          .select('data')
+          .eq('key', 'last_data_sync')
+          .maybeSingle()
+        if (data?.data?.synced_at) {
+          setLastDataSync(data.data.synced_at)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    loadLastDataSync()
+  }, [])
+
+  useEffect(() => {
+    async function loadLastConfigSync() {
+      try {
+        const data = await getFreshdeskConfig('last_sync')
+        if (data?.synced_at) {
+          setLastConfigSync(data.synced_at)
+        }
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    loadLastConfigSync()
+  }, [])
 
   async function handleUpdateConfig() {
     setUpdatingConfig(true)
@@ -232,6 +267,14 @@ function SyncSection() {
     try {
       const result = await syncAllCompanies(month)
       setLastResult(result)
+      await supabase
+        .from('freshdesk_config')
+        .upsert({
+          key: 'last_data_sync',
+          data: { synced_at: new Date().toISOString() },
+          updated_at: new Date().toISOString()
+        })
+      setLastDataSync(new Date().toISOString())
       if (result.errors.length === 0) {
         toast.success(`${result.synced} empresa${result.synced !== 1 ? 's' : ''} sincronizada${result.synced !== 1 ? 's' : ''}`)
       } else {
@@ -264,6 +307,11 @@ function SyncSection() {
             className="input-base"
           />
         </div>
+        {lastDataSync && (
+          <p className="text-xs text-text-tertiary">
+            Última sincronização: {new Date(lastDataSync).toLocaleString('pt-BR')}
+          </p>
+        )}
         <Button onClick={handleSync} disabled={syncing || !month}>
           {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
         </Button>
@@ -296,12 +344,9 @@ function SyncSection() {
         <p className="text-sm text-text-secondary">
           Revise os dados importados antes de confirmar a atualização dos indicadores.
         </p>
-        <Link
-          to="/config/freshdesk/pendentes"
-          className="inline-flex items-center gap-1 text-sm text-donc-sky hover:underline"
-        >
-          Revisar importações pendentes →
-        </Link>
+        <Button onClick={() => navigate('/config/freshdesk/pendentes')}>
+          Revisar importações pendentes
+        </Button>
       </div>
 
       {/* Card 3: Configurações do Freshdesk */}
@@ -313,6 +358,11 @@ function SyncSection() {
         <p className="text-sm text-text-secondary">
           Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno.
         </p>
+        {lastConfigSync && (
+          <p className="text-xs text-text-tertiary">
+            Última atualização: {new Date(lastConfigSync).toLocaleString('pt-BR')}
+          </p>
+        )}
         <Button
           variant="secondary"
           size="sm"
