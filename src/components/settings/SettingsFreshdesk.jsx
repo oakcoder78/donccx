@@ -7,6 +7,7 @@ import { fetchAndSaveFreshdeskConfig } from '../../lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import SettingsTabs from './SettingsTabs'
+import SettingsTabHeader from './SettingsTabHeader'
 import toast from 'react-hot-toast'
 
 // ── Normalização para matching ────────────────────────────────────────────────
@@ -240,44 +241,46 @@ function SyncSection() {
 
   return (
     <div className="space-y-4">
+      <SettingsTabHeader
+        actions={
+          <>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleUpdateConfig}
+              disabled={updatingConfig}
+            >
+              {updatingConfig ? '⏳ Atualizando…' : '⚙️ Atualizar Configurações do Freshdesk'}
+            </Button>
+            <Button
+              onClick={handleSync}
+              disabled={syncing || !month}
+            >
+              {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
+            </Button>
+          </>
+        }
+      />
       <p className="text-sm text-text-secondary">
         Busca tickets e contatos do Freshdesk para todas as empresas mapeadas e salva como pendentes para revisão.
       </p>
 
       {/* Atualizar configurações (grupos, agentes, campos) */}
-      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4 flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-text-primary">Configurações do Freshdesk</p>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno (ex.: roteamento de atendimentos).
-          </p>
-        </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={handleUpdateConfig}
-          disabled={updatingConfig}
-          className="shrink-0"
-        >
-          {updatingConfig ? '⏳ Atualizando…' : '⚙️ Atualizar Configurações do Freshdesk'}
-        </Button>
+      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4">
+        <p className="text-sm font-medium text-text-primary">Configurações do Freshdesk</p>
+        <p className="text-xs text-text-tertiary mt-0.5">
+          Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno (ex.: roteamento de atendimentos).
+        </p>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div>
-          <label className="label-sm">Mês de referência</label>
-          <input
-            type="month"
-            value={month}
-            onChange={e => setMonth(e.target.value)}
-            className="input-base"
-          />
-        </div>
-        <div className="pt-5">
-          <Button onClick={handleSync} disabled={syncing || !month}>
-            {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
-          </Button>
-        </div>
+      <div>
+        <label className="label-sm">Mês de referência</label>
+        <input
+          type="month"
+          value={month}
+          onChange={e => setMonth(e.target.value)}
+          className="input-base"
+        />
       </div>
 
       {lastResult && (
