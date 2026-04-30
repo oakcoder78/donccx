@@ -29,7 +29,7 @@ const MENU_GROUPS = [
     { key: 'stages',   label: 'Estágios' },
     { key: 'segments', label: 'Segmentos' },
     { key: 'catalog',  label: 'Catálogos' },
-    { key: 'features', label: 'Funcionalidades', adminOnly: true },
+    //{ key: 'features', label: 'Funcionalidades', adminOnly: true },
   ]},
   { label: 'Projetos', items: [
     { key: 'fase-types',     label: 'Tipos de Fase',      adminOnly: true },
@@ -48,6 +48,7 @@ const MENU_GROUPS = [
   ]},
   { label: 'Governança', items: [
     { key: 'logs', label: 'Auditoria' },
+    { key: 'features', label: 'Funcionalidades', adminOnly: true },
   ]},
 ]
 
