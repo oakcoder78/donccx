@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import { SettingsPageHeader } from './SettingsPageHeader'
+import { SettingsPageContainer } from './SettingsPageContainer'
 import toast from 'react-hot-toast'
 
 const EMPTY = { nome: '', descricao: '', display_order: 0, ativo: true }
@@ -210,7 +211,7 @@ export function SettingsActivityTypes() {
   const colSpan = isAdmin ? 6 : 4
 
   return (
-    <div className="w-full max-w-6xl space-y-6">
+    <SettingsPageContainer variant="wide">
 
       {/* Header */}
       <SettingsPageHeader
@@ -351,6 +352,6 @@ export function SettingsActivityTypes() {
           </table>
         </div>
       </div>
-    </div>
+    </SettingsPageContainer>
   )
 }
