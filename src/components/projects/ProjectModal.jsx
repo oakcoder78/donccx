@@ -9,6 +9,7 @@ import {
   useUpdateOnboardingFlow,
   useCreateInternalProject,
   useOnboardingConfig,
+  useProjectTemplates,
 } from '../../hooks/useOnboardings'
 import { useUpdateProject } from '../../hooks/useProjects'
 import { FASE_LABELS } from '../../lib/onboardingLabels'
@@ -67,6 +68,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   const [form,            setForm]            = useState(EMPTY_FORM)
   const [caps,            setCaps]            = useState([])
   const [capsInitialized, setCapsInitialized] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
 
   // Combobox (create/global mode only)
   const [comboSearch, setComboSearch] = useState('')
@@ -82,6 +84,18 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   const updateOnboardingFlow  = useUpdateOnboardingFlow()
   const createInternalProject = useCreateInternalProject()
   const updateProject         = useUpdateProject()
+
+  const { data: templates = [] } = useProjectTemplates(!isEdit ? type : null)
+
+  // Auto-seleciona template único com is_default=true; reseta nos demais casos
+  useEffect(() => {
+    if (isEdit || !isOnbType) { setSelectedTemplate(null); return }
+    if (templates.length === 1 && templates[0].is_default) {
+      setSelectedTemplate(templates[0].id)
+    } else {
+      setSelectedTemplate(null)
+    }
+  }, [templates, isOnbType, isEdit])
 
   const isOnbType  = type === 'onboarding' || type === 'expansao'
   const kickoffSla = onbCfg.kickoff_sla_days ?? 5
@@ -179,7 +193,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
 
   function reset() {
     setType('interno'); setForm(EMPTY_FORM); setCaps([]); setCapsInitialized(false)
-    setComboSearch(''); setComboOpen(false); setSelClient(null)
+    setComboSearch(''); setComboOpen(false); setSelClient(null); setSelectedTemplate(null)
   }
   function handleClose() { reset(); onClose() }
 
@@ -241,6 +255,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
           notes:        form.description    || undefined,
           capabilities: caps,
           kickoff_date: form.kickoff_date   || undefined,
+          templateId:   selectedTemplate    || undefined,
         })
       }
     }
@@ -497,6 +512,24 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
                   </div>
                 )}
               </div>
+
+              {/* Template — só para onboarding/expansao no modo criação */}
+              {!isEdit && isOnbType && templates.length > 0 && !(templates.length === 1 && templates[0].is_default) && (
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={label$}>Template</label>
+                  <select
+                    className="pm-input"
+                    value={selectedTemplate || ''}
+                    onChange={e => setSelectedTemplate(e.target.value || null)}
+                    style={input$}
+                  >
+                    <option value="">— Sem template —</option>
+                    {templates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Título */}
               <div style={{ marginBottom: '14px' }}>
