@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Save } from 'lucide-react'
+import { Save, RefreshCw } from 'lucide-react'
 import { SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
@@ -208,6 +208,7 @@ function SyncSection() {
   const navigate = useNavigate()
   const SyncIcon = ActionIcons.recalculate
   const LogsIcon = SettingsMenuIcons['logs']
+  const RefreshCwIcon = RefreshCw
   const now          = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [month, setMonth]         = useState(defaultMonth)
@@ -383,7 +384,7 @@ function SyncSection() {
           onClick={handleUpdateConfig}
           disabled={updatingConfig}
         >
-          {updatingConfig ? '⏳ Atualizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Atualizar Configurações</span>}
+          {updatingConfig ? '⏳ Atualizando…' : <span className="flex items-center gap-1.5"><RefreshCwIcon className="w-3.5 h-3.5" /> Atualizar Configurações</span>}
         </Button>
       </div>
     </div>
