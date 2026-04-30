@@ -274,8 +274,6 @@ function calcProjeto(client, rules) {
   )
   if (hasOverdueActivity) mod += applyRule(rules, 'onb_atividade_vencida', appliedRules)
 
-  import { FASE_TYPE_IDS } from './constants'
-
   // ob_late: Go-Live concluído há 90+ dias e ainda há fases pendentes
   const onboarding = activeOnboardings[0]
   if (onboarding) {
