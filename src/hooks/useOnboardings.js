@@ -137,11 +137,74 @@ function addDays(dateStr, days) {
   return d.toISOString().slice(0, 10)
 }
 
+async function createFasesFromTemplate(onboardingId, templateId) {
+  const { data: templateFases } = await supabase
+    .from('project_template_fases')
+    .select('*, onboarding_fase_types(*)')
+    .eq('template_id', templateId)
+    .order('display_order')
+
+  for (const tf of templateFases ?? []) {
+    await supabase.from('onboarding_fases').insert({
+      onboarding_id:     onboardingId,
+      fase_type_id:      tf.fase_type_id,
+      display_order:     tf.display_order,
+      status:            tf.display_order === 1 ? 'ativa' : 'pendente',
+      evidence_required: tf.requires_evidence ?? false,
+    })
+  }
+
+  const { data: templateActivities } = await supabase
+    .from('project_template_activities')
+    .select('*, onboarding_activity_types(name)')
+    .eq('template_id', templateId)
+    .order('display_order')
+
+  const { data: fasesCreated } = await supabase
+    .from('onboarding_fases')
+    .select('id, fase_type_id, display_order')
+    .eq('onboarding_id', onboardingId)
+
+  for (const ta of templateActivities ?? []) {
+    const fase = (fasesCreated ?? []).find(f => f.fase_type_id === ta.fase_type_id)
+    if (!fase) continue
+    await supabase.from('onboarding_activities').insert({
+      onboarding_id:    onboardingId,
+      fase_id:          fase.id,
+      activity_type_id: ta.activity_type_id,
+      title:            ta.onboarding_activity_types?.name ?? '',
+      status:           'pendente',
+    })
+  }
+
+  const primeiraFase = (fasesCreated ?? []).slice().sort((a, b) => a.display_order - b.display_order)[0]
+  if (primeiraFase) {
+    await supabase.from('onboardings').update({ fase_atual_id: primeiraFase.id }).eq('id', onboardingId)
+  }
+}
+
+export function useProjectTemplates(type) {
+  return useQuery({
+    queryKey: ['project_templates', type],
+    enabled:  !!type && type !== 'interno',
+    queryFn:  async () => {
+      const { data } = await supabase
+        .from('project_templates')
+        .select('*')
+        .eq('type', type)
+        .eq('active', true)
+        .order('display_order')
+      return data || []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
 export function useCreateOnboardingFlow() {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ clientId, type, title, csm_id, start_date, end_date, notes, capabilities, kickoff_date }) => {
+    mutationFn: async ({ clientId, type, title, csm_id, start_date, end_date, notes, capabilities, kickoff_date, templateId }) => {
       // 1. Fetch SLA config
       const { data: cfgRows } = await supabase.from('onboarding_config').select('key, value')
       const cfg = {}
@@ -166,47 +229,51 @@ export function useCreateOnboardingFlow() {
         .single()
       if (onbErr) throw onbErr
 
-      // 3. Create default onboarding phases (migration 033 schema)
-      const { error: fasesErr } = await supabase.rpc('create_default_fases', { p_onboarding_id: onb.id })
-      if (fasesErr) throw fasesErr
+      // 3. Create phases — template or default
+      if (templateId) {
+        await createFasesFromTemplate(onb.id, templateId)
+      } else {
+        const { error: fasesErr } = await supabase.rpc('create_default_fases', { p_onboarding_id: onb.id })
+        if (fasesErr) throw fasesErr
 
-      const { data: firstFase, error: firstFaseErr } = await supabase
-        .from('onboarding_fases')
-        .select('id')
-        .eq('onboarding_id', onb.id)
-        .order('display_order', { ascending: true })
-        .limit(1)
-        .maybeSingle()
-      if (firstFaseErr) throw firstFaseErr
+        const { data: firstFase, error: firstFaseErr } = await supabase
+          .from('onboarding_fases')
+          .select('id')
+          .eq('onboarding_id', onb.id)
+          .order('display_order', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+        if (firstFaseErr) throw firstFaseErr
 
-      if (firstFase?.id) {
-        const { error: faseAtualErr } = await supabase
-          .from('onboardings')
-          .update({ fase_atual_id: firstFase.id })
-          .eq('id', onb.id)
-        if (faseAtualErr) throw faseAtualErr
-      }
+        if (firstFase?.id) {
+          const { error: faseAtualErr } = await supabase
+            .from('onboardings')
+            .update({ fase_atual_id: firstFase.id })
+            .eq('id', onb.id)
+          if (faseAtualErr) throw faseAtualErr
+        }
 
-      // 4. Planned dates on unified onboarding_fases (schema 033)
-      const base = start_date || new Date().toISOString().slice(0, 10)
-      const kickoffPlanned = kickoff_date || addDays(base, kickoffSla)
-      const ptPlanned = addDays(kickoffPlanned, ptSla)
-      const golivePlanned = addDays(base, goliveSla)
+        // 4. Planned dates on unified onboarding_fases (schema 033)
+        const base = start_date || new Date().toISOString().slice(0, 10)
+        const kickoffPlanned = kickoff_date || addDays(base, kickoffSla)
+        const ptPlanned = addDays(kickoffPlanned, ptSla)
+        const golivePlanned = addDays(base, goliveSla)
 
-      const { data: fases, error: fasesPlanErr } = await supabase
-        .from('onboarding_fases')
-        .select('id, display_order')
-        .eq('onboarding_id', onb.id)
-        .order('display_order', { ascending: true })
-      if (fasesPlanErr) throw fasesPlanErr
+        const { data: fases, error: fasesPlanErr } = await supabase
+          .from('onboarding_fases')
+          .select('id, display_order')
+          .eq('onboarding_id', onb.id)
+          .order('display_order', { ascending: true })
+        if (fasesPlanErr) throw fasesPlanErr
 
-      const updates = []
-      if (fases?.[0]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: kickoffPlanned }).eq('id', fases[0].id))
-      if (fases?.[2]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: ptPlanned }).eq('id', fases[2].id))
-      if (fases?.[5]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: golivePlanned }).eq('id', fases[5].id))
-      for (const req of updates) {
-        const { error: updErr } = await req
-        if (updErr) throw updErr
+        const updates = []
+        if (fases?.[0]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: kickoffPlanned }).eq('id', fases[0].id))
+        if (fases?.[2]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: ptPlanned }).eq('id', fases[2].id))
+        if (fases?.[5]?.id) updates.push(supabase.from('onboarding_fases').update({ planned_start: golivePlanned }).eq('id', fases[5].id))
+        for (const req of updates) {
+          const { error: updErr } = await req
+          if (updErr) throw updErr
+        }
       }
 
       // 5. Insert capabilities (catalog_item_id)
