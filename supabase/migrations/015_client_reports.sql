@@ -33,6 +33,7 @@ create table if not exists report_views (
 alter table client_reports enable row level security;
 
 -- Admin / Manager: acesso total
+drop policy if exists "reports_admin_manager" on client_reports;
 create policy "reports_admin_manager"
   on client_reports for all
   using (
@@ -43,6 +44,7 @@ create policy "reports_admin_manager"
   );
 
 -- CSM: somente relatórios dos próprios clientes
+drop policy if exists "reports_csm_own" on client_reports;
 create policy "reports_csm_own"
   on client_reports for all
   using (
@@ -56,6 +58,7 @@ create policy "reports_csm_own"
   );
 
 -- Anon: leitura de relatórios publicados (via token na rota pública)
+drop policy if exists "reports_anon_published" on client_reports;
 create policy "reports_anon_published"
   on client_reports for select
   to anon
@@ -67,12 +70,14 @@ create policy "reports_anon_published"
 alter table report_views enable row level security;
 
 -- Qualquer pessoa pode inserir view (página pública)
+drop policy if exists "views_insert_public" on report_views;
 create policy "views_insert_public"
   on report_views for insert
   to anon, authenticated
   with check (true);
 
 -- Usuários autenticados lêem views dos próprios clientes
+drop policy if exists "views_select_auth" on report_views;
 create policy "views_select_auth"
   on report_views for select
   using (
