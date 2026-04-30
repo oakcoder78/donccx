@@ -336,7 +336,7 @@ function SyncSection() {
         {lastDataSync && (
           <div>
             <p className="text-xs text-text-tertiary">Última sincronização</p>
-            <p className="text-sm font-medium text-text-primary">{formatDateTimeBR(lastDataSync)}</p>
+            <p className="text-sm text-text-secondary">{formatDateTimeBR(lastDataSync)}</p>
           </div>
         )}
         <Button onClick={handleSync} disabled={syncing || !month}>
@@ -388,7 +388,7 @@ function SyncSection() {
         {lastConfigSync && (
           <div>
             <p className="text-xs text-text-tertiary">Última atualização</p>
-            <p className="text-sm font-medium text-text-primary">{formatDateTimeBR(lastConfigSync)}</p>
+            <p className="text-sm text-text-secondary">{formatDateTimeBR(lastConfigSync)}</p>
           </div>
         )}
         <Button
