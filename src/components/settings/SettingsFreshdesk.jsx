@@ -6,6 +6,7 @@ import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSy
 import { fetchAndSaveFreshdeskConfig } from '../../lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
+import SettingsTabs from './SettingsTabs'
 import toast from 'react-hot-toast'
 
 // ── Normalização para matching ────────────────────────────────────────────────
@@ -330,24 +331,14 @@ export function SettingsFreshdesk() {
         </p>
 
         {/* Tabs internas */}
-        <div className="flex gap-1 mb-5 border-b border-border-tertiary">
-          {[
+        <SettingsTabs
+          tabs={[
             { key: 'mapping', label: 'Mapeamento de Empresas' },
             { key: 'sync',    label: 'Sincronização' },
-          ].map(t => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                tab === t.key
-                  ? 'border-donc-navy text-text-primary'
-                  : 'border-transparent text-text-tertiary hover:text-text-secondary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
 
         {tab === 'mapping' && <MappingSection />}
         {tab === 'sync'    && <SyncSection />}
