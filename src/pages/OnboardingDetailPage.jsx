@@ -10,6 +10,7 @@ import { useContacts } from '../hooks/useContacts'
 import { useProfiles } from '../hooks/useProfiles'
 import { useOnboarding } from '../hooks/useOnboardings'
 import { FASE_LABELS } from '../lib/onboardingLabels'
+import { FASE_TYPE_IDS } from '../lib/constants'
 import { ProjectModal } from '../components/projects/ProjectModal'
 import { styles } from '../components/onboarding/OnboardingStyles'
 import { ActionIcons, PhaseIcons } from '../lib/icons'
@@ -558,7 +559,7 @@ async function handleComplete() {
       qc.invalidateQueries({ queryKey: ['projects_all'] })
       logAction('marco_concluido', 'onboarding_fase', fase.id, phaseName(fase), { status: 'ativa' }, { status: 'concluida', occurred_at: actualEnd || today })
 
-      const isGoLive = fase.onboarding_fase_types?.name === 'Go-Live'
+      const isGoLive = fase.fase_type_id === FASE_TYPE_IDS.GOLIVE
       const isImplantacao = onboarding?.context === 'implantacao_inicial'
       if (isGoLive && isImplantacao) {
         const dueDate = addDaysToISO(today, 2)
@@ -1589,7 +1590,7 @@ export default function OnboardingDetailPage() {
 
   const projectTypeLabel = project?.type ? { onboarding: 'Onboarding', expansao: 'Expansão', interno: 'Interno' }[project.type] : ''
 
-  const goLiveFase = fases.find(f => f.onboarding_fase_types?.name === 'Go-Live')
+  const goLiveFase = fases.find(f => f.fase_type_id === FASE_TYPE_IDS.GOLIVE)
   const startDateLabel = onb?.start_date ? fmt(onb.start_date) : '—'
   const goLiveLabel = goLiveFase?.planned_end ? fmt(goLiveFase.planned_end) : 'a definir'
 
