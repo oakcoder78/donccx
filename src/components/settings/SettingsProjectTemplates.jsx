@@ -360,7 +360,7 @@ export function SettingsProjectTemplates() {
                   expanded={expanded[template.id]}
                   onToggle={() => toggleExpanded(template.id)}
                   isAdmin={isAdmin}
-                  onDelete={() => deleteTemplate.mutate({ id: template.id })}
+                  onDelete={() => deleteTemplate.mutate(template.id)}
                   onToggleDefault={(val) => toggleDefault.mutate({ id: template.id, type: template.type, currentDefault: template.is_default })}
                   addingFase={addingFase}
                   setAddingFase={setAddingFase}
