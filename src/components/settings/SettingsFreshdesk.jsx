@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Save, RefreshCw } from 'lucide-react'
+import { Save, RefreshCw, CheckCircle } from 'lucide-react'
 import { SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
@@ -334,29 +334,30 @@ function SyncSection() {
           />
         </div>
         {lastDataSync && (
-          <p className="text-xs text-text-tertiary">
-            Última sincronização: {formatDateTimeBR(lastDataSync)}
-          </p>
+          <div>
+            <p className="text-xs text-text-tertiary">Última sincronização</p>
+            <p className="text-sm font-medium text-text-primary">{formatDateTimeBR(lastDataSync)}</p>
+          </div>
         )}
         <Button onClick={handleSync} disabled={syncing || !month}>
           {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
         </Button>
         {lastResult && (
-          <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4 text-sm space-y-2">
-            <p className="font-medium text-text-primary">Resultado da sincronização</p>
-            <p className="text-text-secondary">
-              ✅ {lastResult.synced} empresa{lastResult.synced !== 1 ? 's' : ''} sincronizada{lastResult.synced !== 1 ? 's' : ''} com sucesso
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+            <p className="text-sm text-green-800">
+              {lastResult.synced} empresa{lastResult.synced !== 1 ? 's' : ''} sincronizada{lastResult.synced !== 1 ? 's' : ''} com sucesso
             </p>
-            {lastResult.errors.length > 0 && (
-              <div>
-                <p className="text-donc-red font-medium">❌ Erros:</p>
-                <ul className="mt-1 space-y-0.5 text-text-tertiary">
-                  {lastResult.errors.map((e, i) => (
-                    <li key={i}>{e.name}: {e.error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+          </div>
+        )}
+        {lastResult && lastResult.errors.length > 0 && (
+          <div className="text-sm space-y-1">
+            <p className="text-donc-red font-medium">❌ Erros:</p>
+            <ul className="space-y-0.5 text-text-tertiary">
+              {lastResult.errors.map((e, i) => (
+                <li key={i}>{e.name}: {e.error}</li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
@@ -385,9 +386,10 @@ function SyncSection() {
           Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno.
         </p>
         {lastConfigSync && (
-          <p className="text-xs text-text-tertiary">
-            Última atualização: {formatDateTimeBR(lastConfigSync)}
-          </p>
+          <div>
+            <p className="text-xs text-text-tertiary">Última atualização</p>
+            <p className="text-sm font-medium text-text-primary">{formatDateTimeBR(lastConfigSync)}</p>
+          </div>
         )}
         <Button
           variant="secondary"
