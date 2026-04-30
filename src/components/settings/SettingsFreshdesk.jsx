@@ -8,7 +8,6 @@ import { fetchAndSaveFreshdeskConfig } from '../../lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import SettingsTabs from './SettingsTabs'
-import SettingsTabHeader from './SettingsTabHeader'
 import toast from 'react-hot-toast'
 
 // ── Normalização para matching ────────────────────────────────────────────────
@@ -246,83 +245,82 @@ function SyncSection() {
   }
 
   return (
-    <div className="space-y-4">
-      <SettingsTabHeader
-        actions={
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleUpdateConfig}
-              disabled={updatingConfig}
-            >
-              {updatingConfig ? '⏳ Atualizando…' : '⚙️ Atualizar Configurações do Freshdesk'}
-            </Button>
-            <Button
-              onClick={handleSync}
-              disabled={syncing || !month}
-            >
-              {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
-            </Button>
-          </>
-        }
-      />
+    <div className="w-full space-y-4">
+      {/* Card 1: Sincronização de Dados */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <SyncIcon className="w-4 h-4 text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">Sincronização de Dados</p>
+        </div>
         <p className="text-sm text-text-secondary">
-        Busca tickets e contatos do Freshdesk para todas as empresas mapeadas e salva como pendentes para revisão.
-      </p>
-
-      {/* Atualizar configurações (grupos, agentes, campos) */}
-      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4">
-        <p className="text-sm font-medium text-text-primary">Configurações do Freshdesk</p>
-        <p className="text-xs text-text-tertiary mt-0.5">
-          Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno (ex.: roteamento de atendimentos).
+          Busca tickets e contatos do Freshdesk para todas as empresas mapeadas e salva como pendentes para revisão.
         </p>
+        <div>
+          <label className="label-sm">Mês de referência</label>
+          <input
+            type="month"
+            value={month}
+            onChange={e => setMonth(e.target.value)}
+            className="input-base"
+          />
+        </div>
+        <Button onClick={handleSync} disabled={syncing || !month}>
+          {syncing ? 'Sincronizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Sincronizar todos</span>}
+        </Button>
+        {lastResult && (
+          <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4 text-sm space-y-2">
+            <p className="font-medium text-text-primary">Resultado da sincronização</p>
+            <p className="text-text-secondary">
+              ✅ {lastResult.synced} empresa{lastResult.synced !== 1 ? 's' : ''} sincronizada{lastResult.synced !== 1 ? 's' : ''} com sucesso
+            </p>
+            {lastResult.errors.length > 0 && (
+              <div>
+                <p className="text-donc-red font-medium">❌ Erros:</p>
+                <ul className="mt-1 space-y-0.5 text-text-tertiary">
+                  {lastResult.errors.map((e, i) => (
+                    <li key={i}>{e.name}: {e.error}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div>
-        <label className="label-sm">Mês de referência</label>
-        <input
-          type="month"
-          value={month}
-          onChange={e => setMonth(e.target.value)}
-          className="input-base"
-        />
+      {/* Card 2: Revisão de Importações */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <LogsIcon className="w-4 h-4 text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">Revisão de Importações</p>
+        </div>
+        <p className="text-sm text-text-secondary">
+          Revise os dados importados antes de confirmar a atualização dos indicadores.
+        </p>
+        <Link
+          to="/config/freshdesk/pendentes"
+          className="inline-flex items-center gap-1 text-sm text-donc-sky hover:underline"
+        >
+          Revisar importações pendentes →
+        </Link>
       </div>
 
-      {lastResult && (
-        <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-4 text-sm space-y-2">
-          <p className="font-medium text-text-primary">Resultado da sincronização</p>
-          <p className="text-text-secondary">
-            ✅ {lastResult.synced} empresa{lastResult.synced !== 1 ? 's' : ''} sincronizada{lastResult.synced !== 1 ? 's' : ''} com sucesso
-          </p>
-          {lastResult.errors.length > 0 && (
-            <div>
-              <p className="text-donc-red font-medium">❌ Erros:</p>
-              <ul className="mt-1 space-y-0.5 text-text-tertiary">
-                {lastResult.errors.map((e, i) => (
-                  <li key={i}>{e.name}: {e.error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <Link
-            to="/config/freshdesk/pendentes"
-            className="inline-flex items-center gap-1 text-donc-sky hover:underline text-xs mt-1"
-          >
-            Revisar dados pendentes →
-          </Link>
+      {/* Card 3: Configurações do Freshdesk */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <SyncIcon className="w-4 h-4 text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">Configurações do Freshdesk</p>
         </div>
-      )}
-
-      <div className="mt-2">
-          <Link
-            to="/config/freshdesk/pendentes"
-            className="inline-flex items-center gap-1 text-sm text-donc-sky hover:underline"
-          >
-            <LogsIcon className="w-3.5 h-3.5" /> Ver importações pendentes de revisão →
-          </Link>
-        </div>
+        <p className="text-sm text-text-secondary">
+          Sincroniza grupos, agentes e campos de ticket do Freshdesk para uso interno.
+        </p>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleUpdateConfig}
+          disabled={updatingConfig}
+        >
+          {updatingConfig ? '⏳ Atualizando…' : <span className="flex items-center gap-1.5"><SyncIcon className="w-3.5 h-3.5" /> Atualizar Configurações</span>}
+        </Button>
       </div>
     </div>
   )
