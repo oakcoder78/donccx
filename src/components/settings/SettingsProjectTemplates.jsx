@@ -87,25 +87,39 @@ function useTemplateFases(templateId) {
     enabled: !!templateId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('project_template_fases')
-        .select('*, fase_type:onboarding_fase_types(id, name, is_milestone, requires_evidence, display_order)')
+        .from('project_template_activities')
+        .select('fase_type_id, display_order, template_id, fase_type:onboarding_fase_types(id, name, is_milestone, requires_evidence, display_order)')
         .eq('template_id', templateId)
         .order('display_order', { ascending: true })
       if (error) throw error
-      return data ?? []
+      
+      const faseTypesMap = {}
+      for (const row of data ?? []) {
+        if (!faseTypesMap[row.fase_type_id]) {
+          faseTypesMap[row.fase_type_id] = {
+            id: row.fase_type_id,
+            template_id: row.template_id,
+            fase_type_id: row.fase_type_id,
+            display_order: row.display_order,
+            fase_type: row.fase_type,
+          }
+        }
+      }
+      return Object.values(faseTypesMap).sort((a, b) => a.display_order - b.display_order)
     },
   })
 }
 
-function useTemplateActivities(templateFaseId) {
+function useTemplateActivities(templateId, faseTypeId) {
   return useQuery({
-    queryKey: ['template_activities', templateFaseId],
-    enabled: !!templateFaseId,
+    queryKey: ['template_activities', templateId, faseTypeId],
+    enabled: !!templateId && !!faseTypeId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_template_activities')
         .select('*, activity_type:onboarding_activity_types(id, name, display_order)')
-        .eq('template_fase_id', templateFaseId)
+        .eq('template_id', templateId)
+        .eq('fase_type_id', faseTypeId)
         .order('display_order', { ascending: true })
       if (error) throw error
       return data ?? []
@@ -187,12 +201,10 @@ export function SettingsProjectTemplates() {
   const addFase = useMutation({
     mutationFn: async ({ templateId, faseTypeId }) => {
       const faseType = faseTypes?.find(f => f.id === parseInt(faseTypeId))
-      const { error } = await supabase.from('project_template_fases').insert({
+      const { error } = await supabase.from('project_template_activities').insert({
         template_id: templateId,
         fase_type_id: parseInt(faseTypeId),
         display_order: faseType?.display_order || 0,
-        is_milestone: faseType?.is_milestone || false,
-        requires_evidence: faseType?.requires_evidence || false,
       })
       if (error) throw error
     },
@@ -206,8 +218,8 @@ export function SettingsProjectTemplates() {
   })
 
   const removeFase = useMutation({
-    mutationFn: async ({ faseId, templateId }) => {
-      const { error } = await supabase.from('project_template_fases').delete().eq('id', faseId)
+    mutationFn: async ({ templateId, faseTypeId }) => {
+      const { error } = await supabase.from('project_template_activities').delete().eq('template_id', templateId).eq('fase_type_id', faseTypeId)
       if (error) throw error
     },
     onSuccess: (_, vars) => {
@@ -218,17 +230,18 @@ export function SettingsProjectTemplates() {
   })
 
   const addActivity = useMutation({
-    mutationFn: async ({ templateFaseId, activityTypeId, templateId }) => {
+    mutationFn: async ({ templateId, faseTypeId, activityTypeId }) => {
       const actType = activityTypes?.find(a => a.id === parseInt(activityTypeId))
       const { error } = await supabase.from('project_template_activities').insert({
-        template_fase_id: templateFaseId,
+        template_id: templateId,
+        fase_type_id: faseTypeId,
         activity_type_id: parseInt(activityTypeId),
         display_order: actType?.display_order || 0,
       })
       if (error) throw error
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['template_activities', vars.templateFaseId] })
+      qc.invalidateQueries({ queryKey: ['template_activities', vars.templateId, vars.faseTypeId] })
       setAddingActivity(null)
       setSelectedActivityType('')
       toast.success('Atividade adicionada')
@@ -237,12 +250,12 @@ export function SettingsProjectTemplates() {
   })
 
   const removeActivity = useMutation({
-    mutationFn: async ({ activityId, templateFaseId }) => {
+    mutationFn: async ({ templateId, faseTypeId, activityId }) => {
       const { error } = await supabase.from('project_template_activities').delete().eq('id', activityId)
       if (error) throw error
     },
     onSuccess: (_, vars) => {
-      qc.invalidateQueries({ queryKey: ['template_activities', vars.templateFaseId] })
+      qc.invalidateQueries({ queryKey: ['template_activities', vars.templateId, vars.faseTypeId] })
       toast.success('Atividade removida')
     },
     onError: (e) => toast.error(e.message),
@@ -355,14 +368,14 @@ export function SettingsProjectTemplates() {
                   setSelectedFaseType={setSelectedFaseType}
                   faseTypes={faseTypes}
                   onAddFase={(faseTypeId) => addFase.mutate({ templateId: template.id, faseTypeId })}
-                  onRemoveFase={(faseId) => removeFase.mutate({ faseId, templateId: template.id })}
+                  onRemoveFase={(faseTypeId) => removeFase.mutate({ templateId: template.id, faseTypeId })}
                   addingActivity={addingActivity}
                   setAddingActivity={setAddingActivity}
                   selectedActivityType={selectedActivityType}
                   setSelectedActivityType={setSelectedActivityType}
                   activityTypes={activityTypes}
-                  onAddActivity={(templateFaseId, activityTypeId) => addActivity.mutate({ templateFaseId, activityTypeId, templateId: template.id })}
-                  onRemoveActivity={(activityId, templateFaseId) => removeActivity.mutate({ activityId, templateFaseId })}
+                  onAddActivity={(faseTypeId, activityTypeId) => addActivity.mutate({ templateId: template.id, faseTypeId, activityTypeId })}
+                  onRemoveActivity={(activityId, faseTypeId) => removeActivity.mutate({ templateId: template.id, faseTypeId, activityId })}
                 />
               ))}
             </div>
@@ -495,7 +508,7 @@ function TemplateCard({
 }
 
 function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity, selectedActivityType, setSelectedActivityType, activityTypes, onAddActivity, onRemoveActivity, onRemoveFase }) {
-  const { data: activities } = useTemplateActivities(fase.id)
+  const { data: activities } = useTemplateActivities(templateId, fase.fase_type_id)
 
   return (
     <div className="pl-4 border-l-2 border-border-secondary">
@@ -508,7 +521,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
         </div>
         {isAdmin && (
           <button
-            onClick={() => onRemoveFase(fase.id)}
+            onClick={() => onRemoveFase(fase.fase_type_id)}
             className="text-xs text-red-600 hover:bg-red-50"
           >
             Remover
@@ -523,7 +536,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
               <span className="text-text-secondary">• {act.activity_type?.name}</span>
               {isAdmin && (
                 <button
-                  onClick={() => onRemoveActivity(act.id, fase.id)}
+                  onClick={() => onRemoveActivity(act.id, fase.fase_type_id)}
                   className="text-text-tertiary text-red-600 hover:bg-red-50"
                 >
                   ×
@@ -548,7 +561,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
               ))}
             </select>
             <button
-              onClick={() => selectedActivityType && onAddActivity(fase.id, selectedActivityType)}
+              onClick={() => selectedActivityType && onAddActivity(fase.fase_type_id, selectedActivityType)}
               disabled={!selectedActivityType}
               className="px-2 py-1 rounded text-xs font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
             >
