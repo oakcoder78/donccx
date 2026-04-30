@@ -210,7 +210,7 @@ export function SettingsActivityTypes() {
   const colSpan = isAdmin ? 6 : 4
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="w-full max-w-6xl space-y-6">
 
       {/* Header */}
       <SettingsPageHeader
