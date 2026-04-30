@@ -576,7 +576,7 @@ export function ClientTabOverview({ client }) {
               <span style={{ fontSize: 12, color: '#888780', fontStyle: 'italic' }}>Histórico disponível a partir do próximo recálculo.</span>
             </div>
           )}
-          <div style={{ borderTop: '1px solid #f0efed', marginTop: 12, paddingTop: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ borderTop: '1px solid #f0efed', marginTop: 12, paddingTop: 12 }} className="flex items-center gap-4">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Temperatura CSM</span>
               <TemperaturaCSM client={client} compact={true} />
@@ -584,7 +584,7 @@ export function ClientTabOverview({ client }) {
             {client.temperature_note && (client.temperature_updated_at) && (() => {
               const days = Math.floor((Date.now() - new Date(client.temperature_updated_at).getTime()) / (1000*60*60*24))
               return days <= 30 ? (
-                <span style={{ fontSize: 11, color: '#4a4a46', fontStyle: 'italic', flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 11, color: '#4a4a46', fontStyle: 'italic' }} className="min-w-0 flex-1 break-words">
                   "{client.temperature_note}"
                 </span>
               ) : null
