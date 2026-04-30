@@ -87,6 +87,8 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
 
   const { data: templates = [] } = useProjectTemplates(!isEdit ? type : null)
 
+  const isOnbType = type === 'onboarding' || type === 'expansao'
+
   // Auto-seleciona template único com is_default=true; reseta nos demais casos
   useEffect(() => {
     if (isEdit || !isOnbType) { setSelectedTemplate(null); return }
@@ -96,8 +98,6 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
       setSelectedTemplate(null)
     }
   }, [templates, isOnbType, isEdit])
-
-  const isOnbType  = type === 'onboarding' || type === 'expansao'
   const kickoffSla = onbCfg.kickoff_sla_days ?? 5
 
   // Onboarding data — only loaded in edit mode for onboarding/expansao projects
