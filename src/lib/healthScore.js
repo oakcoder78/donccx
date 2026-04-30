@@ -6,6 +6,8 @@
  * Retorna: { total, uso, suporte, relacionamento, financeiro, projeto, appliedRules }
  */
 
+import { FASE_TYPE_IDS } from './constants'
+
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 
 function clamp(val, min, max) {
@@ -272,10 +274,12 @@ function calcProjeto(client, rules) {
   )
   if (hasOverdueActivity) mod += applyRule(rules, 'onb_atividade_vencida', appliedRules)
 
+  import { FASE_TYPE_IDS } from './constants'
+
   // ob_late: Go-Live concluído há 90+ dias e ainda há fases pendentes
   const onboarding = activeOnboardings[0]
   if (onboarding) {
-    const goLiveFase = onboarding.onboarding_fases?.find(f => f.onboarding_fase_types?.name === 'Go-Live')
+    const goLiveFase = onboarding.onboarding_fases?.find(f => f.fase_type_id === FASE_TYPE_IDS.GOLIVE)
     if (goLiveFase?.occurred_at) {
       const daysSinceGoLive = (Date.now() - new Date(goLiveFase.occurred_at).getTime()) / (1000 * 60 * 60 * 24)
       if (daysSinceGoLive > 90) {
