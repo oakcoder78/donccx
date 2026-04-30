@@ -132,11 +132,11 @@ function MappingSection() {
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-bg-secondary border-b border-border-tertiary">
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-text-tertiary">Cliente</th>
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-text-tertiary">Freshdesk ID</th>
-              <th className="text-left px-4 py-2.5 text-xs font-medium text-text-tertiary">Sugestão</th>
-              <th className="px-4 py-2.5 text-xs font-medium text-text-tertiary text-right">Ação</th>
+            <tr className="border-b border-border-tertiary bg-donc-navy text-white">
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Cliente</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Freshdesk ID</th>
+              <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Sugestão</th>
+              <th className="px-4 py-2.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Ação</th>
             </tr>
           </thead>
           <tbody>
