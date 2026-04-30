@@ -22,6 +22,17 @@ function normalize(name) {
     .trim()
 }
 
+function formatDateTimeBR(dateString) {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const year = date.getFullYear()
+  const hours = String(date.getHours()).padStart(2, '0')
+  const minutes = String(date.getMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} às ${hours}:${minutes}`
+}
+
 function computeSuggestion(client, fdCompanies) {
   const cNames = [client.name, client.fantasy_name].filter(Boolean).map(normalize).filter(n => n.length > 2)
   const cSite  = client.site
@@ -324,7 +335,7 @@ function SyncSection() {
         </div>
         {lastDataSync && (
           <p className="text-xs text-text-tertiary">
-            Última sincronização: {new Date(lastDataSync).toLocaleString('pt-BR')}
+            Última sincronização: {formatDateTimeBR(lastDataSync)}
           </p>
         )}
         <Button onClick={handleSync} disabled={syncing || !month}>
@@ -375,7 +386,7 @@ function SyncSection() {
         </p>
         {lastConfigSync && (
           <p className="text-xs text-text-tertiary">
-            Última atualização: {new Date(lastConfigSync).toLocaleString('pt-BR')}
+            Última atualização: {formatDateTimeBR(lastConfigSync)}
           </p>
         )}
         <Button
