@@ -346,10 +346,12 @@ export function SettingsProjectTemplates() {
         </div>
       )}
 
-      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-6 space-y-6">
+      <div className="space-y-6">
         {groupedTemplates.map(group => (
           <div key={group.type} className="space-y-3">
-            <h3 className="text-sm font-semibold text-text-primary">{group.label}</h3>
+            <div className="px-1 pt-2">
+              <h3 className="text-sm font-semibold text-text-primary">{group.label}</h3>
+            </div>
           {group.items.length === 0 ? (
             <p className="text-sm text-text-tertiary">Nenhum template</p>
           ) : (
@@ -381,8 +383,8 @@ export function SettingsProjectTemplates() {
               ))}
             </div>
           )}
-        </div>
-      ))}
+          </div>
+        ))}
       </div>
     </div>
   )
