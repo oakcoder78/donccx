@@ -266,17 +266,29 @@ function SyncSection() {
     setLastResult(null)
     try {
       const result = await syncAllCompanies(month)
+      console.log('Sync finished, saving last_data_sync timestamp...')
       setLastResult(result)
-      await supabase
-        .from('freshdesk_config')
-        .upsert({
-          key: 'last_data_sync',
-          data: { synced_at: new Date().toISOString() },
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'key'
-        })
-      setLastDataSync(new Date().toISOString())
+      try {
+        const timestamp = new Date().toISOString()
+        console.log('Saving last_data_sync:', timestamp)
+        const { error } = await supabase
+          .from('freshdesk_config')
+          .upsert({
+            key: 'last_data_sync',
+            data: { synced_at: timestamp },
+            updated_at: timestamp
+          }, {
+            onConflict: 'key'
+          })
+        if (error) {
+          console.error('Error saving last_data_sync:', error)
+        } else {
+          console.log('last_data_sync saved successfully')
+          setLastDataSync(timestamp)
+        }
+      } catch (err) {
+        console.error('Unexpected error saving last_data_sync:', err)
+      }
       if (result.errors.length === 0) {
         toast.success(`${result.synced} empresa${result.synced !== 1 ? 's' : ''} sincronizada${result.synced !== 1 ? 's' : ''}`)
       } else {
