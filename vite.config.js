@@ -15,4 +15,7 @@ export default defineConfig({
   define: {
     __COMMIT_HASH__: JSON.stringify(commitHash),
   },
+  build: {
+    minify: false,
+  },
 })
