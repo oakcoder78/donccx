@@ -275,7 +275,7 @@ export function SettingsProjectTemplates() {
     <div className="p-6 space-y-6 w-full">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-base font-semibold text-text-primary">Templates de Projeto</h2>
+          <h2 className="text-xl font-semibold text-text-primary">Templates de Projeto</h2>
           <p className="text-sm text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades padrão</p>
         </div>
         <button
@@ -289,7 +289,7 @@ export function SettingsProjectTemplates() {
       {showForm && (
         <div className="mb-6 p-4 bg-bg-secondary rounded-lg border border-border-tertiary">
           <h3 className="text-sm font-semibold text-text-primary mb-4">Novo Template</h3>
-          <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-tertiary mb-1">Nome *</label>
               <input
@@ -346,9 +346,10 @@ export function SettingsProjectTemplates() {
         </div>
       )}
 
-      {groupedTemplates.map(group => (
-        <div key={group.type} className="space-y-3">
-          <h3 className="text-sm font-semibold text-text-primary">{group.label}</h3>
+      <div className="bg-bg-secondary border border-border-tertiary rounded-lg p-6 space-y-6">
+        {groupedTemplates.map(group => (
+          <div key={group.type} className="space-y-3">
+            <h3 className="text-sm font-semibold text-text-primary">{group.label}</h3>
           {group.items.length === 0 ? (
             <p className="text-sm text-text-tertiary">Nenhum template</p>
           ) : (
@@ -382,6 +383,7 @@ export function SettingsProjectTemplates() {
           )}
         </div>
       ))}
+      </div>
     </div>
   )
 }
