@@ -1112,7 +1112,7 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
   const statusColors = getActStatusColor(act.status)
   const todayStr = new Date().toISOString().slice(0, 10)
   const isOverdue = act.due_date && act.due_date < todayStr && act.status !== 'concluida'
-  const pendingCount = pendencias.length
+  const pendingCount = pendencias.filter(p => p.status !== 'encerrada').length
 
   return (
     <div style={itemStyle}>
