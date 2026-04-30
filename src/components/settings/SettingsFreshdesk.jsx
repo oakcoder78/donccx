@@ -261,7 +261,8 @@ function SyncSection() {
           </>
         }
       />
-      <p className="text-sm text-text-secondary">
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+        <p className="text-sm text-text-secondary">
         Busca tickets e contatos do Freshdesk para todas as empresas mapeadas e salva como pendentes para revisão.
       </p>
 
@@ -309,12 +310,13 @@ function SyncSection() {
       )}
 
       <div className="mt-2">
-        <Link
-          to="/config/freshdesk/pendentes"
-          className="inline-flex items-center gap-1 text-sm text-donc-sky hover:underline"
-        >
-          <LogsIcon className="w-3.5 h-3.5" /> Ver importações pendentes de revisão →
-        </Link>
+          <Link
+            to="/config/freshdesk/pendentes"
+            className="inline-flex items-center gap-1 text-sm text-donc-sky hover:underline"
+          >
+            <LogsIcon className="w-3.5 h-3.5" /> Ver importações pendentes de revisão →
+          </Link>
+        </div>
       </div>
     </div>
   )
