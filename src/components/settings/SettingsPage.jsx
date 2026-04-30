@@ -17,6 +17,7 @@ import { SettingsMenuIcons } from '../../lib/icons'
 
 import { SettingsFaseTypes } from './SettingsFaseTypes'
 import { SettingsActivityTypes } from './SettingsActivityTypes'
+import { SettingsProjectTemplates } from './SettingsProjectTemplates'
 
 const MENU_GROUPS = [
   { label: 'Conta', items: [
@@ -31,8 +32,9 @@ const MENU_GROUPS = [
     { key: 'catalog',  label: 'Catálogos' },
   ]},
   { label: 'Projetos', items: [
-    { key: 'fase-types',     label: 'Tipos de Fase',      adminOnly: true },
-    { key: 'activity-types', label: 'Tipos de Atividade', adminOnly: true },
+    { key: 'fase-types',       label: 'Tipos de Fase',      adminOnly: true },
+    { key: 'activity-types',  label: 'Tipos de Atividade', adminOnly: true },
+    { key: 'project-templates', label: 'Templates',        adminOnly: true },
   ]},
   { label: 'Health Score', items: [
     { key: 'health', label: 'Health Score' },
@@ -87,6 +89,7 @@ export default function SettingsPage() {
       case 'features': return isAdmin && <SettingsFeatureFlags />
       case 'fase-types': return <SettingsFaseTypes />
       case 'activity-types': return <SettingsActivityTypes />
+      case 'project-templates': return isAdmin && <SettingsProjectTemplates />
       default: return null
     }
   }
