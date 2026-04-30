@@ -272,10 +272,10 @@ export function SettingsProjectTemplates() {
   }
 
   return (
-    <div className="p-6 max-w-5xl">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 space-y-6 w-full">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-text-primary">Templates de Projeto</h2>
+          <h2 className="text-base font-semibold text-text-primary">Templates de Projeto</h2>
           <p className="text-sm text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades padrão</p>
         </div>
         <button
@@ -347,10 +347,10 @@ export function SettingsProjectTemplates() {
       )}
 
       {groupedTemplates.map(group => (
-        <div key={group.type} className="mb-8">
-          <h3 className="text-sm font-semibold text-text-primary mb-3 px-1">{group.label}</h3>
+        <div key={group.type} className="space-y-3">
+          <h3 className="text-sm font-semibold text-text-primary">{group.label}</h3>
           {group.items.length === 0 ? (
-            <p className="text-sm text-text-tertiary px-1">Nenhum template</p>
+            <p className="text-sm text-text-tertiary">Nenhum template</p>
           ) : (
             <div className="space-y-3">
               {group.items.map(template => (
