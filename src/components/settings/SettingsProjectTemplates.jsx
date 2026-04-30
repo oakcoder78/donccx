@@ -267,7 +267,7 @@ export function SettingsProjectTemplates() {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="px-4 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
         >
           + Novo Template
         </button>
@@ -319,13 +319,13 @@ export function SettingsProjectTemplates() {
             <button
               onClick={handleSave}
               disabled={saving || !formData.name.trim()}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
+              className="px-4 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
             >
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
             <button
               onClick={() => { setShowForm(false); setFormData({ name: '', type: 'onboarding', description: '', is_default: false }) }}
-              className="px-4 py-2 border border-border-secondary rounded-lg text-sm text-text-secondary"
+              className="px-4 py-2 border border-border-secondary rounded-lg text-sm text-text-primary hover:bg-bg-secondary"
             >
               Cancelar
             </button>
@@ -416,7 +416,7 @@ function TemplateCard({
           {isAdmin && (
             <button
               onClick={e => { e.stopPropagation(); if (confirm('Remover este template?')) onDelete() }}
-              className="p-1.5 text-text-tertiary hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+              className="p-1.5 text-text-tertiary text-red-600 hover:bg-red-50 rounded transition-colors"
               title="Remover"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -468,13 +468,13 @@ function TemplateCard({
                 <button
                   onClick={() => selectedFaseType && onAddFase(selectedFaseType)}
                   disabled={!selectedFaseType}
-                  className="px-3 py-2 bg-primary text-white rounded-lg text-sm disabled:opacity-50"
+                  className="px-3 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                 >
                   Adicionar
                 </button>
                 <button
                   onClick={() => { setAddingFase(null); setSelectedFaseType('') }}
-                  className="px-3 py-2 border border-border-secondary rounded-lg text-sm text-text-secondary"
+                  className="px-3 py-2 border border-border-secondary rounded-lg text-sm text-text-primary hover:bg-bg-secondary"
                 >
                   Cancelar
                 </button>
@@ -509,7 +509,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
         {isAdmin && (
           <button
             onClick={() => onRemoveFase(fase.id)}
-            className="text-xs text-text-tertiary hover:text-red-500"
+            className="text-xs text-red-600 hover:bg-red-50"
           >
             Remover
           </button>
@@ -524,7 +524,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
               {isAdmin && (
                 <button
                   onClick={() => onRemoveActivity(act.id, fase.id)}
-                  className="text-text-tertiary hover:text-red-500"
+                  className="text-text-tertiary text-red-600 hover:bg-red-50"
                 >
                   ×
                 </button>
@@ -550,13 +550,13 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
             <button
               onClick={() => selectedActivityType && onAddActivity(fase.id, selectedActivityType)}
               disabled={!selectedActivityType}
-              className="px-2 py-1 bg-primary text-white rounded text-xs disabled:opacity-50"
+              className="px-2 py-1 rounded text-xs font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
             >
               +
             </button>
             <button
               onClick={() => { setAddingActivity(null); setSelectedActivityType('') }}
-              className="px-2 py-1 border border-border-secondary rounded text-xs text-text-secondary"
+              className="px-2 py-1 border border-border-secondary rounded text-xs text-text-primary hover:bg-bg-secondary"
             >
               ×
             </button>
