@@ -88,25 +88,12 @@ function useTemplateFases(templateId) {
     enabled: !!templateId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('project_template_activities')
-        .select('fase_type_id, display_order, template_id, fase_type:onboarding_fase_types(id, name, is_milestone, requires_evidence, display_order)')
+        .from('project_template_fases')
+        .select('*, fase_type:onboarding_fase_types(id, name, is_milestone, requires_evidence, display_order)')
         .eq('template_id', templateId)
         .order('display_order', { ascending: true })
       if (error) throw error
-      
-      const faseTypesMap = {}
-      for (const row of data ?? []) {
-        if (!faseTypesMap[row.fase_type_id]) {
-          faseTypesMap[row.fase_type_id] = {
-            id: row.fase_type_id,
-            template_id: row.template_id,
-            fase_type_id: row.fase_type_id,
-            display_order: row.display_order,
-            fase_type: row.fase_type,
-          }
-        }
-      }
-      return Object.values(faseTypesMap).sort((a, b) => a.display_order - b.display_order)
+      return data ?? []
     },
   })
 }
