@@ -5,6 +5,7 @@ import { SettingsMenuIcons } from '../../lib/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
+import { SettingsPageHeader } from './SettingsPageHeader'
 import toast from 'react-hot-toast'
 
 const EMPTY = { nome: '', descricao: '', display_order: 0, ativo: true }
@@ -212,16 +213,13 @@ export function SettingsActivityTypes() {
     <div className="w-full max-w-6xl space-y-4">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
-          <ActivityIcon className="w-4 h-4" /> Tipos de Atividade
-        </h2>
-        {isAdmin && !adding && (
-          <Button size="sm" onClick={() => { setAdding(true); setEditingId(null) }}>
-            + Novo Tipo
-          </Button>
-        )}
-      </div>
+      <SettingsPageHeader
+        title="Tipos de Atividade"
+        description="Gerencie os tipos de atividades disponíveis para uso em templates"
+        icon={ActivityIcon}
+        actionLabel="+ Novo Tipo"
+        onAction={() => { setAdding(true); setEditingId(null) }}
+      />
 
       {/* Card */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
