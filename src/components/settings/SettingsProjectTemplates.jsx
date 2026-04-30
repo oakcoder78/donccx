@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
+import { Button } from '../ui/Button'
 
 const TYPE_OPTIONS = [
   { value: 'onboarding', label: 'Onboarding' },
@@ -275,15 +276,12 @@ export function SettingsProjectTemplates() {
     <div className="max-w-3xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-text-primary">Templates de Projeto</h2>
+          <h2 className="text-base font-semibold text-text-primary">Templates de Projeto</h2>
           <p className="text-sm text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades padrão</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-        >
+        <Button size="sm" onClick={() => setShowForm(true)}>
           + Novo Template
-        </button>
+        </Button>
       </div>
 
       {showForm && (
@@ -296,7 +294,7 @@ export function SettingsProjectTemplates() {
                 type="text"
                 value={formData.name}
                 onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-border-secondary rounded-lg text-sm"
+                className="input-base w-full"
                 placeholder="ex: Onboarding Padrão"
               />
             </div>
@@ -305,7 +303,7 @@ export function SettingsProjectTemplates() {
               <select
                 value={formData.type}
                 onChange={e => setFormData(p => ({ ...p, type: e.target.value }))}
-                className="w-full px-3 py-2 border border-border-secondary rounded-lg text-sm"
+                className="input-base w-full"
               >
                 {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -315,7 +313,7 @@ export function SettingsProjectTemplates() {
               <textarea
                 value={formData.description}
                 onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
-                className="w-full px-3 py-2 border border-border-secondary rounded-lg text-sm"
+                className="input-base w-full"
                 rows={2}
                 placeholder="Descrição opcional..."
               />
@@ -329,19 +327,12 @@ export function SettingsProjectTemplates() {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <button
-              onClick={handleSave}
-              disabled={saving || !formData.name.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-            >
+            <Button onClick={handleSave} disabled={saving || !formData.name.trim()}>
               {saving ? 'Salvando...' : 'Salvar'}
-            </button>
-            <button
-              onClick={() => { setShowForm(false); setFormData({ name: '', type: 'onboarding', description: '', is_default: false }) }}
-              className="px-4 py-2 border border-border-secondary rounded-lg text-sm text-text-primary hover:bg-bg-secondary"
-            >
+            </Button>
+            <Button variant="secondary" onClick={() => { setShowForm(false); setFormData({ name: '', type: 'onboarding', description: '', is_default: false }) }}>
               Cancelar
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -482,27 +473,17 @@ function TemplateCard({
                     <option key={ft.id} value={ft.id}>{ft.name}</option>
                   ))}
                 </select>
-                <button
-                  onClick={() => selectedFaseType && onAddFase(selectedFaseType)}
-                  disabled={!selectedFaseType}
-                  className="px-3 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-                >
+                <Button size="sm" onClick={() => selectedFaseType && onAddFase(selectedFaseType)} disabled={!selectedFaseType}>
                   Adicionar
-                </button>
-                <button
-                  onClick={() => { setAddingFase(null); setSelectedFaseType('') }}
-                  className="px-3 py-2 border border-border-secondary rounded-lg text-sm text-text-primary hover:bg-bg-secondary"
-                >
+                </Button>
+                <Button size="sm" variant="secondary" onClick={() => { setAddingFase(null); setSelectedFaseType('') }}>
                   Cancelar
-                </button>
+                </Button>
               </div>
             ) : (
-              <button
-                onClick={() => setAddingFase(template.id)}
-                className="text-sm text-primary hover:underline"
-              >
+              <Button size="sm" variant="secondary" onClick={() => setAddingFase(template.id)}>
                 + Adicionar fase
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -557,34 +538,24 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
             <select
               value={selectedActivityType}
               onChange={e => setSelectedActivityType(e.target.value)}
-              className="flex-1 px-2 py-1 border border-border-secondary rounded text-xs"
+              className="input-base text-xs w-full"
             >
               <option value="">Selecionar atividade...</option>
               {activityTypes?.filter(at => !activities?.some(a => a.activity_type_id === at.id)).map(at => (
                 <option key={at.id} value={at.id}>{at.name}</option>
               ))}
             </select>
-            <button
-              onClick={() => selectedActivityType && onAddActivity(fase.fase_type_id, selectedActivityType)}
-              disabled={!selectedActivityType}
-              className="px-2 py-1 rounded text-xs font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90"
-            >
+            <Button size="sm" onClick={() => selectedActivityType && onAddActivity(fase.fase_type_id, selectedActivityType)} disabled={!selectedActivityType}>
               +
-            </button>
-            <button
-              onClick={() => { setAddingActivity(null); setSelectedActivityType('') }}
-              className="px-2 py-1 border border-border-secondary rounded text-xs text-text-primary hover:bg-bg-secondary"
-            >
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => { setAddingActivity(null); setSelectedActivityType('') }}>
               ×
-            </button>
+            </Button>
           </div>
         ) : (
-          <button
-            onClick={() => setAddingActivity(fase.id)}
-            className="text-xs text-primary hover:underline"
-          >
+          <Button size="sm" variant="secondary" onClick={() => setAddingActivity(fase.id)}>
             + Atividade
-          </button>
+          </Button>
         )}
       </div>
     </div>
