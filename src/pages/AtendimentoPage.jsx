@@ -240,9 +240,8 @@ function Step1({ data, onChange, onNext }) {
       const { data: rows } = await supabase
         .from('clients')
         .select('id, name, fantasy_name')
-        .or(`fantasy_name.ilike.%${term}%,name.ilike.%${term}%`)
-        .eq('contract_active', true)
-        .order('fantasy_name')
+        .or(`name.ilike.%${term}%,fantasy_name.ilike.%${term}%`)
+        .order('name')
         .limit(8)
       setClientResults(rows || [])
     }, 280)
