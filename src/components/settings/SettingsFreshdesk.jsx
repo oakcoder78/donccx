@@ -135,7 +135,7 @@ function MappingSection() {
         <p className="text-sm text-text-tertiary">
           {clients.filter(c => c.freshdesk_company_id).length} de {clients.length} clientes mapeados
         </p>
-        <Button size="sm" variant="secondary" onClick={handleFetchSuggestions} disabled={fetching}>
+        <Button variant="secondary" onClick={handleFetchSuggestions} disabled={fetching}>
           {fetching ? 'Buscando…' : <span className="flex items-center gap-1.5"><SearchIcon className="w-3.5 h-3.5" /> Buscar sugestões do Freshdesk</span>}
         </Button>
       </div>
