@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { Save } from 'lucide-react'
 import { SettingsMenuIcons, ActionIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
@@ -161,7 +162,7 @@ function MappingSection() {
                       value={displayVal}
                       onChange={e => setEdits(p => ({ ...p, [c.id]: e.target.value }))}
                       placeholder="ID numérico"
-                      className="input-base w-32 text-sm"
+                      className="input-base w-40 text-sm"
                     />
                   </td>
                   <td className="px-4 py-2.5 text-text-tertiary text-xs">
@@ -179,13 +180,18 @@ function MappingSection() {
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     {isDirty && (
-                      <Button
-                        size="sm"
+                      <button
                         onClick={() => saveClientMapping(c.id)}
                         disabled={saving[c.id]}
+                        className="p-1.5 text-donc-navy hover:text-donc-navy/80 rounded disabled:opacity-40"
+                        title={saving[c.id] ? 'Salvando...' : 'Salvar'}
                       >
-                        {saving[c.id] ? '…' : 'Salvar'}
-                      </Button>
+                        {saving[c.id] ? (
+                          <span className="text-xs">…</span>
+                        ) : (
+                          <Save size={14} />
+                        )}
+                      </button>
                     )}
                   </td>
                 </tr>
