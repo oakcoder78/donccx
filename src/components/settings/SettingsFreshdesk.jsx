@@ -391,7 +391,6 @@ function SyncSection() {
         )}
         <Button
           variant="secondary"
-          size="sm"
           onClick={handleUpdateConfig}
           disabled={updatingConfig}
         >
