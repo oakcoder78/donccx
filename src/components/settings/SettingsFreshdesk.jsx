@@ -273,6 +273,8 @@ function SyncSection() {
           key: 'last_data_sync',
           data: { synced_at: new Date().toISOString() },
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'key'
         })
       setLastDataSync(new Date().toISOString())
       if (result.errors.length === 0) {
