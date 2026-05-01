@@ -7,6 +7,7 @@ import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSy
 import { fetchAndSaveFreshdeskConfig, getFreshdeskConfig } from '../../lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
 // ── Normalização para matching ────────────────────────────────────────────────
@@ -409,16 +410,11 @@ export function SettingsFreshdesk() {
   return (
     <div className="max-w-6xl space-y-4">
 
-      <div>
-        <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
-          <FreshdeskIcon className="w-4 h-4" />
-          Integração Freshdesk
-        </h2>
-
-        <p className="text-xs text-text-tertiary mb-4">
-          Mapeie empresas do Freshdesk para clientes do doncCX e sincronize dados de suporte mensalmente.
-        </p>
-      </div>
+      <SettingsSectionHeader
+        icon={FreshdeskIcon}
+        title="Integração Freshdesk"
+        subtitle="Mapeie empresas do Freshdesk para clientes do doncCX e sincronize dados de suporte mensalmente."
+      />
 
       <SyncSection />
 
