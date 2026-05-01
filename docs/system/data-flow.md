@@ -168,6 +168,66 @@ Flow:
 
 ---
 
+## Client Creation Flow with Lifecycle
+
+When creating a new client, the system now considers the `lifecycle_stage` field which influences subsequent behavior.
+
+### Flow Steps
+
+1. **User creates a new client**  
+   The user fills out the ClientForm in the UI, including the lifecycle_stage selection.
+
+2. **lifecycle_stage is defined**  
+   The user selects one of the available lifecycle values:
+   - `lead` — Early-stage company
+   - `prospect` — Qualified opportunity
+   - `cliente` — Active customer
+   - `parceiro` — Partner organization
+   - `teste` — Temporary account
+
+3. **Client record is inserted into the clients table**  
+   The form submits the data to Supabase, including `lifecycle_stage`.
+
+4. **Conditional logic determines catalog behavior**  
+   Depending on the selected lifecycle_stage, different post-creation actions occur.
+
+### Conditional Catalog Initialization
+
+The catalog initialization follows the client's lifecycle:
+
+**If lifecycle_stage = "cliente":**
+- Default catalog records may be created automatically
+- System may require at least one service to be selected
+- Full operational features become available
+
+**If lifecycle_stage ≠ "cliente":**
+- Catalog initialization is skipped
+- No services or solutions are pre-assigned
+- Operational features are hidden from UI
+
+This behavior prevents unnecessary data for leads and prospects while ensuring clients have the required catalog setup.
+
+### Catalog Initialization Trigger
+
+A database trigger may run after client insertion to handle initialization:
+
+- **Trigger responsibility**: detect lifecycle_stage value
+- **Action**: insert default catalog records when appropriate
+- **Purpose**: reduce frontend complexity by handling initialization automatically
+
+### Lifecycle-Dependent Processing
+
+The lifecycle_stage acts as a control variable for downstream processes:
+
+- **Health calculations** — Only processed for clients (lifecycle_stage = "cliente")
+- **Operational tracking** — Hidden for leads and prospects
+- **Catalog loading** — Conditional based on lifecycle
+- **UI rendering logic** — Tabs like "Operacional" and "Health Score" are disabled for non-clients
+
+This ensures that early-stage companies see only relevant information and the interface remains focused on appropriate actions for each lifecycle stage.
+
+---
+
 ## Global State Flow
 
 Global state is managed through:
