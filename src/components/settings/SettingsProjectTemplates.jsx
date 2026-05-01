@@ -393,11 +393,8 @@ function TemplateCard({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
           <div>
-            <div className="flex items-center gap-2">
+<div className="flex items-center gap-2">
               <span className="font-medium text-sm text-text-primary">{template.name}</span>
-              {template.is_default && (
-                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Padrão XX</span>
-              )}
             </div>
             {template.description && (
               <p className="text-xs text-text-tertiary mt-0.5">{template.description}</p>
