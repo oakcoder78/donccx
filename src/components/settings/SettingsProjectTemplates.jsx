@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
+import { LayoutTemplate, Trash2 } from 'lucide-react'
 
 const TYPE_OPTIONS = [
   { value: 'onboarding', label: 'Onboarding' },
@@ -261,10 +262,13 @@ export function SettingsProjectTemplates() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-base font-semibold text-text-primary">Templates de Projeto</h2>
-          <p className="text-sm text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades padrão</p>
+          <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+            <LayoutTemplate className="w-4 h-4 text-donc-navy" />
+            Onboarding
+          </h2>
+          <p className="text-xs text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades padrão</p>
         </div>
         <Button size="sm" onClick={() => setShowForm(true)}>
           + Novo Template
@@ -390,7 +394,7 @@ function TemplateCard({
           </svg>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-medium text-text-primary">{template.name}</span>
+              <span className="font-medium text-sm text-text-primary">{template.name}</span>
               {template.is_default && (
                 <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Padrão</span>
               )}
@@ -402,7 +406,6 @@ function TemplateCard({
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-text-secondary" title="Definir como padrão">
-            <span>Padrão</span>
             <Toggle
               checked={template.is_default}
               onChange={e => { e.stopPropagation(); onToggleDefault(template.is_default) }}
@@ -411,12 +414,10 @@ function TemplateCard({
           {isAdmin && (
             <button
               onClick={e => { e.stopPropagation(); if (confirm('Remover este template?')) onDelete() }}
-              className="p-1.5 text-text-tertiary text-red-600 hover:bg-red-50 rounded transition-colors"
+              className="p-1.5 text-text-tertiary hover:text-red-500 rounded transition-colors"
               title="Remover"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -494,9 +495,10 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
         {isAdmin && (
           <button
             onClick={() => onRemoveFase(fase.fase_type_id)}
-            className="text-xs text-red-600 hover:bg-red-50"
+            title="Remover"
+            className="text-text-tertiary hover:text-red-500 transition-colors"
           >
-            Remover
+            <Trash2 className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -509,9 +511,10 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
               {isAdmin && (
                 <button
                   onClick={() => onRemoveActivity(act.id, fase.fase_type_id)}
-                  className="text-text-tertiary text-red-600 hover:bg-red-50"
+                  title="Remover"
+                  className="text-text-tertiary hover:text-red-500 transition-colors"
                 >
-                  ×
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
