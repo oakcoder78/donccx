@@ -31,7 +31,7 @@ export default function ClientDetail() {
 
   const { data: client, isLoading } = useClient(id)
 
-  const isCliente = client.lifecycle_stage === 'cliente'
+  const isCliente = client?.lifecycle_stage === 'cliente'
 
   function setTab(t) {
     setSearchParams({ tab: t })
