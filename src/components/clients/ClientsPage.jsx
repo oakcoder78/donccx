@@ -192,30 +192,33 @@ function CompanyCard({ client: c, onClick }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-wrap mb-3">
-        {c.abc_class && <Badge variant={abcVariant(c.abc_class)}>ABC {c.abc_class}</Badge>}
-        {isCliente && <HealthScore score={c.health_total || 0} />}
-        {c.mrr > 0 && (
-          <span className="text-xs text-text-tertiary">
-            {c.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-          </span>
-        )}
-        {penetrationPct !== null && (
-          <span className="text-xs text-text-tertiary">
-            {c.unidades_donc}/{c.unidades_total} un. ({penetrationPct}%)
-          </span>
-        )}
-      </div>
+      {isCliente && (
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          {c.abc_class && <Badge variant={abcVariant(c.abc_class)}>ABC {c.abc_class}</Badge>}
+          <HealthScore score={c.health_total || 0} />
+          {c.mrr > 0 && (
+            <span className="text-xs text-text-tertiary">
+              {c.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+            </span>
+          )}
+          {penetrationPct !== null && (
+            <span className="text-xs text-text-tertiary">
+              {c.unidades_donc}/{c.unidades_total} un. ({penetrationPct}%)
+            </span>
+          )}
+        </div>
+      )}
 
-      {/* 5 health bars */}
-      <div className="grid grid-cols-5 gap-1 mb-3">
-        {dims.map(d => (
-          <div key={d.label}>
-            <div className="text-[10px] text-text-tertiary mb-0.5 text-center">{d.label}</div>
-            <HealthBar value={d.val || 0} max={20} />
-          </div>
-        ))}
-      </div>
+      {isCliente && (
+        <div className="grid grid-cols-5 gap-1 mb-3">
+          {dims.map(d => (
+            <div key={d.label}>
+              <div className="text-[10px] text-text-tertiary mb-0.5 text-center">{d.label}</div>
+              <HealthBar value={d.val || 0} max={20} />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-2">
         {c.csm && (
