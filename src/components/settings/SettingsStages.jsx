@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { useStages, useStagesMutations } from '../../hooks/useStages'
+import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
