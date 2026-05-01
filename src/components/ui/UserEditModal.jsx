@@ -3,6 +3,13 @@ import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 import { maskPhoneInput, stripPhone } from '../../lib/formatPhone'
 
+const GENDER_OPTIONS = [
+  { value: '',          label: '— Prefiro não informar —' },
+  { value: 'masculino', label: 'Masculino' },
+  { value: 'feminino',  label: 'Feminino' },
+  { value: 'outro',     label: 'Prefiro não informar' },
+]
+
 function AvatarUpload({ userId, currentUrl, onUploaded }) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(currentUrl || null)
@@ -64,6 +71,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
   const [emailSecondary, setEmailSecondary] = useState(profile?.email_secondary || '')
   const [phone, setPhone]                   = useState(maskPhoneInput(profile?.phone || ''))
   const [phoneIsWhatsapp, setPhoneIsWhatsapp] = useState(profile?.phone_is_whatsapp || false)
+  const [gender, setGender]                 = useState(profile?.gender || '')
   const [avatarUrl, setAvatarUrl]           = useState(profile?.avatar_url || null)
   const [saving, setSaving]                 = useState(false)
   const [sendingReset, setSendingReset]     = useState(false)
@@ -77,6 +85,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
         email_secondary: emailSecondary || null,
         phone: stripPhone(phone) || null,
         phone_is_whatsapp: phoneIsWhatsapp,
+        gender: gender || null,
       }).eq('id', profile.id)
       if (error) throw error
       toast.success('Perfil atualizado')
@@ -152,6 +161,21 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
               WhatsApp
             </label>
           </div>
+        </div>
+
+        <div>
+          <label className="label-sm">Gênero</label>
+          <select
+            value={gender}
+            onChange={e => setGender(e.target.value)}
+            className="input-base w-full"
+          >
+            {GENDER_OPTIONS.map(o => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="pt-1">
