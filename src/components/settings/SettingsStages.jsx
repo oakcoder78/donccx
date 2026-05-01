@@ -4,6 +4,7 @@ import { useStages, useStagesMutations } from '../../hooks/useStages'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 function StageForm({ stage, onClose }) {
   const isEdit = !!stage
@@ -58,10 +59,23 @@ export function SettingsStages() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><StagesIcon className="w-4 h-4" /> Estágios</h2>
-        <Button size="sm" onClick={() => setModal('create')}>+ Novo Estágio</Button>
-      </div>
+      <SettingsSectionHeader
+        icon={StagesIcon}
+        title="Estágios"
+        subtitle="Define os estágios utilizados no ciclo de vida das empresas."
+        actions={
+          isAdmin && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setModal('create')
+              }}
+            >
+              + Novo Estágio
+            </Button>
+          )
+        }
+      />
 
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
         <div className="space-y-2">
