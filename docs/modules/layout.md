@@ -12,6 +12,14 @@ Provides the base visual structure and global navigation for the application. `N
 - Expose commit hash in dropdown for version reference.
 - Clean up dropdown overlay on outside click.
 
+### Profile Editing Location
+All personal profile editing is now centralized in the Navbar profile modal (`UserEditModal`). This includes:
+- Avatar display and upload
+- User identity information (name, email)
+- Gender field
+
+The previous separate profile editing page in Settings (`SettingsMinhaConta`) has been removed to eliminate duplicated interfaces and improve usability.
+
 ## Module Structure
 - `Navbar.jsx` — main header component.
   - Imports `useAuth` for user/session data, `usePermissions` for role‑based link visibility.
@@ -55,6 +63,15 @@ Local component state:
 - `showProfile` (boolean) toggles `UserEditModal`.
 - `initials` derived from profile data for avatar fallback.
 All other data comes from context/hooks.
+
+### Gender Field Placement
+The gender field is now edited inside the Navbar profile modal. It is no longer managed in separate Settings pages. This change consolidates all personal profile editing into a single, consistent location.
+
+### Removal of Duplicate Profile Interfaces
+Previously, profile data could be edited in multiple locations. Now, all personal profile editing is centralized in the Navbar modal. Benefits include:
+- Clearer user workflow (profile access from any page)
+- Reduced maintenance complexity
+- Improved UI consistency
 
 ## Known Risks
 - Dropdown overlay relies on a full‑screen invisible div to capture outside clicks; may interfere with other fixed UI elements.
