@@ -268,7 +268,7 @@ export function SettingsProjectTemplates() {
             <LayoutTemplate className="w-4 h-4 text-donc-navy" />
             Onboarding
           </h2>
-          <p className="text-xs text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades padrão</p>
+          <p className="text-xs text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades</p>
         </div>
         <Button size="sm" onClick={() => setShowForm(true)}>
           + Novo Template
@@ -396,7 +396,7 @@ function TemplateCard({
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm text-text-primary">{template.name}</span>
               {template.is_default && (
-                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Padrão</span>
+                <span className="px-2 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Padrão XX</span>
               )}
             </div>
             {template.description && (
