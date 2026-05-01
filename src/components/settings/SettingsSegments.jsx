@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { useSegments, useSegmentsMutations } from '../../hooks/useSegments'
+import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
+import { Pencil, Trash2 } from 'lucide-react'
 
 function SegmentForm({ segment, onClose }) {
   const isEdit = !!segment
@@ -37,24 +40,49 @@ export function SettingsSegments() {
   const SegmentsIcon = SettingsMenuIcons['segments']
   const { data: segments = [], isLoading } = useSegments()
   const { remove } = useSegmentsMutations()
+  const { isAdmin } = useAuth()
   const [modal, setModal] = useState(null) // null | 'create' | segment
 
   if (isLoading) return <PageSpinner />
 
   return (
     <div className="max-w-2xl space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><SegmentsIcon className="w-4 h-4" /> Segmentos</h2>
-        <Button size="sm" onClick={() => setModal('create')}>+ Novo Segmento</Button>
-      </div>
+      <SettingsSectionHeader
+        icon={SegmentsIcon}
+        title="Segmentos"
+        subtitle="Define os segmentos utilizados na classificação das empresas."
+        actions={
+          isAdmin && (
+            <Button size="sm" onClick={() => setModal('create')}>
+              + Novo Segmento
+            </Button>
+          )
+        }
+      />
 
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
         <div className="space-y-2">
           {segments.map(seg => (
             <div key={seg.id} className="flex items-center gap-3 py-1.5 border-b border-border-tertiary last:border-0">
               <span className="text-sm text-text-primary flex-1">{seg.name}</span>
-              <button onClick={() => setModal(seg)} className="text-xs text-donc-sky hover:underline">Editar</button>
-              <button onClick={() => remove.mutateAsync(seg.id)} className="text-xs text-donc-red hover:underline">Excluir</button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => setModal(seg)}
+                    title="Editar"
+                    className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => remove.mutateAsync(seg.id)}
+                    title="Excluir"
+                    className="p-1 text-text-secondary hover:text-red-500 rounded"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              )}
             </div>
           ))}
           {segments.length === 0 && <p className="text-sm text-text-tertiary">Nenhum segmento cadastrado.</p>}
