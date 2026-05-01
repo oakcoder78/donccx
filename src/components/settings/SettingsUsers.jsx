@@ -11,6 +11,7 @@ import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { UserEditModal } from '../ui/UserEditModal'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
+import { Pencil, XCircle, CheckCircle } from 'lucide-react'
 import { formatPhone } from '../../lib/formatPhone'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
@@ -344,12 +345,30 @@ export function SettingsUsers() {
               ) : (
                 <span className="text-xs text-text-tertiary w-24 text-center">{roleLabel[p.role]}</span>
               )}
-              <Button size="sm" variant="secondary" onClick={() => setEditingUser(p)}>Editar</Button>
+              <button
+                onClick={() => setEditingUser(p)}
+                title="Editar"
+                className="p-1 text-text-secondary hover:text-donc-sky rounded"
+              >
+                <Pencil size={14} />
+              </button>
               {canManageUsers && p.status === 'active' && (
-                <Button size="sm" variant="danger" onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'blocked', name: p.name })}>Bloquear</Button>
+                <button
+                  onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'blocked', name: p.name })}
+                  title="Bloquear"
+                  className="p-1 text-text-secondary hover:text-red-500 rounded"
+                >
+                  <XCircle size={14} />
+                </button>
               )}
               {canManageUsers && p.status === 'blocked' && (
-                <Button size="sm" variant="green" onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'active', name: p.name })}>Reativar</Button>
+                <button
+                  onClick={() => updateStatus.mutateAsync({ id: p.id, status: 'active', name: p.name })}
+                  title="Reativar"
+                  className="p-1 text-text-secondary hover:text-green-600 rounded"
+                >
+                  <CheckCircle size={14} />
+                </button>
               )}
             </div>
           ))}
