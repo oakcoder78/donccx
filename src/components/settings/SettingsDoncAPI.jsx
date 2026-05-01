@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
 // ── Estilos base ───────────────────────────────────────────────────────────────
@@ -295,12 +296,11 @@ export function SettingsDoncAPI() {
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <div style={{ marginBottom: 20 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: '#1a1a18', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: 8 }}><APIIcon style={{ width: 16, height: 16 }} /> API DONC</h2>
-        <p style={{ fontSize: 12, color: '#888780', margin: 0 }}>
-          Configure instâncias por cliente e sincronize dados operacionais mensais.
-        </p>
-      </div>
+      <SettingsSectionHeader
+        icon={APIIcon}
+        title="API DONC"
+        subtitle="Configure instâncias por cliente e sincronize dados operacionais mensais."
+      />
 
       {/* ── Seção Instâncias ── */}
       <div style={S.section}>
