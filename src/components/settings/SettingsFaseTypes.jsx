@@ -7,6 +7,7 @@ import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import toast from 'react-hot-toast'
 import { Pencil, Trash2 } from 'lucide-react'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 const EMPTY = {
   nome: '', descricao: '', is_milestone: false,
@@ -249,22 +250,24 @@ export function SettingsFaseTypes() {
     <div className="w-full max-w-6xl space-y-4">
 
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
-            <FaseIcon className="w-4 h-4" />
-            Tipos de Fase
-          </h2>
-          <p className="text-xs text-text-tertiary mt-1">
-            Define os tipos de fase utilizados nos projetos e onboardings.
-          </p>
-        </div>
-        {isAdmin && !adding && (
-          <Button size="sm" onClick={() => { setAdding(true); setEditingId(null) }}>
-            + Novo Tipo
-          </Button>
-        )}
-      </div>
+      <SettingsSectionHeader
+        icon={FaseIcon}
+        title="Tipos de Fase"
+        subtitle="Define os tipos de fase utilizados nos projetos e onboardings."
+        actions={
+          isAdmin && !adding && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setAdding(true)
+                setEditingId(null)
+              }}
+            >
+              + Novo Tipo
+            </Button>
+          )
+        }
+      />
 
       {/* Card */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
