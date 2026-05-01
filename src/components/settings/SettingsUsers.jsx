@@ -10,6 +10,7 @@ import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { UserEditModal } from '../ui/UserEditModal'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import { formatPhone } from '../../lib/formatPhone'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
@@ -224,9 +225,11 @@ export function SettingsUsers() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><UsersIcon className="w-4 h-4" /> Usuários</h2>
-      </div>
+      <SettingsSectionHeader
+        icon={UsersIcon}
+        title="Usuários"
+        subtitle="Gerencie os usuários e seus perfis de acesso."
+      />
 
       {/* ── Solicitações pendentes ─────────────────────────────────────── */}
       {hasPending && (
