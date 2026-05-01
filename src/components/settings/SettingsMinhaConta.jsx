@@ -34,11 +34,11 @@ export function SettingsMinhaConta() {
   }
 
   return (
-    <div className="max-w-md">
+    <div className="max-w-md space-y-6">
       <h2 className="text-base font-semibold text-text-primary mb-1">Minha Conta</h2>
       <p className="text-xs text-text-tertiary mb-5">Informações pessoais do seu perfil.</p>
 
-      <div className="space-y-4">
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
         {/* Nome (read-only) */}
         <div>
           <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wider mb-1">
@@ -75,13 +75,15 @@ export function SettingsMinhaConta() {
           </select>
         </div>
 
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-4 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
-        >
-          {saving ? 'Salvando...' : 'Salvar'}
-        </button>
+        <div className="flex justify-end pt-2">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-donc-navy text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          >
+            {saving ? 'Salvando...' : 'Salvar'}
+          </button>
+        </div>
       </div>
     </div>
   )
