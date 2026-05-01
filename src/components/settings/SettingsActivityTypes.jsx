@@ -226,13 +226,6 @@ export function SettingsActivityTypes() {
       {/* Card */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
 
-        {/* Hint */}
-        <div className="px-4 py-2 border-b border-border-tertiary bg-bg-secondary">
-          <p className="text-xs text-text-tertiary">
-            {isAdmin ? 'Arraste para reordenar. Clique em Editar para modificar.' : 'Somente visualização.'}
-          </p>
-        </div>
-
         {/* New form */}
         {adding && (
           <div className="p-4 border-b border-border-tertiary bg-bg-secondary">
