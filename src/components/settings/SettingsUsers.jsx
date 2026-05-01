@@ -229,6 +229,16 @@ export function SettingsUsers() {
         icon={UsersIcon}
         title="Usuários"
         subtitle="Gerencie os usuários e seus perfis de acesso."
+        actions={
+          canManageUsers && (
+            <Button
+              size="sm"
+              onClick={() => setShowInviteUser(true)}
+            >
+              Convidar
+            </Button>
+          )
+        }
       />
 
       {/* ── Solicitações pendentes ─────────────────────────────────────── */}
@@ -298,11 +308,8 @@ export function SettingsUsers() {
 
       {/* ── Todos os usuários ativos/bloqueados ───────────────────────── */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="mb-3">
           <h3 className="text-sm font-semibold text-text-primary">Todos os usuários</h3>
-          {canManageUsers && (
-            <Button size="sm" onClick={() => setShowInviteUser(true)}>+ Convidar Usuário</Button>
-          )}
         </div>
         <div className="space-y-2">
           {rest.map(p => (
