@@ -149,6 +149,7 @@ export default function ClientsPage() {
 
 function CompanyCard({ client: c, onClick }) {
   const isInactive   = c.contract_active === false
+  const isCliente    = c.lifecycle_stage === 'cliente'
   const displayName  = c.fantasy_name || c.name
   const subtitle     = c.fantasy_name ? c.name : null
   const penetrationPct = c.unidades_total > 0
@@ -193,7 +194,7 @@ function CompanyCard({ client: c, onClick }) {
 
       <div className="flex items-center gap-2 flex-wrap mb-3">
         {c.abc_class && <Badge variant={abcVariant(c.abc_class)}>ABC {c.abc_class}</Badge>}
-        <HealthScore score={c.health_total || 0} />
+        {isCliente && <HealthScore score={c.health_total || 0} />}
         {c.mrr > 0 && (
           <span className="text-xs text-text-tertiary">
             {c.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}

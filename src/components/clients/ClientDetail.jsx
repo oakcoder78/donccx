@@ -60,7 +60,7 @@ export default function ClientDetail() {
             {client.fantasy_name && <span className="text-sm text-text-tertiary">{client.name}</span>}
             {client.stage && <StagePill name={client.stage.name} color={client.stage.color} />}
             {client.abc_class && <Badge variant={client.abc_class === 'A' ? 'green' : client.abc_class === 'B' ? 'sky' : 'slate'}>ABC {client.abc_class}</Badge>}
-            <HealthScore score={client.health_total || 0} />
+            {isCliente && <HealthScore score={client.health_total || 0} />}
             {client.contract_active === false && (
               <span className="text-xs px-2 py-0.5 rounded bg-text-tertiary/20 text-text-tertiary">Contrato inativo</span>
             )}
