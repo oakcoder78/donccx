@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { useStages, useStagesMutations } from '../../hooks/useStages'
+import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
@@ -53,6 +54,7 @@ export function SettingsStages() {
   const StagesIcon = SettingsMenuIcons['stages']
   const { data: stages = [], isLoading } = useStages()
   const { remove } = useStagesMutations()
+  const { isAdmin } = useAuth()
   const [modal, setModal] = useState(null)
 
   if (isLoading) return <PageSpinner />
