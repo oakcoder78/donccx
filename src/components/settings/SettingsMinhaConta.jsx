@@ -36,11 +36,17 @@ export function SettingsMinhaConta() {
 
   return (
     <div className="max-w-md space-y-6">
-      <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
-        <UserIcon className="w-4 h-4 text-donc-navy" />
-        Minha Conta
-      </h2>
-      <p className="text-xs text-text-tertiary mb-4">Informações pessoais do seu perfil.</p>
+
+      <div>
+        <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
+          <UserIcon className="w-4 h-4 text-donc-navy" />
+          Minha Conta
+        </h2>
+
+        <p className="text-xs text-text-tertiary">
+          Informações pessoais do seu perfil.
+        </p>
+      </div>
 
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
         {/* Nome (read-only) */}
