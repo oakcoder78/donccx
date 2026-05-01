@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { useStages, useStagesMutations } from '../../hooks/useStages'
-import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
+import { Pencil, Trash2 } from 'lucide-react'
 
 function StageForm({ stage, onClose }) {
   const isEdit = !!stage
@@ -87,8 +87,24 @@ export function SettingsStages() {
               <span className="text-xs text-text-tertiary w-6">#{s.display_order}</span>
               <span className="text-sm text-text-primary flex-1">{s.name}</span>
               {s.description && <span className="text-xs text-text-tertiary">{s.description}</span>}
-              <button onClick={() => setModal(s)} className="text-xs text-donc-sky hover:underline">Editar</button>
-              <button onClick={() => remove.mutateAsync(s.id)} className="text-xs text-donc-red hover:underline">Excluir</button>
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => setModal(s)}
+                    title="Editar"
+                    className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => remove.mutateAsync(s.id)}
+                    title="Excluir"
+                    className="p-1 text-text-secondary hover:text-red-500 rounded"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              )}
             </div>
           ))}
         </div>
