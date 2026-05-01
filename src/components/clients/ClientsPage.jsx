@@ -54,9 +54,10 @@ export default function ClientsPage() {
   const { profile } = useAuth()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
-  const [search,       setSearch]       = useState('')
-  const [filter,       setFilter]       = useState(searchParams.get('filter') || 'todos')
-  const [showInactive, setShowInactive] = useState(false)
+  const [search,          setSearch]          = useState('')
+  const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
+  const [showInactive,   setShowInactive]    = useState(false)
+  const [lifecycleFilter, setLifecycleFilter] = useState('cliente')
   const [showForm,     setShowForm]     = useState(false)
 
   useEffect(() => {
@@ -75,7 +76,11 @@ export default function ClientsPage() {
   const clients   = showInactive ? allClients   : activeClients
   const isLoading = showInactive ? loadingAll   : loadingActive
 
-  const filtered = applyFilter(clients, filter)
+  let filtered = applyFilter(clients, filter)
+
+  if (lifecycleFilter !== 'all') {
+    filtered = filtered.filter(c => (c.lifecycle_stage || 'cliente') === lifecycleFilter)
+  }
   const inactiveCount = allClients.filter(c => c.contract_active === false).length
 
   return (
@@ -94,6 +99,18 @@ export default function ClientsPage() {
           placeholder="Buscar empresa..."
           className="w-full max-w-xs px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
         />
+        <select
+          value={lifecycleFilter}
+          onChange={(e) => setLifecycleFilter(e.target.value)}
+          className="h-10 px-3 rounded-lg border border-border-tertiary bg-white text-sm"
+        >
+          <option value="cliente">Clientes</option>
+          <option value="lead">Leads</option>
+          <option value="prospect">Prospects</option>
+          <option value="parceiro">Parceiros</option>
+          <option value="teste">Teste</option>
+          <option value="all">Todos</option>
+        </select>
         {isAdminOrManager && (
           <button
             onClick={() => setShowInactive(v => !v)}
