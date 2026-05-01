@@ -31,6 +31,8 @@ export default function ClientDetail() {
 
   const { data: client, isLoading } = useClient(id)
 
+  const isCliente = client.lifecycle_stage === 'cliente'
+
   function setTab(t) {
     setSearchParams({ tab: t })
   }
@@ -69,26 +71,34 @@ export default function ClientDetail() {
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
-              tab === t.key
-                ? 'text-donc-navy border-donc-navy'
-                : 'text-text-tertiary border-transparent hover:text-text-primary'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
+        {TABS.map(t => {
+          const isDisabledTab = (t.key === 'operacional' || t.key === 'health') && !isCliente
+          return (
+            <button
+              key={t.key}
+              onClick={() => {
+                if (!isDisabledTab) setTab(t.key)
+              }}
+              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
+                tab === t.key
+                  ? 'text-donc-navy border-donc-navy'
+                  : isDisabledTab
+                    ? 'text-text-tertiary/40 cursor-not-allowed'
+                    : 'text-text-tertiary border-transparent hover:text-text-primary'
+              }`}
+              disabled={isDisabledTab}
+            >
+              {t.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Tab Content */}
       {tab === 'overview' && <ClientTabOverview client={client} />}
       {tab === 'atividades' && <ClientTabActivities client={client} />}
-      {tab === 'operacional' && <ClientTabOperacional client={client} />}
-      {tab === 'health' && <ClientTabHealth client={client} />}
+      {tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
+      {tab === 'health' && isCliente && <ClientTabHealth client={client} />}
       {tab === 'contatos' && <ClientTabContatos client={client} />}
       {tab === 'anexos' && (
         <div className="text-center py-16 text-text-tertiary border-2 border-dashed border-border-tertiary rounded-lg">
