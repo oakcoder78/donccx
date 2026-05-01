@@ -24,6 +24,61 @@ Collection of reusable presentational components. Provide consistent visual lang
 | `StagePill.jsx` | Small rounded label for workflow stages; colour customisable via prop. |
 | `UserEditModal.jsx` | Full‑screen modal for editing user profile (name, emails, phone, avatar). Handles avatar upload to Supabase storage, profile update, password‑reset request. Uses internal `AvatarUpload` sub‑component. |
 | `VersionBadge.jsx` | Fixed‑position element displaying commit hash (`__COMMIT_HASH__`). |
+| `SettingsSectionHeader.jsx` | Reusable header component for Settings pages. Standardises page headers with icon, title, subtitle, and actions. |
+
+## Settings UI Standards
+The following patterns are used across all Settings pages to ensure visual and structural consistency.
+
+### SettingsSectionHeader
+`SettingsSectionHeader` is a reusable component used across all Settings pages. Purpose: standardise page headers and eliminate duplicated layout logic.
+
+Structure:
+- icon (left aligned)
+- title (required)
+- subtitle (optional)
+- actions (right aligned)
+
+Visual rules:
+- icon size: `w-4 h-4`
+- subtitle size: `text-xs`
+- actions aligned to the right
+- consistent spacing between elements
+
+All Settings pages must use this component. Manual headers are deprecated.
+
+### Header Action Pattern
+Primary actions must be placed inside the header `actions` property. Examples: Create, Invite, Add, Configure. Top-level actions should not be placed inside content cards. This improves consistency and visual predictability.
+
+### Settings Table Pattern
+Tables inside Settings modules follow a standard visual pattern. Rules:
+- table header uses navy color (`bg-donc-navy`)
+- actions use icons instead of text
+- consistent spacing between rows
+- consistent font size (`text-sm`)
+- hover behavior consistent across tables
+
+This improves readability and standardises interaction behavior.
+
+### Icon-Based Actions
+Actions inside tables should use icons instead of text labels. Examples: Edit → pencil icon, Delete → trash icon, Duplicate → copy icon. Icons reduce visual noise and improve alignment consistency.
+
+### Settings Card Layout
+All Settings content blocks use a shared visual pattern. Structure:
+- container class: `bg-bg-primary`
+- border: `border-border-tertiary`
+- rounded corners: `rounded-lg`
+- padding: `p-4`
+- vertical spacing: `space-y-4`
+
+This ensures consistent spacing and visual grouping.
+
+### Subtitle Typography Standard
+Subtitles in Settings headers use the following typography:
+- font size: `text-xs`
+- color: `text-text-tertiary`
+- spacing: `mt-1`
+
+This standard applies to all Settings section headers.
 
 ## Data Flow
 Components receive data via props; UI interactions (click, file select) trigger callbacks passed from parent or perform internal async actions (e.g., `UserEditModal` communicates with Supabase, shows toast messages). No external state management; any needed data (e.g., current profile) is supplied by callers.
@@ -70,6 +125,7 @@ Stateless UI except where local UI state required (e.g., `Spinner` size, `UserEd
 - `src/components/ui/HealthBar.jsx`
 - `src/components/ui/Modal.jsx`
 - `src/components/ui/PageHeader.jsx`
+- `src/components/ui/SettingsSectionHeader.jsx`
 - `src/components/ui/Spinner.jsx`
 - `src/components/ui/StagePill.jsx`
 - `src/components/ui/UserEditModal.jsx`
