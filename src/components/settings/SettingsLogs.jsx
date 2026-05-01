@@ -112,12 +112,12 @@ export function SettingsLogs() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border-tertiary bg-bg-secondary">
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-text-tertiary w-36">Data/Hora</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-text-tertiary w-32">Usuário</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-text-tertiary w-40">Ação</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-text-tertiary w-40">Entidade</th>
-                  <th className="text-left px-4 py-2.5 text-xs font-semibold text-text-tertiary">Detalhes</th>
+                <tr className="bg-donc-navy text-white">
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white w-36">Data/Hora</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white w-32">Usuário</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white w-40">Ação</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white w-40">Entidade</th>
+                  <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Detalhes</th>
                 </tr>
               </thead>
               <tbody>
