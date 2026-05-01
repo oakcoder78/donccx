@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { useCatalog, useCatalogMutations } from '../../hooks/useCatalog'
+import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
+import { Pencil, Trash2 } from 'lucide-react'
 
 function CatalogForm({ item, onClose }) {
   const isEdit = !!item
@@ -51,6 +54,7 @@ export function SettingsCatalog() {
   const CatalogIcon = SettingsMenuIcons['catalog']
   const { data: catalog = [], isLoading } = useCatalog()
   const { remove } = useCatalogMutations()
+  const { isAdmin } = useAuth()
   const [modal, setModal] = useState(null) // null | 'create' | item
 
   if (isLoading) return <PageSpinner />
@@ -60,10 +64,18 @@ export function SettingsCatalog() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><CatalogIcon className="w-4 h-4" /> Catálogos</h2>
-        <Button size="sm" onClick={() => setModal('create')}>+ Novo Item</Button>
-      </div>
+      <SettingsSectionHeader
+        icon={CatalogIcon}
+        title="Catálogos"
+        subtitle="Gerencie os serviços e soluções disponíveis para uso em projetos e contratos."
+        actions={
+          isAdmin && (
+            <Button size="sm" onClick={() => setModal('create')}>
+              + Novo Item
+            </Button>
+          )
+        }
+      />
 
       {[{ label: 'Serviços', items: servicos }, { label: 'Soluções', items: solucoes }].map(({ label, items }) => (
         <div key={label} className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
@@ -73,8 +85,24 @@ export function SettingsCatalog() {
               <div key={item.id} className="flex items-center gap-3">
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                 <span className="text-sm text-text-primary flex-1">{item.name}</span>
-                <button onClick={() => setModal(item)} className="text-xs text-donc-sky hover:underline">Editar</button>
-                <button onClick={() => remove.mutateAsync(item.id)} className="text-xs text-donc-red hover:underline">Excluir</button>
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => setModal(item)}
+                      title="Editar"
+                      className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => remove.mutateAsync(item.id)}
+                      title="Excluir"
+                      className="p-1 text-text-secondary hover:text-red-500 rounded"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </>
+                )}
               </div>
             ))}
             {items.length === 0 && <p className="text-sm text-text-tertiary">Nenhum item.</p>}
