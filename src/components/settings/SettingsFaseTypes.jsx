@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import toast from 'react-hot-toast'
+import { Pencil, Trash2 } from 'lucide-react'
 
 const EMPTY = {
   nome: '', descricao: '', is_milestone: false,
@@ -262,13 +263,6 @@ export function SettingsFaseTypes() {
       {/* Card */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
 
-        {/* Hint */}
-        <div className="px-4 py-2 border-b border-border-tertiary bg-bg-secondary">
-          <p className="text-xs text-text-tertiary">
-            {isAdmin ? 'Arraste para reordenar. Clique em Editar para modificar.' : 'Somente visualização.'}
-          </p>
-        </div>
-
         {/* New form */}
         {adding && (
           <div className="p-4 border-b border-border-tertiary bg-bg-secondary">
@@ -288,15 +282,15 @@ export function SettingsFaseTypes() {
         <div className="overflow-x-auto w-full">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border-tertiary bg-bg-secondary">
+              <tr className="bg-donc-navy text-white">
                 {isAdmin && <th className="w-8 px-3 py-2.5" />}
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Nome</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-text-tertiary uppercase tracking-wider">Descrição</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Marco</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Req. Evidência</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Ordem</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Ativo</th>
-                {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold text-text-tertiary uppercase tracking-wider">Ações</th>}
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Nome</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Descrição</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Marco</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Req. Evidência</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ordem</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ativo</th>
+                {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ações</th>}
               </tr>
             </thead>
 
@@ -369,15 +363,17 @@ export function SettingsFaseTypes() {
                                   <div className="flex items-center justify-center gap-3">
                                     <button
                                       onClick={() => startEdit(item)}
-                                      className="text-xs font-medium text-donc-sky hover:underline"
+                                      className="flex items-center gap-1 text-xs font-medium text-donc-sky hover:underline"
                                     >
+                                      <Pencil className="w-3.5 h-3.5" />
                                       Editar
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
                                       disabled={deletingId === item.id}
-                                      className="text-xs font-medium text-red-500 hover:underline disabled:opacity-40"
+                                      className="flex items-center gap-1 text-xs font-medium text-red-500 hover:underline disabled:opacity-40"
                                     >
+                                      <Trash2 className="w-3.5 h-3.5" />
                                       {deletingId === item.id ? '...' : 'Excluir'}
                                     </button>
                                   </div>
