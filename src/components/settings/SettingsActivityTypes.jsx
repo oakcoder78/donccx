@@ -6,8 +6,7 @@ import { SettingsMenuIcons } from '../../lib/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
-import { SettingsPageHeader } from './SettingsPageHeader'
-import { SettingsPageContainer } from './SettingsPageContainer'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
 const EMPTY = { nome: '', descricao: '', display_order: 0, ativo: true }
@@ -212,15 +211,25 @@ export function SettingsActivityTypes() {
   const colSpan = isAdmin ? 6 : 4
 
   return (
-    <SettingsPageContainer variant="wide">
+    <div className="max-w-6xl space-y-4">
 
-      {/* Header */}
-      <SettingsPageHeader
-        title="Tipos de Atividade"
-        description="Gerencie os tipos de atividades disponíveis para uso em templates"
+      <SettingsSectionHeader
         icon={ActivityIcon}
-        actionLabel="+ Novo Tipo"
-        onAction={() => { setAdding(true); setEditingId(null) }}
+        title="Tipos de Atividade"
+        subtitle="Gerencie os tipos de atividades disponíveis para uso em templates"
+        actions={
+          isAdmin && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setAdding(true)
+                setEditingId(null)
+              }}
+            >
+              + Novo Tipo
+            </Button>
+          )
+        }
       />
 
       {/* Card */}
@@ -348,6 +357,6 @@ export function SettingsActivityTypes() {
           </table>
         </div>
       </div>
-    </SettingsPageContainer>
+    </div>
   )
 }
