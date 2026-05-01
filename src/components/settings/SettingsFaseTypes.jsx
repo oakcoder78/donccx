@@ -249,10 +249,16 @@ export function SettingsFaseTypes() {
     <div className="w-full max-w-6xl space-y-4">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
-          <FaseIcon className="w-4 h-4" /> Tipos de Fase
-        </h2>
+      <div className="flex items-start justify-between">
+        <div>
+          <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
+            <FaseIcon className="w-4 h-4" />
+            Tipos de Fase
+          </h2>
+          <p className="text-xs text-text-tertiary mt-1">
+            Define os tipos de fase utilizados nos projetos e onboardings.
+          </p>
+        </div>
         {isAdmin && !adding && (
           <Button size="sm" onClick={() => { setAdding(true); setEditingId(null) }}>
             + Novo Tipo
