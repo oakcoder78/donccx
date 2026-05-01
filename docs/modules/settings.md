@@ -21,7 +21,6 @@ The Settings module is the administrative hub of the application. It centralises
 | File | Role |
 |------|------|
 | **SettingsPage.jsx** | Root component; renders the sidebar menu and the selected sub‑module. |
-| **SettingsMinhaConta.jsx** | UI for the current user to edit personal profile information. |
 | **SettingsHealth.jsx** | UI for health‑score thresholds, dimension weights per stage, and rule editing. |
 | **SettingsCatalog.jsx** | UI for managing catalogue entities. |
 | **SettingsSegments.jsx** | UI for creating and editing business segments. |
@@ -29,6 +28,9 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsUsers.jsx** | UI for admin‑level user management (list, edit, role assignment). |
 | **SettingsLogs.jsx** | UI for privileged audit‑log inspection. |
 | **SettingsFreshdesk.jsx** | UI for configuring Freshdesk integration credentials and options. |
+| **SettingsFaseTypes.jsx** | UI for managing onboarding phase types. |
+| **SettingsActivityTypes.jsx** | UI for managing onboarding activity types. |
+| **SettingsProjectTemplates.jsx** | UI for managing project templates with phases and activities. |
 | **SettingsDonkie.jsx** | UI for configuring Donkie‑specific integration parameters. |
 | **SettingsAI.jsx** | UI for AI‑related configuration (model selection, API keys, etc.). |
 | **SettingsDoncAPI.jsx** | UI for configuring the DONC API integration (manager‑only). |
@@ -36,9 +38,35 @@ The Settings module is the administrative hub of the application. It centralises
 
 ## UI Architecture
 - **Layout** – a two‑column flex layout: a fixed‑width sidebar (`aside`) with navigation buttons and a main content area (`main`).
-- **Sidebar** – generated from `BASE_MENU`; each entry contains an icon, label, and optional `adminOnly` / `managerOnly` flags. The menu is filtered at runtime based on the current user’s permissions (`usePermissions`, `useAuth`).
+- **Sidebar** – generated from `BASE_MENU`; each entry contains an icon, label, and optional `adminOnly` / `managerOnly` flags. The menu is filtered at runtime based on the current user's permissions (`usePermissions`, `useAuth`).
 - **Content Switching** – the `section` state (via `useState`) determines which sub‑component is rendered. Clicking a sidebar button updates this state, causing React to mount the corresponding Settings component.
 - **Permission gating** – components that require higher privileges (`logs`, `freshdesk`, `donkie`, `ai`, `donc‑api`, `features`) are conditionally rendered only when the current user satisfies the required role (`isAdmin`, `isManager`).
+
+### SettingsSectionHeader Pattern
+All Settings pages now use a shared header component called `SettingsSectionHeader`. This component standardises:
+
+- **icon** (left-aligned)
+- **title** (required)
+- **subtitle** (optional)
+- **actions** (right-aligned)
+
+**Visual rules:**
+- subtitle uses `text-xs text-text-tertiary mt-1`
+- icons use `w-4 h-4 text-donc-navy`
+- actions must appear only inside the header
+- manual page headers are deprecated
+
+**Purpose:** Ensure UI consistency and reduce layout duplication across all Settings pages.
+
+### Header Actions Placement
+Primary actions must be placed in the header using the `actions` property. Examples:
+
+- Invite User (SettingsUsers)
+- Add Stage (SettingsStages)
+- Add Segment (SettingsSegments)
+- Add Template (SettingsProjectTemplates)
+
+**Clarification:** Buttons should not be placed inside cards when they represent top-level actions. This pattern improves visibility and aligns with global Settings UI standards.
 
 ## Data Flow
 1. **Loading** – individual sub‑modules fetch their own data using React Query (`useQuery`) or custom hooks (`useHealthConfig`, `useHealthConfigMutations`).
@@ -55,7 +83,13 @@ The Settings module is the administrative hub of the application. It centralises
 - **Contexts** – `AuthContext` for user role information.
 
 ## Integration Points
-- **Freshdesk** – credentials and routing settings stored via the `SettingsFreshdesk` component.
+- **Freshdesk** – credentials and routing settings stored via the `SettingsFreshdesk` component. The Mapping section is now displayed as a dedicated card inside the synchronization layout, replacing the previous tab-based navigation (Sync / Mapping).
+
+### Freshdesk Mapping Refactor
+The previous tab-based structure in SettingsFreshdesk was replaced with a unified card-based layout. Benefits include:
+- Simplified navigation
+- Reduced UI depth
+- Improved consistency with other Settings pages
 - **DONC API** – configuration handled in `SettingsDoncAPI` (manager‑only).
 - **Donkie** – specific integration toggles in `SettingsDonkie`.
 - **AI** – model / endpoint configuration in `SettingsAI`.
@@ -90,15 +124,18 @@ The Settings module is the administrative hub of the application. It centralises
 
 ## File Reference Map
 - `src/components/settings/SettingsPage.jsx` – entry point, menu handling.
-- `src/components/settings/SettingsMinhaConta.jsx` – personal account UI.
+- `src/components/settings/SettingsSectionHeader.jsx` – shared header component for all Settings pages.
 - `src/components/settings/SettingsHealth.jsx` – health‑score configuration UI.
 - `src/components/settings/SettingsCatalog.jsx` – catalogue management UI.
 - `src/components/settings/SettingsSegments.jsx` – segment management UI.
 - `src/components/settings/SettingsStages.jsx` – stage management UI.
-- `src/components/settings/SettingsUsers.jsx` – user‑management UI.
+- `src/components/settings/SettingsUsers.jsx` – user‑management UI. Note: The "Invite User" action is now placed in the header actions area, aligning with global Settings UI standards.
 - `src/components/settings/SettingsLogs.jsx` – audit‑log viewer UI.
-- `src/components/settings/SettingsFreshdesk.jsx` – Freshdesk integration UI.
+- `src/components/settings/SettingsFreshdesk.jsx` – Freshdesk integration UI with unified card-based layout.
 - `src/components/settings/SettingsDonkie.jsx` – Donkie integration UI.
 - `src/components/settings/SettingsAI.jsx` – AI configuration UI.
 - `src/components/settings/SettingsDoncAPI.jsx` – DONC API configuration UI.
 - `src/components/settings/SettingsFeatureFlags.jsx` – feature‑flag toggles UI.
+- `src/components/settings/SettingsFaseTypes.jsx` – onboarding phase types UI.
+- `src/components/settings/SettingsActivityTypes.jsx` – onboarding activity types UI.
+- `src/components/settings/SettingsProjectTemplates.jsx` – project templates UI.
