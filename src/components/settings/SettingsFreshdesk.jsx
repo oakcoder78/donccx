@@ -408,33 +408,36 @@ export function SettingsFreshdesk() {
 
   return (
     <div className="max-w-6xl space-y-6">
+
       <div>
-        <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2"><FreshdeskIcon className="w-4 h-4" /> Integração Freshdesk</h2>
+        <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
+          <FreshdeskIcon className="w-4 h-4" />
+          Integração Freshdesk
+        </h2>
+
         <p className="text-xs text-text-tertiary mb-4">
           Mapeie empresas do Freshdesk para clientes do doncCX e sincronize dados de suporte mensalmente.
         </p>
-
-        {/* Card 1: Sincronização de Dados */}
-        <SyncSection />
-
-        {/* Card 2: Revisão de Importações */}
-        {/* Already included in SyncSection */}
-
-        {/* Card 3: Configurações do Freshdesk */}
-        {/* Already included in SyncSection */}
-
-        {/* Card 4: Mapeamento de Empresas */}
-        <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <MappingIcon className="w-4 h-4 text-donc-navy" />
-            <p className="text-sm font-medium text-text-primary">Mapeamento de Empresas</p>
-          </div>
-          <p className="text-sm text-text-secondary">
-            Relaciona empresas do doncCX Hub com empresas do Freshdesk.
-          </p>
-          <MappingSection />
-        </div>
       </div>
+
+      <SyncSection />
+
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+        <div className="flex items-center gap-2">
+          <MappingIcon className="w-4 h-4 text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">
+            Mapeamento de Empresas
+          </p>
+        </div>
+
+        <p className="text-sm text-text-secondary">
+          Relaciona empresas do doncCX Hub com empresas do Freshdesk.
+        </p>
+
+        <MappingSection />
+
+      </div>
+
     </div>
   )
 }
