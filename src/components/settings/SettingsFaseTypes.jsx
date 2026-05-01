@@ -360,21 +360,21 @@ export function SettingsFaseTypes() {
                               </td>
                               {isAdmin && (
                                 <td className="px-4 py-2.5 text-center">
-                                  <div className="flex items-center justify-center gap-3">
+                                  <div className="flex items-center justify-center gap-2">
                                     <button
                                       onClick={() => startEdit(item)}
-                                      className="flex items-center gap-1 text-xs font-medium text-donc-sky hover:underline"
+                                      title="Editar"
+                                      className="text-donc-sky hover:text-donc-navy transition-colors"
                                     >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                      Editar
+                                      <Pencil className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
                                       disabled={deletingId === item.id}
-                                      className="flex items-center gap-1 text-xs font-medium text-red-500 hover:underline disabled:opacity-40"
+                                      title="Excluir"
+                                      className="text-red-500 hover:text-red-600 transition-colors disabled:opacity-40"
                                     >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                      {deletingId === item.id ? '...' : 'Excluir'}
+                                      <Trash2 className="w-4 h-4" />
                                     </button>
                                   </div>
                                 </td>
