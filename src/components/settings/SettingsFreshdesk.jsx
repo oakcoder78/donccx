@@ -407,7 +407,7 @@ export function SettingsFreshdesk() {
   const MappingIcon = ActionIcons.link
 
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="max-w-6xl space-y-4">
 
       <div>
         <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2">
