@@ -13,7 +13,7 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useActivities.js` — fetch, create, update, delete activities.
 - `useAuditLog.js` — read audit log entries.
 - `useCatalog.js` — fetch static catalog tables.
-- `useClient.js` — single client CRUD.
+- `useClient.js` — single client CRUD. Fetches extended client data including operational, health, catalog, onboarding, and activity data. Not all fetched data is always displayed; some modules depend on lifecycle_stage to determine whether data should be used.
 - `useClientReports.js` — fetch reports for a client.
 - `useClients.js` — list clients with optional filters.
 - `useContacts.js` — list contacts, manage contact links.
@@ -54,6 +54,12 @@ Hooks expose reactive data; component re‑renders on cache updates.
 
 ## State Management
 Internal react‑query cache stores fetched rows. Loading and error flags derived from query state. Mutations trigger toast feedback and cache invalidation on success.
+
+## Lifecycle-Aware Client Data
+Client lifecycle_stage determines which modules are relevant. Example behaviors: clients in early lifecycle stages (e.g., lead or prospect) may not use operational metrics, health score calculations, or advanced reporting data. This prevents displaying irrelevant information for non-active clients and improves clarity of early-stage records.
+
+### Conditional Rendering Based on Lifecycle
+UI components may hide certain blocks based on lifecycle_stage. Examples: operational sections, health score components, financial metrics. Hooks continue to fetch full datasets, but UI controls visibility. This keeps backend logic consistent while improving frontend clarity.
 
 ## Known Risks
 - Manual cache invalidation may miss dependent keys → stale UI.
