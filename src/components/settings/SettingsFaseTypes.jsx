@@ -370,17 +370,17 @@ export function SettingsFaseTypes() {
                                     <button
                                       onClick={() => startEdit(item)}
                                       title="Editar"
-                                      className="text-donc-sky hover:text-donc-navy transition-colors"
+                                      className="p-1 text-text-secondary hover:text-donc-sky rounded"
                                     >
-                                      <Pencil className="w-4 h-4" />
+                                      <Pencil size={14} />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
                                       disabled={deletingId === item.id}
                                       title="Excluir"
-                                      className="text-red-500 hover:text-red-600 transition-colors disabled:opacity-40"
+                                      className="p-1 text-text-secondary hover:text-red-500 rounded disabled:opacity-40"
                                     >
-                                      <Trash2 className="w-4 h-4" />
+                                      <Trash2 size={14} />
                                     </button>
                                   </div>
                                 </td>
