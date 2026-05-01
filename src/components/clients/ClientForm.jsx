@@ -26,6 +26,7 @@ const EMPTY = {
   address_cep: '', address_street: '', address_number: '',
   address_complement: '', address_neighborhood: '',
   address_city: '', address_state: '',
+  lifecycle_stage: 'lead',
 }
 
 function maskCNPJ(v) {
@@ -62,6 +63,7 @@ export function ClientForm({ client, onClose }) {
           csm_id: client.csm_id || '',
           stage_id: client.stage_id || '',
           contract_active: client.contract_active !== false,
+          lifecycle_stage: client.lifecycle_stage || 'lead',
         }
       : EMPTY
   )
@@ -286,6 +288,7 @@ export function ClientForm({ client, onClose }) {
       address_neighborhood: form.address_neighborhood || null,
       address_city: form.address_city || null,
       address_state: form.address_state || null,
+      lifecycle_stage: form.lifecycle_stage || 'lead',
       catalogItems,
     }
 
@@ -360,9 +363,19 @@ export function ClientForm({ client, onClose }) {
                 <label className="label-sm">Razão Social *</label>
                 <input name="name" value={form.name} onChange={handleChange} required className="input-base w-full" placeholder="Razão social" />
               </div>
-              <div className="col-span-2">
+              <div>
                 <label className="label-sm">Nome Fantasia</label>
                 <input name="fantasy_name" value={form.fantasy_name} onChange={handleChange} className="input-base w-full" placeholder="Nome fantasia (opcional)" />
+              </div>
+              <div>
+                <label className="label-sm">Tipo de empresa</label>
+                <select name="lifecycle_stage" value={form.lifecycle_stage} onChange={handleChange} className="input-base w-full">
+                  <option value="lead">Lead</option>
+                  <option value="prospect">Prospect</option>
+                  <option value="cliente">Cliente</option>
+                  <option value="parceiro">Parceiro</option>
+                  <option value="teste">Conta teste</option>
+                </select>
               </div>
               <div>
                 <label className="label-sm">CNPJ</label>
