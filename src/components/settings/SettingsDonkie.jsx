@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { Button } from '../ui/Button'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
 function useDonkieConfig() {
@@ -66,12 +68,11 @@ export function SettingsDonkie() {
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <h2 className="text-base font-semibold text-text-primary mb-1">Donkie — Assistente IA</h2>
-        <p className="text-xs text-text-tertiary">
-          Configure o comportamento e a personalidade do Donkie. As alterações entram em vigor imediatamente para todos os usuários.
-        </p>
-      </div>
+      <SettingsSectionHeader
+        icon={SettingsMenuIcons['donkie']}
+        title="Donkie — Assistente IA"
+        subtitle="Configure o comportamento e a personalidade do Donkie. As alterações entram em vigor imediatamente para todos os usuários."
+      />
 
       {/* System Prompt */}
       <div className="space-y-1.5">
