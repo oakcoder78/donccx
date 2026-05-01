@@ -52,6 +52,59 @@ The Clients module provides the primary user interface for managing customer rec
 6. `RegistrarDadosModal` captures operational input, posts it to Supabase, and on success signals the parent tab to reload its data.
 7. State is lifted to the highest component that needs it (`ClientDetail`) and passed down; loading/error flags are handled locally in each component.
 
+### Client Lifecycle Model
+Clients now support lifecycle classification through the `lifecycle_stage` field. This field defines how the client is treated across the system.
+
+**Typical values:**
+- `lead` — Early-stage company without active usage
+- `prospect` — Qualified opportunity
+- `cliente` — Active customer using system modules
+- `parceiro` — Partner organisation
+- `teste` — Temporary or internal account
+
+The lifecycle stage influences UI behavior and determines which features are available for each client.
+
+### Clients Without Services
+Clients can now be created without selecting services or solutions. This enables:
+- Lead creation
+- Prospect registration
+- Pre-contract workflows
+
+Catalog assignment is no longer mandatory at client creation. However, when `lifecycle_stage` is set to "cliente", the system may require at least one service to be selected for validation purposes.
+
+### Automatic Catalog Initialization
+When a client is created with `lifecycle_stage = "cliente"`, the system may initialize default catalog entries based on selected solutions. If `lifecycle_stage` is not "cliente", catalog initialization is skipped to prevent unnecessary data for leads and prospects.
+
+### Catalog Item Types
+Catalog items are divided into two types:
+
+**servico** (Service):
+- Assistência
+- Entrega
+- Montagem
+- Coleta
+- Instalação
+
+**solucao** (Solution):
+- Agenda
+- Comunicação
+- Operacional
+- Métricas
+- Roteirizador
+
+Each client may be associated with multiple catalog items across both types.
+
+### Lifecycle Impact on UI
+UI behavior changes based on `lifecycle_stage`:
+
+- If `lifecycle_stage` is not "cliente":
+  - Health Score may be hidden
+  - Operational data may be hidden
+  - Some analytics may be disabled
+  - "Operacional" and "Health Score" tabs are disabled in the detail view
+
+This ensures early-stage clients do not see irrelevant information and the interface remains focused on appropriate actions for each lifecycle stage.
+
 ## Dependencies
 **Internal**
 - `src/lib/supabaseClient.js` – Supabase client instance.
