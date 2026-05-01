@@ -406,6 +406,7 @@ function TemplateCard({
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-text-secondary" title="Definir como padrão">
+            <span>Padrão</span>
             <Toggle
               checked={template.is_default}
               onChange={e => { e.stopPropagation(); onToggleDefault(template.is_default) }}
