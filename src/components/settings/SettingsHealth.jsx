@@ -6,6 +6,7 @@ import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -301,25 +302,27 @@ export function SettingsHealth() {
     <div className="max-w-3xl space-y-4">
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
-          <HealthIcon className="w-4 h-4" /> Health Score
-        </h2>
-        {isAdmin && (
-          <Button
-            size="sm"
-            onClick={handleRecalculateAll}
-            disabled={recalculating}
-          >
-            {recalculating
-              ? 'Calculando…'
-              : <span className="flex items-center gap-1.5">
-                  <ActionIcons.recalculate className="w-3.5 h-3.5" /> Recalcular todos
-                </span>
-            }
-          </Button>
-        )}
-      </div>
+      <SettingsSectionHeader
+        icon={HealthIcon}
+        title="Health Score"
+        subtitle="Configure os thresholds, pesos e regras de cálculo do health score."
+        actions={
+          isAdmin && (
+            <Button
+              size="sm"
+              onClick={handleRecalculateAll}
+              disabled={recalculating}
+            >
+              {recalculating
+                ? 'Calculando…'
+                : <span className="flex items-center gap-1.5">
+                    <ActionIcons.recalculate className="w-3.5 h-3.5" /> Recalcular todos
+                  </span>
+              }
+            </Button>
+          )
+        }
+      />
 
       {/* Accordion: Entenda o Health Score */}
       <HealthScoreAccordion />
