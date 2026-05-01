@@ -130,14 +130,9 @@ function MappingSection() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-text-tertiary">
-          {clients.filter(c => c.freshdesk_company_id).length} de {clients.length} clientes mapeados
-        </p>
-        <Button variant="secondary" onClick={handleFetchSuggestions} disabled={fetching}>
-          {fetching ? 'Buscando…' : <span className="flex items-center gap-1.5"><SearchIcon className="w-3.5 h-3.5" /> Buscar sugestões do Freshdesk</span>}
-        </Button>
-      </div>
+      <p className="text-sm text-text-tertiary">
+        {clients.filter(c => c.freshdesk_company_id).length} de {clients.length} clientes mapeados
+      </p>
 
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
         <table className="w-full text-sm">
@@ -208,6 +203,11 @@ function MappingSection() {
             })}
           </tbody>
         </table>
+        <div className="p-4 border-t border-border-tertiary">
+          <Button onClick={handleFetchSuggestions} disabled={fetching}>
+            {fetching ? 'Buscando…' : <span className="flex items-center gap-1.5"><SearchIcon className="w-3.5 h-3.5" /> Buscar sugestões do Freshdesk</span>}
+          </Button>
+        </div>
       </div>
     </div>
   )
@@ -391,7 +391,6 @@ function SyncSection() {
           </div>
         )}
         <Button
-          variant="secondary"
           onClick={handleUpdateConfig}
           disabled={updatingConfig}
         >
@@ -408,7 +407,7 @@ export function SettingsFreshdesk() {
   const MappingIcon = ActionIcons.link
 
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="max-w-6xl space-y-4">
       <div>
         <h2 className="text-base font-semibold text-text-primary mb-1 flex items-center gap-2"><FreshdeskIcon className="w-4 h-4" /> Integração Freshdesk</h2>
         <p className="text-xs text-text-tertiary mb-4">
