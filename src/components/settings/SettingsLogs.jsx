@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { SettingsMenuIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { PageSpinner } from '../ui/Spinner'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 const ENTITY_TYPES = [
   { value: '', label: 'Todos' },
@@ -76,7 +77,11 @@ export function SettingsLogs() {
 
   return (
     <div className="max-w-5xl space-y-4">
-      <h2 className="text-base font-semibold text-text-primary flex items-center gap-2"><LogsIcon className="w-4 h-4" /> Logs de Auditoria</h2>
+      <SettingsSectionHeader
+        icon={LogsIcon}
+        title="Logs de Auditoria"
+        subtitle="Visualize todas as ações realizadas no sistema."
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap items-end gap-3 bg-bg-primary border border-border-tertiary rounded-lg p-3">
