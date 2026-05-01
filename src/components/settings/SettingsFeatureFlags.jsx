@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { SettingsMenuIcons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
 const ROLE_OPTIONS = [
@@ -10,6 +12,7 @@ const ROLE_OPTIONS = [
 ]
 
 export function SettingsFeatureFlags() {
+  const FeaturesIcon = SettingsMenuIcons['features']
   const qc = useQueryClient()
 
   const { data: flags = [], isLoading } = useQuery({
@@ -40,12 +43,11 @@ export function SettingsFeatureFlags() {
 
   return (
     <div className="max-w-2xl space-y-4">
-      <div>
-        <h2 className="text-base font-semibold text-text-primary">Funcionalidades</h2>
-        <p className="text-xs text-text-tertiary mt-1">
-          Ative ou desative módulos e controle quais perfis têm acesso.
-        </p>
-      </div>
+      <SettingsSectionHeader
+        icon={FeaturesIcon}
+        title="Funcionalidades"
+        subtitle="Ative ou desative módulos e controle quais perfis têm acesso."
+      />
 
       {flags.map(flag => (
         <div key={flag.id} className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3">
