@@ -5,7 +5,7 @@ export function SettingsSectionHeader({
   actions
 }) {
   return (
-    <div className="flex items-start justify-between">
+    <div className="flex items-start justify-between mb-4">
 
       <div>
         <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
