@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { LayoutTemplate, Trash2 } from 'lucide-react'
+import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 const TYPE_OPTIONS = [
   { value: 'onboarding', label: 'Onboarding' },
@@ -262,18 +263,23 @@ export function SettingsProjectTemplates() {
 
   return (
     <div className="max-w-3xl space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-text-primary flex items-center gap-2">
-            <LayoutTemplate className="w-4 h-4 text-donc-navy" />
-            Onboarding
-          </h2>
-          <p className="text-xs text-text-tertiary mt-1">Gerencie templates de projeto com fases e atividades</p>
-        </div>
-        <Button size="sm" onClick={() => setShowForm(true)}>
-          + Novo Template
-        </Button>
-      </div>
+      <SettingsSectionHeader
+        icon={LayoutTemplate}
+        title="Templates de Projeto"
+        subtitle="Define os templates utilizados na criação automática de projetos e onboardings."
+        actions={
+          isAdmin && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setShowForm(true)
+              }}
+            >
+              + Novo Template
+            </Button>
+          )
+        }
+      />
 
       {showForm && (
         <div className="mb-6 p-4 bg-bg-secondary rounded-lg border border-border-tertiary">
