@@ -9,7 +9,7 @@ import { SettingsFreshdesk } from './SettingsFreshdesk'
 import { SettingsDonkie } from './SettingsDonkie'
 import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
-import { SettingsMinhaConta } from './SettingsMinhaConta'
+
 import { SettingsFeatureFlags } from './SettingsFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
@@ -20,9 +20,6 @@ import { SettingsActivityTypes } from './SettingsActivityTypes'
 import { SettingsProjectTemplates } from './SettingsProjectTemplates'
 
 const MENU_GROUPS = [
-  { label: 'Conta', items: [
-    { key: 'minha-conta', label: 'Minha Conta' },
-  ]},
   { label: 'Equipe', items: [
     { key: 'users', label: 'Usuários' },
   ]},
@@ -56,7 +53,7 @@ const MENU_GROUPS = [
 export default function SettingsPage() {
   const { canManageUsers } = usePermissions()
   const { isAdmin, isManager } = useAuth()
-  const [section, setSection] = useState(() => localStorage.getItem('settings_section') || 'minha-conta')
+  const [section, setSection] = useState(() => localStorage.getItem('settings_section') || 'users')
 
   const handleSetSection = (key) => {
     localStorage.setItem('settings_section', key)
@@ -75,7 +72,6 @@ export default function SettingsPage() {
 
   const renderSection = (key) => {
     switch (key) {
-      case 'minha-conta': return <SettingsMinhaConta />
       case 'health':    return <SettingsHealth />
       case 'catalog':  return <SettingsCatalog />
       case 'segments': return <SettingsSegments />
