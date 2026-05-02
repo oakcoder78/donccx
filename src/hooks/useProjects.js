@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -149,4 +150,35 @@ export function useProjectMutations(clientId) {
   })
 
   return { createProject, updateProject, removeProject }
+}
+
+export function useDeleteProject() {
+  const qc       = useQueryClient()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: async ({ id, onboarding_id, title }) => {
+      const { error: projErr } = await supabase.from('projects').delete().eq('id', id)
+      if (projErr) throw projErr
+
+      if (onboarding_id) {
+        const { error: onbErr } = await supabase.from('onboardings').delete().eq('id', onboarding_id)
+        if (onbErr) throw onbErr
+      }
+
+      await supabase.from('audit_logs').insert({
+        entity_type: 'project',
+        action:      'deleted',
+        entity_name: title,
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects_all'] })
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['onboardings_all'] })
+      toast.success('Projeto excluído')
+      navigate('/projetos')
+    },
+    onError: (e) => toast.error(e.message),
+  })
 }

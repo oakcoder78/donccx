@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { useAllProjects, useUpdateProjectStatus } from '../../hooks/useProjects'
+import { useAllProjects, useUpdateProjectStatus, useDeleteProject } from '../../hooks/useProjects'
 import { useAllOnboardings } from '../../hooks/useOnboardings'
 import { useClients } from '../../hooks/useClients'
 import { useProfiles } from '../../hooks/useProfiles'
@@ -104,16 +104,18 @@ function StatCard({ label, value, color, onClick }) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
-  const { profile, isManager } = useAuth()
+  const { profile, isManager, isAdmin } = useAuth()
   const isAdminOrManager = isManager
 
   const { data: projects     = [], isLoading }  = useAllProjects()
   const { data: onboardings  = [] }             = useAllOnboardings()
   const { data: clients      = [] }             = useClients()
   const { data: profiles     = [] }             = useProfiles()
-  const updateStatus = useUpdateProjectStatus()
+  const updateStatus  = useUpdateProjectStatus()
+  const deleteProject = useDeleteProject()
 
-  const [local, setLocal] = useState([])
+  const [local,       setLocal]       = useState([])
+  const [menuOpenId,  setMenuOpenId]  = useState(null)
   useEffect(() => { setLocal(projects) }, [projects])
 
   const [filterSearch,         setFilterSearch]         = useState('')
@@ -157,6 +159,13 @@ export default function ProjectsPage() {
   function clearFilterClient() {
     setSelectedFilterClient(null)
     setFilterSearch('')
+  }
+
+  function handleDeleteProject(proj, e) {
+    e.stopPropagation()
+    setMenuOpenId(null)
+    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${proj.title}"? Esta ação não pode ser desfeita.`)) return
+    deleteProject.mutate({ id: proj.id, onboarding_id: proj.onboarding_id, title: proj.title })
   }
 
   function clearFilters() {
@@ -520,6 +529,28 @@ export default function ProjectsPage() {
                                     <span className={`text-xs ml-auto ${isOverdue ? 'text-donc-red font-medium' : 'text-text-tertiary'}`}>
                                       {formatDate(proj.end_date)}
                                     </span>
+                                  )}
+                                  {isAdmin && (
+                                    <div
+                                      className="relative ml-auto"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                      <button
+                                        onClick={e => { e.stopPropagation(); setMenuOpenId(menuOpenId === proj.id ? null : proj.id) }}
+                                        className="text-text-tertiary hover:text-text-primary px-1 rounded leading-none text-base"
+                                        title="Ações"
+                                      >⋮</button>
+                                      {menuOpenId === proj.id && (
+                                        <div className="absolute right-0 top-full mt-1 z-30 bg-bg-primary border border-border-secondary rounded-md shadow-lg py-1 min-w-[160px]">
+                                          <button
+                                            onClick={e => handleDeleteProject(proj, e)}
+                                            className="w-full text-left px-3 py-1.5 text-xs text-donc-red hover:bg-bg-tertiary transition-colors"
+                                          >
+                                            Excluir projeto
+                                          </button>
+                                        </div>
+                                      )}
+                                    </div>
                                   )}
                                 </div>
                               </div>
