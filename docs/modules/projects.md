@@ -27,6 +27,42 @@ The Projects module provides a Kanban‑style board for planning, tracking, and 
 - **expansão** – Expansão/upsell to existing client.
 - **internal** – Internal project not tied to a client.
 
+## Project Templates
+### Overview
+Project Templates define a reusable structure for project creation. They allow standardized project initialization across multiple clients. Templates include phases, activities, and default configuration.
+
+### Template Structure
+Templates follow a hierarchical structure:
+
+**Template** → **Phases** → **Activities**
+
+| Table | Purpose |
+|-------|---------|
+| `project_templates` | Base template record: name, type, description, is_default flag |
+| `project_template_fases` | Links template to fase types (fase_type_id) |
+| `project_template_activities` | Links template/fase to activity types (activity_type_id, fase_type_id) |
+
+Phases are derived from `onboarding_fase_types` catalog. Activities are derived from `onboarding_activity_types` catalog.
+
+### Default Template Behavior
+One template per type can be marked as default (`is_default`). Default templates are used automatically when new projects or onboardings are created. When marking a template as default, any existing default of the same type is automatically cleared.
+
+### Project Creation from Templates
+1. Template selected (manual selection or automatic via default for project type)
+2. Project created with selected template reference
+3. Phases generated from template's fase associations
+4. Activities generated from template's activity associations
+5. Project becomes operational with pre-populated workflow structure
+
+### Template Management
+Users can:
+- Create templates with name, type, description, and default flag
+- Edit template metadata
+- Delete templates
+- Toggle default status per template type
+- Add/remove phases from templates
+- Add/remove activities within each phase
+
 ## Onboarding Flow Model
 ### criação
 When creating an onboarding/expansão project via `ProjectModal`:
