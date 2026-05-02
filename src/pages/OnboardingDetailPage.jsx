@@ -9,6 +9,7 @@ import { useAuditLog } from '../hooks/useAuditLog'
 import { useContacts } from '../hooks/useContacts'
 import { useProfiles } from '../hooks/useProfiles'
 import { useOnboarding } from '../hooks/useOnboardings'
+import { useDeleteProject } from '../hooks/useProjects'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { FASE_TYPE_IDS } from '../lib/constants'
 import { ProjectModal } from '../components/projects/ProjectModal'
@@ -1509,8 +1510,9 @@ export default function OnboardingDetailPage() {
   const { id }        = useParams()
   const navigate      = useNavigate()
   const qc            = useQueryClient()
-  const { user }      = useAuth()
-  const { logAction } = useAuditLog()
+  const { user, isAdmin } = useAuth()
+  const { logAction }   = useAuditLog()
+  const deleteProject   = useDeleteProject()
 
   const { data: project, isLoading, error } = useProjectDetail(id)
   const onboardingId = project?.onboarding_id
@@ -1647,7 +1649,20 @@ export default function OnboardingDetailPage() {
                 </div>
               )}
             </div>
-            <button style={S.btnSec} onClick={() => setEditModalOpen(true)}>Editar projeto</button>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+              {isAdmin && (
+                <button
+                  style={{ ...S.btnSec, color: '#b42828', borderColor: 'rgba(180,40,40,0.25)' }}
+                  onClick={() => {
+                    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${project.title}"? Esta ação não pode ser desfeita.`)) return
+                    deleteProject.mutate({ id: project.id, onboarding_id: project.onboarding_id, title: project.title })
+                  }}
+                >
+                  Excluir projeto
+                </button>
+              )}
+              <button style={S.btnSec} onClick={() => setEditModalOpen(true)}>Editar projeto</button>
+            </div>
           </div>
 
           {/* timeline */}
