@@ -1,18 +1,49 @@
 ---
-name: donccx
-description: A brief description of what this skill does
+name: donccx-core
+description: Core operational rules for doncCX Hub agents
 ---
 
-# donccx
-
-Instructions for the agent to follow when this skill is activated.
+# doncCX Core Skill
 
 ## When to use
 
-Describe when this skill should be used.
+Always active when working inside the doncCX Hub repository.
+
+This skill defines:
+
+- project workflow
+- documentation workflow
+- migration workflow
+- coding consistency
+
+---
 
 ## Instructions
 
-1. First step
-2. Second step
-3. Additional steps as needed
+Before coding:
+
+1. Read docs/ related to the feature
+2. Follow existing patterns
+3. Avoid creating new patterns unless necessary
+
+After coding:
+
+1. Update docs/
+2. Generate missing documentation
+3. Validate migrations if database changed
+
+---
+
+## Priority Rules
+
+Always prefer:
+
+1. Existing components
+2. Existing patterns
+3. Existing migrations
+
+Avoid:
+
+- Creating duplicate logic
+- Creating undocumented features
+- Changing schema without migration

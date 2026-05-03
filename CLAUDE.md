@@ -1,3 +1,9 @@
+# CLAUDE.md
+
+See: ./.agents/core-agents.md
+
+All routing rules defined there.
+
 # doncCX — Instruções para Claude Code
 
 ## Regras de Git (OBRIGATÓRIO)
@@ -12,3 +18,8 @@
 Stack: React 18 + Vite + TailwindCSS 3 + Supabase + TanStack Query v5  
 Raiz: `E:\donc\donccx`  
 Dev: `npm run dev`
+
+## Regras de Conduta
+
+- Responda o chat sempre em Português (pt-br) mas os códigos e comentários em inglês.
+

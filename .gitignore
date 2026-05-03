@@ -37,3 +37,6 @@ supabase.exe
 supabase_windows_amd64.tar.gz
 supabase/functions/**/.env
 OAuthClient.jpg
+
+supabase/.temp/
+supabase/.branches/
