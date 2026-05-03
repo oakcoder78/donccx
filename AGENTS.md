@@ -1,5 +1,10 @@
 # AGENTS.md
 
+See: ./.agents/core-agents.md
+
+All routing rules defined there.
+
+
 ## Critical rules for this repo
 - Work directly on `main`; do not create branches and do not use worktrees (`CLAUDE.md`).
 - If you commit, push to `origin main`.

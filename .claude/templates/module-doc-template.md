@@ -1,0 +1,1 @@
+.agents/templates/module-doc-template.md
