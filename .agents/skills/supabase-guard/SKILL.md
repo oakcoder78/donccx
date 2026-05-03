@@ -133,3 +133,32 @@ Return:
 - suggested migration name
 - affected tables
 - potential risks
+
+### Supabase Auth Protection
+
+Never manipulate Supabase Auth schema directly via SQL.
+
+Forbidden:
+- INSERT INTO auth.users
+- UPDATE auth.users
+- DELETE FROM auth.users
+
+Reason:
+Supabase Auth is managed by GoTrue and requires internal logic for:
+- password hashing
+- JWT generation
+- session management
+
+Direct SQL manipulation may:
+- break authentication
+- invalidate sessions
+- cause inconsistent user state
+
+Always use:
+- Supabase Studio (Authentication UI)
+- Supabase CLI (when available)
+- Supabase Auth APIs
+
+If user creation or modification is required:
+- provide instructions instead of SQL
+- never simulate auth behavior manually
