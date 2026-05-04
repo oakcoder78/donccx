@@ -164,14 +164,14 @@ serve(async (req) => {
           ref_month:     refMonth,
           instance_id:   inst.id,
           donc_snapshot: apiData,
-          pending:       isCurrentMonth,
+          pending:       true,
           partial_day:   isCurrentMonth ? now.getUTCDate() : null,
         }
 
         // Upsert com constraint composta client_id + ref_month
         const { error: upsertErr } = await admin
           .from('client_usage')
-          .upsert(usageRow, { onConflict: 'client_id,ref_month,instance_id' })
+          .upsert(usageRow, { onConflict: 'client_id,ref_month' })
 
         if (upsertErr) throw new Error(`Upsert falhou: ${upsertErr.message}`)
 
