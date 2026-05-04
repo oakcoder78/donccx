@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { ChevronRight, ChevronDown } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useActivityMutations } from '../../hooks/useActivities'
@@ -112,7 +113,6 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   }
 
   const isMutating = create.isPending || update.isPending
-  const hasRightContent = form.notes || attachmentFiles.length > 0 || existingAttachments.length > 0
 
   return (
     <Modal
@@ -129,28 +129,32 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
         <div className="flex flex-row items-stretch">
           {/* Left Panel */}
           <div className="flex-1 min-w-0 space-y-4">
-            {/* Row 1: Tipo | Data | Hora | Status */}
-            <div className="grid grid-cols-4 gap-2">
-              <div>
-                <label className="label-sm">Tipo *</label>
-                <select name="type" value={form.type} onChange={handleChange} className="input-base w-full h-9">
-                  {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
+            {/* Rows 1–2: Tipo/Status + Data/Hora */}
+            <div className="flex flex-col gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label-sm">Tipo *</label>
+                  <select name="type" value={form.type} onChange={handleChange} className="input-base w-full h-9">
+                    {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label-sm">Status</label>
+                  <select name="status" value={form.status} onChange={handleChange} className="input-base w-full h-9">
+                    <option value="pendente">Pendente</option>
+                    <option value="concluida">Concluída</option>
+                  </select>
+                </div>
               </div>
-              <div>
-                <label className="label-sm">Data *</label>
-                <input name="activity_date" type="date" value={form.activity_date} onChange={handleChange} required className="input-base w-full h-9" />
-              </div>
-              <div>
-                <label className="label-sm">Hora</label>
-                <input name="activity_time" type="time" value={form.activity_time} onChange={handleChange} className="input-base w-full h-9" />
-              </div>
-              <div>
-                <label className="label-sm">Status</label>
-                <select name="status" value={form.status} onChange={handleChange} className="input-base w-full h-9">
-                  <option value="pendente">Pendente</option>
-                  <option value="concluida">Concluída</option>
-                </select>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label-sm">Data *</label>
+                  <input name="activity_date" type="date" value={form.activity_date} onChange={handleChange} required className="input-base w-full h-9" />
+                </div>
+                <div>
+                  <label className="label-sm">Hora</label>
+                  <input name="activity_time" type="time" value={form.activity_time} onChange={handleChange} className="input-base w-full h-9" />
+                </div>
               </div>
             </div>
 
@@ -225,12 +229,10 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                 <div className="text-[13px] font-medium text-text-primary">Registrar resultado</div>
                 <div className="text-[11px] text-text-tertiary">Notas e anexos da atividade</div>
               </div>
-              {hasRightContent && (
-                <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex-shrink-0">✓</span>
-              )}
-              <span className={`inline-block text-text-tertiary transition-transform duration-200 flex-shrink-0 ${showDrawer ? 'rotate-90' : ''}`}>
-                ▶
-              </span>
+              {showDrawer
+                ? <ChevronDown size={16} className="text-text-tertiary flex-shrink-0" />
+                : <ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
+              }
             </button>
           </div>
 
