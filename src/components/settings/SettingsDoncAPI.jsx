@@ -267,6 +267,7 @@ export function SettingsDoncAPI() {
       if (!session) throw new Error('Sessão expirada')
       const body = { trigger: 'manual', month: syncMonth }
       if (syncClientId) body.client_id = Number(syncClientId)
+      console.log('🔄 [DONC API Sync] Request body:', body)
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/donc-api-sync`,
@@ -281,6 +282,7 @@ export function SettingsDoncAPI() {
         },
       )
       const result = await res.json()
+      console.log('🔄 [DONC API Sync] Response completo:', result)
       if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
       setSyncResult(result)
       toast.success(`Sincronizado: ${result.synced} instância(s)`)
@@ -301,50 +303,6 @@ export function SettingsDoncAPI() {
         title="API DONC"
         subtitle="Configure instâncias por cliente e sincronize dados operacionais mensais."
       />
-
-      {/* ── Seção Instâncias ── */}
-      <div style={S.section}>
-        <p style={S.sectionTitle}>Instâncias da API DONC</p>
-        <p style={S.sectionDesc}>
-          Vincule cada cliente às instâncias da plataforma DONC para sincronização automática de dados operacionais.
-        </p>
-
-        {clients.length === 0 && (
-          <p style={{ fontSize: 13, color: '#888780' }}>Nenhum cliente ativo encontrado.</p>
-        )}
-
-        {clients.map(client => (
-          <ClientBlock
-            key={client.id}
-            client={client}
-            instances={instMap[client.id] || []}
-            onSave={handleSaveInstance}
-            onRemove={handleRemoveInstance}
-          />
-        ))}
-      </div>
-
-      {/* ── Ver registros pendentes ── */}
-      <div style={{ marginBottom: 20 }}>
-        <button
-          onClick={() => navigate('/config/donc-api/pendentes')}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            padding: '8px 16px', borderRadius: 7, fontSize: 13, fontWeight: 600,
-            border: '1px solid #e8e7e3', cursor: 'pointer',
-            backgroundColor: '#fff', color: '#1a1a18',
-          }}
-        >
-          <LogsIcon style={{ width: 14, height: 14 }} /> Ver registros pendentes
-          <span style={{
-            fontSize: 12, fontWeight: 700, padding: '2px 9px', borderRadius: 10,
-            backgroundColor: pendingCount > 0 ? '#59c2ed' : '#e8e7e3',
-            color: pendingCount > 0 ? '#fff' : '#888780',
-          }}>
-            {pendingCount}
-          </span>
-        </button>
-      </div>
 
       {/* ── Seção Sincronização Manual ── */}
       <div style={S.section}>
@@ -374,9 +332,29 @@ export function SettingsDoncAPI() {
           </div>
         </div>
 
-        <button style={S.btn('#59c2ed', syncing)} onClick={handleSync} disabled={syncing}>
-          {syncing ? 'Sincronizando...' : 'Sincronizar'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button style={S.btn('#59c2ed', syncing)} onClick={handleSync} disabled={syncing}>
+            {syncing ? 'Sincronizando...' : 'Sincronizar'}
+          </button>
+          <button
+            onClick={() => navigate('/config/donc-api/pendentes')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '7px 14px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+              border: '1px solid #e8e7e3', cursor: 'pointer',
+              backgroundColor: '#fff', color: '#1a1a18',
+            }}
+          >
+            <LogsIcon style={{ width: 14, height: 14 }} /> Ver registros pendentes
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+              backgroundColor: pendingCount > 0 ? '#59c2ed' : '#e8e7e3',
+              color: pendingCount > 0 ? '#fff' : '#888780',
+            }}>
+              {pendingCount}
+            </span>
+          </button>
+        </div>
 
         {syncResult && (
           <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 7, backgroundColor: syncResult.failed > 0 ? '#fef3c7' : '#f0fdf4', border: `1px solid ${syncResult.failed > 0 ? '#fde68a' : '#bbf7d0'}` }}>
@@ -404,6 +382,28 @@ export function SettingsDoncAPI() {
             )}
           </div>
         )}
+      </div>
+
+      {/* ── Seção Instâncias ── */}
+      <div style={S.section}>
+        <p style={S.sectionTitle}>Instâncias da API DONC</p>
+        <p style={S.sectionDesc}>
+          Vincule cada cliente às instâncias da plataforma DONC para sincronização automática de dados operacionais.
+        </p>
+
+        {clients.length === 0 && (
+          <p style={{ fontSize: 13, color: '#888780' }}>Nenhum cliente ativo encontrado.</p>
+        )}
+
+        {clients.map(client => (
+          <ClientBlock
+            key={client.id}
+            client={client}
+            instances={instMap[client.id] || []}
+            onSave={handleSaveInstance}
+            onRemove={handleRemoveInstance}
+          />
+        ))}
       </div>
     </div>
   )
