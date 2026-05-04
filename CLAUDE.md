@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-See: ./.agents/core-agents.md
+Read .agents\core-agents.md
 
 All routing rules defined there.
 
