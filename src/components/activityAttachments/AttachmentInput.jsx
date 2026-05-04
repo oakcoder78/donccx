@@ -30,10 +30,6 @@ export default function AttachmentInput({ onFilesChange, existingFiles = [] }) {
 
     <div>
 
-      <label className="label-sm">
-        Anexos
-      </label>
-
       {existingFiles.length > 0 && (
         <div className="mb-3 space-y-2">
           <p className="text-xs text-text-tertiary">
@@ -107,15 +103,15 @@ export default function AttachmentInput({ onFilesChange, existingFiles = [] }) {
         <button
           type="button"
           onClick={openFileDialog}
-          className="inline-flex items-center gap-2 font-medium rounded-md border border-border-secondary px-3 py-2 text-sm bg-background-secondary hover:bg-background-tertiary"
+          className="font-medium bg-donc-sky text-white rounded-md hover:bg-opacity-90 transition-colors px-3 py-2 text-sm"
         >
-          Escolher arquivos
+          Anexar
         </button>
 
-        <span className="text-sm text-text-secondary">
+        <span className="text-xs text-text-secondary">
           {selectedFiles.length === 0
-            ? 'Nenhum arquivo escolhido'
-            : `${selectedFiles.length} arquivo(s) selecionado(s)`
+            ? 'Nenhum arquivo selecionado'
+            : `${selectedFiles.length} arquivo(s)`
           }
         </span>
 
