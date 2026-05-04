@@ -27,7 +27,7 @@ The modal uses a **two-panel horizontal layout**:
 Fields are organized by priority:
 
 1. **Primary** — The main writing field
-   - `Descrição` (required, 6 rows minimum)
+   - `Descrição` (required, 5 rows minimum)
 
 2. **Secondary** — Result content (in drawer)
    - `Resultado / Notas`
@@ -68,7 +68,7 @@ Fields are organized by priority:
    - Clicking opens the right panel with notes and attachments
    - Button changes to "Ocultar painel" when open
 
-2. **Indicator badge**
+2. **Indicator badge** (future implementation)
    - A small checkmark badge appears on the toggle button when notes or attachments exist
    - Helps users remember they have secondary content without opening the drawer
 
