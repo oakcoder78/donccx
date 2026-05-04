@@ -37,6 +37,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   })
   const [attachmentFiles, setAttachmentFiles] = useState([])
   const [existingAttachments, setExistingAttachments] = useState([])
+  const [showDrawer, setShowDrawer] = useState(false)
 
   const { create, update } = useActivityMutations()
   const { data: clients = [] } = useClients()
@@ -46,15 +47,9 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   useEffect(() => {
     async function loadExistingAttachments() {
       if (!activity?.id) return
-
-      const result =
-        await getActivityAttachments(activity.id)
-
-      if (result.success) {
-        setExistingAttachments(result.data)
-      }
+      const result = await getActivityAttachments(activity.id)
+      if (result.success) setExistingAttachments(result.data)
     }
-
     loadExistingAttachments()
   }, [activity?.id])
 
@@ -76,59 +71,36 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
     let activityResult
 
     if (isEdit) {
-      activityResult =
-        await update.mutateAsync({
-          id: activity.id,
-          ...payload
-        })
+      activityResult = await update.mutateAsync({ id: activity.id, ...payload })
     } else {
-      activityResult =
-        await create.mutateAsync(payload)
+      activityResult = await create.mutateAsync(payload)
     }
 
-    // Upload attachments if any exist
     if (attachmentFiles.length > 0) {
       let activityId
 
       if (isEdit) {
-
         activityId = activity.id
-
       } else {
-
         if (Array.isArray(activityResult)) {
           activityId = activityResult[0]?.id
-        }
-
-        else if (activityResult?.data?.id) {
+        } else if (activityResult?.data?.id) {
           activityId = activityResult.data.id
-        }
-
-        else if (activityResult?.id) {
+        } else if (activityResult?.id) {
           activityId = activityResult.id
         }
-
       }
 
       if (!activityId) {
-
-        console.error(
-          'Erro: activityId não encontrado após criação',
-          activityResult
-        )
-
+        console.error('Erro: activityId não encontrado após criação', activityResult)
         return
-
       }
 
       await saveActivityAttachments({
         activityId,
         clientId: payload.client_id,
-        userId:
-          payload.responsible_id
-          || activity?.responsible_id
-          || null,
-        files: attachmentFiles
+        userId: payload.responsible_id || activity?.responsible_id || null,
+        files: attachmentFiles,
       })
     }
 
@@ -140,91 +112,176 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   }
 
   const isMutating = create.isPending || update.isPending
+  const hasRightContent = form.notes || attachmentFiles.length > 0 || existingAttachments.length > 0
 
   return (
-    <Modal isOpen onClose={onClose} title={isEdit ? 'Editar Atividade' : 'Nova Atividade'} maxWidth="max-w-2xl">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="label-sm">Tipo *</label>
-            <select name="type" value={form.type} onChange={handleChange} className="input-base w-full">
-              {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+    <Modal
+      isOpen
+      onClose={onClose}
+      title={isEdit ? 'Editar Atividade' : 'Nova Atividade'}
+      maxWidth={
+        showDrawer
+          ? 'w-[95vw] max-w-[980px] transition-all duration-[250ms] ease-in-out'
+          : 'w-[90vw] max-w-[560px] transition-all duration-[250ms] ease-in-out'
+      }
+    >
+      <form onSubmit={handleSubmit}>
+        <div className="flex flex-row items-stretch">
+          {/* Left Panel */}
+          <div className="flex-1 min-w-0 space-y-4">
+            {/* Row 1: Tipo | Data | Hora | Status */}
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <label className="label-sm">Tipo *</label>
+                <select name="type" value={form.type} onChange={handleChange} className="input-base w-full h-9">
+                  {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">Data *</label>
+                <input name="activity_date" type="date" value={form.activity_date} onChange={handleChange} required className="input-base w-full h-9" />
+              </div>
+              <div>
+                <label className="label-sm">Hora</label>
+                <input name="activity_time" type="time" value={form.activity_time} onChange={handleChange} className="input-base w-full h-9" />
+              </div>
+              <div>
+                <label className="label-sm">Status</label>
+                <select name="status" value={form.status} onChange={handleChange} className="input-base w-full h-9">
+                  <option value="pendente">Pendente</option>
+                  <option value="concluida">Concluída</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Título */}
+            <div>
+              <label className="label-sm">Título</label>
+              <input name="title" value={form.title} onChange={handleChange} className="input-base w-full" placeholder="Título opcional" />
+            </div>
+
+            {/* Descrição */}
+            <div>
+              <label className="label-sm">Descrição *</label>
+              <textarea
+                name="description"
+                value={form.description}
+                onChange={handleChange}
+                required
+                rows={5}
+                className="input-base w-full resize-none"
+                placeholder="Descreva a atividade..."
+              />
+            </div>
+
+            {/* Section separator: Contexto */}
+            <div className="border-t border-border-tertiary pt-1">
+              <span className="text-[11px] uppercase tracking-wide text-text-tertiary font-medium">Contexto</span>
+            </div>
+
+            {/* Row 2: Cliente | Contato */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label-sm">Cliente *</label>
+                <select name="client_id" value={form.client_id} onChange={handleChange} required className="input-base w-full h-9">
+                  <option value="">Selecionar cliente</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">Contato</label>
+                <select name="contact_id" value={form.contact_id} onChange={handleChange} className="input-base w-full h-9" disabled={!form.client_id}>
+                  <option value="">Sem contato</option>
+                  {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Row 3: Vencimento | Responsável */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="label-sm">Vencimento</label>
+                <input name="due_date" type="date" value={form.due_date} onChange={handleChange} className="input-base w-full h-9" />
+              </div>
+              <div>
+                <label className="label-sm">Responsável</label>
+                <select name="responsible_id" value={form.responsible_id} onChange={handleChange} className="input-base w-full h-9">
+                  <option value="">Sem responsável</option>
+                  {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Card: Registrar resultado */}
+            <button
+              type="button"
+              onClick={() => setShowDrawer(!showDrawer)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 bg-bg-secondary border border-border-tertiary rounded-md hover:bg-bg-tertiary transition-colors text-left"
+            >
+              <svg className="w-4 h-4 text-text-tertiary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <div className="text-[13px] font-medium text-text-primary">Registrar resultado</div>
+                <div className="text-[11px] text-text-tertiary">Notas e anexos da atividade</div>
+              </div>
+              {hasRightContent && (
+                <span className="text-[11px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full flex-shrink-0">✓</span>
+              )}
+              <span className={`inline-block text-text-tertiary transition-transform duration-200 flex-shrink-0 ${showDrawer ? 'rotate-90' : ''}`}>
+                ▶
+              </span>
+            </button>
           </div>
-          <div>
-            <label className="label-sm">Data *</label>
-            <input name="activity_date" type="date" value={form.activity_date} onChange={handleChange} required className="input-base w-full" />
-          </div>
-          <div>
-            <label className="label-sm">Hora</label>
-            <input name="activity_time" type="time" value={form.activity_time} onChange={handleChange} className="input-base w-full" />
-          </div>
+
+          {/* Divider */}
+          {showDrawer && (
+            <div className="w-px bg-border-tertiary flex-shrink-0 mx-4" />
+          )}
+
+          {/* Right Panel */}
+          {showDrawer && (
+            <div
+              className="flex-1 min-w-0 space-y-4 overflow-y-auto"
+              style={{ maxHeight: 'calc(100vh - 200px)' }}
+            >
+              {/* Section label */}
+              <div>
+                <span className="text-[11px] uppercase tracking-wide text-text-tertiary font-medium">Resultado</span>
+              </div>
+
+              {/* Notas */}
+              <div>
+                <label className="label-sm">Notas</label>
+                <textarea
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  className="input-base w-full resize-y"
+                  style={{ minHeight: '120px', maxHeight: 'calc(100vh - 320px)' }}
+                  placeholder="Resultado ou notas da atividade..."
+                />
+              </div>
+
+              {/* Anexos */}
+              <div>
+                <label className="label-sm">Anexos</label>
+                <p className="text-[11px] text-text-tertiary mb-2">Imagens, PDF e áudios</p>
+                <AttachmentInput
+                  onFilesChange={handleFilesChange}
+                  existingFiles={existingAttachments}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        <div>
-          <label className="label-sm">Título</label>
-          <input name="title" value={form.title} onChange={handleChange} className="input-base w-full" placeholder="Título opcional" />
-        </div>
-
-        <div>
-          <label className="label-sm">Descrição *</label>
-          <textarea name="description" value={form.description} onChange={handleChange} required rows={3}
-            className="input-base w-full resize-none" placeholder="Descreva a atividade..." />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label-sm">Status</label>
-            <select name="status" value={form.status} onChange={handleChange} className="input-base w-full">
-              <option value="pendente">Pendente</option>
-              <option value="concluida">Concluída</option>
-            </select>
-          </div>
-          <div>
-            <label className="label-sm">Vencimento</label>
-            <input name="due_date" type="date" value={form.due_date} onChange={handleChange} className="input-base w-full" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label-sm">Cliente *</label>
-            <select name="client_id" value={form.client_id} onChange={handleChange} required className="input-base w-full">
-              <option value="">Selecionar cliente</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label-sm">Contato</label>
-            <select name="contact_id" value={form.contact_id} onChange={handleChange} className="input-base w-full" disabled={!form.client_id}>
-              <option value="">Sem contato</option>
-              {contacts.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="label-sm">Responsável</label>
-          <select name="responsible_id" value={form.responsible_id} onChange={handleChange} className="input-base w-full">
-            <option value="">Sem responsável</option>
-            {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="label-sm">Resultado / Notas</label>
-          <textarea name="notes" value={form.notes} onChange={handleChange} rows={2}
-            className="input-base w-full resize-none" />
-        </div>
-
-        <AttachmentInput
-          onFilesChange={handleFilesChange}
-          existingFiles={existingAttachments}
-        />
-
-        <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
+        {/* Footer */}
+        <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-border-tertiary">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={isMutating}>{isMutating ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Atividade'}</Button>
+          <Button type="submit" disabled={isMutating}>
+            {isMutating ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Atividade'}
+          </Button>
         </div>
       </form>
     </Modal>
