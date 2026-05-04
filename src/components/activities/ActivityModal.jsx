@@ -260,7 +260,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                   value={form.notes}
                   onChange={handleChange}
                   className="input-base w-full resize-y"
-                  style={{ minHeight: '120px', maxHeight: 'calc(100vh - 320px)' }}
+                  style={{ minHeight: '250px', maxHeight: 'calc(100vh - 320px)' }}
                   placeholder="Resultado ou notas da atividade..."
                 />
               </div>
