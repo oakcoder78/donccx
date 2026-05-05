@@ -294,9 +294,55 @@ export default function DashboardPage() {
     },
   })
 
-  // TODO: reconectar quando tabela de milestones for identificada
-  const overdueCount = 0
-  const overdueMilestones = []
+  const { data: overdueCount = 0 } = useQuery({
+    queryKey: ['overdue_onboarding_fases', clients.map(c => c.id).join()],
+    enabled: !!profile && clients.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const clientIds = clients.map(c => c.id)
+      const { data: onboardings } = await supabase
+        .from('onboardings')
+        .select('id')
+        .eq('status', 'ativo')
+        .in('client_id', clientIds)
+      if (!onboardings?.length) return 0
+      const onboardingIds = onboardings.map(o => o.id)
+      const { count } = await supabase
+        .from('onboarding_fases')
+        .select('id', { count: 'exact', head: true })
+        .lt('planned_end', todayStr)
+        .neq('status', 'concluida')
+        .in('onboarding_id', onboardingIds)
+      return count ?? 0
+    },
+  })
+
+  const { data: overdueOnboardingFases = [] } = useQuery({
+    queryKey: ['overdue_onboarding_fases_list', clients.map(c => c.id).join()],
+    enabled: !!profile && clients.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const clientIds = clients.map(c => c.id)
+      const { data: onboardings } = await supabase
+        .from('onboardings')
+        .select('id, client_id, title')
+        .eq('status', 'ativo')
+        .in('client_id', clientIds)
+      if (!onboardings?.length) return []
+      const onboardingIds = onboardings.map(o => o.id)
+      const { data: fases } = await supabase
+        .from('onboarding_fases')
+        .select('id, onboarding_id, fase_type_id, planned_end, status, onboarding_fase_types(name)')
+        .lt('planned_end', todayStr)
+        .neq('status', 'concluida')
+        .in('onboarding_id', onboardingIds)
+        .order('planned_end', { ascending: true })
+      return (fases || []).map(f => {
+        const ob = onboardings.find(o => o.id === f.onboarding_id)
+        return { ...f, clientId: ob?.client_id ?? null }
+      })
+    },
+  })
 
   // Operational data — previous month
   const { data: opsRows = [] } = useQuery({
@@ -853,25 +899,25 @@ export default function DashboardPage() {
       return <DrawerListContent kind="Relacionamento" title="Sem interação 30d+" subtitle={`${semInteracao.length} clientes silenciosos`} rows={rows} />
     }
     if (mode === 'milestones') {
-      const rows = overdueMilestones.map(m => {
-        const ds = daysSince(m.due_date)
-        const cl = clients.find(c => c.id === m.client_id)
+      const rows = overdueOnboardingFases.map(f => {
+        const ds = daysSince(f.planned_end)
+        const cl = clients.find(c => c.id === f.clientId)
         return (
-          <DRow key={m.id} onClick={cl ? () => openDrawer('cliente', { client: cl }) : undefined}>
+          <DRow key={f.id} onClick={cl ? () => openDrawer('cliente', { client: cl }) : undefined}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{m.name}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{f.onboarding_fase_types?.name || '—'}</div>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.red, background: C.redSoft, padding: '3px 8px', borderRadius: 6, flexShrink: 0 }}>{ds}d</span>
             </div>
             <div style={{ fontSize: 11.5, color: C.ink3, fontWeight: 500 }}>
               {cl?.fantasy_name || cl?.name || '—'}
             </div>
             <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 2 }}>
-              Vence: <b style={{ color: C.ink2 }}>{fmtDate(m.due_date)}</b>
+              Previsto: <b style={{ color: C.ink2 }}>{fmtDate(f.planned_end)}</b>
             </div>
           </DRow>
         )
       })
-      return <DrawerListContent kind="Projetos" title="Milestones vencidos" subtitle={`${overdueMilestones.length} milestones em atraso`} rows={rows} />
+      return <DrawerListContent kind="Onboardings" title="Onboardings atrasados" subtitle={`${overdueOnboardingFases.length} fases em atraso`} rows={rows} />
     }
     if (mode === 'temps') {
       const rows = tempsVencidas.map(c => {
@@ -1075,7 +1121,7 @@ export default function DashboardPage() {
             )}
             {[
               { label: 'Sem interação 30d+', value: semInteracao.length, tone: 'amber', mode: 'silent' },
-              { label: 'Milestones vencidos', value: overdueCount, tone: 'red', mode: 'milestones' },
+              { label: 'Onboardings atrasados', value: overdueCount, tone: 'red', mode: 'milestones' },
               { label: 'Temperaturas vencidas', value: tempsVencidas.length, tone: 'amber', mode: 'temps' },
             ].map(({ label, value, tone, mode }) => {
               const numColors = { red: '#ff8a8a', amber: '#f5c270' }
