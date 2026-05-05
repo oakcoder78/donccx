@@ -54,7 +54,14 @@
       "Bash(node --input-type=module --experimental-vm-modules)",
       "mcp__plugin_context-mode_context-mode__ctx_doctor",
       "mcp__plugin_context-mode_context-mode__ctx_stats",
-      "mcp__plugin_context-mode_context-mode__ctx_batch_execute"
+      "mcp__plugin_context-mode_context-mode__ctx_batch_execute",
+      "Bash(claude doctor *)",
+      "Bash(Get-Content *)",
+      "PowerShell(claude doctor *)",
+      "mcp__plugin_context-mode_context-mode__ctx_execute",
+      "mcp__plugin_context-mode_context-mode__ctx_search",
+      "Bash(Get-ChildItem -Path \"E:\\\\donc\\\\donccx\\\\src\\\\hooks\\\\use*.*\")",
+      "Bash(Select-Object Name, FullName)"
     ]
   }
 }
