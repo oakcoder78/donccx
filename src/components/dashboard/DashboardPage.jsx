@@ -1232,7 +1232,7 @@ export default function DashboardPage() {
 
             {/* Saúde rankeada */}
             <Panel>
-              <PanelHead title="Saúde rankeada · menor → maior score" meta={`top ${Math.min(8, sortedPortfolio.length)} de risco`} />
+              <PanelHead title="Saúde rankeada · menor → maior score" meta="10 clientes" />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {sortedPortfolio.slice(0, 8).map(c => {
                   const score = c.health_total || 0
