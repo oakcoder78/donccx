@@ -469,16 +469,51 @@ export default function DashboardPage() {
 
   const overdueActivities = useMemo(() => myTasksRaw.filter(a => a.activity_date && a.activity_date < todayStr), [myTasksRaw])
 
+  // Ops: build variation maps from opsRows
+  const opsByClient = useMemo(() => {
+    const map = {}
+    opsRows.forEach(r => {
+      if (!map[r.client_id]) map[r.client_id] = {}
+      const key = r.ref_month
+      if (!map[r.client_id][key]) {
+        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null, donc_snapshot: null }
+      }
+      map[r.client_id][key].os_abertas += r.os_abertas ?? 0
+      map[r.client_id][key].active_users += r.active_users ?? 0
+      if (map[r.client_id][key].health_snapshot === null && r.health_snapshot != null) {
+        map[r.client_id][key].health_snapshot = r.health_snapshot
+      }
+      if (!map[r.client_id][key].donc_snapshot || (r.donc_snapshot?.totalOs ?? 0) > (map[r.client_id][key].donc_snapshot?.totalOs ?? 0)) {
+        map[r.client_id][key].donc_snapshot = r.donc_snapshot
+      }
+    })
+    return map
+  }, [opsRows])
+
+  const opHealthList = useMemo(() => {
+    const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) })()
+    const overdueActivityClientIds = myTasksRaw
+      .filter(a => a.due_date && a.due_date < cutoff && a.status !== 'concluida' && a.status !== 'cancelada')
+      .map(a => Number(a.client_id))
+    const rows = []
+    Object.entries(opsByClient).forEach(([clientId, months]) => {
+      const cur  = months[prevMonth]
+      const prev = months[prevMonth2]
+      if (!cur) return
+      const curScore  = cur.health_snapshot
+      const prevScore = prev?.health_snapshot
+      if (curScore == null) return
+      const delta = prevScore != null ? curScore - prevScore : 0
+      const cl = clients.find(c => c.id === Number(clientId))
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore })
+    })
+    return { list: rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5), overdueActivityClientIds }
+  }, [opsByClient, clients, myTasksRaw])
+
   // Urgency multi-criteria
   const alertaClients = useMemo(() => {
     const overdueSet = new Set(overdueOnboardingFases.filter(f => f.clientId != null).map(f => f.clientId))
-    const overdueActivityClients = useMemo(() => {
-      const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) })()
-      return myTasksRaw
-        .filter(a => a.due_date && a.due_date < cutoff && a.status !== 'concluida' && a.status !== 'cancelada')
-        .map(a => Number(a.client_id))
-    }, [myTasksRaw])
-    const opHealthNeg = new Set(opHealthList.filter(x => x.delta < 0).map(x => Number(x.clientId)))
+    const opHealthNeg = new Set(opHealthList.list.filter(x => x.delta < 0).map(x => Number(x.clientId)))
 
     return clients
       .map(c => {
@@ -486,7 +521,7 @@ export default function DashboardPage() {
         if (overdueSet.has(c.id)) {
           reasons.push({ kind: 'red', label: 'Onboarding vencido' })
         }
-        if (overdueActivityClients.includes(Number(c.id))) {
+        if (opHealthList.overdueActivityClientIds.includes(Number(c.id))) {
           reasons.push({ kind: 'red', label: 'Atividade atrasada' })
         }
         if (c.csm_temperature === -7) {
@@ -511,7 +546,7 @@ export default function DashboardPage() {
       .filter(c => c.urgencyScore > 0)
       .sort((a, b) => b.urgencyScore - a.urgencyScore)
       .slice(0, 5)
-  }, [clients, overdueOnboardingFases, myTasksRaw, lastActivityMap, opHealthList])
+  }, [clients, overdueOnboardingFases, lastActivityMap, opHealthList])
 
   const sortedPortfolio = useMemo(() => [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0)), [clients])
 
@@ -521,27 +556,6 @@ export default function DashboardPage() {
     alert: clients.filter(c => (c[d.key] || 0) < 10).length,
     total: clients.length,
   })), [clients])
-
-  // Ops: build variation maps from opsRows
-  const opsByClient = useMemo(() => {
-    const map = {}
-    opsRows.forEach(r => {
-      if (!map[r.client_id]) map[r.client_id] = {}
-      const key = r.ref_month
-      if (!map[r.client_id][key]) {
-        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null, donc_snapshot: null }
-      }
-      map[r.client_id][key].os_abertas += r.os_abertas ?? 0
-      map[r.client_id][key].active_users += r.active_users ?? 0
-      if (map[r.client_id][key].health_snapshot === null && r.health_snapshot != null) {
-        map[r.client_id][key].health_snapshot = r.health_snapshot
-      }
-      if (!map[r.client_id][key].donc_snapshot || (r.donc_snapshot?.totalOs ?? 0) > (map[r.client_id][key].donc_snapshot?.totalOs ?? 0)) {
-        map[r.client_id][key].donc_snapshot = r.donc_snapshot
-      }
-    })
-    return map
-  }, [opsRows])
 
   const hasOpsData = useMemo(() => opsRows.some(r => r.ref_month === prevMonth && r.instance_id != null), [opsRows])
 
@@ -574,22 +588,6 @@ export default function DashboardPage() {
       const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} usuários ativos`, absDelta: Math.abs(curVal - prevVal) })
-    })
-    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
-  }, [opsByClient, clients])
-
-  const opHealthList = useMemo(() => {
-    const rows = []
-    Object.entries(opsByClient).forEach(([clientId, months]) => {
-      const cur  = months[prevMonth]
-      const prev = months[prevMonth2]
-      if (!cur) return
-      const curScore  = cur.health_snapshot
-      const prevScore = prev?.health_snapshot
-      if (curScore == null) return
-      const delta = prevScore != null ? curScore - prevScore : 0
-      const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
   }, [opsByClient, clients])
@@ -1471,7 +1469,7 @@ export default function DashboardPage() {
               <Panel>
                 <PanelHead title="Health score · variação mensal" meta="top 5" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {opHealthList.map((x, i) => {
+                  {opHealthList.list.map((x, i) => {
                     const up = x.delta >= 0
                     return (
                       <div key={i} onClick={() => openDrawer('op-health', { clientId: x.clientId, clientName: x.name })}
@@ -1488,13 +1486,13 @@ export default function DashboardPage() {
                       </div>
                     )
                   })}
-                  {opHealthList.length > 0 && opHealthList.every(x => x.delta === 0) && (
+                  {opHealthList.list.length > 0 && opHealthList.list.every(x => x.delta === 0) && (
                     <div style={{ fontSize: 11, color: 'var(--ink-4)', fontStyle: 'italic', marginTop: 8 }}>
                       Variação disponível a partir do próximo ciclo de sincronização
                     </div>
                   )}
                 </div>
-                <SeeAll onClick={() => openDrawer('op-health', opHealthList[0] ? { clientId: opHealthList[0].clientId, clientName: opHealthList[0].name } : {})}>ver todos →</SeeAll>
+                <SeeAll onClick={() => openDrawer('op-health', opHealthList.list[0] ? { clientId: opHealthList.list[0].clientId, clientName: opHealthList.list[0].name } : {})}>ver todos →</SeeAll>
               </Panel>
 
               {/* Sincronização */}
