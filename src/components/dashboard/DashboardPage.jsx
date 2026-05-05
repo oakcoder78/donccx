@@ -469,9 +469,49 @@ export default function DashboardPage() {
 
   const overdueActivities = useMemo(() => myTasksRaw.filter(a => a.activity_date && a.activity_date < todayStr), [myTasksRaw])
 
-  // Alert clients: health < 75, sorted by score asc
-  const alertaClients = useMemo(() => [...clients].filter(c => (c.health_total || 0) < 75).sort((a, b) => (a.health_total || 0) - (b.health_total || 0)), [clients])
-  const alertaSliced  = alertaClients.slice(0, 5)
+  // Urgency multi-criteria
+  const alertaClients = useMemo(() => {
+    const overdueSet = new Set(overdueOnboardingFases.filter(f => f.clientId != null).map(f => f.clientId))
+    const overdueActivityClients = useMemo(() => {
+      const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) })()
+      return myTasksRaw
+        .filter(a => a.due_date && a.due_date < cutoff && a.status !== 'concluida' && a.status !== 'cancelada')
+        .map(a => Number(a.client_id))
+    }, [myTasksRaw])
+    const opHealthNeg = new Set(opHealthList.filter(x => x.delta < 0).map(x => Number(x.clientId)))
+
+    return clients
+      .map(c => {
+        const reasons = []
+        if (overdueSet.has(c.id)) {
+          reasons.push({ kind: 'red', label: 'Onboarding vencido' })
+        }
+        if (overdueActivityClients.includes(Number(c.id))) {
+          reasons.push({ kind: 'red', label: 'Atividade atrasada' })
+        }
+        if (c.csm_temperature === -7) {
+          reasons.push({ kind: 'red', label: 'Temperatura muito fria' })
+        }
+        const last = lastActivityMap[c.id]
+        if (!last || last < ago30Str) {
+          reasons.push({ kind: 'amber', label: last ? `Sem interação há ${daysSince(last)}d` : 'Sem interação registrada' })
+        }
+        if (opHealthNeg.has(Number(c.id))) {
+          reasons.push({ kind: 'amber', label: 'Health score em queda' })
+        }
+        if (!c.temperature_updated_at || daysSince(c.temperature_updated_at.slice(0, 10)) > 30) {
+          reasons.push({ kind: 'amber', label: 'Temperatura desatualizada' })
+        }
+        if (c.csm_temperature === -3) {
+          reasons.push({ kind: 'amber', label: 'Temperatura fria' })
+        }
+        const score = reasons.reduce((s, r) => s + (r.kind === 'red' ? 30 : 15), 0)
+        return { ...c, urgencyScore: score, reasons }
+      })
+      .filter(c => c.urgencyScore > 0)
+      .sort((a, b) => b.urgencyScore - a.urgencyScore)
+      .slice(0, 5)
+  }, [clients, overdueOnboardingFases, myTasksRaw, lastActivityMap, opHealthList])
 
   const sortedPortfolio = useMemo(() => [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0)), [clients])
 
@@ -591,13 +631,14 @@ export default function DashboardPage() {
   if (isLoading && !clients.length) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: C.ink3, fontSize: 14, fontFamily: "'Montserrat', system-ui, sans-serif" }}>Carregando…</div>
 
   // ─── Drawer content renderers ──────────────────────────────────────────────
-  function DrawerClientContent({ client }) {
+  function DrawerClientContent({ client, reasons }) {
     if (!client) return null
     const score  = client.health_total || 0
     const band   = scoreBand(score)
     const color  = scoreBandColor(score)
     const label  = scoreBandLabel(score)
     const signals = getSignals(client, lastActivityMap)
+    const alertReasons = reasons && reasons.length > 0 ? reasons : []
 
     const trendVal = client.health_trend || 0
     const trendDir = trendVal > 0 ? 'up' : trendVal < 0 ? 'down' : 'flat'
@@ -656,6 +697,21 @@ export default function DashboardPage() {
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 12px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+          {alertReasons.length > 0 && (
+            <div>
+              <h4 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px' }}>
+                Motivo do alerta · {alertReasons.length}
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {alertReasons.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: `0.5px solid ${r.kind === 'red' ? C.redSoft : C.amberSoft}`, borderRadius: 8, background: r.kind === 'red' ? C.redSoft : C.amberSoft }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: r.kind === 'red' ? C.red : C.amber, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: r.kind === 'red' ? C.red : C.amber }}>{r.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
             <h4 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px' }}>
               Sinais ativos · {signals.length}
@@ -885,7 +941,7 @@ export default function DashboardPage() {
 
     if (mode === 'cliente') {
       const client = data.client
-      return <DrawerClientContent client={client} />
+      return <DrawerClientContent client={client} reasons={client.reasons} />
     }
     if (mode === 'overdue') {
       const rows = overdueActivities.map(a => (
@@ -1177,32 +1233,29 @@ export default function DashboardPage() {
             <Panel>
               <PanelHead title="Alertas prioritários" meta={`${alertaClients.length} ativo${alertaClients.length !== 1 ? 's' : ''}`} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {alertaSliced.length === 0 ? (
+                {alertaClients.length === 0 ? (
                   <p style={{ fontSize: 13, color: C.ink3, textAlign: 'center', padding: '16px 0' }}>Nenhum alerta no momento.</p>
-                ) : alertaSliced.map(c => {
+                ) : alertaClients.map(c => {
                   const score = c.health_total || 0
-                  const band = scoreBand(score)
                   const color = scoreBandColor(score)
-                  const lowDims = DIMS.filter(d => (c[d.key] || 0) < 10)
-                  const last = lastActivityMap[c.id]
-                  const ds = last ? daysSince(last) : null
-                  const reasons = []
-                  if (!last) reasons.push('Sem interação registrada')
-                  else if (ds > 30) reasons.push(`Sem interação há ${ds} dias`)
-                  if ((c.delay_days || 0) > 0) reasons.push(`Fatura ${c.delay_days}d em atraso`)
-
+                  const hasRed = c.reasons.some(r => r.kind === 'red')
+                  const barColor = hasRed ? C.red : C.amber
                   return (
                     <div key={c.id} onClick={() => openDrawer('cliente', { client: c })}
                       style={{ display: 'grid', gridTemplateColumns: '4px 1fr auto', gap: 14, padding: '12px 8px 12px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
                       onMouseEnter={e => e.currentTarget.style.background = '#f8f9fb'}
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                      <div style={{ width: 3, borderRadius: 2, alignSelf: 'stretch', marginLeft: 4, background: color }} />
+                      <div style={{ width: 3, borderRadius: 2, alignSelf: 'stretch', marginLeft: 4, background: barColor }} />
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: C.ink, letterSpacing: '-0.01em' }}>{c.fantasy_name || c.name}</div>
-                        {reasons.length > 0 && <div style={{ fontSize: 12, color: C.ink3, fontWeight: 500, marginTop: 2 }}>{reasons.join(' · ')}</div>}
-                        {lowDims.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                            {lowDims.map(d => <DimBadge key={d.key} cls={d.cls} label={d.label} />)}
+                        {c.reasons.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                            {c.reasons.map((r, i) => (
+                              <span key={i} style={{ fontSize: 10.5, fontWeight: 700, padding: '3px 7px', borderRadius: 5, letterSpacing: '0.02em', textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', gap: 4, color: r.kind === 'red' ? C.red : C.amber, background: r.kind === 'red' ? C.redSoft : C.amberSoft }}>
+                                <span style={{ width: 5, height: 5, borderRadius: '50%', background: 'currentColor', flexShrink: 0 }} />
+                                {r.label}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -1324,7 +1377,7 @@ export default function DashboardPage() {
                     const last = lastActivityMap[c.id]
                     const ds = last ? daysSince(last) : null
                     return (
-                      <div key={c.id} onClick={() => openDrawer('cliente', { client: c })}
+                    <div key={c.id} onClick={() => openDrawer('cliente', { client: c, fromAlertas: true })}
                         style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
                         onMouseEnter={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.paddingLeft = '6px'; e.currentTarget.style.paddingRight = '6px' }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
