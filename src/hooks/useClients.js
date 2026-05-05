@@ -17,7 +17,6 @@ function buildClientsQuery(filters) {
   if (filters.search)   q = q.ilike('name', `%${filters.search}%`)
   if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
   if (filters.lifecycle_stage) q = q.eq('lifecycle_stage', filters.lifecycle_stage)
-  console.log('[useClients] filtros aplicados:', JSON.stringify(filters))
   return q
 }
 
@@ -29,7 +28,6 @@ export function useClients(filters = {}, options = {}) {
     queryFn: async () => {
       const { data, error } = await buildClientsQuery(filters).eq('contract_active', true)
       if (error) { console.error('[useClients] query error:', error); return [] }
-      console.log('[useClients] clientes retornados:', data?.map(c => c.id + ':' + c.fantasy_name + ':' + c.lifecycle_stage))
       return data ?? []
     },
     retry: 0,
