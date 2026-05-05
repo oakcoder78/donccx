@@ -294,42 +294,9 @@ export default function DashboardPage() {
     },
   })
 
-  // Overdue milestones count
-  const { data: overdueCount = 0 } = useQuery({
-    queryKey: ['overdue_milestones_count', csmFilter, clients.map(c => c.id).join()],
-    enabled: !!profile && clients.length > 0,
-    staleTime: 2 * 60 * 1000,
-    queryFn: async () => {
-      const ids = clients.map(c => c.id)
-      if (!ids.length) return 0
-      const { count } = await supabase
-        .from('milestones')
-        .select('*', { count: 'exact', head: true })
-        .in('client_id', ids)
-        .lt('due_date', todayStr)
-        .neq('status', 'done')
-      return count || 0
-    },
-  })
-
-  // Overdue milestones list (for drawer)
-  const { data: overdueMilestones = [] } = useQuery({
-    queryKey: ['overdue_milestones_list', clients.map(c => c.id).join()],
-    enabled: !!profile && clients.length > 0,
-    staleTime: 2 * 60 * 1000,
-    queryFn: async () => {
-      const ids = clients.map(c => c.id)
-      if (!ids.length) return []
-      const { data } = await supabase
-        .from('milestones')
-        .select('id, name, due_date, client_id, project_id')
-        .in('client_id', ids)
-        .lt('due_date', todayStr)
-        .neq('status', 'done')
-        .order('due_date', { ascending: true })
-      return data || []
-    },
-  })
+  // TODO: reconectar quando tabela de milestones for identificada
+  const overdueCount = 0
+  const overdueMilestones = []
 
   // Operational data — previous month
   const { data: opsRows = [] } = useQuery({
@@ -358,24 +325,25 @@ export default function DashboardPage() {
         .select('id, client_id, clients!inner(name, fantasy_name, lifecycle_stage)')
         .eq('active', true)
         .eq('clients.lifecycle_stage', 'cliente')
+
       if (!instances?.length) return []
+
       const clientIds = [...new Set(instances.map(i => i.client_id))]
-      const { data: usages } = await supabase
+
+      const { data: usages, error: usageError } = await supabase
         .from('client_usage')
-        .select('client_id, ref_month, updated_at, instance_id, health_snapshot')
+        .select('client_id, ref_month, instance_id, health_snapshot')
         .in('client_id', clientIds)
         .order('ref_month', { ascending: false })
 
-      const usagesWithInstance = (usages || []).filter(u => u.instance_id != null)
-      const syncedUsoPrevMonth    = new Set(usagesWithInstance.filter(u => u.ref_month === prevMonth).map(u => Number(u.client_id)))
-      const syncedHealthPrevMonth = new Set(usagesWithInstance.filter(u => u.ref_month === prevMonth && u.health_snapshot != null).map(u => Number(u.client_id)))
-      console.log('[sync debug] prevMonth:', prevMonth, 'usoOk:', [...syncedUsoPrevMonth], 'healthOk:', [...syncedHealthPrevMonth], 'usages count:', usages?.length)
+      if (usageError) {
+        console.error('[sync] erro ao buscar client_usage:', usageError.message)
+        return []
+      }
 
-      const lastSyncMap = {}
-      usagesWithInstance.forEach(u => {
-        const cId = Number(u.client_id)
-        if (!lastSyncMap[cId]) lastSyncMap[cId] = u.ref_month
-      })
+      const usagesOk     = (usages || []).filter(u => u.instance_id !== null && u.instance_id !== undefined)
+      const syncedUso    = new Set(usagesOk.filter(u => u.ref_month === prevMonth).map(u => Number(u.client_id)))
+      const syncedHealth = new Set(usagesOk.filter(u => u.ref_month === prevMonth && u.health_snapshot != null).map(u => Number(u.client_id)))
 
       const seen = new Set()
       return instances
@@ -383,24 +351,24 @@ export default function DashboardPage() {
           const cId = Number(inst.client_id)
           if (seen.has(cId)) return false
           seen.add(cId)
-          const usoOk    = syncedUsoPrevMonth.has(cId)
-          const healthOk = syncedHealthPrevMonth.has(cId)
-          return !usoOk || !healthOk
+          return !syncedUso.has(cId) || !syncedHealth.has(cId)
         })
         .map(inst => {
-          const cId      = Number(inst.client_id)
-          const usoOk    = syncedUsoPrevMonth.has(cId)
-          const healthOk = syncedHealthPrevMonth.has(cId)
-          const lastSync = lastSyncMap[cId]
-            ? `última sync: ${fmtMonthShort(lastSyncMap[cId])}/${lastSyncMap[cId].split('-')[0]}`
-            : 'nunca sincronizado'
+          const cId        = Number(inst.client_id)
+          const usoOk      = syncedUso.has(cId)
+          const healthOk   = syncedHealth.has(cId)
+          const lastSync   = usagesOk.find(u => Number(u.client_id) === cId)?.ref_month
+          const pendingLabel = !usoOk && !healthOk
+            ? 'Uso + Health Score pendentes'
+            : !usoOk ? 'Uso pendente' : 'Health Score pendente'
+          const syncAction = !usoOk ? 'uso+health' : 'health'
           return {
             id: inst.id,
             clientId: cId,
             clientName: inst.clients?.fantasy_name || inst.clients?.name || '—',
-            lastSync,
-            usoOk,
-            healthOk,
+            lastSync: lastSync ? `última sync: ${lastSync}` : 'nunca sincronizado',
+            pendingLabel,
+            syncAction,
           }
         })
     },
