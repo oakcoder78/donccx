@@ -546,7 +546,15 @@ export default function DashboardPage() {
       .filter(c => c.urgencyScore > 0)
       .sort((a, b) => {
         if (b.urgencyScore !== a.urgencyScore) return b.urgencyScore - a.urgencyScore
-        return (b.health_total || 0) - (a.health_total || 0)
+        if ((b.health_total || 0) !== (a.health_total || 0)) return (b.health_total || 0) - (a.health_total || 0)
+        const lastA = lastActivityMap[a.id]
+        const lastB = lastActivityMap[b.id]
+        if (lastA !== lastB) {
+          const dateA = lastA ? new Date(lastA) : new Date('9999')
+          const dateB = lastB ? new Date(lastB) : new Date('9999')
+          return dateA - dateB
+        }
+        return 0
       })
       .slice(0, 5)
   }, [clients, overdueOnboardingFases, lastActivityMap, opHealthList])
