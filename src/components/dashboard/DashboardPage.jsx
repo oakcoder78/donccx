@@ -263,6 +263,8 @@ export default function DashboardPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [closeDrawer])
 
+  useEffect(() => { qc.invalidateQueries({ queryKey: ['clients'] }) }, [])
+
   const csmFilter = isAdminOrManager
     ? (selectedCsm ? { csm_id: selectedCsm, lifecycle_stage: 'cliente' } : { lifecycle_stage: 'cliente' })
     : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
@@ -320,7 +322,7 @@ export default function DashboardPage() {
       if (!ids.length) return []
       const { data } = await supabase
         .from('milestones')
-        .select('id, name, due_date, client_id, project_id, projects(name), clients(name, fantasy_name)')
+        .select('id, name, due_date, client_id, project_id')
         .in('client_id', ids)
         .lt('due_date', todayStr)
         .neq('status', 'done')
@@ -359,29 +361,45 @@ export default function DashboardPage() {
       const clientIds = [...new Set(instances.map(i => i.client_id))]
       const { data: usages } = await supabase
         .from('client_usage')
-        .select('client_id, ref_month, updated_at')
+        .select('client_id, ref_month, updated_at, instance_id, health_snapshot')
         .in('client_id', clientIds)
-        .not('instance_id', 'is', null)
         .order('ref_month', { ascending: false })
-      const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === prevMonth).map(u => Number(u.client_id)))
-      console.log('[sync debug] prevMonth:', prevMonth, 'syncedThisMonth:', [...syncedThisMonth], 'usages count:', usages?.length)
+
+      const usagesWithInstance = (usages || []).filter(u => u.instance_id != null)
+      const syncedUsoPrevMonth    = new Set(usagesWithInstance.filter(u => u.ref_month === prevMonth).map(u => Number(u.client_id)))
+      const syncedHealthPrevMonth = new Set(usagesWithInstance.filter(u => u.ref_month === prevMonth && u.health_snapshot != null).map(u => Number(u.client_id)))
+      console.log('[sync debug] prevMonth:', prevMonth, 'usoOk:', [...syncedUsoPrevMonth], 'healthOk:', [...syncedHealthPrevMonth], 'usages count:', usages?.length)
+
       const lastSyncMap = {}
-      ;(usages || []).forEach(u => { if (!lastSyncMap[Number(u.client_id)]) lastSyncMap[Number(u.client_id)] = u.ref_month })
+      usagesWithInstance.forEach(u => {
+        const cId = Number(u.client_id)
+        if (!lastSyncMap[cId]) lastSyncMap[cId] = u.ref_month
+      })
+
       const seen = new Set()
       return instances
         .filter(inst => {
           const cId = Number(inst.client_id)
           if (seen.has(cId)) return false
           seen.add(cId)
-          return !syncedThisMonth.has(cId)
+          const usoOk    = syncedUsoPrevMonth.has(cId)
+          const healthOk = syncedHealthPrevMonth.has(cId)
+          return !usoOk || !healthOk
         })
         .map(inst => {
-          const cId = Number(inst.client_id)
+          const cId      = Number(inst.client_id)
+          const usoOk    = syncedUsoPrevMonth.has(cId)
+          const healthOk = syncedHealthPrevMonth.has(cId)
+          const lastSync = lastSyncMap[cId]
+            ? `última sync: ${fmtMonthShort(lastSyncMap[cId])}/${lastSyncMap[cId].split('-')[0]}`
+            : 'nunca sincronizado'
           return {
             id: inst.id,
             clientId: cId,
             clientName: inst.clients?.fantasy_name || inst.clients?.name || '—',
-            lastSync: lastSyncMap[cId] ? `sem dados desde ${fmtMonthShort(lastSyncMap[cId])}/${lastSyncMap[cId].split('-')[0]}` : 'nunca sincronizado',
+            lastSync,
+            usoOk,
+            healthOk,
           }
         })
     },
@@ -876,7 +894,7 @@ export default function DashboardPage() {
               <span style={{ fontSize: 11, fontWeight: 700, color: C.red, background: C.redSoft, padding: '3px 8px', borderRadius: 6, flexShrink: 0 }}>{ds}d</span>
             </div>
             <div style={{ fontSize: 11.5, color: C.ink3, fontWeight: 500 }}>
-              {m.projects?.name && <>{m.projects.name} · </>}{m.clients?.fantasy_name || m.clients?.name}
+              {cl?.fantasy_name || cl?.name || '—'}
             </div>
             <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 2 }}>
               Vence: <b style={{ color: C.ink2 }}>{fmtDate(m.due_date)}</b>
