@@ -355,8 +355,9 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data: instances } = await supabase
         .from('client_donc_instances')
-        .select('id, client_id, clients(name, fantasy_name)')
+        .select('id, client_id, clients!inner(name, fantasy_name, lifecycle_stage)')
         .eq('active', true)
+        .eq('clients.lifecycle_stage', 'cliente')
       if (!instances?.length) return []
       const clientIds = [...new Set(instances.map(i => i.client_id))]
       const { data: usages } = await supabase
