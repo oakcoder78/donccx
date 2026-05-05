@@ -337,7 +337,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('client_usage')
-        .select('client_id, ref_month, donc_snapshot, health_total, updated_at')
+        .select('client_id, ref_month, instance_id, os_abertas, active_users, health_snapshot, donc_snapshot')
         .in('ref_month', [prevMonth, prevMonth2])
         .not('instance_id', 'is', null)
         .eq('pending', false)
@@ -453,16 +453,16 @@ export default function DashboardPage() {
     return map
   }, [opsRows])
 
-  const hasOpsData = useMemo(() => opsRows.some(r => r.ref_month === prevMonth && r.donc_snapshot), [opsRows])
+  const hasOpsData = useMemo(() => opsRows.some(r => r.ref_month === prevMonth && r.instance_id != null), [opsRows])
 
   const opOSList = useMemo(() => {
     const rows = []
     Object.entries(opsByClient).forEach(([clientId, months]) => {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
-      if (!cur?.donc_snapshot) return
-      const curVal  = cur.donc_snapshot.totalOS ?? cur.donc_snapshot.os_created ?? null
-      const prevVal = prev?.donc_snapshot?.totalOS ?? prev?.donc_snapshot?.os_created ?? null
+      if (!cur) return
+      const curVal  = cur.os_abertas ?? null
+      const prevVal = prev?.os_abertas ?? null
       if (curVal === null) return
       const delta = prevVal ? Math.round(((curVal - prevVal) / prevVal) * 100) : 0
       const cl = clients.find(c => c.id === clientId)
@@ -476,9 +476,9 @@ export default function DashboardPage() {
     Object.entries(opsByClient).forEach(([clientId, months]) => {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
-      if (!cur?.donc_snapshot) return
-      const curVal  = cur.donc_snapshot.usuariosAtivos ?? cur.donc_snapshot.active_users ?? null
-      const prevVal = prev?.donc_snapshot?.usuariosAtivos ?? prev?.donc_snapshot?.active_users ?? null
+      if (!cur) return
+      const curVal  = cur.active_users ?? null
+      const prevVal = prev?.active_users ?? null
       if (curVal === null) return
       const delta = prevVal ? Math.round(((curVal - prevVal) / prevVal) * 100) : 0
       const cl = clients.find(c => c.id === clientId)
@@ -493,8 +493,8 @@ export default function DashboardPage() {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
       if (!cur) return
-      const curScore  = cur.health_total
-      const prevScore = prev?.health_total
+      const curScore  = cur.health_snapshot
+      const prevScore = prev?.health_snapshot
       if (curScore == null) return
       const delta = prevScore != null ? curScore - prevScore : 0
       const cl = clients.find(c => c.id === clientId)
