@@ -361,6 +361,7 @@ export default function DashboardPage() {
         .from('client_usage')
         .select('client_id, ref_month, updated_at')
         .in('client_id', clientIds)
+        .not('instance_id', 'is', null)
         .order('ref_month', { ascending: false })
       const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === prevMonth).map(u => u.client_id))
       const lastSyncMap = {}
@@ -450,10 +451,12 @@ export default function DashboardPage() {
       if (!map[r.client_id]) map[r.client_id] = {}
       const key = r.ref_month
       if (!map[r.client_id][key]) {
-        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null }
+        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null, donc_snapshot: { totalOs: 0, profissionais: { ativos: 0 } } }
       }
       map[r.client_id][key].os_abertas += r.os_abertas ?? 0
       map[r.client_id][key].active_users += r.active_users ?? 0
+      map[r.client_id][key].donc_snapshot.totalOs += r.donc_snapshot?.totalOs ?? 0
+      map[r.client_id][key].donc_snapshot.profissionais.ativos += r.donc_snapshot?.profissionais?.ativos ?? 0
       if (map[r.client_id][key].health_snapshot === null && r.health_snapshot != null) {
         map[r.client_id][key].health_snapshot = r.health_snapshot
       }
@@ -469,10 +472,11 @@ export default function DashboardPage() {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
       if (!cur) return
-      const curVal  = cur.os_abertas ?? null
-      const prevVal = prev?.os_abertas ?? null
+      const curVal  = cur.donc_snapshot?.totalOs ?? null
+      const prevVal = prev?.donc_snapshot?.totalOs ?? null
       if (curVal === null) return
-      const delta = prevVal ? Math.round(((curVal - prevVal) / prevVal) * 100) : 0
+      if (!prevVal || prevVal === 0) return
+      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal} OS` })
     })
@@ -485,10 +489,11 @@ export default function DashboardPage() {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
       if (!cur) return
-      const curVal  = cur.active_users ?? null
-      const prevVal = prev?.active_users ?? null
+      const curVal  = cur.donc_snapshot?.profissionais?.ativos ?? null
+      const prevVal = prev?.donc_snapshot?.profissionais?.ativos ?? null
       if (curVal === null) return
-      const delta = prevVal ? Math.round(((curVal - prevVal) / prevVal) * 100) : 0
+      if (!prevVal || prevVal === 0) return
+      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal} ativos` })
     })
@@ -1354,6 +1359,11 @@ export default function DashboardPage() {
                       </div>
                     )
                   })}
+                  {opHealthList.length > 0 && opHealthList.every(x => x.delta === 0) && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-4)', fontStyle: 'italic', marginTop: 8 }}>
+                      Variação disponível a partir do próximo ciclo de sincronização
+                    </div>
+                  )}
                 </div>
                 <SeeAll onClick={() => openDrawer('op-health', opHealthList[0] ? { clientId: opHealthList[0].clientId, clientName: opHealthList[0].name } : {})}>ver todos →</SeeAll>
               </Panel>
