@@ -746,22 +746,35 @@ export default function DashboardPage() {
 
   function DrawerOpContent({ mode, clientId, clientName }) {
     const kindMap = { 'op-os': 'os', 'op-users': 'users', 'op-health': 'health' }
-    const kind = kindMap[mode]
+    const activeKind = kindMap[mode]
     const months = opHistoRows.map(r => fmtMonthShort(r.ref_month))
-    const values = opHistoRows.map(r => {
-      if (kind === 'os')     return r.donc_snapshot?.totalOs ?? 0
-      if (kind === 'users')  return r.donc_snapshot?.profissionais?.ativos ?? 0
-      if (kind === 'health') return r.health_snapshot ?? 0
-      return 0
-    })
-    const maxVal = Math.max(...values, 1)
-    const cur  = values[values.length - 1] ?? 0
-    const prev = values[values.length - 2] ?? 0
-    const pct  = prev ? Math.round(((cur - prev) / prev) * 100) : 0
-    const dirCls = pct >= 0 ? C.green : C.red
-    const arrow  = pct >= 0 ? '▲' : '▼'
-    const unit   = kind === 'health' ? ' pts' : kind === 'os' ? ' OS' : ' usuários'
-    const titleByKind = { os: 'OS abertas · histórico 3 meses', users: 'Usuários ativos · histórico 3 meses', health: 'Health score · histórico 3 meses' }
+
+    const charts = [
+      {
+        kind: 'os',
+        title: 'OS criadas',
+        unit: ' OS',
+        values: opHistoRows.map(r => r.donc_snapshot?.totalOs ?? 0),
+        color: C.sky,
+        colorSoft: C.skySoft,
+      },
+      {
+        kind: 'users',
+        title: 'Usuários ativos',
+        unit: ' usuários',
+        values: opHistoRows.map(r => r.donc_snapshot?.profissionais?.ativos ?? 0),
+        color: C.green,
+        colorSoft: C.greenSoft,
+      },
+      {
+        kind: 'health',
+        title: 'Health score',
+        unit: ' pts',
+        values: opHistoRows.map(r => r.health_snapshot ?? 0),
+        color: C.amber,
+        colorSoft: C.amberSoft,
+      },
+    ]
 
     return (
       <>
@@ -770,7 +783,7 @@ export default function DashboardPage() {
             <div>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.ink4 }}>Operacional · DONC API</div>
               <h2 style={{ margin: '4px 0 0', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em', color: C.ink }}>{clientName}</h2>
-              <div style={{ fontSize: 11.5, color: C.ink3, fontWeight: 500, marginTop: 6 }}>{titleByKind[kind]}</div>
+              <div style={{ fontSize: 11.5, color: C.ink3, fontWeight: 500, marginTop: 6 }}>histórico 3 meses</div>
             </div>
             <button onClick={closeDrawer} style={{ border: 0, background: 'transparent', color: C.ink3, width: 32, height: 32, borderRadius: 8, cursor: 'pointer', display: 'grid', placeItems: 'center', marginTop: -6 }}
               onMouseEnter={e => { e.currentTarget.style.background = '#f1f3f5'; e.currentTarget.style.color = C.ink }}
@@ -781,20 +794,34 @@ export default function DashboardPage() {
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 12px' }}>
           <h4 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px' }}>Cliente em foco</h4>
-          <div style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{clientName}</span>
-              <span style={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: dirCls }}>{arrow} {Math.abs(pct)}% · {cur}{unit}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 60, marginBottom: 6 }}>
-              {values.map((v, i) => (
-                <div key={i} style={{ flex: 1, background: i === values.length - 1 ? C.navy : C.sky, borderRadius: '4px 4px 2px 2px', height: `${Math.max(6, (v / maxVal) * 100)}%` }} />
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, fontSize: 10, color: C.ink4, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              {months.map((m, i) => <span key={i} style={{ flex: 1, textAlign: 'center' }}>{m}</span>)}
-            </div>
-          </div>
+          {charts.map(({ kind, title, unit, values, color, colorSoft }) => {
+            const isActive = kind === activeKind
+            const maxVal = Math.max(...values, 1)
+            const cur  = values[values.length - 1] ?? 0
+            const prev = values[values.length - 2] ?? 0
+            const pct  = prev ? Math.round(((cur - prev) / prev) * 100) : 0
+            const dirCls = pct >= 0 ? C.green : C.red
+            const arrow  = pct >= 0 ? '▲' : '▼'
+            return (
+              <div key={kind} style={{ border: `0.5px solid ${isActive ? C.lineStrong : C.line}`, borderRadius: 12, padding: 14, marginBottom: 10, background: isActive ? C.surface : C.bg }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: isActive ? C.navy : C.ink2 }}>{title}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: dirCls }}>{arrow} {Math.abs(pct)}% · {cur.toLocaleString('pt-BR')}{unit}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 56, marginBottom: 6 }}>
+                  {values.map((v, i) => {
+                    const barColor = isActive
+                      ? (i === values.length - 1 ? C.navy : C.sky)
+                      : (i === values.length - 1 ? color : colorSoft)
+                    return <div key={i} style={{ flex: 1, background: barColor, borderRadius: '4px 4px 2px 2px', height: `${Math.max(6, (v / maxVal) * 100)}%` }} />
+                  })}
+                </div>
+                <div style={{ display: 'flex', gap: 8, fontSize: 10, color: C.ink4, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  {months.map((m, i) => <span key={i} style={{ flex: 1, textAlign: 'center' }}>{m}</span>)}
+                </div>
+              </div>
+            )
+          })}
         </div>
         <div style={{ padding: '16px 24px 22px', borderTop: `0.5px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <button onClick={() => navigate(`/empresas/${clientId}`)}
