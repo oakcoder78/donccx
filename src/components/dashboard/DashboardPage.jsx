@@ -963,7 +963,7 @@ export default function DashboardPage() {
     }}>
 
       {/* ══════════════ FAIXA 1 — PULSO ══════════════ */}
-      <section style={{ background: C.navy, padding: '48px 40px 36px', borderTop: '2px solid rgba(255,255,255,0.15)' }}>
+      <section style={{ background: C.navy, padding: '48px 40px 36px', borderTop: '2px solid rgba(255,255,255,0.15)', marginTop: 28 }}>
         <div style={{ maxWidth: 1640, margin: '0 auto', display: 'grid', gridTemplateColumns: '1.25fr 1fr 1fr', gap: 24, alignItems: 'stretch' }}>
 
           {/* Bloco 1 — Identidade */}
@@ -986,32 +986,6 @@ export default function DashboardPage() {
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: C.navyTextMuted, fontWeight: 500, lineHeight: 1.4 }}>{phrase}</p>
               </div>
             </div>
-
-            {/* CSM filter (admin/manager) */}
-            {isAdminOrManager && (
-              <div style={{ position: 'relative', userSelect: 'none' }}>
-                <div onClick={() => setCsmDropdownOpen(o => !o)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', background: 'rgba(255,255,255,0.08)', border: `0.5px solid ${C.navyLine}` }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: C.navyTextSoft }}>{selectedCsmProfile?.name || 'Todos os CSMs'}</span>
-                  <span style={{ fontSize: 10, color: C.navyTextMuted }}>{csmDropdownOpen ? '▲' : '▼'}</span>
-                </div>
-                {csmDropdownOpen && (
-                  <>
-                    <div onClick={() => setCsmDropdownOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-                    <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, minWidth: 200, background: C.surface, border: `0.5px solid ${C.line}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, overflow: 'hidden' }}>
-                      {[{ id: '', name: 'Todos os CSMs' }, ...csmList].map(p => (
-                        <div key={p.id} onClick={() => { setSelectedCsm(p.id); setCsmDropdownOpen(false) }}
-                          style={{ padding: '9px 14px', fontSize: 13, color: C.ink, cursor: 'pointer', background: selectedCsm === p.id ? '#f0efed' : '#fff', fontWeight: selectedCsm === p.id ? 600 : 400 }}
-                          onMouseEnter={e => e.currentTarget.style.background = '#f7f7f5'}
-                          onMouseLeave={e => e.currentTarget.style.background = selectedCsm === p.id ? '#f0efed' : '#fff'}>
-                          {p.name}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
 
             {/* Pills */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -1058,6 +1032,31 @@ export default function DashboardPage() {
 
           {/* Bloco 3 — Counters */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 24 }}>
+            {/* CSM dropdown — admin/manager, right-aligned */}
+            {isAdminOrManager && (
+              <div style={{ position: 'relative', userSelect: 'none', display: 'flex', justifyContent: 'flex-end' }}>
+                <div onClick={() => setCsmDropdownOpen(o => !o)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderRadius: 8, cursor: 'pointer', background: 'rgba(255,255,255,0.08)', border: `0.5px solid ${C.navyLine}` }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: C.navyTextSoft }}>{selectedCsmProfile?.name || 'Todos os CSMs'}</span>
+                  <span style={{ fontSize: 10, color: C.navyTextMuted }}>{csmDropdownOpen ? '▲' : '▼'}</span>
+                </div>
+                {csmDropdownOpen && (
+                  <>
+                    <div onClick={() => setCsmDropdownOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
+                    <div style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, minWidth: 200, background: C.surface, border: `0.5px solid ${C.line}`, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 100, overflow: 'hidden' }}>
+                      {[{ id: '', name: 'Todos os CSMs' }, ...csmList].map(p => (
+                        <div key={p.id} onClick={() => { setSelectedCsm(p.id); setCsmDropdownOpen(false) }}
+                          style={{ padding: '9px 14px', fontSize: 13, color: C.ink, cursor: 'pointer', background: selectedCsm === p.id ? '#f0efed' : '#fff', fontWeight: selectedCsm === p.id ? 600 : 400 }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f7f7f5'}
+                          onMouseLeave={e => e.currentTarget.style.background = selectedCsm === p.id ? '#f0efed' : '#fff'}>
+                          {p.name}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             {[
               { label: 'Sem interação 30d+', value: semInteracao.length, tone: 'amber', mode: 'silent' },
               { label: 'Milestones vencidos', value: overdueCount, tone: 'red', mode: 'milestones' },
