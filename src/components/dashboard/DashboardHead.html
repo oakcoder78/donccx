@@ -1,0 +1,1615 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<title>doncCX Hub — Dashboard Head de CS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ---------- tokens ---------- */
+  :root {
+    --navy: #173557;
+    --navy-deep: #0f2540;
+    --navy-soft: #1f4068;
+    --navy-line: rgba(255,255,255,0.10);
+    --navy-line-strong: rgba(255,255,255,0.18);
+    --navy-text-muted: rgba(255,255,255,0.62);
+    --navy-text-soft: rgba(255,255,255,0.78);
+
+    --sky: #59c2ed;
+    --sky-soft: #e8f6fd;
+    --sky-deep: #2b7aa4;
+    --lime: #d3da47;
+    --lime-soft: #f6f8d9;
+    --lime-deep: #6b7020;
+
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --ink: #0e223a;
+    --ink-2: #3b4a5e;
+    --ink-3: #6b7889;
+    --ink-4: #9aa5b5;
+    --line: rgba(15, 34, 58, 0.09);
+    --line-strong: rgba(15, 34, 58, 0.16);
+
+    --red: #d64545;
+    --red-soft: #fbe9e9;
+    --amber: #d98b28;
+    --amber-soft: #fbf0de;
+    --green: #2f9e70;
+    --green-soft: #e3f2ea;
+
+    /* dimension colors */
+    --dim-uso: #59c2ed;
+    --dim-suporte: #b46cd1;
+    --dim-rel: #d98b28;
+    --dim-fin: #2f9e70;
+    --dim-proj: #d3da47;
+
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --radius-sm: 8px;
+    --border: 0.5px solid var(--line);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-weight: 400; font-size: 14px; line-height: 1.45;
+    letter-spacing: -0.005em;
+  }
+  button { font-family: inherit; }
+
+  .page {
+    display: flex; flex-direction: column;
+    min-height: 100vh;
+    transition: padding-right 0.3s ease;
+  }
+  .page.drawer-open { padding-right: 380px; }
+
+  /* ============== generic strip ============== */
+  .strip {
+    width: 100%;
+    padding: 28px 40px;
+  }
+  .strip-inner {
+    max-width: 1640px; margin: 0 auto;
+  }
+  .strip-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .strip-head h2 {
+    margin: 0; font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-3);
+  }
+  .strip-head .right {
+    font-size: 12px; color: var(--ink-3); font-weight: 500;
+    display: flex; gap: 14px; align-items: center;
+  }
+  .strip-head a {
+    color: var(--navy); font-weight: 600; cursor: pointer;
+    text-decoration: none;
+  }
+  .strip-head a:hover { color: var(--sky-deep); }
+
+  /* ============== FAIXA 1 — PULSO (NAVY) ============== */
+  .pulse {
+    background: var(--navy);
+    color: #fff;
+    padding: 48px 40px 36px;
+    border-top: 2px solid rgba(255,255,255,0.15);
+  }
+  .pulse-inner {
+    max-width: 1640px; margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.25fr 1fr 1fr;
+    gap: 24px;
+    align-items: stretch;
+  }
+
+  /* identidade */
+  .pulse-id {
+    display: flex; flex-direction: column; gap: 18px;
+    padding-right: 24px;
+    border-right: 0.5px solid var(--navy-line);
+  }
+  .pulse-id-head {
+    display: flex; align-items: center; gap: 14px;
+  }
+  .pulse-avatar {
+    width: 100px; height: 100px; border-radius: 50%;
+    flex: 0 0 100px; overflow: hidden;
+    background: linear-gradient(135deg, var(--sky) 0%, var(--navy-soft) 100%);
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700; font-size: 30px;
+    letter-spacing: 0.02em;
+    border: 0.5px solid var(--navy-line-strong);
+  }
+  .pulse-id-text h1 {
+    margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+  .pulse-id-text p {
+    margin: 4px 0 0; font-size: 13px; color: var(--navy-text-muted); font-weight: 500;
+    line-height: 1.4;
+  }
+  .pulse-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .pill {
+    font-size: 12px; font-weight: 600;
+    padding: 7px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    color: var(--navy-text-soft);
+    border: 0.5px solid var(--navy-line);
+    cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px;
+    letter-spacing: -0.005em;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .pill:hover { background: rgba(255,255,255,0.13); border-color: var(--navy-line-strong); }
+  .pill .num { font-weight: 700; font-size: 13px; }
+  .pill[data-tone="red"] .num { color: #ff8a8a; }
+  .pill[data-tone="amber"] .num { color: #f5c270; }
+  .pill[data-tone="green"] .num { color: #7fd6a8; }
+
+  /* MRR */
+  .pulse-mrr {
+    display: flex; flex-direction: column; gap: 12px;
+    padding: 0 24px;
+    border-right: 0.5px solid var(--navy-line);
+  }
+  .pulse-mrr .label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--navy-text-muted);
+  }
+  .pulse-mrr .big {
+    font-size: 38px; font-weight: 700; letter-spacing: -0.03em;
+    color: var(--lime); line-height: 1; margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pulse-mrr .big small {
+    font-size: 14px; font-weight: 600; color: var(--navy-text-soft);
+    margin-left: 6px; letter-spacing: 0;
+  }
+  .pulse-mrr-subs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin-top: 4px;
+  }
+  .pulse-mrr-sub {
+    padding: 10px 12px; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 0.5px solid var(--navy-line);
+    display: flex; flex-direction: column; gap: 3px;
+  }
+  .pulse-mrr-sub .k {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--navy-text-muted);
+  }
+  .pulse-mrr-sub .v {
+    font-size: 16px; font-weight: 700; color: #fff; letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pulse-mrr-sub.red .v { color: #ff8a8a; }
+  .pulse-mrr-foot {
+    font-size: 12px; color: var(--navy-text-muted); font-weight: 500;
+    margin-top: auto;
+  }
+
+  /* contadores */
+  .pulse-counters {
+    display: flex; flex-direction: column; gap: 10px;
+    padding-left: 24px;
+  }
+  .counter {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    background: rgba(255,255,255,0.04);
+    border: 0.5px solid var(--navy-line);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .counter:hover { background: rgba(255,255,255,0.08); border-color: var(--navy-line-strong); }
+  .counter .k {
+    font-size: 12.5px; font-weight: 600; color: var(--navy-text-soft);
+    letter-spacing: -0.005em;
+  }
+  .counter .v {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .counter[data-tone="red"] .v { color: #ff8a8a; }
+  .counter[data-tone="amber"] .v { color: #f5c270; }
+
+  /* ============== STRIP COMMON CARDS ============== */
+  .panel {
+    background: var(--surface);
+    border: var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px 14px;
+    display: flex; flex-direction: column;
+    height: 100%;
+  }
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .panel-head h3 {
+    margin: 0; font-size: 14px; font-weight: 700;
+    color: var(--ink); letter-spacing: -0.01em;
+  }
+  .panel-head .meta {
+    font-size: 11px; color: var(--ink-3); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .panel-foot {
+    margin-top: auto; padding-top: 12px;
+  }
+  .see-all {
+    font-size: 12px; font-weight: 600; color: var(--navy);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+    background: none; border: 0; padding: 4px 0;
+    letter-spacing: -0.005em;
+  }
+  .see-all:hover { color: var(--sky-deep); }
+
+  /* equal-height columns inside a strip */
+  .row-2 {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 20px; align-items: stretch;
+  }
+  .row-2-uneven {
+    display: grid; grid-template-columns: 1.4fr 1fr;
+    gap: 20px; align-items: stretch;
+  }
+  .stack { display: flex; flex-direction: column; gap: 20px; height: 100%; }
+
+  /* ============== FAIXA 2 — URGÊNCIAS ============== */
+  .alert-list, .activity-list {
+    display: flex; flex-direction: column;
+  }
+  .alert-row {
+    display: grid;
+    grid-template-columns: 4px 1fr auto;
+    gap: 14px;
+    padding: 12px 8px 12px 0;
+    border-bottom: var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 6px;
+  }
+  .alert-row:last-child { border-bottom: 0; }
+  .alert-row:hover { background: #f8f9fb; }
+  .alert-bar {
+    width: 3px; border-radius: 2px; align-self: stretch;
+    margin-left: 4px;
+  }
+  .alert-row[data-tone="red"] .alert-bar { background: var(--red); }
+  .alert-row[data-tone="amber"] .alert-bar { background: var(--amber); }
+  .alert-body { min-width: 0; }
+  .alert-name {
+    font-size: 14px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .alert-reason {
+    font-size: 12px; color: var(--ink-3); font-weight: 500;
+    margin-top: 2px;
+  }
+  .alert-dims { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .dim-badge {
+    font-size: 10.5px; font-weight: 700; padding: 3px 7px;
+    border-radius: 5px; letter-spacing: 0.02em;
+    text-transform: uppercase;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .dim-badge .ddot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+  .dim-badge.uso { color: var(--sky-deep); background: var(--sky-soft); }
+  .dim-badge.suporte { color: #7c3fa0; background: #f3e8f8; }
+  .dim-badge.rel { color: var(--amber); background: var(--amber-soft); }
+  .dim-badge.fin { color: var(--green); background: var(--green-soft); }
+  .dim-badge.proj { color: var(--lime-deep); background: var(--lime-soft); }
+
+  .alert-score {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums; align-self: flex-start;
+    padding-top: 2px;
+  }
+  .alert-score[data-band="red"] { color: var(--red); }
+  .alert-score[data-band="amber"] { color: var(--amber); }
+  .alert-score[data-band="green"] { color: var(--green); }
+  .alert-score small { font-size: 11px; font-weight: 600; color: var(--ink-4); margin-left: 2px; }
+
+  /* activity list */
+  .activity-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 14px 0;
+    border-bottom: var(--border);
+    cursor: pointer;
+  }
+  .activity-row:last-child { border-bottom: 0; }
+  .activity-row:hover { background: #f8f9fb; padding-left: 6px; padding-right: 6px; border-radius: 6px; }
+  .activity-body { flex: 1; min-width: 0; }
+  .activity-title {
+    font-size: 13.5px; font-weight: 600; color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .activity-comp {
+    font-size: 11.5px; color: var(--ink-3); font-weight: 500; margin-top: 2px;
+  }
+  .urg-badge {
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 6px;
+    flex: 0 0 auto;
+  }
+  .urg-badge.red { background: var(--red-soft); color: var(--red); }
+  .urg-badge.amber { background: var(--amber-soft); color: var(--amber); }
+  .urg-badge.sky { background: var(--sky-soft); color: var(--sky-deep); }
+
+  /* ============== FAIXA 3 — PORTFÓLIO ============== */
+  .rank-list { display: flex; flex-direction: column; }
+  .rank-row {
+    display: grid;
+    grid-template-columns: 160px 1fr 44px 70px;
+    gap: 14px;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: var(--border);
+    cursor: pointer;
+  }
+  .rank-row:last-child { border-bottom: 0; }
+  .rank-row:hover { background: #f8f9fb; padding-left: 6px; padding-right: 6px; border-radius: 6px; }
+  .rank-name {
+    font-size: 13px; font-weight: 600; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .rank-bar {
+    height: 7px; background: #f1f3f5; border-radius: 999px; overflow: hidden;
+  }
+  .rank-fill { height: 100%; border-radius: 999px; }
+  .rank-fill.red { background: var(--red); }
+  .rank-fill.amber { background: var(--amber); }
+  .rank-fill.green { background: var(--green); }
+  .rank-num {
+    font-size: 14px; font-weight: 700; letter-spacing: -0.01em;
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .rank-num.red { color: var(--red); }
+  .rank-num.amber { color: var(--amber); }
+  .rank-num.green { color: var(--green); }
+  .status-pill {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 999px; text-align: center;
+  }
+  .status-pill.red { background: var(--red-soft); color: var(--red); }
+  .status-pill.amber { background: var(--amber-soft); color: var(--amber); }
+  .status-pill.green { background: var(--green-soft); color: var(--green); }
+
+  /* dim health */
+  .dim-list { display: flex; flex-direction: column; gap: 11px; }
+  .dim-row { display: flex; flex-direction: column; gap: 5px; }
+  .dim-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+  .dim-icon {
+    width: 18px; height: 18px; flex: 0 0 18px; border-radius: 5px;
+    display: grid; place-items: center; color: #fff;
+  }
+  .dim-icon.uso { background: var(--dim-uso); }
+  .dim-icon.suporte { background: var(--dim-suporte); }
+  .dim-icon.rel { background: var(--dim-rel); }
+  .dim-icon.fin { background: var(--dim-fin); }
+  .dim-icon.proj { background: var(--dim-proj); color: var(--lime-deep); }
+  .dim-name { font-weight: 600; color: var(--ink); flex: 1; }
+  .dim-count {
+    font-size: 11.5px; font-weight: 700; letter-spacing: -0.005em;
+    font-variant-numeric: tabular-nums;
+  }
+  .dim-count.green { color: var(--green); }
+  .dim-count.red { color: var(--red); }
+  .dim-track {
+    height: 6px; background: #f1f3f5; border-radius: 999px; overflow: hidden;
+  }
+  .dim-fill-uso { background: var(--dim-uso); height: 100%; border-radius: 999px; }
+  .dim-fill-suporte { background: var(--dim-suporte); height: 100%; border-radius: 999px; }
+  .dim-fill-rel { background: var(--dim-rel); height: 100%; border-radius: 999px; }
+  .dim-fill-fin { background: var(--dim-fin); height: 100%; border-radius: 999px; }
+  .dim-fill-proj { background: var(--dim-proj); height: 100%; border-radius: 999px; }
+
+  /* silent list */
+  .silent-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0;
+    border-bottom: var(--border);
+    cursor: pointer;
+  }
+  .silent-row:last-child { border-bottom: 0; }
+  .silent-row:hover { background: #f8f9fb; padding-left: 6px; padding-right: 6px; border-radius: 6px; }
+  .silent-body { flex: 1; min-width: 0; }
+  .silent-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .silent-last { font-size: 11px; color: var(--ink-3); font-weight: 500; margin-top: 2px; }
+  .silent-days {
+    font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px;
+    background: var(--amber-soft); color: var(--amber);
+    letter-spacing: -0.005em; flex: 0 0 auto;
+  }
+
+  /* ============== FAIXA 4 — OPERACIONAL ============== */
+  .ops-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 20px; align-items: stretch;
+  }
+  .var-list { display: flex; flex-direction: column; }
+  .var-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: var(--border); cursor: pointer;
+  }
+  .var-row:last-child { border-bottom: 0; }
+  .var-row:hover { background: #f8f9fb; padding-left: 6px; padding-right: 6px; border-radius: 6px; }
+  .var-body { min-width: 0; }
+  .var-name { font-size: 12.5px; font-weight: 600; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px;
+  }
+  .var-abs { font-size: 10.5px; color: var(--ink-3); font-weight: 500; margin-top: 1px; }
+  .var-delta {
+    font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .var-delta.up { color: var(--green); }
+  .var-delta.down { color: var(--red); }
+
+  /* sync card */
+  .sync-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 0; border-bottom: var(--border);
+  }
+  .sync-row:last-child { border-bottom: 0; }
+  .sync-body { flex: 1; min-width: 0; }
+  .sync-name {
+    font-size: 12.5px; font-weight: 600; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .sync-when { font-size: 10.5px; color: var(--ink-3); font-weight: 500; margin-top: 1px; }
+  .sync-btn {
+    background: transparent; border: 0.5px solid var(--line-strong);
+    color: var(--navy); font-size: 11px; font-weight: 700;
+    padding: 5px 9px; border-radius: 6px; cursor: pointer;
+    flex: 0 0 auto;
+    letter-spacing: -0.005em;
+  }
+  .sync-btn:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .sync-empty {
+    font-size: 12.5px; color: var(--green); font-weight: 600;
+    text-align: center; padding: 20px 0;
+  }
+
+  /* ops empty state (rare) */
+  .ops-empty {
+    background: var(--surface); border: var(--border); border-radius: var(--radius-lg);
+    padding: 36px 28px; text-align: center;
+  }
+  .ops-empty .t {
+    font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 6px;
+  }
+  .ops-empty .s {
+    font-size: 12.5px; color: var(--ink-3); font-weight: 500;
+  }
+
+  /* ============== DRAWER ============== */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(14, 34, 58, 0.18);
+    opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+    z-index: 40;
+  }
+  .overlay.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 380px;
+    background: var(--surface); border-left: var(--border);
+    z-index: 50;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(.3,.7,.3,1);
+    display: flex; flex-direction: column;
+    box-shadow: -1px 0 0 rgba(15,34,58,0.04), -24px 0 48px -24px rgba(15,34,58,0.16);
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-head {
+    padding: 22px 24px 18px;
+    border-bottom: var(--border);
+  }
+  .drawer-head .row1 {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .drawer-head .kind {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--ink-4);
+  }
+  .drawer-head h2 {
+    margin: 4px 0 0; font-size: 19px; font-weight: 700;
+    letter-spacing: -0.02em; color: var(--ink);
+  }
+  .drawer-head .pillrow { margin-top: 8px; }
+  .drawer-close {
+    border: 0; background: transparent; color: var(--ink-3);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+    display: grid; place-items: center; margin: -6px -6px 0 0;
+  }
+  .drawer-close:hover { background: #f1f3f5; color: var(--ink); }
+
+  .triple {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    margin-top: 16px;
+    border: var(--border); border-radius: var(--radius-md); overflow: hidden;
+  }
+  .triple .cell {
+    padding: 10px 12px; border-right: var(--border);
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .triple .cell:last-child { border-right: 0; }
+  .triple .k {
+    font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-4);
+  }
+  .triple .v {
+    font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em;
+  }
+  .triple .v.small { font-size: 12.5px; }
+  .triple .v.down { color: var(--red); }
+  .triple .v.up { color: var(--green); }
+
+  .drawer-body {
+    flex: 1; overflow-y: auto; padding: 20px 24px 12px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .drawer-sec h4 {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); margin: 0 0 12px;
+  }
+  .signal {
+    display: flex; gap: 12px; padding: 12px;
+    border: var(--border); border-radius: var(--radius-md);
+    margin-bottom: 8px;
+  }
+  .signal:last-child { margin-bottom: 0; }
+  .signal-ico {
+    width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px;
+    display: grid; place-items: center;
+  }
+  .signal.urgent .signal-ico { background: var(--red-soft); color: var(--red); }
+  .signal.warn .signal-ico { background: var(--amber-soft); color: var(--amber); }
+  .signal.gray .signal-ico { background: #f1f3f5; color: var(--ink-3); }
+  .signal-body { flex: 1; min-width: 0; }
+  .signal-title { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.35; }
+  .signal-sub { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; font-weight: 500; }
+  .signal-act {
+    font-size: 11.5px; color: var(--navy); font-weight: 600;
+    margin-top: 8px; cursor: pointer; letter-spacing: -0.005em;
+    display: inline-block;
+  }
+  .signal-act:hover { color: var(--sky-deep); }
+
+  .qa-list { display: flex; flex-direction: column; gap: 8px; }
+  .qa {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border: var(--border); border-radius: var(--radius-md);
+    background: transparent; cursor: pointer; text-align: left;
+    transition: border-color 0.15s, background 0.15s;
+    width: 100%;
+  }
+  .qa:hover { border-color: var(--line-strong); background: #fafbfc; }
+  .qa-ico {
+    width: 26px; height: 26px; flex: 0 0 26px; border-radius: 7px;
+    display: grid; place-items: center;
+  }
+  .qa-ico.red { background: var(--red-soft); color: var(--red); }
+  .qa-ico.amber { background: var(--amber-soft); color: var(--amber); }
+  .qa-ico.sky { background: var(--sky-soft); color: var(--sky-deep); }
+  .qa-ico.lime { background: var(--lime-soft); color: var(--lime-deep); }
+  .qa-ico.navy { background: #eef2f7; color: var(--navy); }
+  .qa-label { flex: 1; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .qa-chev { color: var(--ink-4); }
+
+  /* drawer list rows (atrasadas, sem-interação, milestones, temperaturas) */
+  .d-row {
+    padding: 12px;
+    border: var(--border); border-radius: var(--radius-md);
+    margin-bottom: 8px;
+    display: flex; flex-direction: column; gap: 4px;
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  }
+  .d-row:hover { border-color: var(--line-strong); background: #fafbfc; }
+  .d-row .top {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+  }
+  .d-row .title { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
+  .d-row .sub { font-size: 11.5px; color: var(--ink-3); font-weight: 500; }
+  .d-row .meta {
+    font-size: 11px; color: var(--ink-3); font-weight: 500;
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 2px;
+  }
+  .d-row .meta b { color: var(--ink-2); font-weight: 700; }
+  .d-row .late {
+    font-size: 11px; font-weight: 700; color: var(--red);
+    background: var(--red-soft); padding: 3px 8px; border-radius: 6px;
+    flex: 0 0 auto; letter-spacing: 0.02em; text-transform: uppercase;
+  }
+  .d-row .silent {
+    font-size: 11px; font-weight: 700; color: var(--amber);
+    background: var(--amber-soft); padding: 3px 8px; border-radius: 6px;
+    flex: 0 0 auto;
+  }
+  .d-row .temp-pill {
+    font-size: 10.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .d-row .temp-pill.cold { background: var(--sky-soft); color: var(--sky-deep); }
+  .d-row .temp-pill.hot { background: var(--red-soft); color: var(--red); }
+  .d-row .temp-pill.gone { background: #f1f3f5; color: var(--ink-3); }
+
+  /* drawer historic chart (operacional mode) */
+  .histo {
+    border: var(--border); border-radius: var(--radius-md);
+    padding: 14px; margin-bottom: 10px;
+  }
+  .histo-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .histo-name { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .histo-cur {
+    font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  }
+  .histo-cur.up { color: var(--green); }
+  .histo-cur.down { color: var(--red); }
+  .histo-bars {
+    display: flex; align-items: flex-end; gap: 8px; height: 60px;
+    margin-bottom: 6px;
+  }
+  .histo-bar {
+    flex: 1; background: var(--sky); border-radius: 4px 4px 2px 2px;
+    position: relative; min-height: 6px;
+  }
+  .histo-bar.dim { background: #c7d6e1; }
+  .histo-bar:last-child { background: var(--navy); }
+  .histo-labels {
+    display: flex; gap: 8px; font-size: 10px; color: var(--ink-4); font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .histo-labels span { flex: 1; text-align: center; }
+
+  .drawer-foot {
+    padding: 16px 24px 22px;
+    border-top: var(--border);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .btn-primary {
+    background: var(--navy); color: #fff; border: 0;
+    padding: 12px 16px; border-radius: 10px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    letter-spacing: -0.005em;
+  }
+  .btn-primary:hover { background: var(--navy-deep); }
+  .btn-link {
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--ink-3); font-size: 11.5px; font-weight: 500;
+    text-align: center;
+  }
+  .btn-link:hover { color: var(--ink); text-decoration: underline; }
+
+  .drawer-body::-webkit-scrollbar { width: 6px; }
+  .drawer-body::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 3px; }
+
+  /* arrows */
+  .ar-up::before { content: "▲"; font-size: 9px; margin-right: 3px; }
+  .ar-dn::before { content: "▼"; font-size: 9px; margin-right: 3px; }
+  .ar-fl::before { content: "→"; font-size: 10px; margin-right: 3px; }
+</style>
+</head>
+<body>
+
+<div class="page" id="page">
+
+  <!-- ============ FAIXA 1 — PULSO ============ -->
+  <section class="pulse">
+    <div class="pulse-inner">
+
+      <!-- bloco 1 — identidade -->
+      <div class="pulse-id">
+        <div class="pulse-id-head">
+          <div class="pulse-avatar">JM</div>
+          <div class="pulse-id-text">
+            <h1>Bom dia, Jorge.</h1>
+            <p>Segunda-feira, 4 de maio de 2026</p>
+            <p id="pulse-phrase"></p>
+          </div>
+        </div>
+        <div class="pulse-pills">
+          <button class="pill" data-tone="red" data-mode="risk">
+            <span class="num">3</span> em risco
+          </button>
+          <button class="pill" data-tone="amber" data-mode="overdue">
+            <span class="num">5</span> atividades atrasadas
+          </button>
+          <button class="pill" data-tone="green" data-mode="healthy">
+            <span class="num">9</span> saudáveis
+          </button>
+          <button class="pill" data-tone="amber" data-mode="renewals">
+            <span class="num">2</span> renovações em 30d
+          </button>
+        </div>
+      </div>
+
+      <!-- bloco 2 — MRR -->
+      <div class="pulse-mrr">
+        <span class="label">MRR do portfólio</span>
+        <div class="big">R$ 287,4k <small>/mês</small></div>
+        <div class="pulse-mrr-subs">
+          <div class="pulse-mrr-sub">
+            <span class="k">ARR</span>
+            <span class="v">R$ 3,45M</span>
+          </div>
+          <div class="pulse-mrr-sub red">
+            <span class="k">Em atraso</span>
+            <span class="v">R$ 18,2k</span>
+          </div>
+        </div>
+        <div class="pulse-mrr-foot">16 empresas ativas</div>
+      </div>
+
+      <!-- bloco 3 — counters -->
+      <div class="pulse-counters">
+        <button class="counter" data-tone="amber" data-mode="silent">
+          <span class="k">Sem interação 30d+</span>
+          <span class="v">4</span>
+        </button>
+        <button class="counter" data-tone="red" data-mode="milestones">
+          <span class="k">Milestones vencidos</span>
+          <span class="v">3</span>
+        </button>
+        <button class="counter" data-tone="amber" data-mode="temps">
+          <span class="k">Temperaturas vencidas</span>
+          <span class="v">6</span>
+        </button>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ FAIXA 2 — URGÊNCIAS ============ -->
+  <section class="strip" style="background: var(--bg);">
+    <div class="strip-inner">
+      <div class="strip-head">
+        <h2>Urgências · ação nesta semana</h2>
+        <div class="right">atualizado há 4 min</div>
+      </div>
+
+      <div class="row-2">
+        <!-- alertas prioritários -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Alertas prioritários</h3>
+            <span class="meta">5 ativos</span>
+          </div>
+          <div class="alert-list" id="alerts"></div>
+          <div class="panel-foot">
+            <button class="see-all">ver todos →</button>
+          </div>
+        </div>
+
+        <!-- próximas atividades -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Próximas atividades</h3>
+            <span class="meta">8 esta semana</span>
+          </div>
+          <div class="activity-list" id="activities"></div>
+          <div class="panel-foot">
+            <button class="see-all">ver todas →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAIXA 3 — PORTFÓLIO ============ -->
+  <section class="strip" style="background: var(--surface); border-top: var(--border); border-bottom: var(--border);">
+    <div class="strip-inner">
+      <div class="strip-head">
+        <h2>Portfólio · saúde da carteira</h2>
+        <div class="right">média 76 · 16 clientes</div>
+      </div>
+
+      <div class="row-2-uneven">
+        <!-- saúde rankeada -->
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Saúde rankeada · menor → maior score</h3>
+            <span class="meta">top 5 de risco</span>
+          </div>
+          <div class="rank-list" id="ranking"></div>
+          <div class="panel-foot">
+            <button class="see-all">ver todos os 16 →</button>
+          </div>
+        </div>
+
+        <!-- coluna direita empilhada -->
+        <div class="stack">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Saúde por dimensão</h3>
+              <span class="meta">16 clientes</span>
+            </div>
+            <div class="dim-list">
+              <div class="dim-row">
+                <div class="dim-head">
+                  <div class="dim-icon uso"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 17l6-6 4 4 8-8"/></svg></div>
+                  <span class="dim-name">Uso</span>
+                  <span class="dim-count red">3/16 alerta</span>
+                </div>
+                <div class="dim-track"><div class="dim-fill-uso" style="width: 81%"></div></div>
+              </div>
+              <div class="dim-row">
+                <div class="dim-head">
+                  <div class="dim-icon suporte"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+                  <span class="dim-name">Suporte</span>
+                  <span class="dim-count green">16/16 ok</span>
+                </div>
+                <div class="dim-track"><div class="dim-fill-suporte" style="width: 100%"></div></div>
+              </div>
+              <div class="dim-row">
+                <div class="dim-head">
+                  <div class="dim-icon rel"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+                  <span class="dim-name">Relacionamento</span>
+                  <span class="dim-count red">4/16 alerta</span>
+                </div>
+                <div class="dim-track"><div class="dim-fill-rel" style="width: 75%"></div></div>
+              </div>
+              <div class="dim-row">
+                <div class="dim-head">
+                  <div class="dim-icon fin"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20M17 5H9a3 3 0 000 6h6a3 3 0 010 6H7"/></svg></div>
+                  <span class="dim-name">Financeiro</span>
+                  <span class="dim-count red">2/16 alerta</span>
+                </div>
+                <div class="dim-track"><div class="dim-fill-fin" style="width: 87.5%"></div></div>
+              </div>
+              <div class="dim-row">
+                <div class="dim-head">
+                  <div class="dim-icon proj"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 22V4M4 16s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2S4 4 4 4"/></svg></div>
+                  <span class="dim-name">Projeto</span>
+                  <span class="dim-count red">3/16 alerta</span>
+                </div>
+                <div class="dim-track"><div class="dim-fill-proj" style="width: 81%"></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Sem interação recente</h3>
+              <span class="meta">4 clientes</span>
+            </div>
+            <div id="silent-list"></div>
+            <div class="panel-foot">
+              <button class="see-all" data-mode="silent">ver todos →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FAIXA 4 — OPERACIONAL ============ -->
+  <section class="strip" style="background: var(--bg);">
+    <div class="strip-inner">
+      <div class="strip-head">
+        <h2>Operacional · Abril 2026</h2>
+        <div class="right"><a>ver dados completos →</a></div>
+      </div>
+
+      <div class="ops-grid">
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>OS abertas · variação mensal</h3>
+            <span class="meta">top 5</span>
+          </div>
+          <div class="var-list" id="var-os"></div>
+          <div class="panel-foot"><button class="see-all" data-mode="op-os">ver todos →</button></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Usuários ativos · variação mensal</h3>
+            <span class="meta">top 5</span>
+          </div>
+          <div class="var-list" id="var-users"></div>
+          <div class="panel-foot"><button class="see-all" data-mode="op-users">ver todos →</button></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Health score · variação mensal</h3>
+            <span class="meta">top 5</span>
+          </div>
+          <div class="var-list" id="var-health"></div>
+          <div class="panel-foot"><button class="see-all" data-mode="op-health">ver todos →</button></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>Sincronização de dados</h3>
+            <span class="meta">3 pendentes</span>
+          </div>
+          <div id="sync-list"></div>
+          <div class="panel-foot"><button class="see-all" data-mode="op-sync">ver todos →</button></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Drawer -->
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+
+<script>
+const userGender = 'male';
+
+/* ===================== DATA ===================== */
+const alerts = [
+  {
+    id: 'koerich', name: 'Lojas Koerich', score: 42, band: 'red', tone: 'red',
+    reason: 'Uso caiu 38% · 47 dias sem interação · ticket crítico aberto',
+    dims: ['uso','rel','suporte'],
+    temp: 'Fria', trend: { dir:'down', val:11, txt:'11 pts' },
+    signals: [
+      { kind:'urgent', title:'Uso despencou', sub:'−38% logins · −62% OS abertas (30d)', action:'→ agendar revisão de uso' },
+      { kind:'urgent', title:'Sem interação 47 dias', sub:'Última: 18 mar · e-mail breve', action:'→ registrar contato hoje' },
+      { kind:'warn', title:'Ticket Freshdesk crítico', sub:'#48329 · prioridade alta · 9 dias aberto', action:'→ revisar ticket' },
+    ],
+  },
+  {
+    id: 'todimo', name: 'Lojas Todimo', score: 51, band: 'red', tone: 'red',
+    reason: 'Milestone vencido 12d · projeto integração travado',
+    dims: ['proj','rel'],
+    temp: 'Neutra', trend: { dir:'down', val:6, txt:'6 pts' },
+    signals: [
+      { kind:'urgent', title:'Milestone vencido 12 dias', sub:'Treinamento técnicos · turma 2', action:'→ reagendar milestone' },
+      { kind:'warn', title:'Tendência de queda', sub:'Score caindo há 3 meses consecutivos', action:'→ marcar review executivo' },
+    ],
+  },
+  {
+    id: 'berlanda', name: 'Lojas Berlanda', score: 58, band: 'red', tone: 'red',
+    reason: 'Renovação em 22d · sem QBR no trimestre · temperatura não avaliada',
+    dims: ['rel','fin'],
+    temp: 'Não avaliada', trend: { dir:'flat', val:0, txt:'estável' },
+    signals: [
+      { kind:'urgent', title:'Renovação em 22 dias', sub:'Sem QBR no trimestre · sem proposta enviada', action:'→ preparar QBR' },
+      { kind:'warn', title:'Temperatura não avaliada', sub:'Vencida há 62 dias', action:'→ avaliar temperatura' },
+    ],
+  },
+  {
+    id: 'eletromoveis', name: 'Lojas Eletromóveis', score: 67, band: 'amber', tone: 'amber',
+    reason: 'OS abertas −24% · CSAT estável · risco de churn moderado',
+    dims: ['uso','proj'],
+    temp: 'Quente', trend: { dir:'down', val:4, txt:'4 pts' },
+    signals: [
+      { kind:'warn', title:'OS abertas caindo', sub:'−24% nos últimos 30d', action:'→ investigar uso operacional' },
+      { kind:'warn', title:'Atividade vence hoje', sub:'Avaliar melhorias de processo', action:'→ concluir ou reagendar' },
+    ],
+  },
+  {
+    id: 'solar', name: 'Solar Magazine', score: 71, band: 'amber', tone: 'amber',
+    reason: 'Sem interação 34d · NPS último 6',
+    dims: ['rel'],
+    temp: 'Não avaliada', trend: { dir:'flat', val:0, txt:'estável' },
+    signals: [
+      { kind:'warn', title:'Sem interação 34 dias', sub:'Última: 31 mar · telefone', action:'→ registrar contato' },
+      { kind:'gray', title:'NPS último 6', sub:'Aguardando follow-up', action:'→ ligar para o decisor' },
+    ],
+  },
+];
+
+const activities = [
+  { title:'Concluir avaliação de melhorias',  comp:'Lojas Eletromóveis', urg:'red',   txt:'atrasada', clientId:'eletromoveis' },
+  { title:'Reagendar milestone Treinamento',  comp:'Lojas Todimo',       urg:'red',   txt:'atrasada', clientId:'todimo' },
+  { title:'Preparar material reunião AT',     comp:'MULTILOJA',          urg:'amber', txt:'hoje' },
+  { title:'Call quinzenal de status',         comp:'Lojas Koerich',      urg:'amber', txt:'hoje',     clientId:'koerich' },
+  { title:'Reunião na Sede · QBR',            comp:'Lojas Berlanda',     urg:'sky',   txt:'06/05',    clientId:'berlanda' },
+  { title:'Revisar plano de sucesso',         comp:'Center Kennedy',     urg:'sky',   txt:'07/05',    clientId:'kennedy' },
+  { title:'Follow-up NPS pós-implantação',    comp:'Lojas Sipolatti',    urg:'sky',   txt:'08/05',    clientId:'sipolatti' },
+];
+
+const portfolio = [
+  { id:'koerich',     name:'Lojas Koerich',       score:42, band:'red',    label:'risco'    },
+  { id:'todimo',      name:'Lojas Todimo',         score:51, band:'red',    label:'risco'    },
+  { id:'berlanda',    name:'Lojas Berlanda',       score:58, band:'red',    label:'risco'    },
+  { id:'eletromoveis',name:'Lojas Eletromóveis',   score:67, band:'amber',  label:'atenção'  },
+  { id:'solar',       name:'Solar Magazine',       score:71, band:'amber',  label:'atenção'  },
+  { id:'multiloja',   name:'MULTILOJA',            score:78, band:'green',  label:'saudável' },
+  { id:'kennedy',     name:'Center Kennedy',       score:83, band:'green',  label:'saudável' },
+  { id:'sipolatti',   name:'Lojas Sipolatti',      score:89, band:'green',  label:'saudável' },
+];
+
+const silent = [
+  { id:'koerich',  name:'Lojas Koerich',  last:'18 mar · e-mail',     days:47 },
+  { id:'berlanda', name:'Lojas Berlanda', last:'15 mar · ligação',    days:50 },
+  { id:'solar',    name:'Solar Magazine', last:'31 mar · telefone',   days:34 },
+  { id:'cybelar',  name:'Lojas Cybelar',  last:'01 abr · WhatsApp',   days:33 },
+];
+
+const overdue = [
+  { title:'Avaliar melhorias de processo', comp:'Lojas Eletromóveis', due:'30/04', late:4, owner:'Thomás P.', clientId:'eletromoveis' },
+  { title:'Reagendar milestone Treinamento', comp:'Lojas Todimo',     due:'22/04', late:12, owner:'Thomás P.', clientId:'todimo' },
+  { title:'Follow-up renovação contrato',  comp:'Lojas Koerich',      due:'27/04', late:7, owner:'Maria L.', clientId:'koerich' },
+  { title:'Enviar proposta QBR',           comp:'Lojas Berlanda',     due:'29/04', late:5, owner:'Thomás P.', clientId:'berlanda' },
+  { title:'Atualizar plano de sucesso',    comp:'Center Kennedy',     due:'01/05', late:3, owner:'Maria L.' },
+];
+
+const milestones = [
+  { name:'Treinamento técnicos turma 2', proj:'Implantação Fase 2', client:'Lojas Todimo',    due:'22/04', late:12, clientId:'todimo' },
+  { name:'Kick-off integração ERP',      proj:'Integração Fase 2',  client:'Lojas Koerich',   due:'24/04', late:10, clientId:'koerich' },
+  { name:'Aprovação layout dashboard',   proj:'Custom Reports',     client:'Lojas Eletromóveis', due:'29/04', late:5, clientId:'eletromoveis' },
+];
+
+const temps = [
+  { name:'Lojas Berlanda',   last:'02 mar', cur:'Não avaliada', clientId:'berlanda' },
+  { name:'Solar Magazine',   last:'24 mar', cur:'Não avaliada' },
+  { name:'Lojas Todimo',     last:'19 mar', cur:'Vencida',     clientId:'todimo' },
+  { name:'Lojas Koerich',    last:'18 mar', cur:'Fria',        clientId:'koerich' },
+  { name:'Lojas Cybelar',    last:'14 mar', cur:'Vencida' },
+  { name:'MULTILOJA',        last:'30 mar', cur:'Vencida' },
+];
+
+const opOS = [
+  { client:'Lojas Sipolatti',   delta:+24, abs:'1.842 OS' },
+  { client:'Center Kennedy',    delta:+18, abs:'972 OS'   },
+  { client:'Lojas Solar',       delta:+11, abs:'1.205 OS' },
+  { client:'Lojas Eletromóveis',delta:-24, abs:'618 OS'   },
+  { client:'Lojas Koerich',     delta:-38, abs:'412 OS'   },
+];
+const opUsers = [
+  { client:'Lojas Simonetti',   delta:+22, abs:'48 ativos' },
+  { client:'Lojão Rio do Peixe',delta:+9,  abs:'31 ativos' },
+  { client:'Lojas Cybelar',     delta:+4,  abs:'27 ativos' },
+  { client:'Lojas Berlanda',    delta:-12, abs:'19 ativos' },
+  { client:'Lojas Koerich',     delta:-31, abs:'12 ativos' },
+];
+const opHealth = [
+  { client:'Lojas Sipolatti',   delta:+12, cur:'89' },
+  { client:'Center Kennedy',    delta:+7,  cur:'83' },
+  { client:'MULTILOJA',         delta:+3,  cur:'78' },
+  { client:'Lojas Todimo',      delta:-6,  cur:'51' },
+  { client:'Lojas Koerich',     delta:-11, cur:'42' },
+];
+const opSync = [
+  { client:'Lojas Berlanda',  last:'sem dados desde 02/04' },
+  { client:'Lojas Cybelar',   last:'sem dados desde 28/03' },
+  { client:'Solar Magazine',  last:'sem dados desde 22/03' },
+];
+
+const renewals = [
+  { name:'Lojas Berlanda',  renewal_date:'26/05/2026', mrr:'R$ 18.400', abc:'A', clientId:'berlanda' },
+  { name:'MULTILOJA',       renewal_date:'31/05/2026', mrr:'R$ 24.800', abc:'A', clientId:'multiloja' },
+];
+
+/* historic data per client per metric */
+const histo = {
+  os: {
+    'Lojas Sipolatti':     [1240, 1488, 1842],
+    'Center Kennedy':      [688,  823,  972],
+    'Lojas Solar':         [1010, 1085, 1205],
+    'Lojas Eletromóveis':  [814,  710,  618],
+    'Lojas Koerich':       [884,  664,  412],
+  },
+  users: {
+    'Lojas Simonetti':     [32, 39, 48],
+    'Lojão Rio do Peixe':  [27, 28, 31],
+    'Lojas Cybelar':       [25, 26, 27],
+    'Lojas Berlanda':      [27, 22, 19],
+    'Lojas Koerich':       [22, 17, 12],
+  },
+  health: {
+    'Lojas Sipolatti':     [70, 79, 89],
+    'Center Kennedy':      [70, 76, 83],
+    'MULTILOJA':           [73, 75, 78],
+    'Lojas Todimo':        [62, 57, 51],
+    'Lojas Koerich':       [64, 53, 42],
+  },
+};
+
+/* ===================== ICONS ===================== */
+const ic = {
+  bolt:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9z"/></svg>`,
+  clock:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`,
+  thermo:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M14 14.76V3a2 2 0 00-4 0v11.76a4 4 0 104 0z"/></svg>`,
+  flag:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 22V4M4 16s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2S4 4 4 4"/></svg>`,
+  phone:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.9.31 1.78.57 2.63a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.45-1.14a2 2 0 012.11-.45c.85.26 1.73.45 2.63.57A2 2 0 0122 16.92z"/></svg>`,
+  cal:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+  check:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12l5 5L20 6"/></svg>`,
+  plus:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>`,
+  chev:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6l6 6-6 6"/></svg>`,
+  close:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18"/></svg>`,
+  refresh:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>`,
+};
+const dimLabels = { uso:'Uso', suporte:'Suporte', rel:'Relac.', fin:'Financeiro', proj:'Projeto' };
+
+/* ===================== RENDER ===================== */
+const $ = sel => document.querySelector(sel);
+
+function renderAlerts() {
+  $('#alerts').innerHTML = alerts.map(a => `
+    <div class="alert-row" data-tone="${a.tone}" data-client="${a.id}">
+      <div class="alert-bar"></div>
+      <div class="alert-body">
+        <div class="alert-name">${a.name}</div>
+        <div class="alert-reason">${a.reason}</div>
+        <div class="alert-dims">
+          ${a.dims.map(d => `<span class="dim-badge ${d}"><span class="ddot"></span>${dimLabels[d]}</span>`).join('')}
+        </div>
+      </div>
+      <div class="alert-score" data-band="${a.band}">${a.score}<small>/100</small></div>
+    </div>
+  `).join('');
+}
+
+function renderActivities() {
+  $('#activities').innerHTML = activities.map(a => `
+    <div class="activity-row" ${a.clientId ? `data-client="${a.clientId}"` : ''}>
+      <div class="activity-body">
+        <div class="activity-title">${a.title}</div>
+        <div class="activity-comp">${a.comp}</div>
+      </div>
+      <span class="urg-badge ${a.urg}">${a.txt}</span>
+    </div>
+  `).join('');
+}
+
+function renderRanking() {
+  $('#ranking').innerHTML = portfolio.map(p => `
+    <div class="rank-row" data-client="${p.id}">
+      <div class="rank-name">${p.name}</div>
+      <div class="rank-bar"><div class="rank-fill ${p.band}" style="width:${p.score}%"></div></div>
+      <div class="rank-num ${p.band}">${p.score}</div>
+      <span class="status-pill ${p.band}">${p.label}</span>
+    </div>
+  `).join('');
+}
+
+function renderSilent() {
+  $('#silent-list').innerHTML = silent.map(s => `
+    <div class="silent-row" data-client="${s.id}">
+      <div class="silent-body">
+        <div class="silent-name">${s.name}</div>
+        <div class="silent-last">${s.last}</div>
+      </div>
+      <span class="silent-days">${s.days}d</span>
+    </div>
+  `).join('');
+}
+
+function renderVar(id, list, kind) {
+  $(id).innerHTML = list.map(x => {
+    const dirCls = x.delta > 0 ? 'up' : 'down';
+    const arrow = x.delta > 0 ? '▲' : '▼';
+    const valueLabel = kind === 'health'
+      ? `${arrow} ${Math.abs(x.delta)} pts`
+      : `${arrow} ${Math.abs(x.delta)}%`;
+    const subRight = kind === 'health' ? `score ${x.cur}` : x.abs;
+    return `
+      <div class="var-row" data-op="${kind}" data-name="${x.client}">
+        <div class="var-body">
+          <div class="var-name">${x.client}</div>
+          <div class="var-abs">${subRight}</div>
+        </div>
+        <span class="var-delta ${dirCls}">${valueLabel}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderSync() {
+  if (!opSync.length) {
+    $('#sync-list').innerHTML = `<div class="sync-empty">Todos os clientes sincronizados ✓</div>`;
+    return;
+  }
+  $('#sync-list').innerHTML = opSync.map(s => `
+    <div class="sync-row">
+      <div class="sync-body">
+        <div class="sync-name">${s.client}</div>
+        <div class="sync-when">${s.last}</div>
+      </div>
+      <button class="sync-btn" data-sync="${s.client}">sincronizar</button>
+    </div>
+  `).join('');
+}
+
+renderAlerts();
+renderActivities();
+renderRanking();
+renderSilent();
+renderVar('#var-os', opOS, 'os');
+renderVar('#var-users', opUsers, 'users');
+renderVar('#var-health', opHealth, 'health');
+renderSync();
+
+/* rotating phrase */
+const phrasesMale    = ['Pronto para mais um dia?','Seu portfólio espera por você!','Foco no cliente, sempre.','Que dia produtivo te espera!','Bora transformar dados em ação?'];
+const phrasesFemale  = ['Pronta para mais um dia?','Seu portfólio espera por você!','Foco no cliente, sempre.','Que dia produtivo te espera!','Bora transformar dados em ação?'];
+const phrasesNeutral = ['Seu portfólio espera por você!','Foco no cliente, sempre.','Que dia produtivo te espera!','Bora transformar dados em ação?'];
+const phrasesArr = userGender === 'male' ? phrasesMale : (userGender === 'female' ? phrasesFemale : phrasesNeutral);
+$('#pulse-phrase').textContent = phrasesArr[Math.floor(Math.random() * phrasesArr.length)];
+
+/* ===================== DRAWER ===================== */
+const overlay = $('#overlay');
+const drawer = $('#drawer');
+const page = $('#page');
+
+function openDrawer(html) {
+  drawer.innerHTML = html;
+  drawer.classList.add('open');
+  overlay.classList.add('open');
+  page.classList.add('drawer-open');
+  const close = $('#drawer-close');
+  if (close) close.addEventListener('click', closeDrawer);
+}
+function closeDrawer() {
+  drawer.classList.remove('open');
+  overlay.classList.remove('open');
+  page.classList.remove('drawer-open');
+}
+overlay.addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ----- mode: client ----- */
+function drawerClient(c) {
+  const trendV = c.trend.dir === 'down' ? 'down' : (c.trend.dir === 'up' ? 'up' : '');
+  const trendTxt = c.trend.dir === 'flat' ? '→ estável' : (c.trend.dir === 'down' ? `▼ ${c.trend.val} pts` : `▲ ${c.trend.val} pts`);
+  const pillCls = c.band === 'red' ? 'red' : (c.band === 'amber' ? 'amber' : 'green');
+  const pillLab = c.band === 'red' ? 'Risco' : (c.band === 'amber' ? 'Atenção' : 'Saudável');
+
+  const sigIco = (k) => k === 'urgent' ? ic.bolt : (k === 'warn' ? ic.clock : ic.thermo);
+  const sigs = c.signals.map(s => `
+    <div class="signal ${s.kind}">
+      <div class="signal-ico">${sigIco(s.kind)}</div>
+      <div class="signal-body">
+        <div class="signal-title">${s.title}</div>
+        <div class="signal-sub">${s.sub}</div>
+        <a class="signal-act">${s.action}</a>
+      </div>
+    </div>
+  `).join('');
+
+  // dynamic quick-actions, ordered red → amber → neutral
+  const qaItems = [];
+  if (c.signals.some(s => s.kind === 'urgent' && /atrasad|venc/i.test(s.title))) qaItems.push({ ico:'red', label:'Concluir atividade atrasada', svg: ic.check });
+  if (c.signals.some(s => /milestone/i.test(s.title))) qaItems.push({ ico:'red', label:'Reagendar milestone', svg: ic.cal });
+  if (c.signals.some(s => /sem interaç|sem contato/i.test(s.title))) qaItems.push({ ico:'amber', label:'Registrar contato agora', svg: ic.phone });
+  qaItems.push({ ico:'amber', label:'Atualizar temperatura', svg: ic.thermo });
+  qaItems.push({ ico:'navy', label:'Registrar atividade', svg: ic.plus });
+  const qa = qaItems.slice(0, 5).map(a => `
+    <button class="qa">
+      <div class="qa-ico ${a.ico}">${a.svg}</div>
+      <span class="qa-label">${a.label}</span>
+      <span class="qa-chev">${ic.chev}</span>
+    </button>
+  `).join('');
+
+  return `
+    <div class="drawer-head">
+      <div class="row1">
+        <div>
+          <div class="kind">Cliente</div>
+          <h2>${c.name}</h2>
+          <div class="pillrow"><span class="status-pill ${pillCls}">${pillLab}</span></div>
+        </div>
+        <button class="drawer-close" id="drawer-close">${ic.close}</button>
+      </div>
+      <div class="triple">
+        <div class="cell"><span class="k">Score</span><span class="v">${c.score}</span></div>
+        <div class="cell"><span class="k">Tendência</span><span class="v small ${trendV}">${trendTxt}</span></div>
+        <div class="cell"><span class="k">Temperatura</span><span class="v small">${c.temp}</span></div>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-sec">
+        <h4>Sinais ativos · ${c.signals.length}</h4>
+        ${sigs}
+      </div>
+      <div class="drawer-sec">
+        <h4>Ações rápidas</h4>
+        <div class="qa-list">${qa}</div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn-primary">Abrir cliente completo →</button>
+      <button class="btn-link">Dispensar alertas deste cliente</button>
+    </div>
+  `;
+}
+
+/* ----- mode: list-based ----- */
+function drawerOverdue() {
+  const rows = overdue.map(o => `
+    <div class="d-row" ${o.clientId ? `data-client="${o.clientId}"` : ''}>
+      <div class="top">
+        <div class="title">${o.title}</div>
+        <span class="late">${o.late}d atrasada</span>
+      </div>
+      <div class="sub">${o.comp}</div>
+      <div class="meta">Vence: <b>${o.due}</b> · Resp.: <b>${o.owner}</b></div>
+    </div>
+  `).join('');
+  return drawerListShell('Operacional', 'Atividades atrasadas', `${overdue.length} atividades vencidas no time`, rows);
+}
+function drawerSilent() {
+  const rows = silent.map(s => `
+    <div class="d-row" data-client="${s.id}">
+      <div class="top">
+        <div class="title">${s.name}</div>
+        <span class="silent">${s.days}d sem contato</span>
+      </div>
+      <div class="meta">Última: <b>${s.last}</b></div>
+    </div>
+  `).join('');
+  return drawerListShell('Relacionamento', 'Sem interação 30d+', `${silent.length} clientes silenciosos`, rows);
+}
+function drawerMilestones() {
+  const rows = milestones.map(m => `
+    <div class="d-row" ${m.clientId ? `data-client="${m.clientId}"` : ''}>
+      <div class="top">
+        <div class="title">${m.name}</div>
+        <span class="late">${m.late}d</span>
+      </div>
+      <div class="sub">${m.proj} · ${m.client}</div>
+      <div class="meta">Vence: <b>${m.due}</b></div>
+    </div>
+  `).join('');
+  return drawerListShell('Projetos', 'Milestones vencidos', `${milestones.length} milestones em atraso`, rows);
+}
+function drawerTemps() {
+  const rows = temps.map(t => {
+    const cls = t.cur === 'Fria' ? 'cold' : (t.cur === 'Quente' ? 'hot' : 'gone');
+    return `
+      <div class="d-row" ${t.clientId ? `data-client="${t.clientId}"` : ''}>
+        <div class="top">
+          <div class="title">${t.name}</div>
+          <span class="temp-pill ${cls}">${t.cur}</span>
+        </div>
+        <div class="meta">Última avaliação: <b>${t.last}</b></div>
+      </div>
+    `;
+  }).join('');
+  return drawerListShell('Saúde', 'Temperaturas vencidas', `${temps.length} clientes a reavaliar`, rows);
+}
+function drawerHealthy() {
+  const healthy = portfolio.filter(p => p.band === 'green');
+  const rows = healthy.map(p => `
+    <div class="d-row" data-client="${p.id}">
+      <div class="top">
+        <div class="title">${p.name}</div>
+        <span class="status-pill green">${p.score}</span>
+      </div>
+      <div class="sub">saudável · score ${p.score}/100</div>
+    </div>
+  `).join('');
+  return drawerListShell('Saúde', 'Clientes saudáveis', `${healthy.length} clientes com score ≥ 75`, rows);
+}
+function drawerRenewals() {
+  const rows = renewals.map(r => `
+    <div class="d-row" ${r.clientId ? `data-client="${r.clientId}"` : ''}>
+      <div class="top">
+        <div class="title">${r.name}</div>
+        <span class="silent">${r.renewal_date}</span>
+      </div>
+      <div class="meta">MRR: <b>${r.mrr}</b> · Classe ABC: <b>${r.abc}</b></div>
+    </div>
+  `).join('');
+  return drawerListShell('Comercial', 'Renovações em 30 dias', `${renewals.length} contratos a renovar`, rows);
+}
+
+function drawerListShell(kind, title, subtitle, rows) {
+  return `
+    <div class="drawer-head">
+      <div class="row1">
+        <div>
+          <div class="kind">${kind}</div>
+          <h2>${title}</h2>
+          <div class="pillrow" style="font-size:11.5px;color:var(--ink-3);font-weight:500;margin-top:6px">${subtitle}</div>
+        </div>
+        <button class="drawer-close" id="drawer-close">${ic.close}</button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-sec">${rows}</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn-link">Exportar lista</button>
+    </div>
+  `;
+}
+
+/* ----- mode: operational (charts) ----- */
+function drawerOp(kind, name) {
+  const data = histo[kind][name];
+  if (!data) return drawerListShell('Operacional', name, 'Histórico indisponível', '');
+  const max = Math.max(...data);
+  const months = ['fev','mar','abr'];
+  const cur = data[2];
+  const prev = data[1];
+  const pct = ((cur - prev) / prev) * 100;
+  const dirCls = pct >= 0 ? 'up' : 'down';
+  const arrow = pct >= 0 ? '▲' : '▼';
+  const unit = kind === 'health' ? ' pts' : (kind === 'os' ? ' OS' : ' usuários');
+
+  // build mini histos for related clients (top 3)
+  const allClients = Object.keys(histo[kind]);
+  const others = allClients.filter(c => c !== name).slice(0, 3);
+
+  const mainBars = data.map((v, i) => {
+    const h = (v / max) * 100;
+    return `<div class="histo-bar" style="height:${h}%"></div>`;
+  }).join('');
+
+  const otherCharts = others.map(o => {
+    const d = histo[kind][o];
+    const m = Math.max(...d);
+    const dpct = ((d[2] - d[1]) / d[1]) * 100;
+    const dCls = dpct >= 0 ? 'up' : 'down';
+    const dArr = dpct >= 0 ? '▲' : '▼';
+    const bars = d.map((v, i) => `<div class="histo-bar dim" style="height:${(v/m)*100}%"></div>`).join('');
+    return `
+      <div class="histo">
+        <div class="histo-head">
+          <span class="histo-name">${o}</span>
+          <span class="histo-cur ${dCls}">${dArr} ${Math.abs(dpct).toFixed(0)}%</span>
+        </div>
+        <div class="histo-bars">${bars}</div>
+        <div class="histo-labels"><span>fev</span><span>mar</span><span>abr</span></div>
+      </div>
+    `;
+  }).join('');
+
+  const titleByKind = { os:'OS abertas · histórico 3 meses', users:'Usuários ativos · histórico 3 meses', health:'Health score · histórico 3 meses' };
+
+  return `
+    <div class="drawer-head">
+      <div class="row1">
+        <div>
+          <div class="kind">Operacional · DONC API</div>
+          <h2>${name}</h2>
+          <div class="pillrow" style="font-size:11.5px;color:var(--ink-3);font-weight:500;margin-top:6px">${titleByKind[kind]}</div>
+        </div>
+        <button class="drawer-close" id="drawer-close">${ic.close}</button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-sec">
+        <h4>Cliente em foco</h4>
+        <div class="histo">
+          <div class="histo-head">
+            <span class="histo-name">${name}</span>
+            <span class="histo-cur ${dirCls}">${arrow} ${Math.abs(pct).toFixed(0)}% · ${cur}${unit}</span>
+          </div>
+          <div class="histo-bars">${mainBars}</div>
+          <div class="histo-labels"><span>fev</span><span>mar</span><span>abr</span></div>
+        </div>
+      </div>
+      <div class="drawer-sec">
+        <h4>Outros clientes da carteira</h4>
+        ${otherCharts}
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn-primary">Abrir cliente completo →</button>
+    </div>
+  `;
+}
+
+function drawerOpSync() {
+  const rows = opSync.map(s => `
+    <div class="d-row">
+      <div class="top">
+        <div class="title">${s.client}</div>
+        <button class="sync-btn">sincronizar</button>
+      </div>
+      <div class="meta">${s.last} · cobre Uso + Tickets Freshdesk + recálculo Health</div>
+    </div>
+  `).join('');
+  return `
+    <div class="drawer-head">
+      <div class="row1">
+        <div>
+          <div class="kind">Operacional · DONC API</div>
+          <h2>Sincronização de dados</h2>
+          <div class="pillrow" style="font-size:11.5px;color:var(--ink-3);font-weight:500;margin-top:6px">${opSync.length} instâncias sem dados</div>
+        </div>
+        <button class="drawer-close" id="drawer-close">${ic.close}</button>
+      </div>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-sec">${rows}</div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn-primary">${ic.refresh} Sincronizar todos</button>
+    </div>
+  `;
+}
+
+/* ===================== INTERACTIONS ===================== */
+function findClient(id) { return alerts.find(c => c.id === id); }
+
+document.addEventListener('click', e => {
+  // sync button (don't bubble to row)
+  const syncBtn = e.target.closest('.sync-btn');
+  if (syncBtn) {
+    e.stopPropagation();
+    syncBtn.textContent = 'sincronizando…';
+    syncBtn.disabled = true;
+    setTimeout(() => { syncBtn.textContent = 'ok ✓'; }, 900);
+    return;
+  }
+
+  // any client-row
+  const clientEl = e.target.closest('[data-client]');
+  if (clientEl) {
+    const c = findClient(clientEl.dataset.client);
+    if (c) { openDrawer(drawerClient(c)); return; }
+    // fallback: synthetic minimal client
+    const portfolioMatch = portfolio.find(p => p.id === clientEl.dataset.client);
+    if (portfolioMatch) {
+      const synth = {
+        id: portfolioMatch.id, name: portfolioMatch.name, score: portfolioMatch.score,
+        band: portfolioMatch.band, tone: portfolioMatch.band, reason:'',
+        temp:'Não avaliada', trend:{dir:'flat', val:0, txt:'estável'},
+        signals:[{kind:'gray', title:'Sem sinais críticos', sub:'Cliente saudável', action:'→ ver perfil completo'}],
+      };
+      openDrawer(drawerClient(synth));
+      return;
+    }
+  }
+
+  // pulse pills (modes)
+  const pill = e.target.closest('[data-mode]');
+  if (pill) {
+    const m = pill.dataset.mode;
+    if (m === 'risk') openDrawer(drawerListShell('Saúde', 'Clientes em risco', '3 clientes com score < 60', alerts.filter(a => a.band === 'red').map(a => `
+      <div class="d-row" data-client="${a.id}">
+        <div class="top"><div class="title">${a.name}</div><span class="status-pill red">${a.score}</span></div>
+        <div class="sub">${a.reason}</div>
+      </div>
+    `).join('')));
+    else if (m === 'overdue') openDrawer(drawerOverdue());
+    else if (m === 'silent') openDrawer(drawerSilent());
+    else if (m === 'milestones') openDrawer(drawerMilestones());
+    else if (m === 'temps') openDrawer(drawerTemps());
+    else if (m === 'healthy') openDrawer(drawerHealthy());
+    else if (m === 'renewals') openDrawer(drawerRenewals());
+    else if (m === 'op-os' || m === 'op-users' || m === 'op-health') {
+      // opens default first client
+      const kind = m.split('-')[1];
+      const lists = { os: opOS, users: opUsers, health: opHealth };
+      openDrawer(drawerOp(kind, lists[kind][0].client));
+    }
+    else if (m === 'op-sync') openDrawer(drawerOpSync());
+    return;
+  }
+
+  // operational var-row → open drawerOp
+  const varRow = e.target.closest('.var-row');
+  if (varRow) {
+    openDrawer(drawerOp(varRow.dataset.op, varRow.dataset.name));
+    return;
+  }
+});
+</script>
+
+</body>
+</html>
