@@ -540,16 +540,16 @@ export default function DashboardPage() {
         if (c.csm_temperature === -3) {
           reasons.push({ kind: 'amber', label: 'Temperatura fria' })
         }
-        const score = reasons.reduce((s, r) => s + (r.kind === 'red' ? 30 : 15), 0)
+        const score = reasons.reduce((s, r) => s + (r.kind === 'red' ? 100 : 30), 0)
         return { ...c, urgencyScore: score, reasons }
       })
       .filter(c => c.urgencyScore > 0)
       .sort((a, b) => {
         if (b.urgencyScore !== a.urgencyScore) return b.urgencyScore - a.urgencyScore
-        if ((b.health_total || 0) !== (a.health_total || 0)) return (b.health_total || 0) - (a.health_total || 0)
+        if ((a.health_total || 0) !== (b.health_total || 0)) return (a.health_total || 0) - (b.health_total || 0)
         const lastA = lastActivityMap[a.id]
         const lastB = lastActivityMap[b.id]
-        return new Date(lastB || 0) - new Date(lastA || 0)
+        return new Date(lastA || 0) - new Date(lastB || 0)
       })
       .slice(0, 5)
   }, [clients, overdueOnboardingFases, lastActivityMap, opHealthList])
