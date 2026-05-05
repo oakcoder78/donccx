@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
 import { useClients } from '../../hooks/useClients'
+import { useHealthConfig } from '../../hooks/useHealthConfig'
 import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
@@ -52,6 +53,25 @@ const DIMS = [
   { key: 'health_financeiro',     label: 'Financeiro',     color: C.dimFin,    cls: 'fin',     iconKey: 'health_financeiro' },
   { key: 'health_projeto',        label: 'Projeto',        color: C.dimProj,   cls: 'proj',    iconKey: 'health_projeto' },
 ]
+
+function evaluateClientRules(client, rules) {
+  return rules.filter(rule => {
+    const cv  = client[rule.condition_field]
+    const val = rule.condition_value
+    const op  = rule.condition_operator
+    if (op === 'is_null')     return cv == null
+    if (op === 'is_not_null') return cv != null
+    const n  = Number(cv)
+    const nv = Number(val)
+    if (op === '<')  return n < nv
+    if (op === '>')  return n > nv
+    if (op === '<=') return n <= nv
+    if (op === '>=') return n >= nv
+    if (op === '=' || op === '==') return String(cv) === String(val)
+    if (op === '!=') return String(cv) !== String(val)
+    return false
+  })
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function greeting() {
@@ -272,6 +292,8 @@ export default function DashboardPage() {
   // ─── Hooks (always before any return) ──────────────────────────────────────
   const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
   const { data: profiles = [] } = useProfiles()
+  const { data: healthConfigData } = useHealthConfig()
+  const healthRules = healthConfigData?.rules ?? []
 
   const activitiesFilter = isAdminOrManager
     ? { excludeStatuses: ['concluida', 'cancelada'] }
@@ -752,6 +774,56 @@ export default function DashboardPage() {
                 )
               })}
             </div>
+          </div>
+
+          {/* ── Saúde por dimensão ── */}
+          <div>
+            <h4 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px' }}>Saúde por dimensão</h4>
+            {DIMS.every(d => (client[d.key] ?? 0) >= 20) ? (
+              <div style={{ fontSize: 13, fontWeight: 600, color: C.green, padding: '14px 16px', border: `0.5px solid ${C.greenSoft}`, borderRadius: 10, background: C.greenSoft, textAlign: 'center' }}>
+                Todas as dimensões saudáveis ✓
+              </div>
+            ) : (
+              DIMS.map(d => {
+                const dimScore  = client[d.key] ?? 0
+                const pct       = Math.min(100, Math.round((dimScore / 20) * 100))
+                const dimRules  = healthRules.filter(r => r.dimension === d.cls || r.dimension === d.key)
+                const violated  = evaluateClientRules(client, dimRules)
+                const toImprove = [...violated].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+                return (
+                  <div key={d.key} style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{d.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: d.color, fontVariantNumeric: 'tabular-nums' }}>{dimScore}/20</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 4, background: C.bg, overflow: 'hidden', marginBottom: violated.length > 0 ? 10 : 0 }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: 4 }} />
+                    </div>
+                    {violated.length > 0 && (
+                      <>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: C.ink4, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Penalizando</div>
+                        {violated.map((r, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '5px 0', borderBottom: i < violated.length - 1 ? `0.5px solid ${C.line}` : 0 }}>
+                            <span style={{ fontSize: 11.5, color: C.ink2, fontWeight: 500 }}>{r.label}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: C.red, background: C.redSoft, padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}>−{Math.abs(r.points)} pts</span>
+                          </div>
+                        ))}
+                        {toImprove.length > 0 && (
+                          <div style={{ marginTop: 10, padding: '10px 12px', background: C.amberSoft, borderRadius: 8 }}>
+                            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.amber, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Como melhorar</div>
+                            {toImprove.map((r, i) => (
+                              <div key={i} style={{ fontSize: 11.5, color: C.ink2, fontWeight: 500, marginBottom: i < toImprove.length - 1 ? 4 : 0 }}>
+                                Resolver <b>{r.label}</b> → +{Math.abs(r.points)} pts
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )
+              })
+            )}
           </div>
         </div>
         <div style={{ padding: '16px 24px 22px', borderTop: `0.5px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
