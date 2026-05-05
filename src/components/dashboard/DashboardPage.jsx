@@ -264,8 +264,8 @@ export default function DashboardPage() {
   }, [closeDrawer])
 
   const csmFilter = isAdminOrManager
-    ? (selectedCsm ? { csm_id: selectedCsm } : {})
-    : { csm_id: profile?.id }
+    ? (selectedCsm ? { csm_id: selectedCsm, lifecycle_stage: 'cliente' } : { lifecycle_stage: 'cliente' })
+    : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
   // ─── Hooks (always before any return) ──────────────────────────────────────
   const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
@@ -363,22 +363,26 @@ export default function DashboardPage() {
         .in('client_id', clientIds)
         .not('instance_id', 'is', null)
         .order('ref_month', { ascending: false })
-      const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === prevMonth).map(u => u.client_id))
+      const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === prevMonth).map(u => Number(u.client_id)))
       const lastSyncMap = {}
-      ;(usages || []).forEach(u => { if (!lastSyncMap[u.client_id]) lastSyncMap[u.client_id] = u.ref_month })
+      ;(usages || []).forEach(u => { if (!lastSyncMap[Number(u.client_id)]) lastSyncMap[Number(u.client_id)] = u.ref_month })
       const seen = new Set()
       return instances
         .filter(inst => {
-          if (seen.has(inst.client_id)) return false
-          seen.add(inst.client_id)
-          return !syncedThisMonth.has(inst.client_id)
+          const cId = Number(inst.client_id)
+          if (seen.has(cId)) return false
+          seen.add(cId)
+          return !syncedThisMonth.has(cId)
         })
-        .map(inst => ({
-          id: inst.id,
-          clientId: inst.client_id,
-          clientName: inst.clients?.fantasy_name || inst.clients?.name || '—',
-          lastSync: lastSyncMap[inst.client_id] ? `sem dados desde ${fmtMonthShort(lastSyncMap[inst.client_id])}/${lastSyncMap[inst.client_id].split('-')[0]}` : 'nunca sincronizado',
-        }))
+        .map(inst => {
+          const cId = Number(inst.client_id)
+          return {
+            id: inst.id,
+            clientId: cId,
+            clientName: inst.clients?.fantasy_name || inst.clients?.name || '—',
+            lastSync: lastSyncMap[cId] ? `sem dados desde ${fmtMonthShort(lastSyncMap[cId])}/${lastSyncMap[cId].split('-')[0]}` : 'nunca sincronizado',
+          }
+        })
     },
   })
 
@@ -451,14 +455,15 @@ export default function DashboardPage() {
       if (!map[r.client_id]) map[r.client_id] = {}
       const key = r.ref_month
       if (!map[r.client_id][key]) {
-        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null, donc_snapshot: { totalOs: 0, profissionais: { ativos: 0 } } }
+        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null, donc_snapshot: null }
       }
       map[r.client_id][key].os_abertas += r.os_abertas ?? 0
       map[r.client_id][key].active_users += r.active_users ?? 0
-      map[r.client_id][key].donc_snapshot.totalOs += r.donc_snapshot?.totalOs ?? 0
-      map[r.client_id][key].donc_snapshot.profissionais.ativos += r.donc_snapshot?.profissionais?.ativos ?? 0
       if (map[r.client_id][key].health_snapshot === null && r.health_snapshot != null) {
         map[r.client_id][key].health_snapshot = r.health_snapshot
+      }
+      if (!map[r.client_id][key].donc_snapshot || (r.os_abertas ?? 0) > (map[r.client_id][key].donc_snapshot?.os_abertas ?? 0)) {
+        map[r.client_id][key].donc_snapshot = r.donc_snapshot
       }
     })
     return map
@@ -472,13 +477,13 @@ export default function DashboardPage() {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
       if (!cur) return
-      const curVal  = cur.donc_snapshot?.totalOs ?? null
-      const prevVal = prev?.donc_snapshot?.totalOs ?? null
+      const curVal  = cur.os_abertas ?? null
+      const prevVal = prev?.os_abertas ?? null
       if (curVal === null) return
       if (!prevVal || prevVal === 0) return
       const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal} OS` })
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} OS criadas`, absDelta: Math.abs(curVal - prevVal) })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
   }, [opsByClient, clients])
@@ -489,13 +494,13 @@ export default function DashboardPage() {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
       if (!cur) return
-      const curVal  = cur.donc_snapshot?.profissionais?.ativos ?? null
-      const prevVal = prev?.donc_snapshot?.profissionais?.ativos ?? null
+      const curVal  = cur.active_users ?? null
+      const prevVal = prev?.active_users ?? null
       if (curVal === null) return
       if (!prevVal || prevVal === 0) return
       const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal} ativos` })
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} usuários ativos`, absDelta: Math.abs(curVal - prevVal) })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
   }, [opsByClient, clients])
@@ -525,15 +530,26 @@ export default function DashboardPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession()
       const refMonth = currentMonthStr
+
+      // Step 1: Sync usage data
       const res = await fetch(`${SUPABASE_URL}/functions/v1/donc-api-sync`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
         body: JSON.stringify({ trigger: 'manual', month: refMonth, client_id: clientId }),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      // Step 2: Recalculate health score
+      await fetch(`${SUPABASE_URL}/functions/v1/donc-api-sync`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, apikey: SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trigger: 'health_recalc', client_id: clientId }),
+      })
+
       setSyncing(s => ({ ...s, [instId]: 'done' }))
       qc.invalidateQueries({ queryKey: ['instances_no_sync'] })
       qc.invalidateQueries({ queryKey: ['ops_dashboard'] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
     } catch {
       setSyncing(s => ({ ...s, [instId]: 'error' }))
     }
@@ -700,8 +716,8 @@ export default function DashboardPage() {
     const kind = kindMap[mode]
     const months = opHistoRows.map(r => fmtMonthShort(r.ref_month))
     const values = opHistoRows.map(r => {
-      if (kind === 'os')     return r.donc_snapshot?.totalOS ?? r.donc_snapshot?.os_created ?? 0
-      if (kind === 'users')  return r.donc_snapshot?.usuariosAtivos ?? r.donc_snapshot?.active_users ?? 0
+      if (kind === 'os')     return r.donc_snapshot?.totalOs ?? 0
+      if (kind === 'users')  return r.donc_snapshot?.profissionais?.ativos ?? 0
       if (kind === 'health') return r.health_total ?? 0
       return 0
     })
@@ -1288,9 +1304,9 @@ export default function DashboardPage() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, alignItems: 'stretch' }}>
 
-              {/* OS abertas */}
+              {/* OS criadas */}
               <Panel>
-                <PanelHead title="OS abertas · variação mensal" meta="top 5" />
+                <PanelHead title="OS criadas · variação mensal" meta="top 5" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {opOSList.map((x, i) => {
                     const up = x.delta >= 0
@@ -1303,8 +1319,8 @@ export default function DashboardPage() {
                           <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
                           <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 3, color: up ? C.green : C.red }}>
-                          {up ? '▲' : '▼'} {Math.abs(x.delta)}%
+                        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red }}>
+                          {x.absDelta.toLocaleString('pt-BR')} OS {up ? '▲' : '▼'}{Math.abs(x.delta)}%
                         </span>
                       </div>
                     )
@@ -1328,8 +1344,8 @@ export default function DashboardPage() {
                           <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
                           <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
                         </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 3, color: up ? C.green : C.red }}>
-                          {up ? '▲' : '▼'} {Math.abs(x.delta)}%
+                        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red }}>
+                          {x.absDelta.toLocaleString('pt-BR')} usu. {up ? '▲' : '▼'}{Math.abs(x.delta)}%
                         </span>
                       </div>
                     )
