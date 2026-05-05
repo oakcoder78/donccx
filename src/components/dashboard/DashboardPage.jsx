@@ -364,6 +364,7 @@ export default function DashboardPage() {
         .not('instance_id', 'is', null)
         .order('ref_month', { ascending: false })
       const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === prevMonth).map(u => Number(u.client_id)))
+      console.log('[sync debug] prevMonth:', prevMonth, 'syncedThisMonth:', [...syncedThisMonth], 'usages count:', usages?.length)
       const lastSyncMap = {}
       ;(usages || []).forEach(u => { if (!lastSyncMap[Number(u.client_id)]) lastSyncMap[Number(u.client_id)] = u.ref_month })
       const seen = new Set()
@@ -395,7 +396,7 @@ export default function DashboardPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from('client_usage')
-        .select('ref_month, donc_snapshot, health_total')
+        .select('client_id, ref_month, instance_id, donc_snapshot, health_snapshot')
         .eq('client_id', opDrawerClientId)
         .order('ref_month', { ascending: false })
         .limit(3)
@@ -462,7 +463,7 @@ export default function DashboardPage() {
       if (map[r.client_id][key].health_snapshot === null && r.health_snapshot != null) {
         map[r.client_id][key].health_snapshot = r.health_snapshot
       }
-      if (!map[r.client_id][key].donc_snapshot || (r.os_abertas ?? 0) > (map[r.client_id][key].donc_snapshot?.os_abertas ?? 0)) {
+      if (!map[r.client_id][key].donc_snapshot || (r.donc_snapshot?.totalOs ?? 0) > (map[r.client_id][key].donc_snapshot?.totalOs ?? 0)) {
         map[r.client_id][key].donc_snapshot = r.donc_snapshot
       }
     })
@@ -477,10 +478,9 @@ export default function DashboardPage() {
       const cur  = months[prevMonth]
       const prev = months[prevMonth2]
       if (!cur) return
-      const curVal  = cur.os_abertas ?? null
-      const prevVal = prev?.os_abertas ?? null
-      if (curVal === null) return
-      if (!prevVal || prevVal === 0) return
+      const curVal  = cur.donc_snapshot?.totalOs ?? null
+      const prevVal = prev?.donc_snapshot?.totalOs ?? null
+      if (!curVal || !prevVal || prevVal === 0) return
       const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} OS criadas`, absDelta: Math.abs(curVal - prevVal) })
@@ -718,7 +718,7 @@ export default function DashboardPage() {
     const values = opHistoRows.map(r => {
       if (kind === 'os')     return r.donc_snapshot?.totalOs ?? 0
       if (kind === 'users')  return r.donc_snapshot?.profissionais?.ativos ?? 0
-      if (kind === 'health') return r.health_total ?? 0
+      if (kind === 'health') return r.health_snapshot ?? 0
       return 0
     })
     const maxVal = Math.max(...values, 1)
