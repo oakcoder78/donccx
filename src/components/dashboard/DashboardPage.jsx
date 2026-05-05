@@ -544,7 +544,10 @@ export default function DashboardPage() {
         return { ...c, urgencyScore: score, reasons }
       })
       .filter(c => c.urgencyScore > 0)
-      .sort((a, b) => b.urgencyScore - a.urgencyScore)
+      .sort((a, b) => {
+        if (b.urgencyScore !== a.urgencyScore) return b.urgencyScore - a.urgencyScore
+        return (a.health_total || 0) - (b.health_total || 0)
+      })
       .slice(0, 5)
   }, [clients, overdueOnboardingFases, lastActivityMap, opHealthList])
 
