@@ -1245,7 +1245,7 @@ export default function DashboardPage() {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                       <div style={{ width: 3, borderRadius: 2, alignSelf: 'stretch', marginLeft: 4, background: barColor }} />
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fantasy_name || c.name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fantasy_name || c.name}</div>
                         {c.reasons.length > 0 && (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
                             {c.reasons.map((r, i) => (
