@@ -347,7 +347,7 @@ export default function DashboardPage() {
 
   // Instances without current month sync
   const { data: instancesNoSync = [] } = useQuery({
-    queryKey: ['instances_no_sync', currentMonthStr],
+    queryKey: ['instances_no_sync', prevMonth],
     enabled: !!profile,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
@@ -362,7 +362,7 @@ export default function DashboardPage() {
         .select('client_id, ref_month, updated_at')
         .in('client_id', clientIds)
         .order('ref_month', { ascending: false })
-      const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === currentMonthStr).map(u => u.client_id))
+      const syncedThisMonth = new Set((usages || []).filter(u => u.ref_month === prevMonth).map(u => u.client_id))
       const lastSyncMap = {}
       ;(usages || []).forEach(u => { if (!lastSyncMap[u.client_id]) lastSyncMap[u.client_id] = u.ref_month })
       const seen = new Set()
@@ -448,7 +448,15 @@ export default function DashboardPage() {
     const map = {}
     opsRows.forEach(r => {
       if (!map[r.client_id]) map[r.client_id] = {}
-      map[r.client_id][r.ref_month] = r
+      const key = r.ref_month
+      if (!map[r.client_id][key]) {
+        map[r.client_id][key] = { os_abertas: 0, active_users: 0, health_snapshot: null }
+      }
+      map[r.client_id][key].os_abertas += r.os_abertas ?? 0
+      map[r.client_id][key].active_users += r.active_users ?? 0
+      if (map[r.client_id][key].health_snapshot === null && r.health_snapshot != null) {
+        map[r.client_id][key].health_snapshot = r.health_snapshot
+      }
     })
     return map
   }, [opsRows])
@@ -465,7 +473,7 @@ export default function DashboardPage() {
       const prevVal = prev?.os_abertas ?? null
       if (curVal === null) return
       const delta = prevVal ? Math.round(((curVal - prevVal) / prevVal) * 100) : 0
-      const cl = clients.find(c => c.id === clientId)
+      const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal} OS` })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
@@ -481,7 +489,7 @@ export default function DashboardPage() {
       const prevVal = prev?.active_users ?? null
       if (curVal === null) return
       const delta = prevVal ? Math.round(((curVal - prevVal) / prevVal) * 100) : 0
-      const cl = clients.find(c => c.id === clientId)
+      const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal} ativos` })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
@@ -497,7 +505,7 @@ export default function DashboardPage() {
       const prevScore = prev?.health_snapshot
       if (curScore == null) return
       const delta = prevScore != null ? curScore - prevScore : 0
-      const cl = clients.find(c => c.id === clientId)
+      const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
