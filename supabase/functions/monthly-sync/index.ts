@@ -254,12 +254,32 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    if (token !== serviceKey) {
+    let authorized = false
+
+    if (token === serviceKey) {
+      authorized = true
+    } else {
       const { data: { user }, error: authErr } = await admin.auth.getUser(token)
-      if (authErr || !user) return json({ error: 'Invalid token' }, 401)
-      const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (!['admin', 'manager'].includes(profile?.role ?? '')) return json({ error: 'Forbidden' }, 403)
+      if (!authErr && user) {
+        const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
+        authorized = ['admin', 'manager'].includes(profile?.role ?? '')
+      } else {
+        try {
+          const parts = token.split('.')
+          if (parts.length === 3) {
+            const pad = (s: string) => s + '='.repeat((4 - s.length % 4) % 4)
+            const payload = JSON.parse(new TextDecoder().decode(
+              Uint8Array.from(atob(pad(parts[1].replace(/-/g, '+').replace(/_/g, '/'))), c => c.charCodeAt(0))
+            ))
+            authorized = payload.role === 'service_role'
+          }
+        } catch (e) {
+          console.error('[monthly-sync] JWT decode error:', e)
+        }
+      }
     }
+
+    if (!authorized) return json({ error: 'Forbidden' }, 403)
 
     const month = prevMonth()
     const internalHeaders = {
