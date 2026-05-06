@@ -71,14 +71,13 @@ serve(async (req) => {
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
     if (!token) return json({ error: 'Unauthorized' }, 401)
 
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
-    // Aceitar service role key direto (chamada cron) ou user token (chamada manual)
-    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    const admin = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
     let authorized = false
 
     if (token === serviceKey) {
@@ -88,6 +87,19 @@ serve(async (req) => {
       if (!authErr && user) {
         const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
         authorized = ['admin', 'manager'].includes(profile?.role ?? '')
+      } else {
+        try {
+          const parts = token.split('.')
+          if (parts.length === 3) {
+            const pad = (s: string) => s + '='.repeat((4 - s.length % 4) % 4)
+            const payload = JSON.parse(new TextDecoder().decode(
+              Uint8Array.from(atob(pad(parts[1].replace(/-/g, '+').replace(/_/g, '/'))), c => c.charCodeAt(0))
+            ))
+            authorized = payload.role === 'service_role'
+          }
+        } catch (e) {
+          console.error('[donc-api-sync] JWT decode error:', e)
+        }
       }
     }
 
