@@ -269,17 +269,15 @@ export function SettingsDoncAPI() {
       if (syncClientId) body.client_id = Number(syncClientId)
       console.log('🔄 [DONC API Sync] Request body:', body)
 
+      const authHeaders = {
+        Authorization: `Bearer ${session.access_token}`,
+        'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      }
+
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/donc-api-sync`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(body),
-        },
+        { method: 'POST', headers: authHeaders, body: JSON.stringify(body) },
       )
       const result = await res.json()
       console.log('🔄 [DONC API Sync] Response completo:', result)
@@ -287,6 +285,17 @@ export function SettingsDoncAPI() {
       setSyncResult(result)
       toast.success(`Sincronizado: ${result.synced} instância(s)`)
       loadPendingCount()
+
+      // Recalcula health score dos clientes afetados pela sync
+      const affectedClientIds = syncClientId ? [Number(syncClientId)] : undefined
+      fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-recalc`,
+        {
+          method: 'POST',
+          headers: authHeaders,
+          body: JSON.stringify(affectedClientIds ? { client_ids: affectedClientIds } : {}),
+        },
+      ).catch(e => console.warn('[health-recalc] erro silencioso:', e))
     } catch (e) {
       toast.error(e.message)
     } finally {
