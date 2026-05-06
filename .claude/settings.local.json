@@ -61,7 +61,8 @@
       "mcp__plugin_context-mode_context-mode__ctx_execute",
       "mcp__plugin_context-mode_context-mode__ctx_search",
       "Bash(Get-ChildItem -Path \"E:\\\\donc\\\\donccx\\\\src\\\\hooks\\\\use*.*\")",
-      "Bash(Select-Object Name, FullName)"
+      "Bash(Select-Object Name, FullName)",
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file"
     ]
   }
 }
