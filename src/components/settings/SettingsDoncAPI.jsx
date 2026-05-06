@@ -284,18 +284,32 @@ export function SettingsDoncAPI() {
       if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
       setSyncResult(result)
       toast.success(`Sincronizado: ${result.synced} instância(s)`)
-      loadPendingCount()
 
-      // Recalcula health score dos clientes afetados pela sync
-      const affectedClientIds = syncClientId ? [Number(syncClientId)] : undefined
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-recalc`,
-        {
-          method: 'POST',
-          headers: authHeaders,
-          body: JSON.stringify(affectedClientIds ? { client_ids: affectedClientIds } : {}),
-        },
-      ).catch(e => console.warn('[health-recalc] erro silencioso:', e))
+      if (result.synced > 0) {
+        try {
+          const affectedClientIds = syncClientId
+            ? [Number(syncClientId)]
+            : clientsWithInst.map(c => c.id)
+
+          await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/health-recalc`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${session.access_token}`,
+                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ client_ids: affectedClientIds }),
+            }
+          )
+          toast.success('Health Score recalculado', { icon: '🩺' })
+        } catch (e) {
+          console.error('health-recalc após sync:', e)
+        }
+      }
+
+      loadPendingCount()
     } catch (e) {
       toast.error(e.message)
     } finally {
