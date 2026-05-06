@@ -283,7 +283,10 @@ export default function DashboardPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [closeDrawer])
 
-  useEffect(() => { qc.invalidateQueries({ queryKey: ['clients'] }) }, [])
+  useEffect(() => {
+  qc.invalidateQueries({ queryKey: ['clients'] })
+  qc.invalidateQueries({ queryKey: ['ops_dashboard'] })
+}, [])
 
   const csmFilter = isAdminOrManager
     ? (selectedCsm ? { csm_id: selectedCsm, lifecycle_stage: 'cliente' } : { lifecycle_stage: 'cliente' })
@@ -377,9 +380,7 @@ export default function DashboardPage() {
         .select('client_id, ref_month, instance_id, os_abertas, active_users, health_snapshot, donc_snapshot')
         .in('ref_month', [prevMonth, prevMonth2])
         .eq('pending', false)
-      const filtered = (data || []).filter(r => r.instance_id != null)
-      console.log('[opsRows] data length:', data?.length, 'filtered:', filtered.length, 'prevMonth:', prevMonth, 'prevMonth2:', prevMonth2)
-      return filtered
+      return (data || []).filter(r => r.instance_id != null)
     },
   })
 
