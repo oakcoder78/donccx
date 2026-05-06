@@ -35,6 +35,12 @@
       "source": "vercel-labs/skills",
       "sourceType": "github",
       "computedHash": "9e1c8b3103f92fa8092568a44fe64858de7c5c9dc65ce4bea8f168080e889cfd"
+    },
+    "huashu-design": {
+      "source": "alchaincyf/huashu-design",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "ff11eb1138deff68d52244fc64554db4218d42ec6ed039a8ea0fc030af51b28c"
     }
   }
 }

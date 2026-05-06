@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .label { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); margin-bottom: 14px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-body); font-weight: 600; font-size: 14px;
+    border: 1px solid transparent; cursor: pointer;
+    padding: 10px 18px; border-radius: var(--r-pill);
+    transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+    letter-spacing: -0.005em;
+  }
+  .btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
+  .btn-primary { background: var(--navy-700); color: #fff; }
+  .btn-primary:hover { background: var(--navy-800); }
+  .btn-accent { background: var(--lime-500); color: var(--navy-900); }
+  .btn-accent:hover { background: var(--lime-600); }
+  .btn-secondary { background: var(--white); color: var(--navy-700); border-color: var(--border-2); }
+  .btn-secondary:hover { background: var(--ink-50); }
+  .btn-ghost { background: transparent; color: var(--navy-700); }
+  .btn-ghost:hover { background: var(--ink-100); }
+  .btn-danger { background: var(--white); color: var(--danger-500); border-color: var(--border-2); }
+  .btn-danger:hover { background: var(--danger-100); border-color: var(--danger-100); }
+
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-lg { padding: 14px 24px; font-size: 16px; }
+  .btn[disabled] { opacity: 0.4; pointer-events: none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">Buttons</div>
+    <div class="row">
+      <button class="btn btn-primary">Planejar dia</button>
+      <button class="btn btn-accent">Liberar rota</button>
+      <button class="btn btn-secondary">Cancelar</button>
+      <button class="btn btn-ghost">Ver detalhes</button>
+      <button class="btn btn-danger">Remover OS</button>
+    </div>
+    <div class="row">
+      <button class="btn btn-primary btn-sm">Salvar</button>
+      <button class="btn btn-primary">Salvar</button>
+      <button class="btn btn-primary btn-lg">Salvar e enviar</button>
+      <button class="btn btn-secondary" disabled>Desabilitado</button>
+    </div>
+  </div>
+</body>
+</html>

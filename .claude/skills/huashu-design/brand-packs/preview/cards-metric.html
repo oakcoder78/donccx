@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg-subtle); }
+  .wrap { width: 700px; box-sizing: border-box; padding: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border-1);
+    border-radius: var(--r-lg);
+    padding: 18px;
+    box-shadow: var(--shadow-sm);
+  }
+  .card-dark {
+    background: var(--navy-700); color: #fff; border: 0;
+    border-radius: var(--r-lg); padding: 18px;
+    box-shadow: var(--shadow-md);
+  }
+  .eyebrow { font-family: var(--font-display); font-weight: 700; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sky-700); margin-bottom: 8px; }
+  .eyebrow.on-dark { color: var(--lime-500); }
+  .metric { font-family: var(--font-display); font-weight: 800; font-size: 40px; letter-spacing: -0.03em; color: var(--navy-900); line-height: 1; }
+  .metric.on-dark { color: #fff; }
+  .delta { font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--success-500); margin-top: 6px; }
+  .delta.on-dark { color: var(--lime-500); }
+  .sub   { font-family: var(--font-body); font-size: 13px; color: var(--fg-3); margin-top: 4px; }
+  .sub.on-dark { color: rgba(255,255,255,0.72); }
+  .spark { margin-top: 10px; height: 30px; width: 100%; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="eyebrow">Entregas · hoje</div>
+      <div class="metric">284</div>
+      <div class="delta">↑ 12% vs ontem</div>
+      <div class="sub">Meta diária 310</div>
+      <svg class="spark" viewBox="0 0 280 30" preserveAspectRatio="none"><polyline fill="none" stroke="#59c2ed" stroke-width="1.5" points="0,22 28,20 56,23 84,14 112,17 140,10 168,14 196,8 224,12 252,6 280,9"/></svg>
+    </div>
+    <div class="card-dark">
+      <div class="eyebrow on-dark">SLA cumprido</div>
+      <div class="metric on-dark">96.4<span style="font-size:22px;opacity:0.7">%</span></div>
+      <div class="delta on-dark">↑ 2.1 pts</div>
+      <div class="sub on-dark">Últimos 30 dias</div>
+      <svg class="spark" viewBox="0 0 280 30" preserveAspectRatio="none"><polyline fill="none" stroke="#d3da47" stroke-width="1.5" points="0,20 28,18 56,22 84,14 112,19 140,11 168,16 196,10 224,14 252,7 280,10"/></svg>
+    </div>
+  </div>
+</body>
+</html>

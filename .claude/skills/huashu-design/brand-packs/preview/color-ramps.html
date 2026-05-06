@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .label { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); margin: 0 0 10px; }
+  .ramp { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; margin-bottom: 14px; }
+  .stop {
+    height: 56px; border-radius: var(--r-sm);
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 6px 8px;
+    font-family: var(--font-mono); font-size: 9px;
+    box-shadow: var(--shadow-inset);
+  }
+  .title-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .title-row h4 { font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--navy-900); margin: 0; }
+  .title-row .hint { font-size: 11px; color: var(--fg-4); font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="title-row"><h4>Navy</h4><span class="hint">--navy-*</span></div>
+    <div class="ramp">
+      <div class="stop" style="background:#eef2f7; color:#173557">50</div>
+      <div class="stop" style="background:#d6dfeb; color:#173557">100</div>
+      <div class="stop" style="background:#aebccf; color:#173557">200</div>
+      <div class="stop" style="background:#7c91ac; color:#fff">300</div>
+      <div class="stop" style="background:#5a7696; color:#fff">400</div>
+      <div class="stop" style="background:#3a608a; color:#fff">500</div>
+      <div class="stop" style="background:#244971; color:#fff">600</div>
+      <div class="stop" style="background:#173557; color:#fff">700</div>
+      <div class="stop" style="background:#0e2239; color:#fff">900</div>
+    </div>
+
+    <div class="title-row"><h4>Sky</h4><span class="hint">--sky-*</span></div>
+    <div class="ramp">
+      <div class="stop" style="background:#f1fafd; color:#173557">50</div>
+      <div class="stop" style="background:#e0f4fc; color:#173557">100</div>
+      <div class="stop" style="background:#c5eaf9; color:#173557">200</div>
+      <div class="stop" style="background:#a6dff6; color:#173557">300</div>
+      <div class="stop" style="background:#7dd0f1; color:#173557">400</div>
+      <div class="stop" style="background:#59c2ed; color:#173557">500</div>
+      <div class="stop" style="background:#3ea5cf; color:#fff">600</div>
+      <div class="stop" style="background:#2a8ab4; color:#fff">700</div>
+      <div class="stop" style="background:#1a6a90; color:#fff">900</div>
+    </div>
+
+    <div class="title-row"><h4>Lime</h4><span class="hint">--lime-*</span></div>
+    <div class="ramp">
+      <div class="stop" style="background:#fcfde7; color:#173557">50</div>
+      <div class="stop" style="background:#f6f8d0; color:#173557">100</div>
+      <div class="stop" style="background:#ebee98; color:#173557">300</div>
+      <div class="stop" style="background:#dfe46a; color:#173557">400</div>
+      <div class="stop" style="background:#d3da47; color:#173557">500</div>
+      <div class="stop" style="background:#bfc63b; color:#173557">600</div>
+      <div class="stop" style="background:#a9b02e; color:#fff">700</div>
+      <div class="stop" style="background:#868b22; color:#fff">800</div>
+      <div class="stop" style="background:#5c6015; color:#fff">900</div>
+    </div>
+
+    <div class="title-row"><h4>Mint</h4><span class="hint">--mint-*</span></div>
+    <div class="ramp">
+      <div class="stop" style="background:#f7fbf7; color:#173557">50</div>
+      <div class="stop" style="background:#f1f7f1; color:#173557">100</div>
+      <div class="stop" style="background:#e4f0e4; color:#173557">200</div>
+      <div class="stop" style="background:#d6e9d6; color:#173557">300</div>
+      <div class="stop" style="background:#bfdcbf; color:#173557">400</div>
+      <div class="stop" style="background:#a8cfa8; color:#173557">500</div>
+      <div class="stop" style="background:#8bbf8b; color:#fff">600</div>
+      <div class="stop" style="background:#6ba36b; color:#fff">700</div>
+      <div class="stop" style="background:#3f7f3f; color:#fff">900</div>
+    </div>
+  </div>
+</body>
+</html>

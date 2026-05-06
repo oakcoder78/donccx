@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg-subtle); }
+  .card { width: 700px; box-sizing: border-box; padding: 36px 28px; }
+  .row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px; }
+  .tile {
+    height: 96px; background: var(--white); border-radius: var(--r-lg);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 11px;
+    letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--navy-900);
+    position: relative;
+  }
+  .tile small { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 9px; color: var(--fg-4); letter-spacing: 0; text-transform: none; text-align: center; margin-top: 4px; }
+  .s-xs { box-shadow: var(--shadow-xs); }
+  .s-sm { box-shadow: var(--shadow-sm); }
+  .s-md { box-shadow: var(--shadow-md); }
+  .s-lg { box-shadow: var(--shadow-lg); }
+  .s-xl { box-shadow: var(--shadow-xl); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="row">
+      <div class="tile s-xs"><div style="text-align:center">xs<small>hairline</small></div></div>
+      <div class="tile s-sm"><div style="text-align:center">sm<small>card rest</small></div></div>
+      <div class="tile s-md"><div style="text-align:center">md<small>card hover</small></div></div>
+      <div class="tile s-lg"><div style="text-align:center">lg<small>popover</small></div></div>
+      <div class="tile s-xl"><div style="text-align:center">xl<small>modal</small></div></div>
+    </div>
+  </div>
+</body>
+</html>

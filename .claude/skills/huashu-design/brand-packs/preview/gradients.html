@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 24px 28px; }
+  .pair { display:flex; gap: 24px; align-items: center; margin-bottom: 14px; }
+  .tag { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); width: 120px; }
+  .hero {
+    flex: 1; height: 80px;
+    background: var(--gradient-brand);
+    border-radius: var(--r-lg);
+  }
+  .soft {
+    flex: 1; height: 80px;
+    background: var(--gradient-brand-soft);
+    border-radius: var(--r-lg);
+  }
+  .chip {
+    display: inline-block; padding: 10px 16px;
+    background: var(--gradient-brand);
+    color: var(--navy-900);
+    font-family: var(--font-display); font-weight: 700; font-size: 13px;
+    border-radius: var(--r-pill);
+  }
+  .val { font-family: var(--font-mono); font-size: 10px; color: var(--fg-4); margin-top: 4px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="pair">
+      <div class="tag">Brand gradient<div class="val">lime → mint → sky · 90°</div></div>
+      <div class="hero"></div>
+    </div>
+    <div class="pair">
+      <div class="tag">Soft brand<div class="val">background fills</div></div>
+      <div class="soft"></div>
+    </div>
+    <div class="pair">
+      <div class="tag">One-chip accent<div class="val">sparingly · brand moments</div></div>
+      <div class="chip">Planejar dia</div>
+    </div>
+  </div>
+</body>
+</html>

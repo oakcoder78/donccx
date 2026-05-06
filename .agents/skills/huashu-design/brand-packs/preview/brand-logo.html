@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .logos { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .slot {
+    border-radius: var(--r-md);
+    height: 150px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-1);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    position: relative;
+  }
+  .slot.light { background: var(--white); }
+  .slot.soft  { background: var(--mint-300); border-color: transparent; }
+  .slot.dark  { background: var(--navy-700); border-color: transparent; }
+  .slot.gradient { background: var(--gradient-brand-soft); border-color: transparent; }
+  .slot img { width: 58%; height: auto; display: block; }
+  .slot .tag {
+    position: absolute; top: 10px; left: 12px;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: 10px; letter-spacing: var(--ls-caps); text-transform: uppercase;
+    color: var(--fg-4);
+  }
+  .slot.dark .tag { color: var(--fg-on-dark-2); }
+  .slot.soft .tag { color: var(--navy-700); opacity: 0.7; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="logos">
+      <div class="slot light">
+        <span class="tag">On white</span>
+        <img src="../assets/logo-donc-gradient.png" alt="Donc logo gradient">
+      </div>
+      <div class="slot dark">
+        <span class="tag">On navy</span>
+        <img src="../assets/logo-donc-white.png" alt="Donc logo white">
+      </div>
+      <div class="slot soft">
+        <span class="tag">On mint</span>
+        <img src="../assets/logo-donc-navy.png" alt="Donc logo navy">
+      </div>
+      <div class="slot gradient">
+        <span class="tag">On soft gradient</span>
+        <img src="../assets/logo-donc-navy.png" alt="Donc logo navy">
+      </div>
+    </div>
+  </div>
+</body>
+</html>

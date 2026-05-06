@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/feather-icons"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 18px 14px; }
+  .ic {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 10px; color: var(--fg-4);
+  }
+  .ic svg { stroke-width: 1.5; width: 22px; height: 22px; color: var(--navy-700); }
+  .label { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); margin-bottom: 14px; }
+  .sub { font-size: 11px; color: var(--fg-4); margin-top: 16px; font-family: var(--font-body); }
+  code { font-family: var(--font-mono); font-size: 10px; background: var(--ink-100); padding: 1px 5px; border-radius: 4px; color: var(--navy-900); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">Iconography · Feather · 1.5px stroke</div>
+    <div class="grid">
+      <div class="ic"><i data-feather="home"></i>home</div>
+      <div class="ic"><i data-feather="map"></i>map</div>
+      <div class="ic"><i data-feather="truck"></i>truck</div>
+      <div class="ic"><i data-feather="package"></i>package</div>
+      <div class="ic"><i data-feather="clipboard"></i>clipboard</div>
+      <div class="ic"><i data-feather="calendar"></i>calendar</div>
+      <div class="ic"><i data-feather="bar-chart-2"></i>chart</div>
+      <div class="ic"><i data-feather="user"></i>user</div>
+      <div class="ic"><i data-feather="users"></i>users</div>
+      <div class="ic"><i data-feather="settings"></i>settings</div>
+      <div class="ic"><i data-feather="search"></i>search</div>
+      <div class="ic"><i data-feather="bell"></i>bell</div>
+      <div class="ic"><i data-feather="camera"></i>camera</div>
+      <div class="ic"><i data-feather="check-circle"></i>check</div>
+      <div class="ic"><i data-feather="alert-triangle"></i>alert</div>
+      <div class="ic"><i data-feather="plus"></i>plus</div>
+    </div>
+    <div class="sub">Loaded via CDN · <code>feather.replace({ 'stroke-width': 1.5 })</code></div>
+  </div>
+  <script>feather.replace({ 'stroke-width': 1.5 });</script>
+</body>
+</html>

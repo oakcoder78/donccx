@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .sw {
+    border-radius: var(--r-md);
+    aspect-ratio: 1/1;
+    display: flex; align-items: flex-end; padding: 14px;
+    font-family: var(--font-display); font-weight: 700;
+    box-shadow: var(--shadow-inset);
+  }
+  .sw .name { font-size: 14px; letter-spacing: var(--ls-heading); }
+  .sw .hex { display: block; font-family: var(--font-mono); font-weight: 500; font-size: 11px; opacity: .75; margin-top: 2px; }
+  .on-dark  { color: #fff; }
+  .on-light { color: var(--navy-900); }
+  .label { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); margin: 0 0 12px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">Primary palette</div>
+    <div class="grid">
+      <div class="sw on-dark"  style="background:#173557"><div><div class="name">Navy 700</div><span class="hex">#173557</span></div></div>
+      <div class="sw on-light" style="background:#d3da47"><div><div class="name">Lime 500</div><span class="hex">#d3da47</span></div></div>
+      <div class="sw on-light" style="background:#59c2ed"><div><div class="name">Sky 500</div><span class="hex">#59c2ed</span></div></div>
+      <div class="sw on-light" style="background:#d6e9d6"><div><div class="name">Mint 300</div><span class="hex">#d6e9d6</span></div></div>
+    </div>
+  </div>
+</body>
+</html>

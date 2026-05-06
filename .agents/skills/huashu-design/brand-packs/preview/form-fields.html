@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  label { font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--navy-900); }
+  .input {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--white);
+    border: 1px solid var(--border-2);
+    border-radius: var(--r-md);
+    padding: 0 14px; height: 44px;
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .input input {
+    flex: 1; border: 0; outline: 0; background: transparent;
+    font-family: var(--font-body); font-size: 15px; color: var(--navy-900);
+    letter-spacing: -0.005em;
+  }
+  .input input::placeholder { color: var(--fg-4); }
+  .input .icon { color: var(--fg-4); display: inline-flex; }
+  .input.focused { border-color: var(--sky-500); box-shadow: 0 0 0 3px var(--focus-ring); }
+  .input.invalid { border-color: var(--danger-500); }
+
+  .help { font-size: 12px; color: var(--fg-4); }
+  .help.err { color: var(--danger-500); }
+
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="stack">
+      <div class="two">
+        <div class="field">
+          <label>Nome do cliente</label>
+          <div class="input"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span><input placeholder="Ex.: Móveis Aurora"></div>
+        </div>
+        <div class="field">
+          <label>CEP</label>
+          <div class="input focused"><input value="04538-133"></div>
+          <div class="help">Endereço verificado automaticamente.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Observações</label>
+        <div class="input invalid"><input placeholder="Acesso, andar, elevador de serviço…"></div>
+        <div class="help err">Informe ao menos 10 caracteres.</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
