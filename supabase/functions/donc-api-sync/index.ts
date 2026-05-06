@@ -176,9 +176,11 @@ serve(async (req) => {
           ref_month:     refMonth,
           instance_id:   inst.id,
           donc_snapshot: apiData,
-          pending:       true,
+          pending:       isCurrentMonth,
           partial_day:   isCurrentMonth ? now.getUTCDate() : null,
         }
+
+        const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 
         // Upsert com constraint composta client_id + ref_month
         const { error: upsertErr } = await admin
@@ -186,6 +188,14 @@ serve(async (req) => {
           .upsert(usageRow, { onConflict: 'client_id,ref_month,instance_id' })
 
         if (upsertErr) throw new Error(`Upsert falhou: ${upsertErr.message}`)
+
+        await admin
+          .from('client_usage')
+          .update({ pending: false, partial_day: null })
+          .eq('client_id', inst.client_id)
+          .neq('ref_month', currentMonth)
+          .eq('pending', true)
+          .not('instance_id', 'is', null)
 
         synced++
         console.log(`donc-api-sync: OK instância ${inst.contrato_saas_id} — snapshot salvo, aguardando aprovação CSM`)

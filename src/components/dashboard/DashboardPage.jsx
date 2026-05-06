@@ -588,7 +588,6 @@ export default function DashboardPage() {
   })), [clients])
 
   const hasOpsData = useMemo(() => opsRows.some(r => r.ref_month === prevMonth && r.instance_id != null), [opsRows])
-  console.log('[hasOpsData]', hasOpsData, 'opsRows length:', opsRows.length, 'sample:', opsRows[0])
 
   const opOSList = useMemo(() => {
     const rows = []
