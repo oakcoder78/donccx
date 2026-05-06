@@ -283,8 +283,9 @@ serve(async (req) => {
 
     const month = prevMonth()
     const internalHeaders = {
-      Authorization:    `Bearer ${serviceKey}`,
+      Authorization:    `Bearer ${token}`,
       'Content-Type':   'application/json',
+      'apikey':         serviceKey,
     }
 
     // 1. donc-api-sync
