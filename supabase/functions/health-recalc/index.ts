@@ -460,13 +460,22 @@ serve(async (req) => {
 
     let authorized = false
 
-    if (token === serviceKey) {
-      authorized = true
+    const { data: { user }, error: authErr } = await admin.auth.getUser(token)
+    if (!authErr && user) {
+      const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
+      authorized = ['admin', 'manager'].includes(profile?.role ?? '')
     } else {
-      const { data: { user }, error: authErr } = await admin.auth.getUser(token)
-      if (!authErr && user) {
-        const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-        authorized = ['admin', 'manager'].includes(profile?.role ?? '')
+      try {
+        const parts = token.split('.')
+        if (parts.length === 3) {
+          const pad = (s: string) => s + '='.repeat((4 - s.length % 4) % 4)
+          const payload = JSON.parse(new TextDecoder().decode(
+            Uint8Array.from(atob(pad(parts[1].replace(/-/g, '+').replace(/_/g, '/'))), c => c.charCodeAt(0))
+          ))
+          authorized = payload.role === 'service_role'
+        }
+      } catch (e) {
+        console.error('[health-recalc] JWT decode error:', e)
       }
     }
 
