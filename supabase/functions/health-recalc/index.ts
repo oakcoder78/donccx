@@ -451,18 +451,26 @@ serve(async (req) => {
     const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
     if (!token) return json({ error: 'Unauthorized' }, 401)
 
-    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
     const admin = createClient(supabaseUrl, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    if (token !== serviceKey) {
+    let authorized = false
+
+    if (token === serviceKey) {
+      authorized = true
+    } else {
       const { data: { user }, error: authErr } = await admin.auth.getUser(token)
-      if (authErr || !user) return json({ error: 'Invalid token' }, 401)
-      const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-      if (!['admin', 'manager'].includes(profile?.role ?? '')) return json({ error: 'Forbidden' }, 403)
+      if (!authErr && user) {
+        const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
+        authorized = ['admin', 'manager'].includes(profile?.role ?? '')
+      }
     }
+
+    if (!authorized) return json({ error: 'Forbidden' }, 403)
 
     const body = await req.json().catch(() => ({})) as { client_ids?: number[] }
     const clientIds = body.client_ids
