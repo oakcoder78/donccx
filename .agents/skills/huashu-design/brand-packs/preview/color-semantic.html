@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border-1);
+    border-radius: var(--r-md);
+    background: var(--white);
+  }
+  .dot { width: 20px; height: 20px; border-radius: 6px; flex: 0 0 20px; box-shadow: var(--shadow-inset); }
+  .meta { flex: 1; min-width: 0; }
+  .name { font-family: var(--font-display); font-weight: 700; font-size: 13px; color: var(--navy-900); }
+  .role { font-size: 11px; color: var(--fg-4); margin-top: 2px; }
+  .val  { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="grid">
+      <div class="row"><div class="dot" style="background:#2fa36b"></div><div class="meta"><div class="name">Success</div><div class="role">Confirmations, SLA green</div></div><div class="val">#2fa36b</div></div>
+      <div class="row"><div class="dot" style="background:#e4f6ec"></div><div class="meta"><div class="name">Success soft</div><div class="role">Badge fill</div></div><div class="val">#e4f6ec</div></div>
+      <div class="row"><div class="dot" style="background:#d89b1f"></div><div class="meta"><div class="name">Warning</div><div class="role">SLA at risk, pending</div></div><div class="val">#d89b1f</div></div>
+      <div class="row"><div class="dot" style="background:#fbf1d7"></div><div class="meta"><div class="name">Warning soft</div><div class="role">Badge fill</div></div><div class="val">#fbf1d7</div></div>
+      <div class="row"><div class="dot" style="background:#d64545"></div><div class="meta"><div class="name">Danger</div><div class="role">Failed OS, breaches</div></div><div class="val">#d64545</div></div>
+      <div class="row"><div class="dot" style="background:#fbe5e5"></div><div class="meta"><div class="name">Danger soft</div><div class="role">Badge fill</div></div><div class="val">#fbe5e5</div></div>
+      <div class="row"><div class="dot" style="background:#59c2ed"></div><div class="meta"><div class="name">Info</div><div class="role">Tips, announcements</div></div><div class="val">#59c2ed</div></div>
+      <div class="row"><div class="dot" style="background:#e0f4fc"></div><div class="meta"><div class="name">Info soft</div><div class="role">Badge fill</div></div><div class="val">#e0f4fc</div></div>
+    </div>
+  </div>
+</body>
+</html>

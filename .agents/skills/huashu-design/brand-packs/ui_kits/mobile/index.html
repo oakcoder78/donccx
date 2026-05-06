@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Donc · Mobile UI kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<script src="https://unpkg.com/feather-icons"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+  html, body { margin: 0; padding: 0; font-family: var(--font-body); background: var(--bg-subtle); min-height: 100vh; }
+  .stage { display: flex; align-items: center; justify-content: center; padding: 40px 20px; min-height: 100vh; }
+  .view-switch {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 999;
+    display: inline-flex; gap: 4px; padding: 4px;
+    background: rgba(255,255,255,0.86); backdrop-filter: blur(20px);
+    border: 1px solid var(--border-1); border-radius: 999px;
+    box-shadow: var(--shadow-sm);
+  }
+  .view-switch button {
+    border: 0; background: transparent;
+    font-family: var(--font-body); font-weight: 600; font-size: 12px;
+    padding: 6px 12px; border-radius: 999px;
+    color: var(--fg-3); cursor: pointer;
+  }
+  .view-switch button.active { background: var(--navy-700); color: #fff; }
+</style>
+</head>
+<body>
+<div id="app" data-screen-label="Mobile UI kit"></div>
+
+<script type="text/babel" src="./ios-frame.jsx"></script>
+<script type="text/babel" src="./Primitives.jsx"></script>
+<script type="text/babel" src="./TodayScreen.jsx"></script>
+<script type="text/babel" src="./StopScreen.jsx"></script>
+<script type="text/babel" src="./ConfirmScreen.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function App() {
+  const [screen, setScreen] = useState(() => localStorage.getItem("donc_mobile_screen") || "today");
+  const [stop, setStop] = useState(null);
+  const [tab, setTab] = useState("today");
+  useEffect(() => { localStorage.setItem("donc_mobile_screen", screen); }, [screen]);
+
+  const openStop = s => { setStop(s); setScreen("stop"); };
+
+  let inner;
+  if (screen === "today")   inner = <TodayScreen onOpenStop={openStop} />;
+  if (screen === "stop")    inner = <StopScreen stop={stop} onBack={() => setScreen("today")} onFinish={() => setScreen("confirm")} />;
+  if (screen === "confirm") inner = <ConfirmScreen onBack={() => setScreen("today")} />;
+
+  return (
+    <div className="stage">
+      <div className="view-switch">
+        <button className={screen === "today"   ? "active" : ""} onClick={() => setScreen("today")}>Hoje</button>
+        <button className={screen === "stop"    ? "active" : ""} onClick={() => setScreen("stop")}>Parada</button>
+        <button className={screen === "confirm" ? "active" : ""} onClick={() => setScreen("confirm")}>Confirmação</button>
+      </div>
+      <IOSDevice>
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--bg-subtle)" }}>
+          {inner}
+          <MTabBar active={tab} onChange={setTab} />
+        </div>
+      </IOSDevice>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("app")).render(<App />);
+</script>
+</body>
+</html>

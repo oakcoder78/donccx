@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px 32px; }
+  .label { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); margin-bottom: 14px; }
+  .row { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; }
+  .bar { height: 18px; background: linear-gradient(90deg, #a6dff6, #59c2ed); border-radius: 4px; box-shadow: var(--shadow-inset); }
+  .name { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); width: 70px; }
+  .val  { font-family: var(--font-mono); font-size: 11px; color: var(--navy-900); width: 52px; text-align: right; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">Spacing · 4px base</div>
+    <div class="row"><span class="name">--sp-1</span><div class="bar" style="width:4px"></div><span class="val">4</span></div>
+    <div class="row"><span class="name">--sp-2</span><div class="bar" style="width:8px"></div><span class="val">8</span></div>
+    <div class="row"><span class="name">--sp-3</span><div class="bar" style="width:12px"></div><span class="val">12</span></div>
+    <div class="row"><span class="name">--sp-4</span><div class="bar" style="width:16px"></div><span class="val">16</span></div>
+    <div class="row"><span class="name">--sp-6</span><div class="bar" style="width:24px"></div><span class="val">24</span></div>
+    <div class="row"><span class="name">--sp-8</span><div class="bar" style="width:32px"></div><span class="val">32</span></div>
+    <div class="row"><span class="name">--sp-12</span><div class="bar" style="width:48px"></div><span class="val">48</span></div>
+    <div class="row"><span class="name">--sp-16</span><div class="bar" style="width:64px"></div><span class="val">64</span></div>
+    <div class="row"><span class="name">--sp-24</span><div class="bar" style="width:96px"></div><span class="val">96</span></div>
+    <div class="row"><span class="name">--sp-32</span><div class="bar" style="width:128px"></div><span class="val">128</span></div>
+  </div>
+</body>
+</html>

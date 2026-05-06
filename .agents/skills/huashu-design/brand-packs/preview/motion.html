@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg); }
+  .card { width: 700px; box-sizing: border-box; padding: 26px 28px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .tile {
+    background: var(--white); border: 1px solid var(--border-1);
+    border-radius: var(--r-md); padding: 14px;
+  }
+  .head { font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--fg-4); margin-bottom: 10px; }
+  .sample { font-family: var(--font-body); font-weight: 600; font-size: 13px; color: var(--navy-900); letter-spacing: -0.005em; }
+  .val { font-family: var(--font-mono); font-size: 10px; color: var(--fg-4); margin-top: 6px; }
+  .bezier {
+    margin-top: 10px; height: 56px; width: 100%;
+  }
+  .bezier path { fill: none; stroke: var(--sky-500); stroke-width: 1.5; }
+  .bezier .dot { fill: var(--navy-700); }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="grid">
+      <div class="tile">
+        <div class="head">Ease-out</div>
+        <div class="sample">Entries · page load</div>
+        <svg class="bezier" viewBox="0 0 100 56"><path d="M0,56 C22,56 14,0 100,0"/><circle class="dot" cx="100" cy="0" r="2.5"/></svg>
+        <div class="val">(.22, 1, .36, 1)</div>
+      </div>
+      <div class="tile">
+        <div class="head">Ease-in-out</div>
+        <div class="sample">State changes</div>
+        <svg class="bezier" viewBox="0 0 100 56"><path d="M0,56 C65,56 35,0 100,0"/><circle class="dot" cx="100" cy="0" r="2.5"/></svg>
+        <div class="val">(.65, 0, .35, 1)</div>
+      </div>
+      <div class="tile">
+        <div class="head">Spring · rare</div>
+        <div class="sample">Delightful moments</div>
+        <svg class="bezier" viewBox="0 0 100 56"><path d="M0,56 C34,56 64,-18 100,0"/><circle class="dot" cx="100" cy="0" r="2.5"/></svg>
+        <div class="val">(.34, 1.56, .64, 1)</div>
+      </div>
+    </div>
+    <div style="margin-top:14px; display:flex; gap: 22px; font-family: var(--font-mono); font-size: 11px; color: var(--fg-3)">
+      <span>120ms micro</span><span>200ms base</span><span>360ms enter/leave</span>
+    </div>
+  </div>
+</body>
+</html>

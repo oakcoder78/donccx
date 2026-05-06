@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<script src="https://unpkg.com/feather-icons"></script>
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg-subtle); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .os {
+    background: var(--white); border: 1px solid var(--border-1);
+    border-radius: var(--r-lg); padding: 16px 18px;
+    display: grid; grid-template-columns: 44px 1fr auto auto; gap: 14px; align-items: center;
+    box-shadow: var(--shadow-sm);
+  }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--sky-100); color: var(--sky-700);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 14px;
+  }
+  .ttl { font-family: var(--font-display); font-weight: 700; font-size: 15px; color: var(--navy-900); letter-spacing: -0.01em; }
+  .meta { font-family: var(--font-body); font-size: 12px; color: var(--fg-4); margin-top: 3px; display: flex; gap: 8px; align-items: center; }
+  .meta svg { width: 12px; height: 12px; stroke-width: 1.5; }
+  .badge {
+    display: inline-flex; gap: 6px; align-items: center;
+    font-family: var(--font-body); font-weight: 600; font-size: 12px;
+    padding: 4px 10px; border-radius: var(--r-pill);
+    background: var(--warning-100); color: #8a6310;
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    border: 1px solid var(--border-2); background: var(--white);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fg-3); cursor: pointer;
+  }
+  .icon-btn svg { width: 16px; height: 16px; stroke-width: 1.5; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="os">
+      <div class="avatar">MA</div>
+      <div>
+        <div class="ttl">Montagem · Armário 4 portas</div>
+        <div class="meta">
+          <span>OS #482931</span>
+          <span>·</span>
+          <span style="display:inline-flex;gap:4px;align-items:center"><i data-feather="map-pin"></i> Moema, SP</span>
+          <span>·</span>
+          <span style="display:inline-flex;gap:4px;align-items:center"><i data-feather="clock"></i> 14:30 – 16:00</span>
+        </div>
+      </div>
+      <div class="badge"><span class="dot"></span>SLA em risco</div>
+      <button class="icon-btn"><i data-feather="more-horizontal"></i></button>
+    </div>
+  </div>
+  <script>feather.replace({ 'stroke-width': 1.5 });</script>
+</body>
+</html>

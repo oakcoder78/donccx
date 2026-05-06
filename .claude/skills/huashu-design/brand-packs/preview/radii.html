@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: var(--bg-subtle); }
+  .card { width: 700px; box-sizing: border-box; padding: 28px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .tile {
+    height: 100px;
+    background: var(--white);
+    border: 1px solid var(--border-1);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 11px; color: var(--fg-3);
+    position: relative;
+  }
+  .tile span {
+    position: absolute; top: 10px; left: 12px;
+    font-family: var(--font-display); font-weight: 700; font-size: 11px;
+    letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--navy-900);
+  }
+
+  .r-xs  { border-radius: 4px; }
+  .r-sm  { border-radius: 8px; }
+  .r-md  { border-radius: 12px; }
+  .r-lg  { border-radius: 16px; }
+  .r-xl  { border-radius: 20px; }
+  .r-2xl { border-radius: 28px; }
+  .r-pill { border-radius: 9999px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="grid">
+      <div class="tile r-xs"><span>xs</span>4px</div>
+      <div class="tile r-sm"><span>sm</span>8px</div>
+      <div class="tile r-md"><span>md</span>12px</div>
+      <div class="tile r-lg"><span>lg</span>16px</div>
+      <div class="tile r-xl"><span>xl</span>20px</div>
+      <div class="tile r-2xl"><span>2xl</span>28px</div>
+      <div class="tile r-pill"><span>pill</span>9999</div>
+      <div class="tile" style="border:0; background:transparent; color:var(--fg-4)">Avoid 6/10/14</div>
+    </div>
+  </div>
+</body>
+</html>

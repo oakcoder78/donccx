@@ -1,0 +1,246 @@
+/* =========================================================
+   Donc Design System — Colors & Typography Tokens
+   ---------------------------------------------------------
+   Import this file in any design artifact:
+     <link rel="stylesheet" href="colors_and_type.css">
+   Fonts are loaded from Google Fonts (see README for the
+   substitution note — these are the closest matches if no
+   licensed desktop files are available).
+   ========================================================= */
+
+/* Montserrat — supplied by brand (variable font + static backups in fonts/).
+   Inter + JetBrains Mono remain loaded from Google Fonts — no brand files supplied.
+   If you have licensed files for Inter or a mono face, drop them in fonts/ and
+   swap the @import below for additional @font-face blocks. */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-VariableFont_wght.ttf') format('truetype-variations'),
+       url('fonts/Montserrat-Regular.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Montserrat';
+  src: url('fonts/Montserrat-Italic.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: italic;
+  font-display: swap;
+}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* ---------- Brand colors ---------- */
+  --navy-900: #0e2239;
+  --navy-800: #122b48;
+  --navy-700: #173557;   /* PRIMARY */
+  --navy-600: #244971;
+  --navy-500: #3a608a;
+
+  --lime-700: #a9b02e;
+  --lime-600: #bfc63b;
+  --lime-500: #d3da47;   /* ACCENT */
+  --lime-400: #dfe46a;
+  --lime-300: #ebee98;
+  --lime-100: #f6f8d0;
+
+  --sky-700: #2a8ab4;
+  --sky-600: #3ea5cf;
+  --sky-500: #59c2ed;    /* SECONDARY */
+  --sky-400: #7dd0f1;
+  --sky-300: #a6dff6;
+  --sky-100: #e0f4fc;
+
+  --mint-500: #a8cfa8;
+  --mint-400: #bfdcbf;
+  --mint-300: #d6e9d6;   /* SOFT BG */
+  --mint-200: #e4f0e4;
+  --mint-100: #f1f7f1;
+
+  /* Gradient lifted from the logo (lime → mint → sky) */
+  --gradient-brand: linear-gradient(90deg, #d3da47 0%, #cde38e 38%, #a8d9d8 62%, #59c2ed 100%);
+  --gradient-brand-soft: linear-gradient(135deg, #f6f8d0 0%, #e4f0e4 50%, #e0f4fc 100%);
+
+  /* ---------- Neutrals ---------- */
+  --ink-1000: #0a111b;
+  --ink-900:  #111827;
+  --ink-800:  #1f2937;
+  --ink-700:  #374151;
+  --ink-600:  #4b5563;
+  --ink-500:  #6b7280;
+  --ink-400:  #9ca3af;
+  --ink-300:  #d1d5db;
+  --ink-200:  #e5e7eb;
+  --ink-150:  #eef0f3;
+  --ink-100:  #f3f4f6;
+  --ink-50:   #f8fafc;
+  --white:    #ffffff;
+
+  /* ---------- Semantic — light theme ---------- */
+  --bg:           var(--white);
+  --bg-subtle:    var(--ink-50);
+  --bg-soft:      var(--mint-300);
+  --surface:      var(--white);
+  --surface-2:    var(--ink-50);
+  --surface-inverse: var(--navy-700);
+
+  --fg-1:         var(--navy-900);   /* strongest text */
+  --fg-2:         var(--ink-800);    /* body */
+  --fg-3:         var(--ink-600);    /* secondary */
+  --fg-4:         var(--ink-500);    /* tertiary, meta */
+  --fg-on-dark:   var(--white);
+  --fg-on-dark-2: rgba(255,255,255,0.72);
+  --fg-on-dark-3: rgba(255,255,255,0.52);
+
+  --border-1:     #e6e9ee;           /* default card border */
+  --border-2:     #d8dde4;
+  --border-strong:#c5ccd6;
+  --border-on-dark: rgba(255,255,255,0.14);
+  --divider:      #eef1f5;
+
+  --focus-ring:   rgba(89,194,237,0.55);
+
+  /* ---------- Status colors (tuned to palette) ---------- */
+  --success-500: #2fa36b;
+  --success-100: #e4f6ec;
+  --warning-500: #d89b1f;
+  --warning-100: #fbf1d7;
+  --danger-500:  #d64545;
+  --danger-100:  #fbe5e5;
+  --info-500:    var(--sky-500);
+  --info-100:    var(--sky-100);
+
+  /* ---------- Elevation / shadows (soft Apple-like) ---------- */
+  --shadow-xs: 0 1px 1px rgba(14, 34, 57, 0.04);
+  --shadow-sm: 0 1px 2px rgba(14, 34, 57, 0.06), 0 1px 3px rgba(14, 34, 57, 0.04);
+  --shadow-md: 0 4px 12px rgba(14, 34, 57, 0.06), 0 2px 4px rgba(14, 34, 57, 0.04);
+  --shadow-lg: 0 18px 40px -12px rgba(14, 34, 57, 0.18), 0 4px 10px rgba(14, 34, 57, 0.06);
+  --shadow-xl: 0 32px 64px -16px rgba(14, 34, 57, 0.22);
+  --shadow-inset: inset 0 0 0 1px rgba(14, 34, 57, 0.04);
+  --shadow-ring: 0 0 0 3px var(--focus-ring);
+
+  /* ---------- Radii ---------- */
+  --r-xs:  4px;
+  --r-sm:  8px;
+  --r-md:  12px;
+  --r-lg:  16px;
+  --r-xl:  20px;
+  --r-2xl: 28px;
+  --r-pill: 999px;
+
+  /* ---------- Spacing scale (4px base) ---------- */
+  --sp-0: 0;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+  --sp-20: 80px;
+  --sp-24: 96px;
+  --sp-32: 128px;
+
+  /* ---------- Type families ---------- */
+  --font-display: 'Montserrat', 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-body:    'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+
+  /* ---------- Type scale ---------- */
+  --fz-display:  72px;
+  --fz-h1:       48px;
+  --fz-h2:       36px;
+  --fz-h3:       28px;
+  --fz-h4:       22px;
+  --fz-h5:       18px;
+  --fz-lg:       18px;
+  --fz-md:       16px;
+  --fz-sm:       14px;
+  --fz-xs:       12px;
+  --fz-micro:    11px;
+
+  --lh-tight:    1.08;
+  --lh-snug:     1.2;
+  --lh-normal:   1.45;
+  --lh-relaxed:  1.6;
+
+  --ls-display:  -0.03em;
+  --ls-heading:  -0.02em;
+  --ls-body:     -0.005em;
+  --ls-caps:     0.08em;
+
+  /* ---------- Motion ---------- */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);       /* Apple-ish easeOutExpo */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast:    120ms;
+  --dur-base:    200ms;
+  --dur-slow:    360ms;
+
+  /* ---------- Layout ---------- */
+  --container:   1200px;
+  --container-wide: 1360px;
+  --gutter:      24px;
+}
+
+/* =========================================================
+   Base elements — semantic styles that map to the tokens.
+   Use these classes instead of sprinkling token refs.
+   ========================================================= */
+
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--fz-md);
+  line-height: var(--lh-normal);
+  color: var(--fg-2);
+  background: var(--bg);
+  letter-spacing: var(--ls-body);
+}
+
+h1, .h1, h2, .h2, h3, .h3, h4, .h4, h5, .h5, .display {
+  font-family: var(--font-display);
+  color: var(--fg-1);
+  margin: 0;
+}
+
+.display {
+  font-size: var(--fz-display);
+  font-weight: 800;
+  line-height: var(--lh-tight);
+  letter-spacing: var(--ls-display);
+}
+h1, .h1 { font-size: var(--fz-h1); font-weight: 700; line-height: var(--lh-tight);  letter-spacing: var(--ls-display); }
+h2, .h2 { font-size: var(--fz-h2); font-weight: 700; line-height: var(--lh-snug);   letter-spacing: var(--ls-heading); }
+h3, .h3 { font-size: var(--fz-h3); font-weight: 700; line-height: var(--lh-snug);   letter-spacing: var(--ls-heading); }
+h4, .h4 { font-size: var(--fz-h4); font-weight: 600; line-height: var(--lh-snug);   letter-spacing: var(--ls-heading); }
+h5, .h5 { font-size: var(--fz-h5); font-weight: 600; line-height: var(--lh-normal); letter-spacing: var(--ls-heading); }
+
+p { margin: 0; }
+.lead  { font-size: var(--fz-lg); line-height: var(--lh-relaxed); color: var(--fg-2); }
+.body  { font-size: var(--fz-md); line-height: var(--lh-normal);  color: var(--fg-2); }
+.small { font-size: var(--fz-sm); line-height: var(--lh-normal);  color: var(--fg-3); }
+.meta  { font-size: var(--fz-xs); line-height: 1.4;               color: var(--fg-4); }
+
+.eyebrow {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fz-xs);
+  letter-spacing: var(--ls-caps);
+  text-transform: uppercase;
+  color: var(--sky-700);
+}
+
+.mono { font-family: var(--font-mono); font-size: 13px; }
+code  { font-family: var(--font-mono); font-size: 0.92em; background: var(--ink-100); padding: 2px 6px; border-radius: var(--r-xs); }
+
+a { color: var(--navy-700); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color var(--dur-fast) var(--ease-out); }
+a:hover { border-bottom-color: currentColor; }
+
+hr { border: 0; border-top: 1px solid var(--divider); margin: var(--sp-6) 0; }
+
+::selection { background: var(--lime-300); color: var(--navy-900); }
