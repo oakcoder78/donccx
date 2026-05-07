@@ -7,7 +7,8 @@ const CLIENT_SELECT = `
   *,
   stage:stages(*),
   csm:profiles!clients_csm_id_fkey(id, name, email),
-  client_catalog(id, catalog_item_id, status, catalog_items(*))
+  client_catalog(id, catalog_item_id, status, catalog_items(*)),
+  onboardings(id, context, status, situacao_geral, created_at, end_date)
 `
 
 function buildClientsQuery(filters) {

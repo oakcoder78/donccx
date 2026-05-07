@@ -832,6 +832,14 @@ export default function DashboardPage() {
           </div>
         </div>
         <div style={{ padding: '16px 24px 22px', borderTop: `0.5px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {client.onboardings?.some(o => o.status === 'ativo') && (
+            <button onClick={() => { closeDrawer(); navigate(`/projetos/${client.onboardings.find(o => o.status === 'ativo').id}`) }}
+              style={{ background: C.sky, color: '#fff', border: 0, padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em' }}
+              onMouseEnter={e => e.currentTarget.style.background = C.skyDeep}
+              onMouseLeave={e => e.currentTarget.style.background = C.sky}>
+              Ver projeto ativo →
+            </button>
+          )}
           <button onClick={() => navigate(`/empresas/${client.id}`)}
             style={{ background: C.navy, color: '#fff', border: 0, padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em' }}
             onMouseEnter={e => e.currentTarget.style.background = C.navyDeep}
