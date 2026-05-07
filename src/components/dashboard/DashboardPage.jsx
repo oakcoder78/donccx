@@ -660,7 +660,7 @@ export default function DashboardPage() {
   if (isLoading && !clients.length) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', color: C.ink3, fontSize: 14, fontFamily: "'Montserrat', system-ui, sans-serif" }}>Carregando…</div>
 
   // ─── Drawer content renderers ──────────────────────────────────────────────
-  function DrawerClientContent({ client, reasons }) {
+  function DrawerClientContent({ client, reasons, openDrawer, setSelectedActivity, navigate, closeDrawer }) {
     if (!client) return null
     const score  = client.health_total || 0
     const band   = scoreBand(score)
@@ -684,12 +684,14 @@ export default function DashboardPage() {
 
     const lowDims = DIMS.filter(d => (client[d.key] || 0) < 10)
 
+    const overdueAct = myTasksRaw.find(a => a.client_id === client.id && a.activity_date && a.activity_date < todayStr && a.status !== 'concluida' && a.status !== 'cancelada')
+
     const qaItems = []
-    if (signals.some(s => s.kind === 'urgent' && /atraso/i.test(s.title))) qaItems.push({ tone: 'red', icon: Ic.check, label: 'Concluir atividade atrasada' })
-    if (signals.some(s => /milestone/i.test(s.title))) qaItems.push({ tone: 'red', icon: Ic.cal, label: 'Reagendar milestone' })
-    if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', icon: Ic.phone, label: 'Registrar contato agora' })
-    qaItems.push({ tone: 'amber', icon: Ic.thermo, label: 'Atualizar temperatura' })
-    qaItems.push({ tone: 'navy', icon: Ic.plus, label: 'Registrar atividade' })
+    if (overdueAct) qaItems.push({ tone: 'red', icon: Ic.check, label: 'Concluir atividade atrasada', onClick: () => { closeDrawer(); setSelectedActivity(overdueAct) }})
+    if (signals.some(s => /milestone|onboarding/i.test(s.title))) qaItems.push({ tone: 'red', icon: Ic.cal, label: 'Ver onboarding atrasado', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=onboarding`) }})
+    if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', icon: Ic.phone, label: 'Registrar contato agora', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
+    qaItems.push({ tone: 'amber', icon: Ic.thermo, label: 'Atualizar temperatura', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=overview`) }})
+    qaItems.push({ tone: 'navy', icon: Ic.plus, label: 'Registrar atividade', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
 
     const QAColors = { red: [C.redSoft, C.red], amber: [C.amberSoft, C.amber], sky: [C.skySoft, C.skyDeep], navy: ['#eef2f7', C.navy] }
 
@@ -767,7 +769,7 @@ export default function DashboardPage() {
               {qaItems.slice(0, 5).map((qa, i) => {
                 const [bg, clr] = QAColors[qa.tone] || QAColors.navy
                 return (
-                  <button key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, border: `0.5px solid ${C.line}`, borderRadius: 12, background: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+                  <button key={i} onClick={qa.onClick} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, border: `0.5px solid ${C.line}`, borderRadius: 12, background: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = C.lineStrong; e.currentTarget.style.background = '#fafbfc' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = C.line; e.currentTarget.style.background = 'transparent' }}>
                     <div style={{ width: 26, height: 26, flexShrink: 0, borderRadius: 7, display: 'grid', placeItems: 'center', background: bg, color: clr }}>{qa.icon}</div>
@@ -1020,7 +1022,7 @@ export default function DashboardPage() {
 
     if (mode === 'cliente') {
       const client = data.client
-      return <DrawerClientContent client={client} reasons={client.reasons} />
+      return <DrawerClientContent client={client} reasons={client.reasons} openDrawer={openDrawer} setSelectedActivity={setSelectedActivity} navigate={navigate} closeDrawer={closeDrawer} />
     }
     if (mode === 'overdue') {
       const rows = overdueActivities.map(a => (
