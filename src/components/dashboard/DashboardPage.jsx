@@ -691,6 +691,9 @@ export default function DashboardPage() {
     if (signals.some(s => /milestone|onboarding/i.test(s.title))) qaItems.push({ tone: 'red', icon: Ic.cal, label: 'Ver onboarding atrasado', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=onboarding`) }})
     if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', icon: Ic.phone, label: 'Registrar contato agora', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
     qaItems.push({ tone: 'amber', icon: Ic.thermo, label: 'Atualizar temperatura', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=health`) }})
+    if (client.onboardings?.some(o => o.status === 'ativo')) {
+      qaItems.push({ tone: 'sky', icon: Ic.proj, label: 'Ver projeto ativo', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=onboarding`) }})
+    }
     qaItems.push({ tone: 'navy', icon: Ic.plus, label: 'Registrar atividade', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
 
     const QAColors = { red: [C.redSoft, C.red], amber: [C.amberSoft, C.amber], sky: [C.skySoft, C.skyDeep], navy: ['#eef2f7', C.navy] }
@@ -832,14 +835,6 @@ export default function DashboardPage() {
           </div>
         </div>
         <div style={{ padding: '16px 24px 22px', borderTop: `0.5px solid ${C.line}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {client.onboardings?.some(o => o.status === 'ativo') && (
-            <button onClick={() => { closeDrawer(); navigate(`/projetos/${client.onboardings.find(o => o.status === 'ativo').id}`) }}
-              style={{ background: C.sky, color: '#fff', border: 0, padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em' }}
-              onMouseEnter={e => e.currentTarget.style.background = C.skyDeep}
-              onMouseLeave={e => e.currentTarget.style.background = C.sky}>
-              Ver projeto ativo →
-            </button>
-          )}
           <button onClick={() => navigate(`/empresas/${client.id}`)}
             style={{ background: C.navy, color: '#fff', border: 0, padding: '12px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, letterSpacing: '-0.005em' }}
             onMouseEnter={e => e.currentTarget.style.background = C.navyDeep}
