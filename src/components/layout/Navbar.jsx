@@ -34,7 +34,7 @@ export function Navbar() {
 
   const links = isAnalyst
     ? availableLinks(analystNavLinks)
-    : canViewSettings
+    : canViewSettings && isEnabled('settings_menu', profile?.role)
       ? [...availableLinks(mainNavLinks), { to: '/configuracoes', label: 'Configurações' }]
       : availableLinks(mainNavLinks)
 

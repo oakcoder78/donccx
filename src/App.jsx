@@ -104,8 +104,11 @@ function AdminRoute() {
   const { profile } = useAuth()
   const { isEnabled } = useFeatureFlags()
   if (profile?.role !== 'admin' && profile?.role !== 'manager') return <Navigate to="/dashboard" replace />
-  if (profile?.role === 'manager' && !isEnabled('api_donc', profile?.role)) return <Navigate to="/dashboard" replace />
-  if (profile?.role === 'manager' && !isEnabled('freshdesk', profile?.role)) return <Navigate to="/dashboard" replace />
+  if (profile?.role === 'manager') {
+    if (!isEnabled('settings_menu', profile?.role)) return <Navigate to="/dashboard" replace />
+    if (!isEnabled('api_donc', profile?.role)) return <Navigate to="/dashboard" replace />
+    if (!isEnabled('freshdesk', profile?.role)) return <Navigate to="/dashboard" replace />
+  }
   return <Outlet />
 }
 
