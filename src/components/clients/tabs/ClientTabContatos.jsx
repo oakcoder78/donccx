@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ActionIcons, ActivityIcons } from '../../../lib/icons'
 import { Avatar } from '../../ui/Avatar'
 import { Badge } from '../../ui/Badge'
@@ -9,6 +9,19 @@ import { useUnlinkContact } from '../../../hooks/useContacts'
 import { formatPhone } from '../../../lib/formatPhone'
 
 // ─── helpers ────────────────────────────────────────────────────────────────────
+function getRelevanceScore(cl) {
+  const { champion, papel, engajamento } = cl
+  if (champion && papel === 'Decisor') return 7
+  if (papel === 'Decisor') return 6
+  if (champion && papel === 'Influenciador') return 5
+  if (papel === 'Influenciador') return 4
+  if (champion) return 4
+  if (papel === 'Técnico') return 3
+  if (papel === 'Usuário') return 2
+  const engScore = engajamento === 'Alto' ? 2 : engajamento === 'Médio' ? 1 : 0
+  return engScore
+}
+
 const STATUS_INFO = {
   ativo: { emoji: '🟢', label: 'Ativo' },
   morno: { emoji: '🟡', label: 'Morno' },
@@ -183,7 +196,16 @@ export function ClientTabContatos({ client }) {
   const [selectedLink, setSelectedLink]     = useState(null)
   const unlinkContact = useUnlinkContact()
 
-  const links = client.contact_links || []
+  const links = useMemo(() => {
+    return [...(client.contact_links || [])].sort((a, b) => {
+      const sa = getRelevanceScore(a)
+      const sb = getRelevanceScore(b)
+      if (sa !== sb) return sb - sa
+      const engA = a.engajamento === 'Alto' ? 2 : a.engajamento === 'Médio' ? 1 : 0
+      const engB = b.engajamento === 'Alto' ? 2 : b.engajamento === 'Médio' ? 1 : 0
+      return engB - engA
+    })
+  }, [client.contact_links])
 
   function buildContactFromLink(link) {
     const c = link.contacts || {}
