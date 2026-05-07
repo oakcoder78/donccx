@@ -22,12 +22,12 @@ import { SettingsProjectTemplates } from './SettingsProjectTemplates'
 
 const MENU_GROUPS = [
   { label: 'Equipe', items: [
-    { key: 'users', label: 'Usuários' },
+    { key: 'users', label: 'Usuários', featureFlag: 'users' },
   ]},
   { label: 'Produto', items: [
-    { key: 'stages',   label: 'Estágios' },
-    { key: 'segments', label: 'Segmentos' },
-    { key: 'catalog',  label: 'Catálogos' },
+    { key: 'stages',   label: 'Estágios', featureFlag: 'stages' },
+    { key: 'segments', label: 'Segmentos', featureFlag: 'segments' },
+    { key: 'catalog',  label: 'Catálogos', featureFlag: 'catalog' },
   ]},
   { label: 'Projetos', items: [
     { key: 'fase-types',       label: 'Tipos de Fase',      featureFlag: 'fase_types' },
@@ -35,18 +35,18 @@ const MENU_GROUPS = [
     { key: 'project-templates', label: 'Templates',        featureFlag: 'project_templates' },
   ]},
   { label: 'Health Score', items: [
-    { key: 'health', label: 'Health Score' },
+    { key: 'health', label: 'Health Score', featureFlag: 'health' },
   ]},
   { label: 'IA & Automação', items: [
     { key: 'donkie', label: 'Donkie', featureFlag: 'donkie' },
     { key: 'ai',     label: 'IA', featureFlag: 'ai' },
   ]},
   { label: 'Integrações', items: [
-    { key: 'freshdesk', label: 'Freshdesk' },
+    { key: 'freshdesk', label: 'Freshdesk', featureFlag: 'freshdesk' },
     { key: 'donc-api',  label: 'API DONC',   managerOnly: true },
   ]},
   { label: 'Governança', items: [
-    { key: 'logs', label: 'Auditoria' },
+    { key: 'logs', label: 'Auditoria', featureFlag: 'logs' },
     { key: 'features', label: 'Funcionalidades', featureFlag: 'features' },
   ]},
 ]
@@ -65,22 +65,21 @@ export default function SettingsPage() {
   const MENU = MENU_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      if (item.key === 'logs' && !canManageUsers) return false
+      if (item.featureFlag && !isEnabled(item.featureFlag, profile?.role)) return false
       if (item.adminOnly && !isAdmin) return false
       if (item.managerOnly && !isManager) return false
-      if (item.featureFlag && !isEnabled(item.featureFlag, profile?.role)) return false
       return true
     })
   })).filter(group => group.items.length > 0)
 
   const renderSection = (key) => {
     switch (key) {
-      case 'health':    return <SettingsHealth />
-      case 'catalog':  return <SettingsCatalog />
-      case 'segments': return <SettingsSegments />
-      case 'stages':   return <SettingsStages />
-      case 'users':    return <SettingsUsers />
-      case 'logs':     return canManageUsers && <SettingsLogs />
+      case 'health':    return isEnabled('health', profile?.role) && <SettingsHealth />
+      case 'catalog':  return isEnabled('catalog', profile?.role) && <SettingsCatalog />
+      case 'segments': return isEnabled('segments', profile?.role) && <SettingsSegments />
+      case 'stages':   return isEnabled('stages', profile?.role) && <SettingsStages />
+      case 'users':    return isEnabled('users', profile?.role) && <SettingsUsers />
+      case 'logs':     return isEnabled('logs', profile?.role) && <SettingsLogs />
       case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
       case 'donkie':   return isEnabled('donkie', profile?.role) && <SettingsDonkie />
       case 'ai':       return isEnabled('ai', profile?.role) && <SettingsAI />
