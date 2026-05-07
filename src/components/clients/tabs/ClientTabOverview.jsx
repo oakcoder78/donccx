@@ -40,6 +40,19 @@ function formatDate(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
+function getRelevanceScore(cl) {
+  const { champion, papel, engajamento } = cl
+  if (champion && papel === 'Decisor') return 7
+  if (papel === 'Decisor') return 6
+  if (champion && papel === 'Influenciador') return 5
+  if (papel === 'Influenciador') return 4
+  if (champion) return 4
+  if (papel === 'Técnico') return 3
+  if (papel === 'Usuário') return 2
+  const engScore = engajamento === 'Alto' ? 2 : engajamento === 'Médio' ? 1 : 0
+  return engScore
+}
+
 const DIMS = [
   { key: 'uso',            label: 'Uso',        color: '#59c2ed' },
   { key: 'suporte',        label: 'Suporte',    color: '#1D9E75' },
@@ -637,12 +650,22 @@ export function ClientTabOverview({ client }) {
         {/* Power Map */}
         <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Power Map</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Mapa de Poder</span>
             <button onClick={() => navigate(`/empresas/${client.id}?tab=contatos`)} style={{ fontSize: 11, color: '#59c2ed', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>ver todos</button>
           </div>
           {client.contact_links?.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {client.contact_links.slice(0, 4).map(cl => (
+              {[...client.contact_links]
+                .sort((a, b) => {
+                  const sa = getRelevanceScore(a)
+                  const sb = getRelevanceScore(b)
+                  if (sa !== sb) return sb - sa
+                  const engA = a.engajamento === 'Alto' ? 2 : a.engajamento === 'Médio' ? 1 : 0
+                  const engB = b.engajamento === 'Alto' ? 2 : b.engajamento === 'Médio' ? 1 : 0
+                  return engB - engA
+                })
+                .slice(0, 4)
+                .map(cl => (
                 <div key={cl.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Avatar name={cl.contacts?.name} size="sm" />
                   <div style={{ flex: 1, minWidth: 0 }}>
