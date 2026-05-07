@@ -79,6 +79,7 @@ Available Modules:
 - clients
 - contexts
 - donkie
+- greeting-engine
 - health-score
 - hooks
 - layout
