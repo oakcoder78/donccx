@@ -30,6 +30,7 @@ const C = {
 // ─── Date constants ────────────────────────────────────────────────────────────
 const todayStr  = new Date().toISOString().slice(0, 10)
 const in30Str   = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10) })()
+const in6Str    = (() => { const d = new Date(); d.setDate(d.getDate() + 6); return d.toISOString().slice(0, 10) })()
 const ago30Str  = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) })()
 const prevMonth = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}` })()
 const prevMonth2 = (() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 2); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}` })()
@@ -484,10 +485,10 @@ export default function DashboardPage() {
   const mrrTotal     = useMemo(() => clients.reduce((s, c) => s + (c.mrr || 0), 0), [clients])
   const mrrAtrasado  = useMemo(() => clients.filter(c => (c.delay_days || 0) > 0).reduce((s, c) => s + (c.mrr || 0), 0), [clients])
 
-  // Upcoming activities: overdue first (asc), then today+future (asc)
+  // Upcoming activities: overdue first (asc), then today to +6 days (asc)
   const upcomingActivities = useMemo(() => {
     const over = myTasksRaw.filter(a => a.activity_date && a.activity_date < todayStr).sort((a, b) => a.activity_date.localeCompare(b.activity_date))
-    const fut  = myTasksRaw.filter(a => a.activity_date && a.activity_date >= todayStr).sort((a, b) => a.activity_date.localeCompare(b.activity_date))
+    const fut  = myTasksRaw.filter(a => a.activity_date && a.activity_date >= todayStr && a.activity_date <= in6Str).sort((a, b) => a.activity_date.localeCompare(b.activity_date))
     return [...over, ...fut]
   }, [myTasksRaw])
 
@@ -1349,11 +1350,11 @@ export default function DashboardPage() {
 
             {/* Próximas atividades */}
             <Panel>
-              <PanelHead title="Próximas atividades" meta={`${upcomingActivities.length} esta semana`} />
+              <PanelHead title="Próximas atividades (7 dias)" meta={`${upcomingActivities.length}`} />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {upcomingActivities.length === 0 ? (
                   <p style={{ fontSize: 13, color: C.ink3, textAlign: 'center', padding: '16px 0' }}>Nenhuma atividade pendente.</p>
-                ) : upcomingActivities.slice(0, 7).map((a, i) => {
+                ) : upcomingActivities.slice(0, 6).map((a, i) => {
                   const isOver  = a.activity_date < todayStr
                   const isToday = a.activity_date === todayStr
                   const dateLabel = isOver ? 'atrasada' : isToday ? 'hoje' : (() => { const [,m,d] = a.activity_date.split('-'); return `${d}/${m}` })()
