@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Paperclip } from "lucide-react"
 
 import {
@@ -8,6 +8,7 @@ import {
 } from "../../../lib/icons"
 
 import { useActivities } from '../../../hooks/useActivities'
+import { useAuth } from '../../../contexts/AuthContext'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { ActivityModal } from '../../activities/ActivityModal'
@@ -20,15 +21,54 @@ function formatDate(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
-export function ClientTabActivities({ client }) {
+const ACTIVITY_TYPES = [
+  { value: '', label: 'Todos os tipos' },
+  { value: 'reuniao', label: 'Reunião' },
+  { value: 'ligacao', label: 'Ligação' },
+  { value: 'email', label: 'E-mail' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'tarefa', label: 'Tarefa' },
+  { value: 'nota', label: 'Nota' },
+  { value: 'relatorio', label: 'Relatório' },
+]
 
+export function ClientTabActivities({ client }) {
+  const { profile } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState(null)
+
+  const [filterType, setFilterType] = useState('')
+  const [filterMonth, setFilterMonth] = useState('')
+  const [filterContact, setFilterContact] = useState('')
+  const [filterMyActivities, setFilterMyActivities] = useState(false)
 
   const {
     data: activities = [],
     isLoading
   } = useActivities({ client_id: client.id })
+
+  const contacts = useMemo(() => {
+    return (client.contact_links || []).map(cl => ({
+      id: cl.contact_id,
+      name: cl.contacts?.name || 'Sem nome',
+      cargo: cl.contacts?.cargo || '',
+    })).sort((a, b) => a.name.localeCompare(b.name))
+  }, [client.contact_links])
+
+  const filteredActivities = useMemo(() => {
+    return activities.filter(a => {
+      if (filterType && a.type !== filterType) return false
+      if (filterMonth) {
+        const activityMonth = a.activity_date?.slice(0, 7)
+        if (activityMonth !== filterMonth) return false
+      }
+      if (filterContact && a.contact_id !== Number(filterContact)) return false
+      if (filterMyActivities && a.responsible_id !== profile?.id) return false
+      return true
+    })
+  }, [activities, filterType, filterMonth, filterContact, filterMyActivities, profile?.id])
+
+  const hasFilters = filterType || filterMonth || filterContact || filterMyActivities
 
   if (isLoading) return <PageSpinner />
 
@@ -36,25 +76,74 @@ export function ClientTabActivities({ client }) {
 
     <div>
 
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-text-tertiary">
+            {filteredActivities.length} de {activities.length} atividades
+          </span>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            + Nova Atividade
+          </Button>
+        </div>
 
-        <span className="text-sm text-text-tertiary">
-          {activities.length} atividades
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={filterType}
+            onChange={e => setFilterType(e.target.value)}
+            className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
+          >
+            {ACTIVITY_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
 
-        <Button
-          size="sm"
-          onClick={() => setShowCreate(true)}
-        >
-          + Nova Atividade
-        </Button>
+          <input
+            type="month"
+            value={filterMonth}
+            onChange={e => setFilterMonth(e.target.value)}
+            className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
+          />
 
+          <select
+            value={filterContact}
+            onChange={e => setFilterContact(e.target.value)}
+            className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
+          >
+            <option value="">Todos os contatos</option>
+            {contacts.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={filterMyActivities}
+              onChange={e => setFilterMyActivities(e.target.checked)}
+              className="rounded border-border-tertiary"
+            />
+            Minhas atividades
+          </label>
+
+          {hasFilters && (
+            <button
+              onClick={() => {
+                setFilterType('')
+                setFilterMonth('')
+                setFilterContact('')
+                setFilterMyActivities(false)
+              }}
+              className="text-xs text-text-tertiary hover:text-text-primary underline"
+            >
+              Limpar filtros
+            </button>
+          )}
+        </div>
       </div>
-
 
       <div className="space-y-2">
 
-        {activities.map(a => {
+        {filteredActivities.map(a => {
 
           const Icon =
             ActivityIcons[a.type] ||
@@ -138,12 +227,10 @@ export function ClientTabActivities({ client }) {
         })}
 
 
-        {activities.length === 0 && (
-
+        {filteredActivities.length === 0 && (
           <p className="text-center py-12 text-text-tertiary">
-            Nenhuma atividade ainda.
+            {hasFilters ? 'Nenhuma atividade_matches filtros.' : 'Nenhuma atividade ainda.'}
           </p>
-
         )}
 
       </div>
