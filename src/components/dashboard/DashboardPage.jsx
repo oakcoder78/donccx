@@ -692,7 +692,9 @@ export default function DashboardPage() {
     if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', icon: Ic.phone, label: 'Registrar contato agora', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
     qaItems.push({ tone: 'amber', icon: Ic.thermo, label: 'Atualizar temperatura', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=health`) }})
     if (client.onboardings?.some(o => o.status === 'ativo')) {
-      qaItems.push({ tone: 'sky', icon: Ic.proj, label: 'Ver projeto ativo', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=onboarding`) }})
+      const activeOnboarding = client.onboardings.find(o => o.status === 'ativo')
+      const projectId = activeOnboarding?.projects?.[0]?.id
+      qaItems.push({ tone: 'sky', icon: Ic.proj, label: 'Ver projeto ativo', onClick: () => { closeDrawer(); navigate(`/projetos/${projectId}`) }})
     }
     qaItems.push({ tone: 'navy', icon: Ic.plus, label: 'Registrar atividade', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
 
