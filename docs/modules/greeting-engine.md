@@ -12,13 +12,14 @@ Strategically, the Greeting Engine positions doncCX Hub as a proactive Customer 
 
 ## Product Philosophy
 
-The Greeting Engine embodies five core principles:
+The Greeting Engine embodies six core principles:
 
 - **Contextual** — Greetings reflect real operational state, not arbitrary text.
 - **Lightweight** — Minimal computation, fast rendering, no external deps.
 - **Humanized** — Warm without being artificial; professional without being cold.
 - **Intelligent** — Aware of time, role, milestones, and operational context.
 - **Non-intrusive** — Present but never demanding attention.
+- **Subtle** — Contextual intelligence should feel natural. Greetings must never become noisy, theatrical, or attention-seeking. The system enhances atmosphere, it does not compete with workflow.
 
 The system must never feel like a game, a reward mechanism, or an AI personality. It should register as thoughtful, not flashy.
 
@@ -52,7 +53,16 @@ PHRASES_NEUTRAL = ['Seu portfólio espera por você!', ...]
 
 ## Conceptual Architecture
 
-The Greeting Engine operates as a layered composition system. Each layer contributes a fragment; the composer assembles them into a final greting.
+The Greeting Engine operates as a layered composition system. Each layer *may* contribute a fragment; silence is valid behavior. The composer assembles available fragments into a final greeting.
+
+### Layer Contribution Semantics
+
+- Layers MAY contribute fragments — no layer is required to produce output
+- Empty contribution is valid — contextual restraint is intentional, not a failure
+- Sparse composition is expected — most greetings will use 1-2 fragments, not all layers
+- Elegance over fullness — a quiet, tasteful greeting beats an over-composed one
+
+The system must support sparse composition as a first-class behavior.
 
 ### Layer Overview
 
@@ -163,6 +173,8 @@ interface GreetingFragment {
 }
 ```
 
+> **Signal strength note (future)** — The current contract uses `weight` for priority assembly. Future implementations may distinguish between `priority` (ordering), `signalStrength` (how strongly the layer contributes), and `displayImportance` (visual prominence). This separation is not required for Phase 1 but represents an intentional预留 for richer composition.
+
 These contracts are illustrative. Implementation may evolve as layers are added.
 
 ---
@@ -207,6 +219,21 @@ The following constraints guide all Layer 2+ development:
 | Extensibility-first | New layers add without rewriting existing code |
 | Localization-ready | Strings externalized from day one |
 | Feature-flag friendly | Each layer can be toggled independently |
+
+---
+
+## Architectural Positioning
+
+The Greeting Engine is the first implementation of a broader contextual narrative layer within doncCX Hub. Its modular architecture and composition model are designed for reuse beyond greetings.
+
+Future systems built on this foundation may include:
+
+- **Contextual summaries** — "Você tem 3 renewals nessa semana e 2 workshops pendentes"
+- **Operational nudges** — "O cliente Acme não activity nos últimos 30 dias"
+- **Proactive copiloting** — Reactive, context-aware prompts based on user behavior
+- **Adaptive dashboard narratives** — Dynamic dashboard headers that acknowledge current priorities
+
+This module does not claim these capabilities. It establishes the architectural foundation that enables them.
 
 ---
 
