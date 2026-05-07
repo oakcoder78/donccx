@@ -1392,7 +1392,7 @@ export default function DashboardPage() {
             <Panel>
               <PanelHead title="Saúde rankeada · menor → maior score" meta="10 clientes" />
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {sortedPortfolio.slice(0, 8).map(c => {
+                {sortedPortfolio.slice(0, 10).map(c => {
                   const score = c.health_total || 0
                   const band  = scoreBand(score)
                   const color = scoreBandColor(score)
