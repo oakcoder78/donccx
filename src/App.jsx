@@ -95,7 +95,9 @@ function PrivateRoute() {
 
 function AdminRoute() {
   const { profile } = useAuth()
+  const { isEnabled } = useFeatureFlags()
   if (profile?.role !== 'admin' && profile?.role !== 'manager') return <Navigate to="/dashboard" replace />
+  if (!isEnabled('freshdesk', profile?.role) && profile?.role === 'manager') return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
 

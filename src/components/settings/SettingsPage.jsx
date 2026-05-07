@@ -13,6 +13,7 @@ import { SettingsDoncAPI } from './SettingsDoncAPI'
 import { SettingsFeatureFlags } from './SettingsFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
+import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 import { SettingsMenuIcons } from '../../lib/icons'
 
 import { SettingsFaseTypes } from './SettingsFaseTypes'
@@ -41,7 +42,7 @@ const MENU_GROUPS = [
     { key: 'ai',     label: 'IA',     adminOnly: true },
   ]},
   { label: 'Integrações', items: [
-    { key: 'freshdesk', label: 'Freshdesk',  adminOnly: true },
+    { key: 'freshdesk', label: 'Freshdesk' },
     { key: 'donc-api',  label: 'API DONC',   managerOnly: true },
   ]},
   { label: 'Governança', items: [
@@ -52,7 +53,8 @@ const MENU_GROUPS = [
 
 export default function SettingsPage() {
   const { canManageUsers } = usePermissions()
-  const { isAdmin, isManager } = useAuth()
+  const { isAdmin, isManager, profile } = useAuth()
+  const { isEnabled } = useFeatureFlags()
   const [section, setSection] = useState(() => localStorage.getItem('settings_section') || 'users')
 
   const handleSetSection = (key) => {
@@ -78,7 +80,7 @@ export default function SettingsPage() {
       case 'stages':   return <SettingsStages />
       case 'users':    return <SettingsUsers />
       case 'logs':     return canManageUsers && <SettingsLogs />
-      case 'freshdesk': return isAdmin && <SettingsFreshdesk />
+      case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
       case 'donkie':   return isAdmin && <SettingsDonkie />
       case 'ai':       return isAdmin && <SettingsAI />
       case 'donc-api': return isManager && <SettingsDoncAPI />
