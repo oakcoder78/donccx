@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissions } from '../../hooks/usePermissions'
+import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 import { UserEditModal } from '../ui/UserEditModal'
 
 const mainNavLinks = [
@@ -10,27 +11,32 @@ const mainNavLinks = [
   { to: '/contatos',     label: 'Contatos'    },
   { to: '/atividades',   label: 'Atividades'  },
   { to: '/projetos',     label: 'Projetos'    },
-  { to: '/atendimento',  label: 'Atendimento' },
+  { to: '/atendimento',  label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
 ]
 
 const analystNavLinks = [
-  { to: '/atendimento',  label: 'Atendimento' },
+  { to: '/atendimento',  label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
 ]
 
 export function Navbar() {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { canViewSettings } = usePermissions()
+  const { isEnabled } = useFeatureFlags()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [showProfile,  setShowProfile]  = useState(false)
 
   const isAnalyst = profile?.role === 'analyst'
 
+  const availableLinks = (links) => links.filter(link => 
+    !link.featureFlag || isEnabled(link.featureFlag, profile?.role)
+  )
+
   const links = isAnalyst
-    ? analystNavLinks
+    ? availableLinks(analystNavLinks)
     : canViewSettings
-      ? [...mainNavLinks, { to: '/configuracoes', label: 'Configurações' }]
-      : mainNavLinks
+      ? [...availableLinks(mainNavLinks), { to: '/configuracoes', label: 'Configurações' }]
+      : availableLinks(mainNavLinks)
 
   async function handleSignOut() {
     await signOut()

@@ -30,16 +30,16 @@ const MENU_GROUPS = [
     { key: 'catalog',  label: 'Catálogos' },
   ]},
   { label: 'Projetos', items: [
-    { key: 'fase-types',       label: 'Tipos de Fase',      adminOnly: true },
-    { key: 'activity-types',  label: 'Tipos de Atividade', adminOnly: true },
-    { key: 'project-templates', label: 'Templates',        adminOnly: true },
+    { key: 'fase-types',       label: 'Tipos de Fase',      featureFlag: 'fase_types' },
+    { key: 'activity-types',  label: 'Tipos de Atividade', featureFlag: 'activity_types' },
+    { key: 'project-templates', label: 'Templates',        featureFlag: 'project_templates' },
   ]},
   { label: 'Health Score', items: [
     { key: 'health', label: 'Health Score' },
   ]},
   { label: 'IA & Automação', items: [
-    { key: 'donkie', label: 'Donkie', adminOnly: true },
-    { key: 'ai',     label: 'IA',     adminOnly: true },
+    { key: 'donkie', label: 'Donkie', featureFlag: 'donkie' },
+    { key: 'ai',     label: 'IA', featureFlag: 'ai' },
   ]},
   { label: 'Integrações', items: [
     { key: 'freshdesk', label: 'Freshdesk' },
@@ -47,7 +47,7 @@ const MENU_GROUPS = [
   ]},
   { label: 'Governança', items: [
     { key: 'logs', label: 'Auditoria' },
-    { key: 'features', label: 'Funcionalidades', adminOnly: true },
+    { key: 'features', label: 'Funcionalidades', featureFlag: 'features' },
   ]},
 ]
 
@@ -68,6 +68,7 @@ export default function SettingsPage() {
       if (item.key === 'logs' && !canManageUsers) return false
       if (item.adminOnly && !isAdmin) return false
       if (item.managerOnly && !isManager) return false
+      if (item.featureFlag && !isEnabled(item.featureFlag, profile?.role)) return false
       return true
     })
   })).filter(group => group.items.length > 0)
@@ -81,13 +82,13 @@ export default function SettingsPage() {
       case 'users':    return <SettingsUsers />
       case 'logs':     return canManageUsers && <SettingsLogs />
       case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
-      case 'donkie':   return isAdmin && <SettingsDonkie />
-      case 'ai':       return isAdmin && <SettingsAI />
+      case 'donkie':   return isEnabled('donkie', profile?.role) && <SettingsDonkie />
+      case 'ai':       return isEnabled('ai', profile?.role) && <SettingsAI />
       case 'donc-api': return isManager && <SettingsDoncAPI />
-      case 'features': return isAdmin && <SettingsFeatureFlags />
-      case 'fase-types': return <SettingsFaseTypes />
-      case 'activity-types': return <SettingsActivityTypes />
-      case 'project-templates': return isAdmin && <SettingsProjectTemplates />
+      case 'features': return isEnabled('features', profile?.role) && <SettingsFeatureFlags />
+      case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
+      case 'activity-types': return isEnabled('activity_types', profile?.role) && <SettingsActivityTypes />
+      case 'project-templates': return isEnabled('project_templates', profile?.role) && <SettingsProjectTemplates />
       default: return null
     }
   }

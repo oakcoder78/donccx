@@ -68,6 +68,7 @@ function AppLayout() {
 function PrivateRoute() {
   const { user, profile, loading } = useAuth()
   const location = useLocation()
+  const { isEnabled } = useFeatureFlags()
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
 
@@ -90,6 +91,12 @@ function PrivateRoute() {
   if (profile.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
     return <Navigate to="/atendimento" replace />
   }
+
+  // Gate para /atendimento via feature flag
+  if (location.pathname.startsWith('/atendimento') && !isEnabled('whatsapp_atendimento', profile?.role)) {
+    return <Navigate to="/dashboard" replace />
+  }
+
   return <AppLayout />
 }
 
@@ -97,7 +104,8 @@ function AdminRoute() {
   const { profile } = useAuth()
   const { isEnabled } = useFeatureFlags()
   if (profile?.role !== 'admin' && profile?.role !== 'manager') return <Navigate to="/dashboard" replace />
-  if (!isEnabled('freshdesk', profile?.role) && profile?.role === 'manager') return <Navigate to="/dashboard" replace />
+  if (profile?.role === 'manager' && !isEnabled('api_donc', profile?.role)) return <Navigate to="/dashboard" replace />
+  if (profile?.role === 'manager' && !isEnabled('freshdesk', profile?.role)) return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
 
