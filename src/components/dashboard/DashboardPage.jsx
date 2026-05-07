@@ -690,7 +690,7 @@ export default function DashboardPage() {
     if (overdueAct) qaItems.push({ tone: 'red', icon: Ic.check, label: 'Concluir atividade atrasada', onClick: () => { closeDrawer(); setSelectedActivity(overdueAct) }})
     if (signals.some(s => /milestone|onboarding/i.test(s.title))) qaItems.push({ tone: 'red', icon: Ic.cal, label: 'Ver onboarding atrasado', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=onboarding`) }})
     if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', icon: Ic.phone, label: 'Registrar contato agora', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
-    qaItems.push({ tone: 'amber', icon: Ic.thermo, label: 'Atualizar temperatura', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=overview`) }})
+    qaItems.push({ tone: 'amber', icon: Ic.thermo, label: 'Atualizar temperatura', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=health`) }})
     qaItems.push({ tone: 'navy', icon: Ic.plus, label: 'Registrar atividade', onClick: () => { closeDrawer(); navigate(`/empresas/${client.id}?tab=atividades`) }})
 
     const QAColors = { red: [C.redSoft, C.red], amber: [C.amberSoft, C.amber], sky: [C.skySoft, C.skyDeep], navy: ['#eef2f7', C.navy] }
