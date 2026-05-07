@@ -32,13 +32,27 @@ const ACTIVITY_TYPES = [
   { value: 'relatorio', label: 'Relatório' },
 ]
 
+const MONTHS = (() => {
+  const months = []
+  const now = new Date()
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const value = d.toISOString().slice(0, 7)
+    const label = d.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
+    months.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) })
+  }
+  return months
+})()
+
+const currentMonth = new Date().toISOString().slice(0, 7)
+
 export function ClientTabActivities({ client }) {
   const { profile } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected] = useState(null)
 
   const [filterType, setFilterType] = useState('')
-  const [filterMonth, setFilterMonth] = useState('')
+  const [filterMonth, setFilterMonth] = useState(currentMonth)
   const [filterContact, setFilterContact] = useState('')
   const [filterMyActivities, setFilterMyActivities] = useState(false)
 
@@ -78,66 +92,72 @@ export function ClientTabActivities({ client }) {
 
       <div className="flex flex-col gap-3 mb-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-text-tertiary">
-            {filteredActivities.length} de {activities.length} atividades
-          </span>
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            + Nova Atividade
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={filterType}
-            onChange={e => setFilterType(e.target.value)}
-            className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
-          >
-            {ACTIVITY_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
-          </select>
-
-          <input
-            type="month"
-            value={filterMonth}
-            onChange={e => setFilterMonth(e.target.value)}
-            className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
-          />
-
-          <select
-            value={filterContact}
-            onChange={e => setFilterContact(e.target.value)}
-            className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
-          >
-            <option value="">Todos os contatos</option>
-            {contacts.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-
-          <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
-            <input
-              type="checkbox"
-              checked={filterMyActivities}
-              onChange={e => setFilterMyActivities(e.target.checked)}
-              className="rounded border-border-tertiary"
-            />
-            Minhas atividades
-          </label>
-
-          {hasFilters && (
-            <button
-              onClick={() => {
-                setFilterType('')
-                setFilterMonth('')
-                setFilterContact('')
-                setFilterMyActivities(false)
-              }}
-              className="text-xs text-text-tertiary hover:text-text-primary underline"
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterType}
+              onChange={e => setFilterType(e.target.value)}
+              className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
             >
-              Limpar filtros
-            </button>
-          )}
+              {ACTIVITY_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterMonth}
+              onChange={e => setFilterMonth(e.target.value)}
+              className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
+            >
+              <option value="">Todos os meses</option>
+              {MONTHS.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+
+            <select
+              value={filterContact}
+              onChange={e => setFilterContact(e.target.value)}
+              className="text-xs border border-border-tertiary rounded-md px-2 py-1.5 bg-bg-primary text-text-primary focus:outline-none focus:border-border-secondary"
+            >
+              <option value="">Todos os contatos</option>
+              {contacts.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+
+            <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+              <input
+                type="checkbox"
+                checked={filterMyActivities}
+                onChange={e => setFilterMyActivities(e.target.checked)}
+                className="rounded border-border-tertiary"
+              />
+              Minhas atividades
+            </label>
+
+            {hasFilters && (
+              <button
+                onClick={() => {
+                  setFilterType('')
+                  setFilterMonth(currentMonth)
+                  setFilterContact('')
+                  setFilterMyActivities(false)
+                }}
+                className="text-xs text-text-tertiary hover:text-text-primary underline"
+              >
+                Limpar filtros
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-text-tertiary">
+              {filteredActivities.length} de {activities.length}
+            </span>
+            <Button size="sm" onClick={() => setShowCreate(true)}>
+              + Nova Atividade
+            </Button>
+          </div>
         </div>
       </div>
 
