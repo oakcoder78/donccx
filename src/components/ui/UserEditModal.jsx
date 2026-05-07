@@ -72,6 +72,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
   const [phone, setPhone]                   = useState(maskPhoneInput(profile?.phone || ''))
   const [phoneIsWhatsapp, setPhoneIsWhatsapp] = useState(profile?.phone_is_whatsapp || false)
   const [gender, setGender]                 = useState(profile?.gender || '')
+  const [birthDate, setBirthDate]         = useState(profile?.birth_date || '')
   const [avatarUrl, setAvatarUrl]           = useState(profile?.avatar_url || null)
   const [saving, setSaving]                 = useState(false)
   const [sendingReset, setSendingReset]     = useState(false)
@@ -86,6 +87,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
         phone: stripPhone(phone) || null,
         phone_is_whatsapp: phoneIsWhatsapp,
         gender: gender || null,
+        birth_date: birthDate || null,
       }).eq('id', profile.id)
       if (error) throw error
       toast.success('Perfil atualizado')
@@ -176,6 +178,16 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
               </option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="label-sm">Data de nascimento</label>
+          <input
+            type="date"
+            value={birthDate}
+            onChange={e => setBirthDate(e.target.value)}
+            className="input-base w-full"
+          />
         </div>
 
         <div className="pt-1">

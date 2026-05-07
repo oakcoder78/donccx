@@ -35,6 +35,7 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsAI.jsx** | UI for AI‑related configuration (model selection, API keys, etc.). |
 | **SettingsDoncAPI.jsx** | UI for configuring the DONC API integration (manager‑only). |
 | **SettingsFeatureFlags.jsx** | UI for toggling feature flags across the system. |
+| **UserEditModal.jsx** | UI for personal profile editing (name, gender, birth_date, phone, avatar). |
 
 ## UI Architecture
 - **Layout** – a two‑column flex layout: a fixed‑width sidebar (`aside`) with navigation buttons and a main content area (`main`).
@@ -71,9 +72,10 @@ Primary actions must be placed in the header using the `actions` property. Examp
 ## Data Flow
 1. **Loading** – individual sub‑modules fetch their own data using React Query (`useQuery`) or custom hooks (`useHealthConfig`, `useHealthConfigMutations`).
 2. **Editing** – UI components maintain local edit state (`useState`) and enable input fields only when the user has the required role (`isAdmin`, `isManager`).
-3. **Saving** – mutations (`useMutation`, direct Supabase calls) send updates to the backend. On success, React Query’s `invalidateQueries` refreshes the cached data.
+3. **Saving** – mutations (`useMutation`, direct Supabase calls) send updates to the backend. On success, React Query's `invalidateQueries` refreshes the cached data.
 4. **Feedback** – toast notifications (`react-hot-toast`) inform the user of success or error.
 5. **Persistence** – all writes go through Supabase tables (`health_dimension_weights`, etc.) or dedicated API endpoints defined elsewhere in the codebase.
+   - `birth_date` field persisted alongside `gender`/`phone` in UserEditModal.jsx
 
 ## Dependencies
 - **Hooks** – `usePermissions`, `useAuth`, `useHealthConfig`, `useHealthConfigMutations`, `useQuery`, `useMutation`, `useQueryClient`.
