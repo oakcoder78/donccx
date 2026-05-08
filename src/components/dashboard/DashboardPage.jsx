@@ -7,6 +7,7 @@ import { useHealthConfig } from '../../hooks/useHealthConfig'
 import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
+import { useGreeting } from '../../lib/greeting-engine'
 import { ActivityDetailModal } from '../activities/ActivityDetailModal'
 import { HealthDimensionIcons } from '../../lib/icons'
 
@@ -41,11 +42,6 @@ const prevMonthLabel = (() => {
   return d.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
 })()
 
-// ─── Phrases ──────────────────────────────────────────────────────────────────
-const PHRASES_MALE    = ['Pronto para mais um dia?', 'Seu portfólio espera por você!', 'Foco no cliente, sempre.', 'Que dia produtivo te espera!', 'Bora transformar dados em ação?']
-const PHRASES_FEMALE  = ['Pronta para mais um dia?', 'Seu portfólio espera por você!', 'Foco no cliente, sempre.', 'Que dia produtivo te espera!', 'Bora transformar dados em ação?']
-const PHRASES_NEUTRAL = ['Seu portfólio espera por você!', 'Foco no cliente, sempre.', 'Que dia produtivo te espera!', 'Bora transformar dados em ação?']
-
 // ─── Dimension config ─────────────────────────────────────────────────────────
 const DIMS = [
   { key: 'health_uso',            label: 'Uso',            color: C.dimUso,    cls: 'uso',     iconKey: 'health_uso' },
@@ -75,13 +71,6 @@ function evaluateClientRules(client, rules) {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function greeting() {
-  const h = new Date().getHours()
-  if (h < 12) return 'Bom dia'
-  if (h < 18) return 'Boa tarde'
-  return 'Boa noite'
-}
-
 function initials(name = '') {
   return name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?'
 }
@@ -271,11 +260,8 @@ export default function DashboardPage() {
   // Syncing state for op-sync
   const [syncing, setSyncing] = useState({})
 
-  // Phrase (stable per mount)
-  const phrase = useMemo(() => {
-    const arr = profile?.gender === 'female' ? PHRASES_FEMALE : profile?.gender === 'male' ? PHRASES_MALE : PHRASES_NEUTRAL
-    return arr[Math.floor(Math.random() * arr.length)]
-  }, [profile?.gender])
+  // Greeting (deterministic via useGreeting hook)
+  const { text: phrase } = useGreeting(profile)
 
   // ESC to close drawer
   useEffect(() => {
