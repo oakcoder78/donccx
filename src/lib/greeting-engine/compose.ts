@@ -70,7 +70,7 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
   const text = `${primaryText}, ${name}.`
   
   const extraFragments = finalFragments.filter(f => f.layer !== 'temporal')
-  const extra = extraFragments[0]?.text || ''
+  const extra = extraFragments[extraFragments.length - 1]?.text || ''
 
   return {
     text,
