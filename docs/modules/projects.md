@@ -94,6 +94,20 @@ When creating an onboarding/expansão project via `ProjectModal`:
 | `occurred_at` | Date the milestone occurred |
 | `justificativa` | Justification/memo for milestone completion |
 
+### Situação Geral do Onboarding
+
+`situacao_geral` é um campo calculado em `onboardings` que reflete o estado geral do projeto:
+
+| Valor | Condição |
+|-------|----------|
+| `travado` | Pendência bloqueadora ativa |
+| `atencao` | Pendência com prazo vencido OU marco com `planned_end` vencido sem conclusão |
+| `fluindo` | Nenhuma das anteriores |
+
+O valor é recalculado automaticamente por triggers:
+- `trg_update_situacao_geral_on_pendencias` — após mudanças em `onboarding_pendencias`
+- `trg_update_situacao_geral_fases` — após mudanças em `onboarding_fases` (status, planned_end)
+
 ### Fase Status Behavior
 | Status | Allowed Actions | Description |
 |--------|---------------|-------------|
