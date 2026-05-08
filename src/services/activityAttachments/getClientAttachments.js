@@ -41,7 +41,7 @@ export async function getClientAttachments(clientId) {
 
     // Extrair IDs únicos para buscas separadas
     const faseTypeIds = [...new Set(fases?.map(f => f.fase_type_id).filter(Boolean) ?? [])]
-    const onboardingIds = [...new Set(fases?.map(f => f.onboarding_id).filter(Boolean) ?? [])]
+    // const onboardingIds removed — não preciso mais
 
     // Buscar nomes das fases
     let faseTypeMap = {}
@@ -56,8 +56,15 @@ export async function getClientAttachments(clientId) {
       }
     }
 
-    // Buscar titles dos projetos — REMOVIDO (não mais necesario)
-    // O prefixo "Fase:" será adicionado no frontend
+    // Popular faseMap com faseName (projectTitle removido)
+    if (fases) {
+      fases.forEach(f => {
+        faseMap[f.id] = {
+          faseName: faseTypeMap[f.fase_type_id] || null,
+          projectTitle: null
+        }
+      })
+    }
   }
 
   const activities = (activitiesResult.data ?? []).map(r => ({ ...r, _source: 'activity' }))
