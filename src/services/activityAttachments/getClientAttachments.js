@@ -27,44 +27,31 @@ export async function getClientAttachments(clientId) {
   if (evidenciasResult.error) return { success: false, error: evidenciasResult.error.message }
 
   const evidencias = evidenciasResult.data ?? []
-  console.log('[DEBUG] evidencias:', evidencias.map(e => ({ id: e.id, fase_id: e.fase_id })))
 
-  // Enrich evidências: fetch fase names + project titles for unique fase_ids
+  // Enrich evidências: fetch fase names for unique fase_ids
   const faseIds = [...new Set(evidencias.map(e => e.fase_id).filter(Boolean))]
-  console.log('[DEBUG] faseIds:', faseIds)
   let faseMap = {}
 
   if (faseIds.length > 0) {
-    // Buscar fases — sem join (evita 400 error)
-    const { data: fases, error: fasesError } = await supabase
+    const { data: fases } = await supabase
       .from('onboarding_fases')
       .select('id, fase_type_id, onboarding_id')
       .in('id', faseIds)
-    
-    console.log('[DEBUG] fases result:', { count: fases?.length, error: fasesError })
 
-    // Extrair IDs únicos para buscas separadas
     const faseTypeIds = [...new Set(fases?.map(f => f.fase_type_id).filter(Boolean) ?? [])]
-    console.log('[DEBUG] faseTypeIds:', faseTypeIds)
 
-    // Buscar nomes das fases
     let faseTypeMap = {}
     if (faseTypeIds.length > 0) {
-      const { data: faseTypes, error: faseTypesError } = await supabase
+      const { data: faseTypes } = await supabase
         .from('onboarding_fase_types')
         .select('id, name')
         .in('id', faseTypeIds)
-      
-      console.log('[DEBUG] faseTypes result:', { count: faseTypes?.length, error: faseTypesError })
        
       if (faseTypes) {
         faseTypeMap = Object.fromEntries(faseTypes.map(ft => [ft.id, ft.name]))
       }
     }
 
-    console.log('[DEBUG] faseTypeMap:', faseTypeMap)
-
-    // Popular faseMap com faseName (projectTitle removido)
     if (fases) {
       fases.forEach(f => {
         faseMap[f.id] = {
@@ -73,8 +60,6 @@ export async function getClientAttachments(clientId) {
         }
       })
     }
-    
-    console.log('[DEBUG] faseMap:', faseMap)
   }
 
   const activities = (activitiesResult.data ?? []).map(r => ({ ...r, _source: 'activity' }))
