@@ -47,15 +47,11 @@ function formatDate(d) {
   return new Date(d + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
-function getFaseLabel(fase_atual) {
-  if (!fase_atual) return '—'
-  // Try direct match first
-  if (FASE_LABELS[fase_atual]) return FASE_LABELS[fase_atual]
-  // Try lowercase normalized
-  const normalized = fase_atual.toLowerCase().replace(/ /g, '_')
-  if (FASE_LABELS[normalized]) return FASE_LABELS[normalized]
-  // Return as-is if not found
-  return fase_atual
+function getFaseFromOnboarding(o) {
+  if (!o?.onboarding_fases?.length) return '—'
+  const faseAtiva = o.onboarding_fases.find(f => f.status === 'ativa')
+  if (!faseAtiva) return '—'
+  return faseAtiva.onboarding_fase_types?.name || '—'
 }
 
 const SELECT_CLS = 'px-3 py-1.5 text-xs border border-border-secondary rounded-md bg-bg-primary hover:border-text-tertiary transition-colors'
@@ -249,7 +245,7 @@ export default function ProjectsPage() {
         clientId:   o.client_id,
         clientName: o.client?.fantasy_name || o.client?.name || '—',
         title:      o.title,
-        sub:        `Fase: ${getFaseLabel(o.fase_atual)}`,
+        sub:        `Fase: ${getFaseFromOnboarding(o)}`,
       })),
     }
 
@@ -260,7 +256,7 @@ export default function ProjectsPage() {
         clientId:   o.client_id,
         clientName: o.client?.fantasy_name || o.client?.name || '—',
         title:      o.title,
-        sub:        `Fase: ${getFaseLabel(o.fase_atual)}`,
+        sub:        `Fase: ${getFaseFromOnboarding(o)}`,
       })),
     }
 
