@@ -7,7 +7,7 @@ import { useHealthConfig } from '../../hooks/useHealthConfig'
 import { useActivities } from '../../hooks/useActivities'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
-import { useGreeting } from '../../lib/greeting-engine'
+import { useGreeting, GREETING_DEBUG } from '../../lib/greeting-engine'
 import { ActivityDetailModal } from '../activities/ActivityDetailModal'
 import { HealthDimensionIcons } from '../../lib/icons'
 
@@ -271,19 +271,12 @@ export default function DashboardPage() {
       c => (c.health_total || 0) < 50
     ).length
 
-    const DEBUG_GREETING_CONTEXT =
-      process.env.NODE_ENV === 'development'
-        ? {
-            criticalClients: 4
-          }
-        : null
-
     const { text: phrase, extra: phraseExtra } = useGreeting({
       profile,
       operational: {
-        criticalClients:
-          DEBUG_GREETING_CONTEXT?.criticalClients ??
-          criticalClients
+        criticalClients: GREETING_DEBUG?.enabled
+          ? GREETING_DEBUG.operational?.criticalClients
+          : criticalClients
       }
     })
 

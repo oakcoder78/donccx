@@ -1,4 +1,5 @@
 export { useGreeting } from './hooks/useGreeting'
 export { composeGreeting, buildFallback } from './compose'
+export { GREETING_DEBUG } from './debug'
 export * from './types'
 export * from './seed'
