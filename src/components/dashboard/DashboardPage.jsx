@@ -260,6 +260,10 @@ export default function DashboardPage() {
   // Syncing state for op-sync
   const [syncing, setSyncing] = useState({})
 
+  const csmFilter = isAdminOrManager
+    ? (selectedCsm ? { csm_id: selectedCsm, lifecycle_stage: 'cliente' } : { lifecycle_stage: 'cliente' })
+    : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
+
   // Greeting (deterministic via useGreeting hook)
   const { data: clients = [] } = useClients(csmFilter, { enabled: !!profile })
   const criticalClients = clients.filter(c => (c.health_total || 0) < 50).length
@@ -276,10 +280,6 @@ export default function DashboardPage() {
   qc.invalidateQueries({ queryKey: ['clients'] })
   qc.invalidateQueries({ queryKey: ['ops_dashboard'] })
 }, [])
-
-  const csmFilter = isAdminOrManager
-    ? (selectedCsm ? { csm_id: selectedCsm, lifecycle_stage: 'cliente' } : { lifecycle_stage: 'cliente' })
-    : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
   // ─── Hooks (always before any return) ──────────────────────────────────────
   const { data: profiles = [] } = useProfiles()
