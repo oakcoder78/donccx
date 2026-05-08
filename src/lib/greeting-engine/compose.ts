@@ -2,6 +2,7 @@ import type { GreetingFragment, GreetingResult, GreetingContextInput } from './t
 import { generateSeed, deterministicIndex } from './seed'
 import { provideTemporalLayer } from './temporal'
 import { provideIdentityLayer } from './identity'
+import { provideOperationalLayer } from './operational'
 
 function isBirthday(birthDate?: string): boolean {
   if (!birthDate) return false
@@ -34,7 +35,7 @@ function mergeFragments(fragments: GreetingFragment[]): GreetingFragment[] {
 }
 
 export function composeGreeting(input: GreetingContextInput): GreetingResult {
-  const { profile, temporal } = input
+  const { profile, operational, temporal } = input
   const now = new Date()
   const seedStr = generateSeed(profile.id, now)
   const seed = deterministicIndex(1000, seedStr)
@@ -50,8 +51,11 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
     isAnniversary(profile.created_at),
     seed
   )
+
+  const criticalClients = operational?.criticalClients
+  const operationalFragments = provideOperationalLayer(criticalClients, seed)
   
-  const allFragments = [...temporalFragments, ...identityFragments]
+  const allFragments = [...temporalFragments, ...identityFragments, ...operationalFragments]
   
   if (allFragments.length === 0) {
     return buildFallback(temporal, profile.name.split(' ')[0])

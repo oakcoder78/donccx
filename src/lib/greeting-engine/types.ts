@@ -1,3 +1,7 @@
+export interface OperationalContext {
+  criticalClients?: number
+}
+
 export interface GreetingContext {
   profile: {
     id: string
@@ -7,6 +11,7 @@ export interface GreetingContext {
     birth_date?: string
     created_at: string
   }
+  operational?: OperationalContext
   temporal: {
     hour: number
     dayOfWeek: number
@@ -18,7 +23,7 @@ export interface GreetingContext {
 
 export interface GreetingFragment {
   text: string
-  layer: 'temporal' | 'identity'
+  layer: 'temporal' | 'identity' | 'operational'
   weight: number
   deterministic: boolean
 }
@@ -35,4 +40,4 @@ export interface GreetingResult {
   }
 }
 
-export type GreetingContextInput = Pick<GreetingContext, 'profile' | 'temporal'>
+export type GreetingContextInput = Pick<GreetingContext, 'profile' | 'temporal' | 'operational'>
