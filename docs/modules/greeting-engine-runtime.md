@@ -335,4 +335,88 @@ All runtime changes must preserve:
 - runtime lightweightness
 - architectural observability
 
+## New Section — Debug Runtime Context
+
+### Overview
+
+The Greeting Engine includes a lightweight contextual debug infrastructure used exclusively during development.
+
+The purpose of this layer is to allow deterministic contextual simulation without depending on real operational states.
+
+---
+
+### File
+
+```text
+src/lib/greeting-engine/debug.ts
+```
+
+---
+
+### Runtime Flow
+
+```text
+Dashboard Runtime
+        ↓
+Debug Context Override (development only)
+        ↓
+Greeting Providers
+        ↓
+Fragment Pipeline
+        ↓
+Composer
+        ↓
+Narrative Output
+```
+
+---
+
+### Behavior
+
+When debug is enabled:
+
+```ts
+GREETING_DEBUG.enabled === true
+```
+
+runtime contextual values may be overridden.
+
+Example:
+
+```ts
+criticalClients:
+  GREETING_DEBUG?.enabled
+    ? GREETING_DEBUG.operational?.criticalClients
+    : criticalClients
+```
+
+---
+
+### Production Safety
+
+The debug runtime is automatically disabled in production environments.
+
+This guarantees:
+
+- no production contamination
+- no runtime overhead
+- no contextual leakage
+
+---
+
+### Architectural Role
+
+The debug runtime is considered:
+
+- development infrastructure
+- contextual QA support
+- narrative validation tooling
+
+It is NOT considered:
+
+- product functionality
+- operational logic
+- feature flag infrastructure
+
+
 The Greeting Engine runtime is considered foundational infrastructure for future contextual systems inside doncCX Hub.

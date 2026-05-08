@@ -840,6 +840,7 @@ When the user requests a specific design system or brand pack:
    - UI primitives
    - layout patterns
 
+
 3. Preserve the existing visual identity.
 Do not invent a new design language unless explicitly requested.
 
