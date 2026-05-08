@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Paperclip, Eye, Download, Trash2, FileText, FileImage, FileSpreadsheet, File, Info, X } from 'lucide-react'
+import { Paperclip, Eye, Download, Trash2, FileText, FileImage, FileSpreadsheet, File, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabaseClient'
 import { getClientAttachments } from '../../../../services/activityAttachments/getClientAttachments'
 import { softDeleteActivityAttachment } from '../../../../services/activityAttachments/softDeleteActivityAttachment'
@@ -81,9 +81,7 @@ function FileIcon({ mimeType, fileName, className = 'w-4 h-4' }) {
 }
 
 function SourceBadge({ source }) {
-  const cls = source === 'evidencia'
-    ? 'bg-violet-100 text-violet-700'
-    : 'bg-sky-100 text-sky-700'
+  const cls = source === 'evidencia' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'
   const label = source === 'evidencia' ? 'Projeto' : 'Atividade'
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cls} mr-1.5 flex-shrink-0`}>
@@ -147,66 +145,7 @@ async function softDeleteEvidencia(id) {
   return error ? { success: false, error: error.message } : { success: true }
 }
 
-function CloseBtn({ onClick }) {
-  return (
-    <button onClick={onClick} className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors">
-      <X className="w-4 h-4" />
-    </button>
-  )
-}
-
-// ── Details modal ─────────────────────────────────────────────────────────────
-function DetailsModal({ file, onClose }) {
-  const origin = getOriginLabel(file)
-  const friendlyType = getFriendlyType(file.file_type, file.file_name)
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-bg-primary rounded-lg shadow-xl w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
-          <div className="w-9 h-9 rounded-lg bg-bg-secondary flex items-center justify-center flex-shrink-0">
-            <FileIcon mimeType={file.file_type} fileName={file.file_name} className="w-4 h-4" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-text-primary break-all leading-snug">{file.file_name}</p>
-            <p className="text-xs text-text-tertiary mt-0.5">{file.file_type || '—'}</p>
-          </div>
-          <CloseBtn onClick={onClose} />
-        </div>
-
-        {/* Body */}
-        <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4">
-          <div>
-            <p className="text-xs text-text-tertiary mb-0.5">Tipo</p>
-            <TypeBadge mimeType={file.file_type} fileName={file.file_name} />
-          </div>
-          <div>
-            <p className="text-xs text-text-tertiary mb-0.5">Tamanho</p>
-            <p className="text-sm text-text-primary">{formatSize(file.file_size)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-text-tertiary mb-0.5">Enviado por</p>
-            <p className="text-sm text-text-primary">{file.profiles?.name ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-text-tertiary mb-0.5">Data</p>
-            <p className="text-sm text-text-primary">{formatDate(file.created_at, true)}</p>
-          </div>
-          <div className="col-span-2">
-            <p className="text-xs text-text-tertiary mb-1">Origem</p>
-            <div className="flex items-center">
-              <SourceBadge source={file._source} />
-              <p className="text-sm text-text-primary">{origin}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Preview modal ─────────────────────────────────────────────────────────────
+// ── Preview modal (image / html / md) ─────────────────────────────────────────
 function PreviewModal({ preview, onClose }) {
   if (!preview) return null
 
@@ -227,7 +166,6 @@ function PreviewModal({ preview, onClose }) {
     const srcDoc = preview.type === 'html'
       ? preview.content
       : `<!DOCTYPE html><html><head><style>${MD_IFRAME_CSS}</style></head><body><p>${mdToHtml(preview.content)}</p></body></html>`
-
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4" onClick={onClose}>
         <div className="w-full max-w-4xl h-[88vh] bg-white rounded-lg shadow-2xl flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -254,12 +192,92 @@ function PreviewModal({ preview, onClose }) {
   return null
 }
 
+// ── Attachment side panel (ContactPanel-style) ─────────────────────────────────
+function AttachmentPanel({ file, onClose, onView, onDownload, onDelete }) {
+  const origin = getOriginLabel(file)
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 sticky top-20">
+      {/* Close */}
+      <div className="flex justify-end mb-2">
+        <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Icon + name */}
+      <div className="text-center mb-4">
+        <div className="w-12 h-12 rounded-xl bg-bg-secondary flex items-center justify-center mx-auto mb-3">
+          <FileIcon mimeType={file.file_type} fileName={file.file_name} className="w-6 h-6" />
+        </div>
+        <p className="text-sm font-semibold text-text-primary break-all leading-snug px-1">{file.file_name}</p>
+        <div className="mt-2">
+          <TypeBadge mimeType={file.file_type} fileName={file.file_name} />
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={onView}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary"
+        >
+          <Eye className="w-3.5 h-3.5" /> Visualizar
+        </button>
+        <button
+          onClick={onDownload}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary"
+        >
+          <Download className="w-3.5 h-3.5" /> Baixar
+        </button>
+      </div>
+
+      {/* Info sections */}
+      <div className="space-y-3">
+        <div>
+          <p className="text-xs font-medium text-text-tertiary uppercase mb-2">Arquivo</p>
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-text-tertiary">Tamanho</span>
+              <span className="text-text-primary">{formatSize(file.file_size)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-tertiary">Data</span>
+              <span className="text-text-primary">{formatDate(file.created_at, true)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-tertiary">Enviado por</span>
+              <span className="text-text-primary">{file.profiles?.name ?? '—'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-medium text-text-tertiary uppercase mb-2">Origem</p>
+          <div className="flex items-start gap-1 flex-wrap">
+            <SourceBadge source={file._source} />
+            <span className="text-sm text-text-secondary">{origin}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Delete */}
+      <button
+        onClick={onDelete}
+        className="mt-4 w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-red-200 rounded-md hover:bg-red-50 transition-colors text-red-500"
+      >
+        <Trash2 className="w-3.5 h-3.5" /> Excluir anexo
+      </button>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export function ClientSubAnexos({ client }) {
   const [attachments, setAttachments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [preview, setPreview] = useState(null)
-  const [detailFile, setDetailFile] = useState(null)
+  const [selected, setSelected] = useState(null)
   const [authUser, setAuthUser] = useState(null)
 
   const { data: profiles = [] } = useProfiles()
@@ -283,10 +301,7 @@ export function ClientSubAnexos({ client }) {
     const { data, error } = await supabase.storage.from('activity-attachments').createSignedUrl(file.storage_path, 120)
     if (error || !data?.signedUrl) { toast.error('Erro ao gerar URL'); return }
 
-    if (mode === 'image') {
-      setPreview({ type: 'image', url: data.signedUrl, file })
-      return
-    }
+    if (mode === 'image') { setPreview({ type: 'image', url: data.signedUrl, file }); return }
 
     if (mode === 'html' || mode === 'markdown') {
       try {
@@ -322,6 +337,7 @@ export function ClientSubAnexos({ client }) {
 
     if (result.success) {
       setAttachments(prev => prev.filter(a => !(a.id === file.id && a._source === file._source)))
+      if (selected?.id === file.id && selected?._source === file._source) setSelected(null)
       toast.success('Anexo excluído')
     } else {
       toast.error('Erro ao excluir anexo')
@@ -341,6 +357,8 @@ export function ClientSubAnexos({ client }) {
     )
   }
 
+  const isSelected = (file) => selected?.id === file.id && selected?._source === file._source
+
   return (
     <div>
       <div className="mb-4 flex items-center gap-2 text-sm text-text-secondary">
@@ -348,82 +366,111 @@ export function ClientSubAnexos({ client }) {
         <span>{attachments.length} anexo{attachments.length !== 1 ? 's' : ''}</span>
       </div>
 
-      <div className="rounded-lg border border-border-tertiary overflow-hidden">
-        <table className="w-full text-sm table-fixed">
-          <colgroup>
-            <col className="w-[38%]" />
-            <col className="w-[18%]" />
-            <col className="w-[28%]" />
-            <col className="w-[10%]" />
-            <col className="w-[6%]" />
-          </colgroup>
-          <thead>
-            <tr className="bg-bg-secondary border-b border-border-tertiary text-text-tertiary text-xs uppercase tracking-wide">
-              <th className="text-left px-3 py-2.5 font-medium">Arquivo</th>
-              <th className="text-left px-3 py-2.5 font-medium">Tipo</th>
-              <th className="text-left px-3 py-2.5 font-medium">Origem</th>
-              <th className="text-left px-3 py-2.5 font-medium">Data</th>
-              <th className="px-2 py-2.5" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border-tertiary">
-            {attachments.map(file => (
-              <tr key={`${file._source}-${file.id}`} className="bg-bg-primary hover:bg-bg-secondary transition-colors">
-                {/* File name */}
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <FileIcon mimeType={file.file_type} fileName={file.file_name} className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate text-text-primary" title={file.file_name}>
-                      {file.file_name}
-                    </span>
-                  </div>
-                </td>
+      <div className="flex gap-6">
+        {/* Table */}
+        <div className="flex-1 min-w-0">
+          <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-donc-navy text-white">
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Arquivo</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Tipo</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Origem</th>
+                    <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider">Data</th>
+                    <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {attachments.map(file => (
+                    <tr
+                      key={`${file._source}-${file.id}`}
+                      onClick={() => setSelected(isSelected(file) ? null : file)}
+                      className={`border-b border-border-tertiary cursor-pointer transition-colors ${
+                        isSelected(file)
+                          ? 'bg-donc-sky/5 border-l-2 border-l-donc-sky'
+                          : 'hover:bg-bg-secondary'
+                      }`}
+                    >
+                      {/* File name */}
+                      <td className="px-4 py-2.5 max-w-[220px]">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileIcon mimeType={file.file_type} fileName={file.file_name} className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate text-text-primary font-medium" title={file.file_name}>
+                            {file.file_name}
+                          </span>
+                        </div>
+                      </td>
 
-                {/* Type */}
-                <td className="px-3 py-2.5">
-                  <TypeBadge mimeType={file.file_type} fileName={file.file_name} />
-                </td>
+                      {/* Type */}
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <TypeBadge mimeType={file.file_type} fileName={file.file_name} />
+                      </td>
 
-                {/* Origin */}
-                <td className="px-3 py-2.5">
-                  <div className="flex items-center min-w-0">
-                    <SourceBadge source={file._source} />
-                    <span className="truncate text-text-secondary text-xs" title={getOriginLabel(file)}>
-                      {getOriginLabel(file)}
-                    </span>
-                  </div>
-                </td>
+                      {/* Origin */}
+                      <td className="px-4 py-2.5 max-w-[200px]">
+                        <div className="flex items-center min-w-0">
+                          <SourceBadge source={file._source} />
+                          <span className="truncate text-text-secondary text-xs" title={getOriginLabel(file)}>
+                            {getOriginLabel(file)}
+                          </span>
+                        </div>
+                      </td>
 
-                {/* Date */}
-                <td className="px-3 py-2.5 text-text-secondary text-xs whitespace-nowrap">
-                  {formatDate(file.created_at)}
-                </td>
+                      {/* Date */}
+                      <td className="px-4 py-2.5 text-text-secondary text-xs whitespace-nowrap">
+                        {formatDate(file.created_at)}
+                      </td>
 
-                {/* Actions */}
-                <td className="px-2 py-2.5">
-                  <div className="flex items-center gap-0.5 justify-end">
-                    <button onClick={() => handleView(file)} className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors" title="Visualizar">
-                      <Eye className="w-3.5 h-3.5" strokeWidth={1.8} />
-                    </button>
-                    <button onClick={() => handleDownload(file)} className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors" title="Baixar">
-                      <Download className="w-3.5 h-3.5" strokeWidth={1.8} />
-                    </button>
-                    <button onClick={() => setDetailFile(file)} className="p-1 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-tertiary transition-colors" title="Detalhes">
-                      <Info className="w-3.5 h-3.5" strokeWidth={1.8} />
-                    </button>
-                    <button onClick={() => handleDelete(file)} className="p-1 rounded text-text-tertiary hover:text-red-500 hover:bg-bg-tertiary transition-colors" title="Excluir">
-                      <Trash2 className="w-3.5 h-3.5" strokeWidth={1.8} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                      {/* Actions */}
+                      <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={() => handleView(file)}
+                            className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                            title="Visualizar"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDownload(file)}
+                            className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                            title="Baixar"
+                          >
+                            <Download size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(file)}
+                            className="p-1 text-text-secondary hover:text-red-500 rounded"
+                            title="Excluir"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Side panel */}
+        {selected && (
+          <div className="w-72 flex-shrink-0">
+            <AttachmentPanel
+              file={selected}
+              onClose={() => setSelected(null)}
+              onView={() => handleView(selected)}
+              onDownload={() => handleDownload(selected)}
+              onDelete={() => handleDelete(selected)}
+            />
+          </div>
+        )}
       </div>
 
       <PreviewModal preview={preview} onClose={() => setPreview(null)} />
-      {detailFile && <DetailsModal file={detailFile} onClose={() => setDetailFile(null)} />}
     </div>
   )
 }
