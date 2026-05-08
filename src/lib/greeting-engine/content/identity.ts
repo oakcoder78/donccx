@@ -6,7 +6,7 @@ export const IDENTITY_GREETINGS = {
     'Gestão em dia',
   ],
   manager: [
-    '时间来 gerenciar',
+    'Hora de gerenciar',
     'Foco nos resultados',
   ],
   csm: [
@@ -14,12 +14,12 @@ export const IDENTITY_GREETINGS = {
     'Seus clientes te esperam',
   ],
   analyst: [
-    'Hora de analizar',
+    'Hora de analisar',
     'Dados te esperam',
   ],
   birthday: [
     'Feliz aniversário!',
-    'Parabéns! Que dia special',
+    'Parabéns! Que dia especial',
   ],
   anniversary: [
     'Já faz tempo!',
