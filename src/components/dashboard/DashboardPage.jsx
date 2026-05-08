@@ -261,7 +261,7 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState({})
 
   // Greeting (deterministic via useGreeting hook)
-  const { text: phrase } = useGreeting(profile)
+  const { text: phrase, extra: phraseExtra } = useGreeting(profile)
 
   // ESC to close drawer
   useEffect(() => {
@@ -1200,6 +1200,9 @@ export default function DashboardPage() {
                   {phrase}
                 </h1>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: C.navyTextMuted, fontWeight: 500, lineHeight: 1.4 }}>{dateStr}</p>
+                {phraseExtra && (
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: C.navyTextMuted, fontWeight: 500, lineHeight: 1.4 }}>{phraseExtra}</p>
+                )}
               </div>
             </div>
 

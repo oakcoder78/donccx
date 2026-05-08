@@ -7,6 +7,7 @@ export function useGreeting(profile?: GreetingContextInput['profile']): Greeting
     if (!profile) {
       return {
         text: 'Olá.',
+        extra: '',
         fragments: [],
         metadata: {
           generatedAt: new Date().toISOString(),
@@ -30,7 +31,7 @@ export function useGreeting(profile?: GreetingContextInput['profile']): Greeting
     } catch {
       return buildFallback(temporal, profile.name.split(' ')[0])
     }
-  }, [profile?.id, profile?.name, profile?.role, profile?.gender])
+  }, [profile?.id, profile?.name, profile?.role, profile?.gender, profile?.birth_date, profile?.created_at])
 
   return result
 }

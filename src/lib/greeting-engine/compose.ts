@@ -2,17 +2,8 @@ import type { GreetingFragment, GreetingResult, GreetingContextInput } from './t
 import { generateSeed, deterministicIndex } from './seed'
 import { provideTemporalLayer } from './temporal'
 import { provideIdentityLayer } from './identity'
-
-function buildContext(profile: GreetingContextInput['profile']): GreetingContextInput['temporal'] {
-  const now = new Date()
-  return {
-    hour: now.getHours(),
-    dayOfWeek: now.getDay(),
-    month: now.getMonth(),
-    isBirthday: false, // Will need profile.birth_date check
-    isAnniversary: false, // Will need profile.created_at check
-  }
-}
+import { TEMPORAL_GREETINGS } from './content/temporal'
+import { IDENTITY_GREETINGS } from './content/identity'
 
 function isBirthday(birthDate?: string): boolean {
   if (!birthDate) return false
@@ -30,65 +21,57 @@ function isAnniversary(createdAt?: string): boolean {
   return diffDays > 0 && diffDays % 365 < 7
 }
 
+function getTimeGreeting(hour: number): string {
+  if (hour < 12) return TEMPORAL_GREETINGS.morning[0]
+  if (hour < 18) return TEMPORAL_GREETINGS.afternoon[0]
+  return TEMPORAL_GREETINGS.evening[0]
+}
+
 export function composeGreeting(input: GreetingContextInput): GreetingResult {
   const { profile, temporal } = input
   const now = new Date()
   const seedStr = generateSeed(profile.id, now)
   const seed = deterministicIndex(1000, seedStr)
 
-  const temporalFragments = provideTemporalLayer(temporal.hour, temporal.dayOfWeek)
+  const { hour, dayOfWeek } = temporal
 
-  const identityFragments = provideIdentityLayer(
-    profile.role,
-    profile.gender,
-    isBirthday(profile.birth_date),
-    isAnniversary(profile.created_at),
-    seed
-  )
-
-  const allFragments = [...temporalFragments, ...identityFragments]
-
-  if (allFragments.length === 0) {
-    const fallback = temporal.hour < 12 ? 'Bom dia' : temporal.hour < 18 ? 'Boa tarde' : 'Boa noite'
-    return {
-      text: `${fallback}, ${profile.name.split(' ')[0]}.`,
-      fragments: [],
-      metadata: {
-        generatedAt: now.toISOString(),
-        seed: seedStr,
-        layers: [],
-        fallback: true,
-      },
-    }
-  }
-
-  allFragments.sort((a, b) => a.weight - b.weight)
-
-  const usedTexts = new Set<string>()
-  const finalFragments: GreetingFragment[] = []
-
-  for (const fragment of allFragments) {
-    if (!usedTexts.has(fragment.text)) {
-      usedTexts.add(fragment.text)
-      finalFragments.push(fragment)
-    }
-  }
-
-  const greeting = finalFragments
-    .slice(0, 2)
-    .map(f => f.text)
-    .join(', ')
-
+  const timeGreeting = getTimeGreeting(hour)
   const name = profile.name.split(' ')[0]
-  const fullGreeting = `${greeting}, ${name}.`
+
+  const primaryGreeting = `${timeGreeting}, ${name}.`
+
+  const hasBirthday = isBirthday(profile.birth_date)
+  const hasAnniversary = isAnniversary(profile.created_at)
+
+  const fragments: GreetingFragment[] = [{
+    text: primaryGreeting,
+    layer: 'temporal',
+    weight: 10,
+    deterministic: true,
+  }]
+
+  let extraText = ''
+
+  if (hasBirthday) {
+    extraText = IDENTITY_GREETINGS.birthday[0]
+  } else if (hasAnniversary) {
+    extraText = IDENTITY_GREETINGS.anniversary[0]
+  } else if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+    const weekdayIndex = seed % TEMPORAL_GREETINGS.weekday.length
+    extraText = TEMPORAL_GREETINGS.weekday[weekdayIndex]
+  } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+    const weekendIndex = seed % TEMPORAL_GREETINGS.weekend.length
+    extraText = TEMPORAL_GREETINGS.weekend[weekendIndex]
+  }
 
   return {
-    text: fullGreeting,
-    fragments: finalFragments,
+    text: primaryGreeting,
+    extra: extraText,
+    fragments,
     metadata: {
       generatedAt: now.toISOString(),
       seed: seedStr,
-      layers: [...new Set(finalFragments.map(f => f.layer))],
+      layers: ['temporal'],
       fallback: false,
     },
   }
@@ -96,9 +79,10 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
 
 export function buildFallback(temporal: GreetingContextInput['temporal'], name: string): GreetingResult {
   const now = new Date()
-  const greeting = temporal.hour < 12 ? 'Bom dia' : temporal.hour < 18 ? 'Boa tarde' : 'Boa noite'
+  const greeting = getTimeGreeting(temporal.hour)
   return {
     text: `${greeting}, ${name}.`,
+    extra: '',
     fragments: [],
     metadata: {
       generatedAt: now.toISOString(),

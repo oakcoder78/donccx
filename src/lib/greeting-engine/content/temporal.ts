@@ -17,14 +17,14 @@ export const TEMPORAL_GREETINGS = {
     'Boa noite!',
   ],
   weekday: [
-    'Uma semana productive',
-    'Segunda productive',
+    'Uma semana produtiva',
+    'Segunda-feira',
     'Que semana agitada',
-    'Dia de Action',
+    'Dia de ação',
   ],
   weekend: [
-    'Fri de descontração?',
-    'End of semana',
+    'Sexta de descontração?',
+    'Fim de semana',
     'Aproveite o fim de semana',
   ],
 } as const

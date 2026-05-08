@@ -25,6 +25,7 @@ export interface GreetingFragment {
 
 export interface GreetingResult {
   text: string
+  extra?: string
   fragments: GreetingFragment[]
   metadata: {
     generatedAt: string
