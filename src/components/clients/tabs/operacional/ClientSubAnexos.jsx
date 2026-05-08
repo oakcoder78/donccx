@@ -58,9 +58,7 @@ function getOriginLabel(file) {
   }
 
   if (file._source === 'evidencia') {
-    const fase = file.onboarding_fases
-    const faseName = fase?.onboarding_fase_types?.name
-    const projectTitle = fase?.onboardings?.projects?.title
+    const { faseName, projectTitle } = file._faseInfo ?? {}
     if (projectTitle && faseName) return `${projectTitle} / ${faseName}`
     if (projectTitle) return projectTitle
     if (faseName) return `Fase: ${faseName}`
