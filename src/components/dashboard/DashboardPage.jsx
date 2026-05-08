@@ -261,7 +261,9 @@ export default function DashboardPage() {
   const [syncing, setSyncing] = useState({})
 
   // Greeting (deterministic via useGreeting hook)
-  const { text: phrase, extra: phraseExtra } = useGreeting(profile)
+  const { data: clients = [] } = useClients(csmFilter, { enabled: !!profile })
+  const criticalClients = clients.filter(c => (c.health_total || 0) < 50).length
+  const { text: phrase, extra: phraseExtra } = useGreeting({ profile, operational: { criticalClients } })
 
   // ESC to close drawer
   useEffect(() => {
@@ -280,7 +282,6 @@ export default function DashboardPage() {
     : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
   // ─── Hooks (always before any return) ──────────────────────────────────────
-  const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
   const { data: profiles = [] } = useProfiles()
   const { data: healthConfigData } = useHealthConfig()
   const healthRules = healthConfigData?.rules ?? []

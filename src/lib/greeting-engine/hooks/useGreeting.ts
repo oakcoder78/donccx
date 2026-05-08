@@ -1,8 +1,13 @@
 import { useMemo } from 'react'
-import type { GreetingContextInput, GreetingResult } from '../types'
+import type { GreetingContextInput, GreetingResult, OperationalContext } from '../types'
 import { composeGreeting, buildFallback } from '../compose'
 
-export function useGreeting(profile?: GreetingContextInput['profile']): GreetingResult {
+export interface UseGreetingOptions {
+  profile?: GreetingContextInput['profile']
+  operational?: OperationalContext
+}
+
+export function useGreeting({ profile, operational }: UseGreetingOptions = {}): GreetingResult {
   const result = useMemo(() => {
     if (!profile) {
       return {
@@ -27,11 +32,11 @@ export function useGreeting(profile?: GreetingContextInput['profile']): Greeting
     }
 
     try {
-      return composeGreeting({ profile, temporal })
+      return composeGreeting({ profile, operational, temporal })
     } catch {
       return buildFallback(temporal, profile.name.split(' ')[0])
     }
-  }, [profile?.id, profile?.name, profile?.role, profile?.gender, profile?.birth_date, profile?.created_at])
+  }, [profile?.id, profile?.name, profile?.role, profile?.gender, profile?.birth_date, profile?.created_at, operational?.criticalClients])
 
   return result
 }
