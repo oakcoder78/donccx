@@ -12,6 +12,7 @@ import { ClientTabActivities } from './tabs/ClientTabActivities'
 import { ClientTabOperacional } from './tabs/ClientTabOperacional'
 import { ClientTabHealth } from './tabs/ClientTabHealth'
 import { ClientTabContatos } from './tabs/ClientTabContatos'
+import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },
@@ -100,11 +101,7 @@ export default function ClientDetail() {
       {tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
       {tab === 'health' && isCliente && <ClientTabHealth client={client} />}
       {tab === 'contatos' && <ClientTabContatos client={client} />}
-      {tab === 'anexos' && (
-        <div className="text-center py-16 text-text-tertiary border-2 border-dashed border-border-tertiary rounded-lg">
-          Módulo de Anexos em breve.
-        </div>
-      )}
+      {tab === 'anexos' && <ClientSubAnexos client={client} />}
 
       {showEdit && <ClientForm client={client} onClose={() => setShowEdit(false)} />}
     </div>

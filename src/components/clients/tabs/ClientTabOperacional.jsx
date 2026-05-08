@@ -5,7 +5,6 @@ import { ClientSubUso } from './operacional/ClientSubUso'
 import { ClientSubProjetos } from './operacional/ClientSubProjetos'
 import { ClientSubSuporte } from './operacional/ClientSubSuporte'
 import { ClientSubRelatorios } from './operacional/ClientSubRelatorios'
-import { ClientSubAnexos } from './operacional/ClientSubAnexos'
 import { RegistrarDadosModal } from './operacional/RegistrarDadosModal'
 import { Button } from '../../ui/Button'
 
@@ -15,7 +14,6 @@ const SUBS = [
   { key: 'projetos',   label: 'Projetos'   },
   { key: 'suporte',    label: 'Suporte'    },
   { key: 'relatorios', label: 'Relatórios' },
-  { key: 'anexos',     label: 'Anexos'     },
 ]
 
 export function ClientTabOperacional({ client }) {
@@ -63,7 +61,6 @@ export function ClientTabOperacional({ client }) {
       {sub === 'projetos'   && <ClientSubProjetos   client={client} />}
       {sub === 'suporte'    && <ClientSubSuporte    client={client} onEdit={setModalMonth} />}
       {sub === 'relatorios' && <ClientSubRelatorios client={client} />}
-      {sub === 'anexos'     && <ClientSubAnexos     client={client} />}
 
       {modalMonth !== null && (
         <RegistrarDadosModal
