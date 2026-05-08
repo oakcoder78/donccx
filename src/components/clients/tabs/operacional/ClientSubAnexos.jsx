@@ -99,9 +99,9 @@ function getOriginLabel(file) {
   }
   if (file._source === 'evidencia') {
     const { faseName, projectTitle } = file._faseInfo ?? {}
-    if (projectTitle && faseName) return `${projectTitle} / ${faseName}`
-    if (projectTitle) return projectTitle
-    return faseName || ''
+    if (projectTitle && faseName) return `Fase: ${faseName}`
+    if (projectTitle) return `Fase: ${faseName}`
+    return faseName ? `Fase: ${faseName}` : ''
   }
   return '—'
 }
