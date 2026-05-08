@@ -33,10 +33,29 @@ export async function getClientAttachments(clientId) {
   let faseMap = {}
 
   if (faseIds.length > 0) {
+    // Buscar fases com fase_type_id
     const { data: fases } = await supabase
       .from('onboarding_fases')
-      .select('id, fase_type_id, onboarding_id, onboarding_fase_types!fase_type_id_fkey(name), onboardings!onboarding_id(project_id, projects!project_id(id, title))')
+      .select('id, fase_type_id, onboarding_id, onboarding_fase_types!fase_type_id(name), onboardings!onboarding_id(project_id, projects!project_id(id, title))')
       .in('id', faseIds)
+
+    // Se não vieram os nomes, fazer lookup separado
+    if (!fases?.[0]?.onboarding_fase_types?.name && faseIds.length > 0) {
+      const faseTypeIds = [...new Set(fases?.map(f => f.fase_type_id).filter(Boolean) ?? [])]
+      if (faseTypeIds.length > 0) {
+        const { data: faseTypes } = await supabase
+          .from('onboarding_fase_types')
+          .select('id, name')
+          .in('id', faseTypeIds)
+        
+        if (faseTypes) {
+          const faseTypeMap = Object.fromEntries(faseTypes.map(ft => [ft.id, ft.name]))
+          fases?.forEach(f => {
+            f.onboarding_fase_types = { name: faseTypeMap[f.fase_type_id] || null }
+          })
+        }
+      }
+    }
 
     if (fases) {
       fases.forEach(f => {
