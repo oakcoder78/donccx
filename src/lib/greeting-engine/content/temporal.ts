@@ -4,28 +4,21 @@ export const TEMPORAL_GREETINGS = {
   morning: [
     'Bom dia',
     'Bom dia!',
-    'Que bom te ver',
-    'Olá',
   ],
   afternoon: [
     'Boa tarde',
     'Boa tarde!',
-    'Olá',
   ],
   evening: [
     'Boa noite',
-    'Boa noite!',
   ],
   weekday: [
     'Uma semana produtiva',
-    'Segunda-feira',
-    'Que semana agitada',
     'Dia de ação',
   ],
   weekend: [
-    'Sexta de descontração?',
     'Fim de semana',
-    'Aproveite o fim de semana',
+    'Final de semana',
   ],
 } as const
 

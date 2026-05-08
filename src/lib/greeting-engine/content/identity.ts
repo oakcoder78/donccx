@@ -2,34 +2,33 @@ import type { GreetingFragment } from '../types'
 
 export const IDENTITY_GREETINGS = {
   admin: [
-    'Hora de revisar o painel',
+    'Painel administrativo',
     'Gestão em dia',
   ],
   manager: [
-    'Hora de gerenciar',
-    'Foco nos resultados',
+    'Gestão de indicadores',
+    'Visão executiva',
   ],
   csm: [
-    'Hora de impactar clientes',
-    'Seus clientes te esperam',
+    'Clientes em foco',
+    'Acompanhamento ativo',
   ],
   analyst: [
-    'Hora de analisar',
-    'Dados te esperam',
+    'Análise em andamento',
+    'Dados consolidados',
   ],
   birthday: [
-    'Feliz aniversário!',
-    'Parabéns! Que dia especial',
+    'Feliz aniversário',
+    'Dia de celebration',
   ],
   anniversary: [
-    'Já faz tempo!',
-    'Bem-vindo de volta',
+    'Marca registrada',
+    'Jornada em curso',
   ],
   neutral: [
-    'Seu portfólio espera por você!',
-    'Foco no cliente, sempre.',
-    'Que dia produtivo te espera!',
-    'Bora transformar dados em ação?',
+    'Gestão em dia',
+    'Foco no cliente',
+    'Carteira ativa',
   ],
 } as const
 

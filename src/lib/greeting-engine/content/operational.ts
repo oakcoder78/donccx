@@ -3,18 +3,15 @@ import type { GreetingFragment } from '../types'
 export const OPERATIONAL_GREETINGS = {
   clean: [
     'Gestão em dia',
-    'Nenhum risco crítico identificado',
     'Carteira equilibrada',
   ],
   mild: [
-    'Alguns clientes merecem atenção',
-    'Há acompanhamentos importantes hoje',
-    'Acompanhamentos em destaque',
+    'Três clientes em acompanhamento',
+    'Acompanhamentos em curso',
   ],
   attention: [
-    'Há sinais importantes na carteira hoje',
-    'A carteira exige atenção adicional',
-    'Alguns pontos precisam de foco',
+    'Clientes em atenção',
+    'Pontos de foco identificados',
   ],
 } as const
 
