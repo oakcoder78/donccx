@@ -265,7 +265,7 @@ export default function DashboardPage() {
     : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
   // Greeting (deterministic via useGreeting hook)
-  const { data: clients = [] } = useClients(csmFilter, { enabled: !!profile })
+  const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
   const criticalClients = clients.filter(c => (c.health_total || 0) < 50).length
   const { text: phrase, extra: phraseExtra } = useGreeting({ profile, operational: { criticalClients } })
 
