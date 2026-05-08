@@ -32,6 +32,7 @@ The Clients module provides the primary user interface for managing customer rec
 | `ClientSubRelatorios.jsx` | Provides access to client‑specific reports. |
 | `ClientSubSuporte.jsx` | Interface for support tickets / interactions. |
 | `ClientSubUso.jsx` | Displays usage statistics. |
+| `ClientSubAnexos.jsx` | Lista e gerencia anexos do cliente (atividades + evidências). |
 | `RegistrarDadosModal.jsx` | Modal dialog for recording new operational data. |
 | **Style definitions** | |
 | `OnboardingStyles.js` | Exports a `styles` object used by onboarding‑related components (timeline, activity list, pending panels, response picker). |
@@ -205,5 +206,6 @@ This ensures early-stage clients do not see irrelevant information and the inter
 - `src/components/clients/tabs/operacional/ClientSubRelatorios.jsx`
 - `src/components/clients/tabs/operacional/ClientSubSuporte.jsx`
 - `src/components/clients/tabs/operacional/ClientSubUso.jsx`
+- `src/components/clients/tabs/operacional/ClientSubAnexos.jsx`
 - `src/components/clients/tabs/operacional/RegistrarDadosModal.jsx`
 - `src/components/onboarding/OnboardingStyles.js`

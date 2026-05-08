@@ -3,6 +3,16 @@
 ## Purpose
 The Activity Attachments service layer handles file management for **activity** records. It provides functions to upload files to Supabase storage, insert corresponding metadata records into the `activity_attachments` table, retrieve attachments for a given activity, and soft‑delete attachments. This module isolates storage and database operations from UI components, ensuring a consistent API for attachment handling.
 
+The **Client Attachments** variant (`getClientAttachments`) provides a unified view of all attachments for a client — merging records from activities and onboarding evidences.
+
+## Sub‑Modules
+
+### Activity Attachments (per activity)
+Traditional attachment handling tied to individual activity records.
+
+### Client Attachments (per client)
+Unified attachment query for use in client detail views.
+
 ## Responsibilities
 - Upload files to Supabase storage (`uploadActivityAttachments`).
 - Insert attachment metadata into the `activity_attachments` table (`insertActivityAttachments`).
@@ -15,6 +25,7 @@ The Activity Attachments service layer handles file management for **activity** 
 | File | Responsibility |
 |------|----------------|
 | `getActivityAttachments.js` | Fetches all non‑deleted attachments for a given `activityId`, ordered by creation date. |
+| `getClientAttachments.js` | Fetches all attachments for a client (activities + evidencias de onboarding), merged and sorted by date. |
 | `insertActivityAttachments.js` | Inserts one or more attachment metadata rows into the database after files have been uploaded. |
 | `uploadActivityAttachments.js` | Uploads raw `File` objects to Supabase storage under a path `<clientId>/<activityId>/<timestamp>_<sanitizedName>`. Enforces file count limit and returns an array of stored file descriptors. |
 | `saveActivityAttachments.js` | High‑level orchestrator: calls `uploadActivityAttachments` then `insertActivityAttachments`. If the DB insert fails, it removes any uploaded files (rollback). |
@@ -27,11 +38,21 @@ The Activity Attachments service layer handles file management for **activity** 
 - The service functions are pure JavaScript utilities; they do not render UI.
 
 ## Data Flow
+
+### Activity Attachments
 1. **Upload** – `uploadActivityAttachments` receives an array of `File` objects, sanitizes filenames, builds a storage path, and uploads each file to Supabase storage. Returns `{ success, files }` where `files` contain metadata needed for DB insertion.
 2. **Insert** – `insertActivityAttachments` receives `activityId`, `clientId`, `userId`, and the list of uploaded file descriptors, builds DB records, and inserts them into `activity_attachments`.
 3. **Save (Orchestrator)** – `saveActivityAttachments` first calls the upload function. If upload succeeds, it calls the insert function. If the insert fails, it iterates over the uploaded files and removes them from storage to avoid orphaned files.
 4. **Retrieve** – `getActivityAttachments(activityId)` queries the `activity_attachments` table filtering on `activity_id` and `is_deleted = false`, returning ordered results.
 5. **Soft Delete** – `softDeleteActivityAttachment(attachmentId)` checks for existence, then updates `is_deleted` to `true`. Returns success status.
+
+### Client Attachments (unified view)
+1. **Fetch** – `getClientAttachments(clientId)` runs two parallel queries:
+   - `activity_attachments` for the client (linked via activities)
+   - `onboarding_evidencias` for the client
+2. **Enrich** – Fetches fase names and project titles to populate `_faseInfo` on evidencia records.
+3. **Merge** – Combines both sources into a single array sorted by `created_at` descending.
+4. **Annotate** – Adds `_source` field ('activity' or 'evidencia') for UI rendering.
 
 ## Dependencies
 - **Supabase client** (`supabase` from `../../lib/supabaseClient`). All functions interact with Supabase storage and database.
@@ -41,6 +62,7 @@ The Activity Attachments service layer handles file management for **activity** 
 - **Activities UI** – uses `saveActivityAttachments` (create/edit) and `getActivityAttachments`/`softDeleteActivityAttachment` (detail view).
 - **Activity mutations** (`useActivityMutations`) trigger these services after activity records are created/updated.
 - **Authentication** – `uploadActivityAttachments` expects a valid `userId` (passed from UI based on current profile).
+- **Client Operacional Tab** – Uses `getClientAttachments` in `ClientSubAnexos` to display unified attachment list for a client.
 
 ## Main User Flows
 ### Flow: Upload attachments (create activity)
@@ -94,7 +116,9 @@ The Activity Attachments service layer handles file management for **activity** 
 
 ## File Reference Map
 - `src/services/activityAttachments/getActivityAttachments.js`
+- `src/services/activityAttachments/getClientAttachments.js`
 - `src/services/activityAttachments/insertActivityAttachments.js`
 - `src/services/activityAttachments/saveActivityAttachments.js`
 - `src/services/activityAttachments/softDeleteActivityAttachment.js`
 - `src/services/activityAttachments/uploadActivityAttachments.js`
+- `src/components/clients/tabs/operacional/ClientSubAnexos.jsx`
