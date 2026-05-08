@@ -265,9 +265,27 @@ export default function DashboardPage() {
     : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
   // Greeting (deterministic via useGreeting hook)
-  const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
-  const criticalClients = clients.filter(c => (c.health_total || 0) < 50).length
-  const { text: phrase, extra: phraseExtra } = useGreeting({ profile, operational: { criticalClients } })
+    const { data: clients = [], isLoading } = useClients(csmFilter, { enabled: !!profile })
+
+    const criticalClients = clients.filter(
+      c => (c.health_total || 0) < 50
+    ).length
+
+    const DEBUG_GREETING_CONTEXT =
+      process.env.NODE_ENV === 'development'
+        ? {
+            criticalClients: 4
+          }
+        : null
+
+    const { text: phrase, extra: phraseExtra } = useGreeting({
+      profile,
+      operational: {
+        criticalClients:
+          DEBUG_GREETING_CONTEXT?.criticalClients ??
+          criticalClients
+      }
+    })
 
   // ESC to close drawer
   useEffect(() => {
