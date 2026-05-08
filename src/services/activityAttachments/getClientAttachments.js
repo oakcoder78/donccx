@@ -56,48 +56,8 @@ export async function getClientAttachments(clientId) {
       }
     }
 
-    // Buscar titles dos projetos
-    let onboardingMap = {}
-    if (onboardingIds.length > 0) {
-      const { data: onboards } = await supabase
-        .from('onboardings')
-        .select('id, project_id, projects(id, title)')
-        .in('id', onboardingIds)
-      
-      if (onboards) {
-        const projectIds = [...new Set(onboards?.map(o => o.project_id).filter(Boolean) ?? [])]
-        
-        // Se projects não veio no join, buscar separadamente
-        if (!onboards[0]?.projects?.title && projectIds.length > 0) {
-          const { data: projects } = await supabase
-            .from('projects')
-            .select('id, title')
-            .in('id', projectIds)
-          
-          if (projects) {
-            const projectMap = Object.fromEntries(projects.map(p => [p.id, p.title]))
-            onboards.forEach(o => {
-              o._projectTitle = projectMap[o.project_id] || null
-            })
-          }
-        } else {
-          onboards.forEach(o => {
-            o._projectTitle = o.projects?.title || null
-          })
-        }
-        onboardingMap = Object.fromEntries(onboards.map(o => [o.id, o._projectTitle]))
-      }
-    }
-
-    // Popular faseMap
-    if (fases) {
-      fases.forEach(f => {
-        faseMap[f.id] = {
-          faseName: faseTypeMap[f.fase_type_id] || null,
-          projectTitle: onboardingMap[f.onboarding_id] || null,
-        }
-      })
-    }
+    // Buscar titles dos projetos — REMOVIDO (não mais necesario)
+    // O prefixo "Fase:" será adicionado no frontend
   }
 
   const activities = (activitiesResult.data ?? []).map(r => ({ ...r, _source: 'activity' }))
