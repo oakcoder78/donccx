@@ -1197,7 +1197,10 @@ export default function DashboardPage() {
               {/* Text */}
               <div>
                 <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15, color: '#fff' }}>
-                  {phrase}
+                  {(() => {
+                    const hour = new Date().getHours()
+                    return hour < 12 ? `Bom dia, ${profile?.name?.split(' ')[0]}.` : hour < 18 ? `Boa tarde, ${profile?.name?.split(' ')[0]}.` : `Boa noite, ${profile?.name?.split(' ')[0]}.`
+                  })()}
                 </h1>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: C.navyTextMuted, fontWeight: 500, lineHeight: 1.4 }}>{dateStr}</p>
                 {phraseExtra && (
