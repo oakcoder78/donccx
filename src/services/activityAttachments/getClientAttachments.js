@@ -35,7 +35,7 @@ export async function getClientAttachments(clientId) {
   if (faseIds.length > 0) {
     const { data: fases } = await supabase
       .from('onboarding_fases')
-      .select('id, fase_type_id, onboarding_id, onboarding_fase_types!fase_type_id(name), onboardings!onboarding_id(project_id, projects!project_id(id, title))')
+      .select('id, fase_type_id, onboarding_id, onboarding_fase_types!fase_type_id_fkey(name), onboardings!onboarding_id(project_id, projects!project_id(id, title))')
       .in('id', faseIds)
 
     if (fases) {

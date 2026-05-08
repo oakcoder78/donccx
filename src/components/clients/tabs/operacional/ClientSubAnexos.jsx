@@ -82,7 +82,7 @@ function FileIcon({ mimeType, fileName, className = 'w-4 h-4' }) {
 
 function SourceBadge({ source }) {
   const cls = source === 'evidencia' ? 'bg-violet-100 text-violet-700' : 'bg-sky-100 text-sky-700'
-  const label = source === 'evidencia' ? 'Fase' : 'Atividade'
+  const label = source === 'evidencia' ? 'Projeto' : 'Atividade'
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${cls} mr-1.5 flex-shrink-0`}>
       {label}
@@ -101,8 +101,7 @@ function getOriginLabel(file) {
     const { faseName, projectTitle } = file._faseInfo ?? {}
     if (projectTitle && faseName) return `${projectTitle} / ${faseName}`
     if (projectTitle) return projectTitle
-    if (faseName) return faseName
-    return 'Evidência'
+    return faseName || ''
   }
   return '—'
 }
