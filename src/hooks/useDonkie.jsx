@@ -483,10 +483,12 @@ export function DonkieProvider({ children }) {
               setClientData(dossie)
               const routeCtx   = buildRouteContext(location.pathname, dossie)
               const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
+              console.log('[donkie] routeCtx gerado:', routeCtx)
               const apiMessages = [
                 { role: 'system', content: systemText },
                 ...newMessages.map(m => ({ role: m.role, content: toOpenRouterContent(m.content) })),
               ]
+              console.log('[donkie] apiMessages count:', apiMessages.length, '| system length:', systemText.length)
               const { data: { session } } = await supabase.auth.getSession()
               const response = await fetch(
                 `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`,
