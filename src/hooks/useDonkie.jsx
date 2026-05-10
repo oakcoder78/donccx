@@ -87,6 +87,98 @@ function fmtPct(v) {
   return `${Math.round(v)}%`
 }
 
+async function fetchClientDossie(clientId) {
+  const { data, error } = await supabase
+    .from('clients')
+    .select(`
+      id, name, fantasy_name, abc_class, mrr, segment,
+      health_total, health_uso, health_suporte,
+      health_relacionamento, health_financeiro, health_projeto,
+      stage:stages(name),
+      activities(type, title, activity_date, description),
+      client_support(tickets_opened, tickets_resolved, n1_pct, n2_pct, n3_pct, sla_first_response, ref_month),
+      client_usage(os_created, active_users, ref_month),
+      contact_links(papel, champion, contacts(id, name)),
+      projects(title, status)
+    `)
+    .eq('id', clientId)
+    .single()
+  if (error) { console.error('[useDonkie] fetchClientDossie:', error); return null }
+
+  const [curMonth, prevMonth, prev2Month] = refMonths()
+
+  const activities = (data.activities ?? [])
+    .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+    .slice(0, 5)
+
+  const lastActivityDate = activities[0]?.activity_date ?? null
+
+  const support = (data.client_support ?? [])
+    .filter(s => s.ref_month === curMonth || s.ref_month === prevMonth)
+    .sort((a, b) => b.ref_month.localeCompare(a.ref_month))[0] ?? null
+
+  const usages = (data.client_usage ?? [])
+    .filter(u => u.ref_month === curMonth || u.ref_month === prevMonth || u.ref_month === prev2Month)
+    .sort((a, b) => b.ref_month.localeCompare(a.ref_month))
+    .slice(0, 2)
+
+  const curUsage  = usages[0] ?? null
+  const prevUsage = usages[1] ?? null
+  const osVariation = (curUsage && prevUsage && prevUsage.os_created)
+    ? Math.round(((curUsage.os_created - prevUsage.os_created) / prevUsage.os_created) * 100)
+    : null
+
+  const activeProjects = (data.projects ?? [])
+    .filter(p => p.status !== 'concluido' && p.status !== 'suspenso' && p.status !== 'cancelado')
+
+  const keyContacts = (data.contact_links ?? [])
+    .filter(cl => cl.papel === 'Decisor' || cl.champion === true)
+    .map(cl => ({ name: cl.contacts?.name, role: cl.papel === 'Decisor' ? 'Decisor' : 'Champion' }))
+    .filter(c => c.name)
+
+  return {
+    ...data,
+    _activities:       activities,
+    _lastActivityDate: lastActivityDate,
+    _support:          support,
+    _curUsage:         curUsage,
+    _prevUsage:        prevUsage,
+    _osVariation:      osVariation,
+    _activeProjects:   activeProjects,
+    _keyContacts:      keyContacts,
+  }
+}
+
+function detectClientMention(text) {
+  const t = text.trim()
+  const patterns = [
+    /(?:cliente|empresa|conta|sobre|análise d[eo]|como (?:está|vai|estão)|me (?:fala|fale) (?:sobre|do|da|de))\s+(.+)/i,
+    /(?:situação|status|health|dossiê|perfil)\s+(?:do|da|de)\s+(.+)/i,
+    /(.+?)\s+(?:está bem|está mal|em risco|saudável|com risco)/i,
+  ]
+  for (const re of patterns) {
+    const m = t.match(re)
+    if (m?.[1]) return m[1].replace(/[?!.,;:]+$/, '').trim()
+  }
+  const words = t.split(/\s+/)
+  if (words.length <= 5 && !/^(o que|como|qual|quando|onde|por que|quem|me|nos|você)/i.test(t)) {
+    return t.replace(/[?!.,;:]+$/, '').trim()
+  }
+  return null
+}
+
+async function searchClientsByName(term) {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name, fantasy_name')
+    .or(`fantasy_name.ilike.%${term}%,name.ilike.%${term}%`)
+    .eq('contract_active', true)
+    .order('fantasy_name')
+    .limit(6)
+  if (error) { console.error('[useDonkie] searchClientsByName:', error); return [] }
+  return data ?? []
+}
+
 // ─── Busca dados enriquecidos do cliente pela rota ───────────
 function useRouteClientData(pathname) {
   const match    = pathname.match(/^\/empresas\/(\d+)/)
@@ -295,6 +387,7 @@ export function DonkieProvider({ children }) {
   const [isLoading,  setIsLoading] = useState(false)
   const [clientData, setClientData] = useState(null)
   const [convId,     setConvId]    = useState(null)
+  const [pendingClientSearch, setPendingClientSearch] = useState(null)
 
   useEffect(() => {
     if (config?.default_mode) setMode(config.default_mode)
@@ -350,12 +443,85 @@ export function DonkieProvider({ children }) {
 
     try {
       const activeClient = routeClientData || clientData
-      const routeCtx     = buildRouteContext(location.pathname, activeClient)
-      const systemText   = buildSystemPrompt(config, profile, routeCtx, mode)
 
+      // ── Busca de cliente por nome (fora da ficha) ────────────────────────────
+      if (!activeClient && !imageBase64 && typeof content === 'string') {
+        if (pendingClientSearch) {
+          const idx = parseInt(content.trim(), 10)
+          if (!isNaN(idx) && idx >= 1 && idx <= pendingClientSearch.length) {
+            const chosen = pendingClientSearch[idx - 1]
+            setPendingClientSearch(null)
+            const dossie = await fetchClientDossie(chosen.id)
+            if (dossie) {
+              setClientData(dossie)
+              const displayName = dossie.fantasy_name || dossie.name
+              const confirmMsg = { role: 'assistant', content: `Dossiê de **${displayName}** carregado. O que você quer saber?` }
+              setMessages([...newMessages, confirmMsg])
+              saveConversation([...newMessages, confirmMsg], convId)
+              setIsLoading(false)
+              return
+            }
+          } else {
+            setPendingClientSearch(null)
+          }
+        }
+
+        const term = detectClientMention(content)
+        if (term && term.length >= 2) {
+          const results = await searchClientsByName(term)
+
+          if (results.length === 1) {
+            const dossie = await fetchClientDossie(results[0].id)
+            if (dossie) {
+              setClientData(dossie)
+              const routeCtx   = buildRouteContext(location.pathname, dossie)
+              const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
+              const apiMessages = [
+                { role: 'system', content: systemText },
+                ...newMessages.map(m => ({ role: m.role, content: toOpenRouterContent(m.content) })),
+              ]
+              const { data: { session } } = await supabase.auth.getSession()
+              const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                  },
+                  body: JSON.stringify({ messages: apiMessages }),
+                }
+              )
+              const data = await response.json()
+              if (!response.ok) throw new Error(data.error?.message || data.error || `HTTP ${response.status}`)
+              const assistantText = data?.choices?.[0]?.message?.content ?? ''
+              const finalMessages = [...newMessages, { role: 'assistant', content: assistantText }]
+              setMessages(finalMessages)
+              saveConversation(finalMessages, convId)
+              setIsLoading(false)
+              return
+            }
+          } else if (results.length > 1) {
+            setPendingClientSearch(results)
+            const list = results
+              .map((c, i) => `${i + 1}. ${c.fantasy_name || c.name}${c.fantasy_name && c.name !== c.fantasy_name ? ` (${c.name})` : ''}`)
+              .join('\n')
+            const choiceMsg = { role: 'assistant', content: `Encontrei ${results.length} clientes com esse nome. Qual você quer?\n\n${list}\n\nDigite o número correspondente.` }
+            setMessages([...newMessages, choiceMsg])
+            saveConversation([...newMessages, choiceMsg], convId)
+            setIsLoading(false)
+            return
+          }
+        }
+      }
+
+      // ── Fluxo normal ─────────────────────────────────────────────────────────
+      const routeCtx   = buildRouteContext(location.pathname, activeClient)
+      const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
       const apiMessages = [
         { role: 'system', content: systemText },
-        ...newMessages.map(m => ({ role: m.role, content: toOpenRouterContent(m.content) }))
+        ...newMessages.map(m => ({ role: m.role, content: toOpenRouterContent(m.content) })),
       ]
 
       const { data: { session } } = await supabase.auth.getSession()
@@ -394,7 +560,7 @@ export function DonkieProvider({ children }) {
     } finally {
       setIsLoading(false)
     }
-  }, [messages, isLoading, config, profile, location.pathname, routeClientData, clientData, mode, convId, saveConversation])
+  }, [messages, isLoading, config, profile, location.pathname, routeClientData, clientData, pendingClientSearch, mode, convId, saveConversation])
 
   const toggleMode       = useCallback(() => setMode(m => m === 'discussao' ? 'implementacao' : 'discussao'), [])
   const clearConversation = useCallback(() => { setMessages([]); setConvId(null) }, [])
