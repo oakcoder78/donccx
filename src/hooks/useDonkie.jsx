@@ -160,12 +160,14 @@ function detectClientMention(text) {
   ]
   for (const re of patterns) {
     const m = t.match(re)
+    if (m) console.log('[detectClientMention] padrão', re.toString().slice(0,40), '→ capturou:', m[1])
     if (m?.[1]) return m[1].replace(/[?!.,;:]+$/, '').trim()
   }
   const words = t.split(/\s+/)
   if (words.length <= 5 && !/^(o que|como|qual|quando|onde|por que|quem|me|nos|você)/i.test(t)) {
     return t.replace(/[?!.,;:]+$/, '').trim()
   }
+  console.log('[detectClientMention] nenhum padrão capturou:', text)
   return null
 }
 
