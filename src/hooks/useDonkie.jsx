@@ -268,16 +268,8 @@ function useRouteClientData(pathname) {
 
 // ─── Monta contexto de rota ──────────────────────────────────
 function buildRouteContext(pathname, clientData) {
-  if (pathname === '/dashboard') {
-    return 'Usuário está na Dashboard — visão geral da carteira de clientes.'
-  }
-
-  if (/^\/empresas\/\d+\/relatorios\/.+\/editar/.test(pathname)) {
-    const cn = clientData?.fantasy_name || clientData?.name || 'cliente'
-    return `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
-  }
-
-  if (/^\/empresas\/\d+/.test(pathname) && clientData) {
+  // 1. Se tem clientData com id → monta contexto de cliente
+  if (clientData?.id) {
     const cn        = clientData.fantasy_name || clientData.name
     const hs        = clientData.health_total ?? 0
     const st        = hs >= 75 ? 'Saudável' : hs >= 50 ? 'Atenção' : 'Risco'
@@ -352,6 +344,18 @@ function buildRouteContext(pathname, clientData) {
     return ctx
   }
 
+  // 2. Rota de RMC
+  if (/^\/empresas\/\d+\/relatorios\/.+\/editar/.test(pathname)) {
+    const cn = clientData?.fantasy_name || clientData?.name || 'cliente'
+    return `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
+  }
+
+  // 3. Dashboard (sem clientData)
+  if (pathname === '/dashboard') {
+    return 'Usuário está na Dashboard — visão geral da carteira de clientes.'
+  }
+
+  // 4. Rotas genéricas
   if (pathname === '/projetos')      return 'Usuário está na visão global do Kanban de Projetos.'
   if (pathname === '/atividades')    return 'Usuário está na lista de Atividades.'
   if (pathname === '/contatos')      return 'Usuário está na lista de Contatos.'
