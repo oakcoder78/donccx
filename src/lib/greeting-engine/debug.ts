@@ -1,5 +1,6 @@
 export interface GreetingDebugContext {
   enabled: boolean
+  observability?: boolean
   operational?: {
     criticalClients?: number
   }
@@ -13,10 +14,13 @@ export interface GreetingDebugContext {
   }
 }
 
+const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+
 export const GREETING_DEBUG: GreetingDebugContext | null =
-  process.env.NODE_ENV === 'development'
+  isDev
     ? {
         enabled: false,
+        observability: false,
         operational: {
           criticalClients: 0,
         },
