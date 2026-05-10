@@ -19,7 +19,7 @@ export interface GreetingObservabilityData {
 }
 
 export function observeGreeting(data: GreetingObservabilityData): void {
-  if (process.env.NODE_ENV !== 'development') {
+  if (!import.meta.env.DEV) {
     return
   }
 
