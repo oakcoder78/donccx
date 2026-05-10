@@ -477,7 +477,9 @@ export function DonkieProvider({ children }) {
 
           if (results.length === 1) {
             const dossie = await fetchClientDossie(results[0].id)
+            console.log('[donkie] dossie carregado:', dossie?.id, dossie?.name)
             if (dossie) {
+              console.log('[donkie] setClientData chamado, indo para IA com cliente:', dossie.fantasy_name || dossie.name)
               setClientData(dossie)
               const routeCtx   = buildRouteContext(location.pathname, dossie)
               const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
