@@ -1,4 +1,5 @@
 import type { GreetingContextInput, GreetingFragment } from './types'
+import { GREETING_DEBUG } from './debug'
 
 export interface GreetingObservabilityData {
   seed: string
@@ -19,8 +20,12 @@ export interface GreetingObservabilityData {
 }
 
 export function observeGreeting(data: GreetingObservabilityData): void {
-  // DEV mode detection: use import.meta.env.DEV or fallback to localhost detection
-  const isDev = import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  // DEV mode detection: import.meta.env.DEV OR localhost OR GREETING_DEBUG.observability OR window flag
+  const isDev = import.meta.env.DEV ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    GREETING_DEBUG?.observability === true ||
+    (window as any).__GREETING_OBSERVABILITY__ === true
 
   if (!isDev) {
     return
