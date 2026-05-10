@@ -3,6 +3,7 @@ import { generateSeed, deterministicIndex } from './seed'
 import { provideTemporalLayer } from './temporal'
 import { provideIdentityLayer } from './identity'
 import { provideOperationalLayer } from './operational'
+import { observeGreeting } from './observability'
 
 function isBirthday(birthDate?: string): boolean {
   if (!birthDate) return false
@@ -72,7 +73,7 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
   const extraFragments = finalFragments.filter(f => f.layer !== 'temporal')
   const extra = extraFragments[extraFragments.length - 1]?.text || ''
 
-  return {
+  const result = {
     text,
     extra,
     fragments: finalFragments,
@@ -83,6 +84,26 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
       fallback: false,
     },
   }
+
+  observeGreeting({
+    seed: seedStr,
+    context: {
+      hour,
+      dayOfWeek,
+      role: profile.role,
+      criticalClients: criticalClients ?? 0,
+      isBirthday: isBirthday(profile.birth_date),
+      isAnniversary: isAnniversary(profile.created_at),
+    },
+    allFragments,
+    finalFragments,
+    selected: {
+      primary: text,
+      extra,
+    },
+  })
+
+  return result
 }
 
 export function buildFallback(temporal: GreetingContextInput['temporal'], name: string): GreetingResult {
