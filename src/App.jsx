@@ -26,7 +26,6 @@ import ReportEditorPage from './pages/ReportEditorPage'
 import ReportPublicPage from './pages/ReportPublicPage'
 import AtendimentoPage from './pages/AtendimentoPage'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
-import DesignSystemTest from './pages/DesignSystemTest'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -161,7 +160,6 @@ function AppRoutes() {
         <Route path="/atividades"   element={<ActivitiesPage />} />
         <Route path="/projetos"     element={<ProjectsPage />} />
         <Route path="/projetos/:id" element={<OnboardingDetailPage />} />
-        <Route path="/design-test" element={<DesignSystemTest />} />
 
         <Route element={<AdminRoute />}>
           <Route path="/configuracoes" element={<SettingsPage />} />

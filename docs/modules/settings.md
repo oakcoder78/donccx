@@ -138,6 +138,6 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 - `src/components/settings/SettingsAI.jsx` – AI configuration UI.
 - `src/components/settings/SettingsDoncAPI.jsx` – DONC API configuration UI.
 - `src/components/settings/SettingsFeatureFlags.jsx` – feature‑flag toggles UI.
-- `src/components/settings/SettingsFaseTypes.jsx` – onboarding phase types UI.
+- `src/components/settings/SettingsFaseTypes.jsx` – onboarding phase types UI. Table columns: Nome, Descrição, Marco, Req. Evidência, Permite Anexos, Ordem, Ativo, Ações.
 - `src/components/settings/SettingsActivityTypes.jsx` – onboarding activity types UI.
 - `src/components/settings/SettingsProjectTemplates.jsx` – project templates UI.

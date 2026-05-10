@@ -23,7 +23,7 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useHealthScore.js` — compute health score, expose recalc mutation.
 - `useMilestones.js` — fetch milestones, create/update operations.
 - `useModulePricing.js` — obtain pricing data per module.
-- `useOnboardings.js` — list onboarding steps and status.
+- `useOnboardings.js` — list onboarding steps and status. Queries fetch fases with `onboarding_fase_types` (including `is_milestone`, `requires_evidence`, `allows_attachments`) and fase instance fields (`evidence_required`, `allows_attachments`). `createFasesFromTemplate` propagates `evidence_required` and `allows_attachments` from template fases.
 - `usePermissions.js` — load user‑permission matrix.
 - `useProfiles.js` — fetch profile list, current user profile.
 - `useProjects.js` — CRUD operations for projects.
@@ -49,6 +49,7 @@ Hooks use `useQuery` for reads, `useMutation` for writes. Query keys combine ent
 const {data, isLoading}=useActivities(filter);
 const {create}=useActivityMutations();
 create(payload);
+// createFasesFromTemplate propagates: evidence_required, allows_attachments
 ```
 Hooks expose reactive data; component re‑renders on cache updates.
 
