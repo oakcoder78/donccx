@@ -473,6 +473,7 @@ export function DonkieProvider({ children }) {
         const term = detectClientMention(content)
         if (term && term.length >= 2) {
           const results = await searchClientsByName(term)
+          console.log('[donkie] term detectado:', term, '| resultados:', results)
 
           if (results.length === 1) {
             const dossie = await fetchClientDossie(results[0].id)
