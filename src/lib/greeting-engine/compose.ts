@@ -59,8 +59,11 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
   const allFragments = [...temporalFragments, ...identityFragments, ...operationalFragments]
   
   if (allFragments.length === 0) {
+    console.log('[DEBUG] composeGreeting: returning fallback (allFragments is empty)')
     return buildFallback(temporal, profile.name.split(' ')[0])
   }
+
+  console.log('[DEBUG] composeGreeting: using normal path, fragments count:', allFragments.length)
   
   const finalFragments = mergeFragments(allFragments)
   const activeLayers = [...new Set(finalFragments.map(f => f.layer))]
@@ -109,13 +112,13 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
 export function buildFallback(temporal: GreetingContextInput['temporal'], name: string): GreetingResult {
   const now = new Date()
   const hour = temporal.hour
-  
+
   let greeting = 'Olá'
   if (hour < 12) greeting = 'Bom dia'
   else if (hour < 18) greeting = 'Boa tarde'
   else greeting = 'Boa noite'
 
-  return {
+  const result = {
     text: `${greeting}, ${name}.`,
     extra: '',
     fragments: [],
@@ -126,4 +129,24 @@ export function buildFallback(temporal: GreetingContextInput['temporal'], name: 
       fallback: true,
     },
   }
+
+  observeGreeting({
+    seed: 'fallback',
+    context: {
+      hour,
+      dayOfWeek: temporal.dayOfWeek,
+      role: undefined,
+      criticalClients: 0,
+      isBirthday: false,
+      isAnniversary: false,
+    },
+    allFragments: [],
+    finalFragments: [],
+    selected: {
+      primary: result.text,
+      extra: '',
+    },
+  })
+
+  return result
 }
