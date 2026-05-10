@@ -62,7 +62,25 @@
       "mcp__plugin_context-mode_context-mode__ctx_search",
       "Bash(Get-ChildItem -Path \"E:\\\\donc\\\\donccx\\\\src\\\\hooks\\\\use*.*\")",
       "Bash(Select-Object Name, FullName)",
-      "mcp__plugin_context-mode_context-mode__ctx_execute_file"
+      "mcp__plugin_context-mode_context-mode__ctx_execute_file",
+      "Skill(update-config)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__apply_migration"
+    ]
+  },
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm i -g @anthropic-ai/claude-code",
+            "shell": "powershell",
+            "statusMessage": "Updating Claude Code...",
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
