@@ -76,8 +76,9 @@ When creating an onboarding/expansão project via `ProjectModal`:
 | Column | Description |
 |-------|-------------|
 | `name` | Fase name (e.g., "Kickoff", "Levantamento", "Go-Live") |
-| `is_milestone` | Boolean – if true, this is a marco (requires evidence/justificativa) |
-| `requires_evidence` | Boolean – if true, evidence is required to conclude |
+| `is_milestone` | Boolean – se true, esta fase é um marco no projeto |
+| `requires_evidence` | Boolean – se true, exige comprovação (texto ou anexo) para concluir |
+| `allows_attachments` | Boolean – se true, permite upload de arquivos na fase (independente de requires_evidence) |
 
 ### Fases Per Project
 `onboarding_fases` stores fases for each onboarding:
@@ -93,6 +94,8 @@ When creating an onboarding/expansão project via `ProjectModal`:
 | `actual_end` | Actual end date |
 | `occurred_at` | Date the milestone occurred |
 | `justificativa` | Justification/memo for milestone completion |
+| `evidence_required` | Boolean – override por instância: exige comprovação para concluir esta fase |
+| `allows_attachments` | Boolean – override por instância: se false, desabilita upload de arquivos nesta fase |
 
 ### Situação Geral do Onboarding
 
@@ -158,7 +161,7 @@ Activities can be searched inline via `onboarding_activity_types` catalog. New t
 - **Header**: project title, client name, badges (type, context, situação, CSM), dates row (start date, Go-Live previsto).
 - **Timeline**: PhaseCircles connected by connectors – each circle shows fase name, planned date, and status (color-coded: concluida=green, ativa=blue with glow, pendente=gray).
 - **Activities**: List with fase filter tabs (abas), each activity shows title, status select, responsible, due date (overdue in red+bold), and pending count badge.
-- **Fase Management**: Drag‑and‑drop to reorder fases, add/remove fases, edit is_milestone and requires_evidence.
+- **Fase Management**: Drag‑and‑drop to reorder fases, add/remove fases, edit is_milestone, requires_evidence, and allows_attachments. Toggle per-instance evidence_required and allows_attachments directly on each fase in the list.
 - **Modal de Fase**: Form to edit planned dates, actual dates, justification, upload evidence, change status.
 
 ### OnboardingStyles
