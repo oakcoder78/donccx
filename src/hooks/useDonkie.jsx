@@ -155,6 +155,8 @@ function detectClientMention(text) {
     /(?:cliente|empresa|conta|sobre|análise d[eo]|como (?:está|vai|estão)|me (?:fala|fale) (?:sobre|do|da|de))\s+(.+)/i,
     /(?:situação|status|health|dossiê|perfil)\s+(?:do|da|de)\s+(.+)/i,
     /(.+?)\s+(?:está bem|está mal|em risco|saudável|com risco)/i,
+    /(?:do|da|de|para o|para a)\s+([A-ZÀ-Ú][a-zA-ZÀ-ÿ0-9\s&._-]{1,40}?)(?:\s*[?!.,;:]|$)/,
+    /(?:health score|score|saúde|situação|carteira|conta|cliente)\s+(?:do|da|de|para)?\s*([A-ZÀ-Ú][a-zA-ZÀ-ÿ0-9\s&._-]{1,40}?)(?:\s*[?!.,;:]|$)/i,
   ]
   for (const re of patterns) {
     const m = t.match(re)
