@@ -154,8 +154,10 @@ try {
 
     // ── Parse body ──────────────────────────────────────────────────────────
     const body = await req.json()
-    const { messages } = body
+    const { messages, max_tokens } = body
     // Nota: campo `model` do body é intencionalmente ignorado — usa MODELS[]
+
+    const outputMaxTokens = typeof max_tokens === 'number' && max_tokens > 0 ? max_tokens : 1000
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return json({ error: '"messages" é obrigatório e deve ser um array não-vazio' }, 400)
@@ -189,7 +191,7 @@ try {
             'HTTP-Referer': 'https://donccx.donc.com.br',
             'X-Title': 'doncCX',
           },
-          body: JSON.stringify({ model, messages }),
+          body: JSON.stringify({ model, messages, max_tokens: outputMaxTokens }),
           signal: controller.signal,
         })
       } catch (err) {

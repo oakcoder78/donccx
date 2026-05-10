@@ -31,6 +31,29 @@ function useDonkieConfig() {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
+// Converte formato Anthropic para OpenRouter (OpenAI-compatible)
+function toOpenRouterContent(content) {
+  // Se for string simples, retorna direto
+  if (typeof content === 'string') return content
+
+  // Se for array (formato Anthropic multimodal), converte
+  if (Array.isArray(content)) {
+    return content.map(part => {
+      if (part.type === 'image') {
+        const mime = part.source?.media_type || 'image/jpeg'
+        const data = part.source?.data
+        return { type: 'image_url', image_url: { url: `data:${mime};base64,${data}` } }
+      }
+      if (part.type === 'text') {
+        return { type: 'text', text: part.text }
+      }
+      return part
+    })
+  }
+
+  return content
+}
+
 function refMonths() {
   const now  = new Date()
   const cur  = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -330,11 +353,14 @@ export function DonkieProvider({ children }) {
       const routeCtx     = buildRouteContext(location.pathname, activeClient)
       const systemText   = buildSystemPrompt(config, profile, routeCtx, mode)
 
-      const apiMessages = newMessages.map(m => ({ role: m.role, content: m.content }))
+      const apiMessages = [
+        { role: 'system', content: systemText },
+        ...newMessages.map(m => ({ role: m.role, content: toOpenRouterContent(m.content) }))
+      ]
 
       const { data: { session } } = await supabase.auth.getSession()
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/donkie-chat`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`,
         {
           method: 'POST',
           headers: {
@@ -343,9 +369,7 @@ export function DonkieProvider({ children }) {
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
-            model:      'claude-sonnet-4-20250514',
             max_tokens: 1000,
-            system:     systemText,
             messages:   apiMessages,
           }),
         }
@@ -355,7 +379,7 @@ export function DonkieProvider({ children }) {
       if (!response.ok) throw new Error(data.error?.message || data.error || `HTTP ${response.status}`)
       if (data?.error)  throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
 
-      const assistantText = data.content?.[0]?.text ?? ''
+      const assistantText = data.choices?.[0]?.message?.content ?? ''
       const finalMessages = [...newMessages, { role: 'assistant', content: assistantText }]
 
       setMessages(finalMessages)
