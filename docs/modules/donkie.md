@@ -41,6 +41,36 @@ Donkie is an in‑app conversational assistant focused on Customer Success (CS) 
 - **Libraries**: `react`, `react-hot-toast` (error toast).
 - **Components**: internal UI built with inline style objects; no external UI library imports.
 
+### AI Provider
+
+#### Overview
+In May 2026, Donkie migrated from direct Anthropic Claude API to OpenRouter with automatic fallback between free models.
+
+#### Architecture Change
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Edge Function | `donkie-chat` (direct Anthropic) | `openrouter-proxy` (OpenRouter) |
+| Model | `claude-sonnet-4-20250514` (paid) | 3x free models with fallback |
+| max_tokens | 1000 | 1000 (maintained) |
+
+#### Configuration
+
+| Resource | Table | Key | Used By |
+|----------|-------|-----|---------|
+| Models | `freshdesk_config` | `ai_models` | `openrouter-proxy` |
+| System Prompt | `donkie_config` | `system_prompt` | `useDonkie.jsx` |
+
+#### Known Limitations
+
+- **Higher latency** – free models are inherently slower than paid alternatives
+- **Quality variance** – responses may vary more than the previous Claude implementation
+
+#### Files Modified
+
+- `supabase/functions/openrouter-proxy/index.ts`
+- `src/hooks/useDonkie.jsx`
+
 ### Integration Points
 - Any page that imports `DonkieButton` (typically at the app root) gets the assistant.
 - `useDonkie` likely communicates with backend AI services (not shown) to obtain assistant messages.
@@ -61,11 +91,13 @@ Donkie is an in‑app conversational assistant focused on Customer Success (CS) 
 - `actionStates` maps a generated key (`msgId_partIndex`) to `true|false` for each action card.
 
 ### Known Risks
-- **External service coupling** – relies on `useDonkie`’s backend; failures will break the chat UI.
+- **External service coupling** – relies on `useDonkie`'s backend; failures will break the chat UI.
 - **Action parsing** – uses a simple regex; malformed `[ACAO:...]` blocks could cause parsing errors.
 - **Inline styling** – changes to design system require updating many style objects manually.
 - **Image handling** – loads whole image as base64 in memory; large files could impact performance.
 - **Unread badge placeholder** – currently static (`unread = 0`); future implementation may need state sync.
+- **AI provider latency** – OpenRouter free models may introduce noticeable delays.
+- **Quality variance** – response quality may vary between fallback models.
 
 ### Future Improvements
 - Extract repeated inline styles into reusable Tailwind CSS classes or a design‑system component library.
