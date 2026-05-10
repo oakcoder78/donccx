@@ -19,7 +19,12 @@ export interface GreetingObservabilityData {
 }
 
 export function observeGreeting(data: GreetingObservabilityData): void {
+  // DEBUG: verify environment detection
+  console.log('[DEBUG] observeGreeting called, import.meta.env:', import.meta.env)
+  console.log('[DEBUG] DEV:', import.meta.env.DEV, 'MODE:', import.meta.env.MODE)
+
   if (!import.meta.env.DEV) {
+    console.log('[DEBUG] Skipping - not DEV mode')
     return
   }
 
