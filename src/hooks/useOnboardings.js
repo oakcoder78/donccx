@@ -17,7 +17,7 @@ export function useOnboardings(clientId) {
       const ids = onbs.map(o => o.id)
       const { data: fases } = await supabase
         .from('onboarding_fases')
-        .select('*, onboarding_fase_types(*)')
+        .select('*, onboarding_fase_types(*), allows_attachments')
         .in('onboarding_id', ids)
         .order('display_order')
       const fasesMap = {}
@@ -44,7 +44,7 @@ export function useAllOnboardings() {
       const ids = onbs.map(o => o.id)
       const { data: fases } = await supabase
         .from('onboarding_fases')
-        .select('*, onboarding_fase_types(*)')
+        .select('*, onboarding_fase_types(*), allows_attachments')
         .in('onboarding_id', ids)
         .order('display_order')
       const fasesMap = {}
@@ -71,7 +71,7 @@ export function useOnboarding(onboardingId) {
       if (error) { console.error('[useOnboarding]', error); return null }
       const { data: fases, error: fasesError } = await supabase
         .from('onboarding_fases')
-        .select('*, onboarding_fase_types(*)')
+        .select('*, onboarding_fase_types(*), allows_attachments')
         .eq('onboarding_id', onboardingId)
         .order('display_order')
       
@@ -151,6 +151,7 @@ async function createFasesFromTemplate(onboardingId, templateId) {
       display_order:     tf.display_order,
       status:            tf.display_order === 1 ? 'ativa' : 'pendente',
       evidence_required: tf.requires_evidence ?? false,
+      allows_attachments: tf.allows_attachments ?? tf.onboarding_fase_types?.allows_attachments ?? true,
     })
   }
 

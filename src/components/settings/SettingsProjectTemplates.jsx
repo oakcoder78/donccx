@@ -42,7 +42,7 @@ function useFaseTypes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboarding_fase_types')
-        .select('id, name, is_milestone, requires_evidence, display_order')
+        .select('id, name, is_milestone, requires_evidence, allows_attachments, display_order')
         .eq('active', true)
         .order('display_order', { ascending: true })
       if (error) throw error
@@ -91,7 +91,7 @@ function useTemplateFases(templateId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_template_fases')
-        .select('*, fase_type:onboarding_fase_types(id, name, is_milestone, requires_evidence, display_order)')
+        .select('*, fase_type:onboarding_fase_types(id, name, is_milestone, requires_evidence, allows_attachments, display_order)')
         .eq('template_id', templateId)
         .order('display_order', { ascending: true })
       if (error) throw error
