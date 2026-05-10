@@ -198,7 +198,7 @@ function useFaseTypes() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboarding_fase_types')
-        .select('id, name, is_milestone, requires_evidence, display_order, active')
+        .select('id, name, is_milestone, requires_evidence, allows_attachments, display_order, active')
         .order('display_order', { ascending: true })
       if (error) throw error
       return data ?? []
@@ -364,8 +364,9 @@ function EvidenceRow({ ev, onView, onDelete }) {
 
 // ── FasePanel — modal overlay, design do HTML aprovado ───────────────────────
 function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities, onboardingTitle, onboarding }) {
-  const isMilestone   = !!fase.onboarding_fase_types?.is_milestone
-  const needsEvidence = isMilestone || !!fase.onboarding_fase_types?.requires_evidence || !!fase.evidence_required
+  const isMilestone      = !!fase.onboarding_fase_types?.is_milestone
+  const needsEvidence    = isMilestone || !!fase.onboarding_fase_types?.requires_evidence || !!fase.evidence_required
+  const allowsAttach     = !!fase.allows_attachments
   const today         = todayISO()
   const fileInputId   = `ev-input-${fase.id}`
 
@@ -391,7 +392,7 @@ function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, 
 
   const { data: evidencias = [] } = useQuery({
     queryKey: ['fase_evidencias', fase.id],
-    enabled: needsEvidence && !!fase.id,
+    enabled: (needsEvidence || allowsAttach) && !!fase.id,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('onboarding_evidencias')
@@ -783,15 +784,14 @@ async function handleComplete() {
             </div>
           </div>
 
-          {/* Evidências */}
-          {needsEvidence && (
+          {/* Anexos */}
+          {allowsAttach && (
             <div style={sectionDiv(false)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  Evidências
+                  Anexos
                   {evidencias.length > 0 && <span style={{ fontSize: 10, background: 'rgba(23,53,87,0.08)', color: 'rgba(23,53,87,0.7)', padding: '1px 7px', borderRadius: 999, fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>{evidencias.length}</span>}
                 </div>
-                <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)' }}>Atas, fotos, e-mails ou aprovações</div>
               </div>
               {evidencias.length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
@@ -826,6 +826,14 @@ async function handleComplete() {
                 disabled={uploadingEv}
                 onChange={e => { if (e.target.files?.length) handleUploadEv(e.target.files); e.target.value = '' }}
               />
+            </div>
+          )}
+
+          {/* Evidência obrigatória (texto descritivo) */}
+          {needsEvidence && !allowsAttach && (
+            <div style={sectionDiv(false)}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Evidência</div>
+              <div style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)', marginBottom: 8 }}>Esta fase exige comprovação. Anexe arquivos acima ou descreva a evidência abaixo.</div>
             </div>
           )}
 
@@ -1443,6 +1451,14 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
                           onChange={(val) => updateFaseInstMut.mutate({ faseId: f.id, updates: { evidence_required: val } })}
                         />
                         Evidência
+                      </div>
+                      {/* allows_attachments toggle */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(23,53,87,0.55)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <Toggle
+                          checked={!!f.allows_attachments}
+                          onChange={(val) => updateFaseInstMut.mutate({ faseId: f.id, updates: { allows_attachments: val } })}
+                        />
+                        Anexos
                       </div>
                       <Tag color={statusColor(f.status)}>{statusLabel(f.status)}</Tag>
                       {f.status === 'pendente' ? (

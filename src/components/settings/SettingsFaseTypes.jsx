@@ -11,7 +11,8 @@ import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 const EMPTY = {
   nome: '', descricao: '', is_milestone: false,
-  requires_evidence: false, display_order: 0, ativo: true,
+  requires_evidence: false, allows_attachments: true,
+  display_order: 0, ativo: true,
 }
 
 function Toggle({ value, onChange, disabled }) {
@@ -101,6 +102,10 @@ function InlineForm({ form, setForm, onSave, onCancel, saving, withMilestone }) 
               <Toggle value={form.requires_evidence} onChange={v => set('requires_evidence', v)} />
               Requer Evidência
             </label>
+            <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer select-none">
+              <Toggle value={form.allows_attachments} onChange={v => set('allows_attachments', v)} />
+              Permite Anexos
+            </label>
           </>
         )}
       </div>
@@ -149,6 +154,7 @@ export function SettingsFaseTypes() {
       descricao: item.description || '',
       is_milestone: item.is_milestone,
       requires_evidence: item.requires_evidence,
+      allows_attachments: item.allows_attachments ?? true,
       display_order: item.display_order,
       ativo: item.active,
     })
@@ -162,6 +168,7 @@ export function SettingsFaseTypes() {
       descricao: newForm.descricao || null,
       is_milestone: newForm.is_milestone,
       requires_evidence: newForm.requires_evidence,
+      allows_attachments: newForm.allows_attachments,
       display_order: Number(newForm.display_order),
       ativo: newForm.ativo,
     })
@@ -183,6 +190,7 @@ export function SettingsFaseTypes() {
         descricao: editForm.descricao || null,
         is_milestone: editForm.is_milestone,
         requires_evidence: editForm.requires_evidence,
+        allows_attachments: editForm.allows_attachments,
         display_order: Number(editForm.display_order),
         ativo: editForm.ativo,
       })
@@ -244,7 +252,7 @@ export function SettingsFaseTypes() {
 
   if (loading) return <PageSpinner />
 
-  const colSpan = isAdmin ? 8 : 6
+  const colSpan = isAdmin ? 9 : 7
 
   return (
     <div className="w-full max-w-6xl space-y-4">
@@ -297,6 +305,7 @@ export function SettingsFaseTypes() {
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Descrição</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Marco</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Req. Evidência</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Permite Anexos</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ordem</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ativo</th>
                 {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ações</th>}
@@ -357,6 +366,11 @@ export function SettingsFaseTypes() {
                               <td className="px-4 py-2.5 text-center">
                                 {item.requires_evidence
                                   ? <Badge label="Sim" color="green" />
+                                  : <span className="text-text-tertiary text-xs">—</span>}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {(item.allows_attachments ?? true)
+                                  ? <Badge label="Sim" color="blue" />
                                   : <span className="text-text-tertiary text-xs">—</span>}
                               </td>
                               <td className="px-4 py-2.5 text-center text-text-secondary">{item.display_order}</td>
