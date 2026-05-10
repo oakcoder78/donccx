@@ -19,7 +19,7 @@ export const IDENTITY_GREETINGS = {
   ],
   birthday: [
     'Feliz aniversário',
-    'Dia de celebration',
+    'Dia especial',
   ],
   anniversary: [
     'Marca registrada',
