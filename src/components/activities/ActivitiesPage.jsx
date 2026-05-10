@@ -10,6 +10,11 @@ import { ActivityModal } from './ActivityModal'
 import { ActivityDetailModal } from './ActivityDetailModal'
 import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon, ActionIcons } from "../../lib/icons";
 
+function getLocalDateString() {
+  return new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
+    .toISOString().split('T')[0]
+}
+
 // Vercel build trigger
 const TABS = [
   { key: 'all', label: 'Todas' },
@@ -70,7 +75,7 @@ export default function ActivitiesPage() {
     }
 
     if (statusFilter.length) {
-      const today = new Date().toISOString().split('T')[0]
+      const today = getLocalDateString()
 
       list = list.filter(a => {
         if (
@@ -285,7 +290,7 @@ export default function ActivitiesPage() {
 
 function ActivityItem({ activity: a, onClick }) {
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateString()
 
   const isOverdue =
     a.due_date &&
