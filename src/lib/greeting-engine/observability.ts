@@ -42,8 +42,12 @@ export function observeGreeting(data: GreetingObservabilityData): void {
     'color: #94a3b8'
   )
 
+  const maskedSeed = seed.includes(':')
+    ? `[masked]:${seed.split(':')[1]}`
+    : seed
+
   console.log('%c--- CONTEXT ---', 'color: #64748b; font-weight: 600')
-  console.log(`seed: ${seed}`)
+  console.log(`seed: ${maskedSeed}`)
   console.log(`role: ${context.role || 'unknown'}`)
   console.log(`criticalClients: ${context.criticalClients}`)
   console.log(`isBirthday: ${context.isBirthday}`)
