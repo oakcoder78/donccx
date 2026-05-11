@@ -168,14 +168,12 @@ function detectClientMention(text) {
   ]
   for (const re of patterns) {
     const m = t.match(re)
-    if (m) console.log('[detectClientMention] padrão', re.toString().slice(0,40), '→ capturou:', m[1])
     if (m?.[1]) return cleanClientTerm(m[1])
   }
   const words = t.split(/\s+/)
   if (words.length <= 5 && !/^(o que|como|qual|quando|onde|por que|quem|me|nos|você)/i.test(t)) {
     return cleanClientTerm(t)
   }
-  console.log('[detectClientMention] nenhum padrão capturou:', text)
   return null
 }
 
@@ -492,22 +490,16 @@ export function DonkieProvider({ children }) {
         const term = detectClientMention(content)
         if (term && term.length >= 2) {
           const results = await searchClientsByName(term)
-          console.log('[donkie] term detectado:', term, '| resultados:', results)
-
           if (results.length === 1) {
             const dossie = await fetchClientDossie(results[0].id)
-            console.log('[donkie] dossie carregado:', dossie?.id, dossie?.name)
             if (dossie) {
-              console.log('[donkie] setClientData chamado, indo para IA com cliente:', dossie.fantasy_name || dossie.name)
               setClientData(dossie)
               const routeCtx   = buildRouteContext(location.pathname, dossie)
               const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
-              console.log('[donkie] routeCtx gerado:', routeCtx)
               const apiMessages = [
                 { role: 'system', content: systemText },
                 ...newMessages.map(m => ({ role: m.role, content: toOpenRouterContent(m.content) })),
               ]
-              console.log('[donkie] apiMessages count:', apiMessages.length, '| system length:', systemText.length)
               const { data: { session } } = await supabase.auth.getSession()
               const response = await fetch(
                 `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`,
