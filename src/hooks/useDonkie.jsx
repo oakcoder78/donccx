@@ -149,6 +149,14 @@ async function fetchClientDossie(clientId) {
   }
 }
 
+function cleanClientTerm(raw) {
+  return raw
+    .replace(/[?!.,;:]+$/, '')
+    .replace(/^(o|a|os|as|um|uma)\s+/i, '')
+    .replace(/\s+(o|a|os|as)$/i, '')
+    .trim()
+}
+
 function detectClientMention(text) {
   const t = text.trim()
   const patterns = [
@@ -161,11 +169,11 @@ function detectClientMention(text) {
   for (const re of patterns) {
     const m = t.match(re)
     if (m) console.log('[detectClientMention] padrão', re.toString().slice(0,40), '→ capturou:', m[1])
-    if (m?.[1]) return m[1].replace(/[?!.,;:]+$/, '').trim()
+    if (m?.[1]) return cleanClientTerm(m[1])
   }
   const words = t.split(/\s+/)
   if (words.length <= 5 && !/^(o que|como|qual|quando|onde|por que|quem|me|nos|você)/i.test(t)) {
-    return t.replace(/[?!.,;:]+$/, '').trim()
+    return cleanClientTerm(t)
   }
   console.log('[detectClientMention] nenhum padrão capturou:', text)
   return null
@@ -371,6 +379,8 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
     ? '\n\nMODO ATUAL: Implementação. Seja executivo: gere conteúdo pronto, proponha ações concretas com o formato [ACAO:{...}] quando for o caso, e aguarde confirmação.'
     : '\n\nMODO ATUAL: Discussão. Questione, analise e sugira. Não execute ações sem confirmação explícita.'
 
+  const langInstruction = '\n\nIDIOMA: Responda SEMPRE em português do Brasil, independentemente do idioma da pergunta ou do modelo utilizado. Nunca use outros idiomas, ideogramas ou caracteres não-latinos.'
+
   const userCtx = profile
     ? `\n\nUsuário atual: ${profile.name || 'CSM'}, função: ${profile.role || 'csm'}.`
     : ''
@@ -379,7 +389,7 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
     ? `\n\nCONTEXTO ATUAL:\n${routeContext}`
     : ''
 
-  return config.system_prompt + userCtx + modeInstruction + routeCtx
+  return config.system_prompt + userCtx + modeInstruction + langInstruction + routeCtx
 }
 
 // ─── Provider ────────────────────────────────────────────────
@@ -396,6 +406,7 @@ export function DonkieProvider({ children }) {
   const [clientData, setClientData] = useState(null)
   const [convId,     setConvId]    = useState(null)
   const [pendingClientSearch, setPendingClientSearch] = useState(null)
+  const [lastModel,  setLastModel]  = useState(null)
 
   useEffect(() => {
     if (config?.default_mode) setMode(config.default_mode)
@@ -510,6 +521,8 @@ export function DonkieProvider({ children }) {
               const data = await response.json()
               if (!response.ok) throw new Error(data.error?.message || data.error || `HTTP ${response.status}`)
               const assistantText = data?.choices?.[0]?.message?.content ?? ''
+              const usedModel = data?.model ?? null
+              setLastModel(usedModel)
               const finalMessages = [...newMessages, { role: 'assistant', content: assistantText }]
               setMessages(finalMessages)
               saveConversation(finalMessages, convId)
@@ -560,6 +573,8 @@ export function DonkieProvider({ children }) {
       if (data?.error)  throw new Error(data.error?.message || data.error || 'Erro na resposta da IA')
 
       const assistantText = data.choices?.[0]?.message?.content ?? ''
+      const usedModel = data?.model ?? null
+      setLastModel(usedModel)
       const finalMessages = [...newMessages, { role: 'assistant', content: assistantText }]
 
       setMessages(finalMessages)
@@ -567,9 +582,13 @@ export function DonkieProvider({ children }) {
 
     } catch (err) {
       console.error('[useDonkie] sendMessage error:', err)
+      const isNetwork = err.message?.includes('504') || err.message?.includes('502') || err.message?.includes('503') || err.message?.includes('timeout') || err.message?.includes('network') || err.message?.toLowerCase().includes('todos os modelos falharam')
+      const friendlyMsg = isNetwork
+        ? 'Estou com dificuldades técnicas no momento — os servidores de IA estão sobrecarregados. Aguarde alguns instantes e tente novamente. 🙏'
+        : `⚠️ Erro ao conectar com o Donkie: ${err.message}`
       setMessages(prev => [...prev, {
         role:    'assistant',
-        content: `⚠️ Erro ao conectar com o Donkie: ${err.message}`,
+        content: friendlyMsg,
       }])
     } finally {
       setIsLoading(false)
@@ -591,6 +610,7 @@ export function DonkieProvider({ children }) {
       clientData: routeClientData || clientData,
       setClientData,
       config,
+      lastModel,
     }}>
       {children}
     </DonkieContext.Provider>
