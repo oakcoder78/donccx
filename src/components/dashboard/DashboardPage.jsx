@@ -368,6 +368,32 @@ export default function DashboardPage() {
     },
   })
 
+  const { data: overdueOnboardingActivities = [] } = useQuery({
+    queryKey: ['overdue_onboarding_activities', clients.map(c => c.id).join()],
+    enabled: !!profile && clients.length > 0,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const clientIds = clients.map(c => c.id)
+      const { data: onboardings } = await supabase
+        .from('onboardings')
+        .select('id, client_id')
+        .eq('status', 'ativo')
+        .in('client_id', clientIds)
+      if (!onboardings?.length) return []
+      const onboardingIds = onboardings.map(o => o.id)
+      const { data: acts } = await supabase
+        .from('onboarding_activities')
+        .select('id, due_date, status, onboarding_id')
+        .lt('due_date', todayStr)
+        .neq('status', 'concluida')
+        .in('onboarding_id', onboardingIds)
+      return (acts || []).map(a => {
+        const ob = onboardings.find(o => o.id === a.onboarding_id)
+        return { ...a, clientId: ob?.client_id ?? null }
+      })
+    },
+  })
+
   // Operational data — previous month
   const { data: opsRows = [] } = useQuery({
     queryKey: ['ops_dashboard', prevMonth, prevMonth2, clients.map(c => c.id).join()],
@@ -515,9 +541,13 @@ export default function DashboardPage() {
 
   const opHealthList = useMemo(() => {
     const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) })()
-    const overdueActivityClientIds = myTasksRaw
+    const crmOverdue = myTasksRaw
       .filter(a => a.due_date && a.due_date < cutoff && a.status !== 'concluida' && a.status !== 'cancelada')
       .map(a => Number(a.client_id))
+    const obActOverdue = overdueOnboardingActivities
+      .filter(a => a.due_date && a.due_date < cutoff && a.status !== 'concluida')
+      .map(a => Number(a.clientId))
+    const overdueActivityClientIds = [...new Set([...crmOverdue, ...obActOverdue])]
     const rows = []
     Object.entries(opsByClient).forEach(([clientId, months]) => {
       const cur  = months[prevMonth]
@@ -531,7 +561,7 @@ export default function DashboardPage() {
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore })
     })
     return { list: rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5), overdueActivityClientIds }
-  }, [opsByClient, clients, myTasksRaw])
+  }, [opsByClient, clients, myTasksRaw, overdueOnboardingActivities])
 
   // Urgency multi-criteria
   const alertaClients = useMemo(() => {
@@ -575,7 +605,7 @@ export default function DashboardPage() {
         return new Date(lastA || 0) - new Date(lastB || 0)
       })
       .slice(0, 5)
-  }, [clients, overdueOnboardingFases, lastActivityMap, opHealthList])
+  }, [clients, overdueOnboardingFases, lastActivityMap, opHealthList, overdueOnboardingActivities])
 
   const sortedPortfolio = useMemo(() => [...clients].sort((a, b) => (a.health_total || 0) - (b.health_total || 0)), [clients])
 
