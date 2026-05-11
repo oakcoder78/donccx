@@ -451,9 +451,10 @@ export function DonkieProvider({ children }) {
 
     try {
       const activeClient = routeClientData || clientData
+      const isRouteClient = !!routeClientData
 
       // ── Busca de cliente por nome (fora da ficha) ────────────────────────────
-      if (!activeClient && !imageBase64 && typeof content === 'string') {
+      if (!isRouteClient && !imageBase64 && typeof content === 'string') {
         if (pendingClientSearch) {
           const idx = parseInt(content.trim(), 10)
           if (!isNaN(idx) && idx >= 1 && idx <= pendingClientSearch.length) {
