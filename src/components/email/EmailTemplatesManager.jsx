@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
+import { useAuth } from '../../contexts/AuthContext'
+import { SettingsMenuIcons } from '../../lib/icons'
+import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import { SettingsSectionHeader } from '../settings/SettingsSectionHeader'
-import { Mail, Plus, X } from 'lucide-react'
+import toast from 'react-hot-toast'
+import { Mail, Plus, X, Pencil, Trash2 } from 'lucide-react'
 
 // ─── Example values used in template preview ─────────────────────────────────
 const PREVIEW_VARS = {
@@ -30,48 +32,83 @@ function insertAtCursor(textarea, text) {
   const val   = textarea.value
   const next  = val.slice(0, start) + text + val.slice(end)
   const pos   = start + text.length
-  // We return the new value and cursor position so the caller can setState
   return { next, pos }
 }
 
-// ─── Query hooks ──────────────────────────────────────────────────────────────
-function useTemplates() {
-  return useQuery({
-    queryKey: ['email_templates_all'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('email_templates')
-        .select('id, name, subject, html_body, variables, active')
-        .order('name')
-      if (error) throw error
-      return data ?? []
-    },
-    staleTime: 30_000,
-  })
+// ─── Toggle ───────────────────────────────────────────────────────────────────
+function Toggle({ value, onChange, disabled }) {
+  return (
+    <div
+      role="switch"
+      aria-checked={value}
+      onClick={() => !disabled && onChange(!value)}
+      style={{
+        width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+        backgroundColor: value ? '#173557' : '#d4d3ce',
+        position: 'relative', transition: 'background 0.2s',
+        cursor: disabled ? 'default' : 'pointer',
+        display: 'inline-block',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 2, left: value ? 18 : 2,
+        width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff',
+        transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+      }} />
+    </div>
+  )
 }
 
-function useSaveTemplate(qc) {
-  return useMutation({
-    mutationFn: async (tpl) => {
-      const { error } = await supabase
-        .from('email_templates')
-        .upsert({ ...tpl }, { onConflict: 'id' })
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['email_templates_all'] })
-      qc.invalidateQueries({ queryKey: ['email_templates'] }) // invalidate composer cache too
-      toast.success('Template salvo.')
-    },
-    onError: (err) => toast.error(`Erro ao salvar: ${err.message}`),
-  })
+// ─── Inline form ──────────────────────────────────────────────────────────────
+const EMPTY = { name: '', subject: '', html_body: '', variables: [], active: true }
+
+function InlineForm({ form, setForm, onSave, onCancel, saving }) {
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="label-sm">Nome *</label>
+          <input
+            value={form.name}
+            onChange={e => set('name', e.target.value)}
+            className="input-base w-full"
+            placeholder="nome_do_template"
+          />
+        </div>
+        <div>
+          <label className="label-sm">Assunto</label>
+          <input
+            value={form.subject}
+            onChange={e => set('subject', e.target.value)}
+            className="input-base w-full"
+            placeholder="{{assunto}}"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-6">
+        <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer select-none">
+          <Toggle value={form.active} onChange={v => set('active', v)} />
+          Ativo
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" onClick={onSave} disabled={saving}>
+          {saving ? 'Salvando...' : 'Salvar'}
+        </Button>
+        <Button size="sm" variant="secondary" onClick={onCancel} disabled={saving}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 // ─── Editor panel ─────────────────────────────────────────────────────────────
-function TemplateEditor({ template, onSave, onCancel }) {
+function TemplateEditor({ template, onSave, onCancel, saving }) {
   const [name,      setName]     = useState(template?.name      ?? '')
   const [subject,   setSubject]  = useState(template?.subject   ?? '')
-  const [htmlBody,  setHtmlBody] = useState(template?.html_body ?? '')
+  const [htmlBody, setHtmlBody] = useState(template?.html_body ?? '')
   const [variables, setVars]     = useState(() => {
     const v = template?.variables
     if (Array.isArray(v)) return v
@@ -80,7 +117,7 @@ function TemplateEditor({ template, onSave, onCancel }) {
   })
   const [newVar,    setNewVar]   = useState('')
   const [showPreview, setShowPreview] = useState(false)
-  const [uploading,   setUploading]   = useState(false)
+  const [uploading, setUploading]     = useState(false)
 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -91,7 +128,6 @@ function TemplateEditor({ template, onSave, onCancel }) {
     const result = insertAtCursor(ta, `{{${varName}}}`)
     if (!result) return
     setHtmlBody(result.next)
-    // Restore cursor after React re-render
     requestAnimationFrame(() => {
       ta.focus()
       ta.selectionStart = result.pos
@@ -161,33 +197,32 @@ function TemplateEditor({ template, onSave, onCancel }) {
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
-      {/* Nome */}
+      {/* Nome + Assunto */}
       <div>
-        <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Nome</label>
+        <label className="label-sm">Nome *</label>
         <input
           value={name}
           onChange={e => setName(e.target.value)}
-          className="w-full px-3 py-2 border border-border-tertiary rounded-md text-sm bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
+          className="input-base w-full"
           placeholder="nome_do_template"
         />
       </div>
 
-      {/* Assunto */}
       <div>
-        <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
+        <label className="label-sm">
           Assunto <span className="text-text-tertiary font-normal normal-case">(use {'{{assunto}}'} para assunto dinâmico)</span>
         </label>
         <input
           value={subject}
           onChange={e => setSubject(e.target.value)}
-          className="w-full px-3 py-2 border border-border-tertiary rounded-md text-sm bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
+          className="input-base w-full"
           placeholder="{{assunto}}"
         />
       </div>
 
       {/* Variáveis */}
       <div>
-        <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
+        <label className="label-sm">
           Variáveis <span className="text-text-tertiary font-normal normal-case">(clique para inserir no editor)</span>
         </label>
         <div className="flex flex-wrap gap-1.5 mb-2">
@@ -276,93 +311,231 @@ function TemplateEditor({ template, onSave, onCancel }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 export function EmailTemplatesManager() {
-  const qc = useQueryClient()
-  const { data: templates = [], isLoading } = useTemplates()
-  const save = useSaveTemplate(qc)
+  const MailIcon = SettingsMenuIcons['email-templates'] || Mail
+  const { isAdmin } = useAuth()
 
-  const [selectedId, setSelectedId] = useState(null)
-  const [isNew,      setIsNew]      = useState(false)
+  const [items,     setItems]     = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [adding,    setAdding]    = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editForm,  setEditForm]  = useState({})
+  const [saving,    setSaving]    = useState(false)
+  const [deletingId, setDeletingId] = useState(null)
 
-  const selected = isNew ? null : templates.find(t => t.id === selectedId)
-  const showEditor = isNew || !!selected
-
-  function handleSave(tpl) {
-    save.mutate(tpl, {
-      onSuccess: () => {
-        setIsNew(false)
-        setSelectedId(tpl.id)
-      },
-    })
+  async function load() {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from('email_templates')
+      .select('id, name, subject, html_body, variables, active')
+      .order('name')
+    if (error) toast.error(error.message)
+    else setItems(data || [])
+    setLoading(false)
   }
 
-  function handleCancel() {
-    setIsNew(false)
-    setSelectedId(null)
+  useEffect(() => { load() }, [])
+
+  function startEdit(item) {
+    setEditingId(item.id)
+    setEditForm({ ...item })
+    setAdding(false)
   }
+
+  async function handleAdd() {
+    if (!editForm.name?.trim()) { toast.error('Nome obrigatório'); return }
+    setSaving(true)
+    const { error } = await supabase
+      .from('email_templates')
+      .insert({
+        name:      editForm.name.trim(),
+        subject:   editForm.subject?.trim() || '',
+        html_body: editForm.html_body || '',
+        variables: editForm.variables || [],
+        active:    editForm.active ?? true,
+      })
+    setSaving(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Template criado')
+    setAdding(false)
+    setEditForm(EMPTY)
+    load()
+  }
+
+  async function handleEdit() {
+    if (!editForm.name?.trim()) { toast.error('Nome obrigatório'); return }
+    setSaving(true)
+    const { error } = await supabase
+      .from('email_templates')
+      .update({
+        name:      editForm.name.trim(),
+        subject:   editForm.subject?.trim() || '',
+        html_body: editForm.html_body || '',
+        variables: editForm.variables || [],
+        active:    editForm.active ?? true,
+      })
+      .eq('id', editingId)
+    setSaving(false)
+    if (error) { toast.error(error.message); return }
+    toast.success('Template atualizado')
+    setEditingId(null)
+    load()
+  }
+
+  async function handleToggleAtivo(item) {
+    const { error } = await supabase
+      .from('email_templates')
+      .update({ active: !item.active })
+      .eq('id', item.id)
+    if (error) { toast.error(error.message); return }
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, active: !item.active } : i))
+  }
+
+  async function handleDelete(item) {
+    if (!window.confirm(`Excluir "${item.name}"?`)) return
+    setDeletingId(item.id)
+    const { count, error: countErr } = await supabase
+      .from('email_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('template_id', item.id)
+    if (countErr) { toast.error(countErr.message); setDeletingId(null); return }
+    if (count > 0) {
+      toast.error(`Este template foi usado em ${count} envio(s) e não pode ser excluído.`)
+      setDeletingId(null)
+      return
+    }
+    const { error } = await supabase.from('email_templates').delete().eq('id', item.id)
+    setDeletingId(null)
+    if (error) { toast.error(error.message); return }
+    toast.success('Template excluído')
+    if (editingId === item.id) setEditingId(null)
+    load()
+  }
+
+  if (loading) return <PageSpinner />
 
   return (
-    <div>
+    <div className="max-w-6xl space-y-4">
+
       <SettingsSectionHeader
-        icon={Mail}
+        icon={MailIcon}
         title="Templates de E-mail"
         subtitle="Gerencie os templates usados no envio de e-mails para clientes."
+        actions={
+          isAdmin && !adding && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setAdding(true)
+                setEditingId(null)
+                setEditForm(EMPTY)
+              }}
+            >
+              + Novo Template
+            </Button>
+          )
+        }
       />
 
-      <div className="flex gap-4" style={{ height: 'calc(100vh - 11rem)' }}>
-        {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 w-64 flex flex-col gap-2">
-          <Button
-            variant="primary" size="sm"
-            className="w-full justify-center"
-            onClick={() => { setIsNew(true); setSelectedId(null) }}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Novo template
-          </Button>
+      {/* Card */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
 
-          <div className="flex-1 overflow-y-auto border border-border-tertiary rounded-md">
-            {isLoading ? (
-              <p className="text-xs text-text-tertiary p-3">Carregando...</p>
-            ) : templates.length === 0 ? (
-              <p className="text-xs text-text-tertiary p-3">Nenhum template.</p>
-            ) : (
-              templates.map(t => (
-                <button
-                  key={t.id}
-                  onClick={() => { setSelectedId(t.id); setIsNew(false) }}
-                  className={`w-full text-left px-3 py-2.5 border-b border-border-tertiary last:border-b-0 transition-colors
-                    ${(selectedId === t.id && !isNew)
-                      ? 'bg-donc-navy text-white'
-                      : 'hover:bg-bg-tertiary text-text-primary'}`}
-                >
-                  <div className={`text-sm font-medium truncate ${selectedId === t.id && !isNew ? 'text-white' : 'text-text-primary'}`}>
-                    {t.name}
-                  </div>
-                  {!t.active && (
-                    <span className={`text-xs ${selectedId === t.id && !isNew ? 'text-white/60' : 'text-text-tertiary'}`}>
-                      inativo
-                    </span>
-                  )}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* ── Editor ──────────────────────────────────────────────────────── */}
-        <div className="flex-1 overflow-hidden">
-          {showEditor ? (
-            <TemplateEditor
-              key={isNew ? '__new__' : selectedId}
-              template={isNew ? null : selected}
-              onSave={handleSave}
-              onCancel={handleCancel}
+        {/* New form */}
+        {adding && (
+          <div className="p-4 border-b border-border-tertiary bg-bg-secondary">
+            <p className="text-xs font-semibold text-text-primary mb-3">Novo Template</p>
+            <InlineForm
+              form={editForm}
+              setForm={setEditForm}
+              onSave={handleAdd}
+              onCancel={() => { setAdding(false); setEditForm(EMPTY) }}
+              saving={saving}
             />
-          ) : (
-            <div className="flex items-center justify-center h-full text-text-tertiary text-sm">
-              Selecione um template ou crie um novo.
-            </div>
-          )}
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border-tertiary bg-donc-navy text-white">
+                {isAdmin && <th className="w-8 px-3 py-2.5" />}
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Nome</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Assunto</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ativo</th>
+                {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Ações</th>}
+              </tr>
+            </thead>
+
+            <tbody>
+              {items.map(item =>
+                editingId === item.id ? (
+                  <tr key={item.id} className="border-b border-border-tertiary bg-bg-secondary">
+                    <td colSpan={isAdmin ? 5 : 3} className="px-4 py-3">
+                      <InlineForm
+                        form={editForm}
+                        setForm={setEditForm}
+                        onSave={handleEdit}
+                        onCancel={() => setEditingId(null)}
+                        saving={saving}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={item.id}
+                    className="border-b border-border-tertiary hover:bg-bg-secondary transition-colors"
+                  >
+                    {isAdmin && (
+                      <td className="px-3 py-2.5 text-text-tertiary cursor-grab">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                        </svg>
+                      </td>
+                    )}
+                    <td className="px-4 py-2.5 font-medium text-text-primary whitespace-nowrap">{item.name}</td>
+                    <td className="px-4 py-2.5 text-text-secondary max-w-xs truncate">
+                      {item.subject || <span className="text-text-tertiary">—</span>}
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <Toggle
+                        value={item.active}
+                        onChange={() => handleToggleAtivo(item)}
+                        disabled={!isAdmin}
+                      />
+                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-2.5 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => startEdit(item)}
+                            title="Editar"
+                            className="p-1 text-text-secondary hover:text-donc-sky rounded"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            disabled={deletingId === item.id}
+                            title="Excluir"
+                            className="p-1 text-text-secondary hover:text-red-500 rounded disabled:opacity-40"
+                          >
+                            {deletingId === item.id ? '...' : <Trash2 size={14} />}
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )
+              )}
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={isAdmin ? 5 : 3} className="px-4 py-8 text-center text-sm text-text-tertiary">
+                    Nenhum template cadastrado.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
