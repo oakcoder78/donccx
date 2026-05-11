@@ -47,7 +47,7 @@ const MENU_GROUPS = [
     { key: 'donc-api',  label: 'API DONC',   managerOnly: true },
   ]},
   { label: 'Comunicação', items: [
-    { key: 'email-templates', label: 'Templates de E-mail', managerOnly: true },
+    { key: 'email-templates', label: 'Templates de E-mail', featureFlag: 'email_templates' },
   ]},
   { label: 'Governança', items: [
     { key: 'logs', label: 'Auditoria', featureFlag: 'logs' },
@@ -92,7 +92,7 @@ export default function SettingsPage() {
       case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
       case 'activity-types': return isEnabled('activity_types', profile?.role) && <SettingsActivityTypes />
       case 'project-templates': return isEnabled('project_templates', profile?.role) && <SettingsProjectTemplates />
-      case 'email-templates': return isManager && <EmailTemplatesManager />
+      case 'email-templates': return isManager && isEnabled('email_templates', profile?.role) && <EmailTemplatesManager />
       default: return null
     }
   }
