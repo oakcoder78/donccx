@@ -19,6 +19,7 @@ const FLAG_GROUPS = {
   'Health Score': ['health'],
   'IA & Automação': ['donkie', 'ai'],
   'Integrações': ['freshdesk', 'api_donc'],
+  'Comunicação': ['email_templates'],
   'Governança': ['logs', 'features'],
 }
 
