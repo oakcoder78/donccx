@@ -285,6 +285,7 @@ export function DonkiePanel() {
     messages, isLoading,
     mode, toggleMode,
     sendMessage, clearConversation,
+    lastModel,
   } = useDonkie()
 
   const { create: createActivity } = useActivityMutations()
@@ -607,6 +608,11 @@ export function DonkiePanel() {
           <p style={{ fontSize: 10, color: '#cbd5e1', textAlign: 'center', marginTop: 6 }}>
             Enter envia · Shift+Enter quebra linha
           </p>
+          {lastModel && (
+            <div style={{ padding: '4px 14px 6px', fontSize: 10, color: '#b0b8c1', textAlign: 'right', borderTop: '1px solid #f1f5f9' }}>
+              modelo: {lastModel}
+            </div>
+          )}
         </div>
       </div>
     </>
