@@ -99,7 +99,7 @@ export default function SettingsPage() {
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)]">
-      <aside className="w-52 bg-bg-primary border-r border-border-tertiary p-3 flex-shrink-0">
+      <aside className="w-64 bg-bg-primary border-r border-border-tertiary p-3 flex-shrink-0">
         <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wider px-2 mb-3">Configurações</p>
         <nav className="space-y-4">
           {MENU.map(group => (
