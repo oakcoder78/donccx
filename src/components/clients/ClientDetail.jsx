@@ -13,6 +13,8 @@ import { ClientTabOperacional } from './tabs/ClientTabOperacional'
 import { ClientTabHealth } from './tabs/ClientTabHealth'
 import { ClientTabContatos } from './tabs/ClientTabContatos'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
+import { EmailComposerModal } from '../email/EmailComposerModal'
+import { ActionIcons } from '../../lib/icons'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },
@@ -28,7 +30,8 @@ export default function ClientDetail() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const tab = searchParams.get('tab') || 'overview'
-  const [showEdit, setShowEdit] = useState(false)
+  const [showEdit, setShowEdit]   = useState(false)
+  const [showEmail, setShowEmail] = useState(false)
 
   const { data: client, isLoading } = useClient(id)
 
@@ -67,8 +70,21 @@ export default function ClientDetail() {
             )}
           </div>
         </div>
-        <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowEmail(true)}>
+            <ActionIcons.email className="w-3.5 h-3.5" />
+            Enviar e-mail
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
+        </div>
       </div>
+
+      <EmailComposerModal
+        isOpen={showEmail}
+        onClose={() => setShowEmail(false)}
+        mode="individual"
+        preselectedClientId={client?.id}
+      />
 
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto">
