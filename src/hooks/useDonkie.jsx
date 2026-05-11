@@ -379,6 +379,9 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
     ? '\n\nMODO ATUAL: Implementação. Seja executivo: gere conteúdo pronto, proponha ações concretas com o formato [ACAO:{...}] quando for o caso, e aguarde confirmação.'
     : '\n\nMODO ATUAL: Discussão. Questione, analise e sugira. Não execute ações sem confirmação explícita.'
 
+  const today = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  const dateInstruction = `\n\nDATA ATUAL: Hoje é ${today}. Use esta data como referência para calcular prazos, dias passados e datas relativas. Nunca assuma uma data diferente desta.`
+
   const langInstruction = '\n\nIDIOMA: Responda SEMPRE em português do Brasil, independentemente do idioma da pergunta ou do modelo utilizado. Nunca use outros idiomas, ideogramas ou caracteres não-latinos.'
 
   const userCtx = profile
@@ -389,7 +392,7 @@ function buildSystemPrompt(config, profile, routeContext, mode) {
     ? `\n\nCONTEXTO ATUAL:\n${routeContext}`
     : ''
 
-  return config.system_prompt + userCtx + modeInstruction + langInstruction + routeCtx
+  return config.system_prompt + userCtx + modeInstruction + dateInstruction + langInstruction + routeCtx
 }
 
 // ─── Provider ────────────────────────────────────────────────
