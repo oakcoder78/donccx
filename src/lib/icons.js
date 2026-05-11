@@ -111,6 +111,7 @@ export const SettingsMenuIcons = {
   features:      Flag,
   'fase-types':        FolderKanban,
   'activity-types':    Activity,
+  'email-templates':   Mail,
   default:           Settings,
 }
 

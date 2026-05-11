@@ -60,6 +60,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   const [templateId,     setTemplateId]     = useState('')
   const [subject,        setSubject]        = useState('')
   const [body,           setBody]           = useState('')
+  const [fromMode,       setFromMode]       = useState('csm')
 
   // step 3 / send
   const [sending,        setSending]        = useState(false)
@@ -144,6 +145,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     setTemplateId('')
     setSubject('')
     setBody('')
+    setFromMode('csm')
     setResult(null)
     setSending(false)
   }
@@ -217,7 +219,8 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
         body: JSON.stringify({
           template_id: templateId,
           recipients,
-          sent_by: user.id,
+          sent_by:    user.id,
+          from_mode:  fromMode,
         }),
       })
 
@@ -381,6 +384,41 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
               className="w-full px-3 py-2 border border-border-tertiary rounded-md text-sm bg-bg-primary text-text-primary outline-none focus:border-donc-sky resize-y"
             />
           </div>
+
+          {/* Remetente — só para admin/manager */}
+          {(profile?.role === 'admin' || profile?.role === 'manager') && (
+            <div>
+              <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
+                Remetente
+              </label>
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="fromMode"
+                    value="csm"
+                    checked={fromMode === 'csm'}
+                    onChange={() => setFromMode('csm')}
+                    className="accent-donc-sky"
+                  />
+                  <span className="text-sm text-text-primary">
+                    Meu e-mail ({profile?.email})
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="fromMode"
+                    value="noreply"
+                    checked={fromMode === 'noreply'}
+                    onChange={() => setFromMode('noreply')}
+                    className="accent-donc-sky"
+                  />
+                  <span className="text-sm text-text-primary">noreply@donc.com.br</span>
+                </label>
+              </div>
+            </div>
+          )}
 
           {/* CSM info preview */}
           {profile && (

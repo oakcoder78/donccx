@@ -5,7 +5,8 @@
  * and creates an activity record for each successful send.
  *
  * Secrets: RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY
- * Body: { template_id, recipients: [{ contact_id, client_id, email, variables: {} }], sent_by }
+ * Body: { template_id, recipients: [{ contact_id, client_id, email, variables: {} }], sent_by, from_mode? }
+ * from_mode: 'csm' (default) | 'noreply' — only admin/manager can use 'noreply'
  */
 
 // @ts-ignore
@@ -70,7 +71,7 @@ serve(async (req) => {
 
     // ── Parse body ────────────────────────────────────────────────────────────
     const body = await req.json()
-    const { template_id, recipients, sent_by } = body as {
+    const { template_id, recipients, sent_by, from_mode: rawFromMode } = body as {
       template_id: string
       recipients: Array<{
         contact_id: number
@@ -79,11 +80,35 @@ serve(async (req) => {
         variables: Record<string, string>
       }>
       sent_by: string
+      from_mode?: string
     }
+
+    const from_mode: "csm" | "noreply" = rawFromMode === "noreply" ? "noreply" : "csm"
 
     if (!template_id || !Array.isArray(recipients) || recipients.length === 0) {
       return json({ error: "template_id and recipients[] required" }, 400)
     }
+
+    // ── Fetch sender profile ──────────────────────────────────────────────────
+    const profileRes = await fetch(
+      `${sbUrl}/rest/v1/profiles?id=eq.${sent_by}&select=name,email,role`,
+      { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+    )
+    const profileRows = await profileRes.json()
+    const senderProfile = profileRows?.[0] as { name: string; email: string; role: string } | undefined
+
+    // ── Validate from_mode permission ─────────────────────────────────────────
+    if (from_mode === "noreply") {
+      const role = senderProfile?.role ?? ""
+      if (role !== "admin" && role !== "manager") {
+        return json({ error: "Apenas admin ou manager podem usar o remetente noreply" }, 403)
+      }
+    }
+
+    // ── Resolve from address ──────────────────────────────────────────────────
+    const fromAddress = from_mode === "noreply"
+      ? "DONC <noreply@donc.com.br>"
+      : `${senderProfile?.name ?? "DONC"} <${senderProfile?.email ?? "onboarding@resend.dev"}>`
 
     // ── Fetch template ────────────────────────────────────────────────────────
     const tplRes = await fetch(
@@ -98,7 +123,7 @@ serve(async (req) => {
     if (!resendKey) return json({ error: "RESEND_API_KEY not configured" }, 500)
 
     const logs: Array<{ contact_id: number; email: string; status: string; error?: string }> = []
-    let sentCount  = 0
+    let sentCount   = 0
     let failedCount = 0
 
     for (const recipient of recipients) {
@@ -117,7 +142,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from:    "DONC <onboarding@resend.dev>",
+            from:    fromAddress,
             to:      recipient.email,
             subject: mergedSubject,
             html:    mergedHtml,
@@ -151,6 +176,7 @@ serve(async (req) => {
           subject:         mergedSubject,
           status,
           error_message:   errorMsg,
+          from_mode,
         }),
       })
 
