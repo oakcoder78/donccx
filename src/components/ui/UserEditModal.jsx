@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 import { maskPhoneInput, stripPhone } from '../../lib/formatPhone'
+import { Calendar } from 'lucide-react'
+import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
 
 const GENDER_OPTIONS = [
   { value: '',          label: '— Prefiro não informar —' },
@@ -115,6 +117,8 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
     }
   }
 
+  const { isLoading, isConnected, connectGoogleCalendar } = useGoogleCalendarStatus()
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="fixed inset-0 bg-black/40" onClick={onClose} />
@@ -199,6 +203,32 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
           >
             {sendingReset ? 'Enviando...' : 'Enviar e-mail de redefinição de senha'}
           </button>
+        </div>
+
+        <div className="border-t border-border-tertiary pt-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-text-secondary">Google Calendar</span>
+            {isLoading ? (
+              <span className="text-xs text-text-secondary animate-pulse">Verificando...</span>
+            ) : isConnected ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-green-600">
+                <Calendar className="w-3 h-3 text-green-500" />
+                Conectado
+              </span>
+            ) : (
+              <span className="text-xs text-text-secondary">Não conectado</span>
+            )}
+          </div>
+          {!isConnected && !isLoading && (
+            <button
+              type="button"
+              onClick={connectGoogleCalendar}
+              className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+            >
+              <Calendar className="w-3.5 h-3.5 text-gray-500" />
+              Conectar Google Calendar
+            </button>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">

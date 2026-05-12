@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 import { UserEditModal } from '../ui/UserEditModal'
+import toast from 'react-hot-toast'
 
 const mainNavLinks = [
   { to: '/dashboard',    label: 'Dashboard'   },
@@ -18,13 +19,23 @@ const analystNavLinks = [
   { to: '/atendimento',  label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
 ]
 
-export function Navbar() {
+export function Navbar({ googleOAuthSignal }) {
   const { user, profile, signOut, refreshProfile } = useAuth()
   const { canViewSettings } = usePermissions()
   const { isEnabled } = useFeatureFlags()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
-  const [showProfile,  setShowProfile]  = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
+
+  useEffect(() => {
+    if (googleOAuthSignal.error) {
+      toast.error(`Autorização negada: ${googleOAuthSignal.error}`)
+    }
+    if (googleOAuthSignal.success || googleOAuthSignal.error) {
+      setShowProfile(true)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [googleOAuthSignal])
 
   const isAnalyst = profile?.role === 'analyst'
 
