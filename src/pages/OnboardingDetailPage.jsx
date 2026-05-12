@@ -15,6 +15,7 @@ import { FASE_TYPE_IDS } from '../lib/constants'
 import { ProjectModal } from '../components/projects/ProjectModal'
 import { styles } from '../components/onboarding/OnboardingStyles'
 import { ActionIcons, PhaseIcons } from '../lib/icons'
+import { BriefPanel } from '../components/brief'
 
 // ── Local style constants ─────────────────────────────────────────────────────
 const S = {
@@ -857,6 +858,14 @@ async function handleComplete() {
               </div>
             </div>
           </div>
+
+          {/* Brief de Discovery */}
+          <BriefPanel
+            faseId={fase.id}
+            clientId={clientId}
+            clientName={client?.fantasy_name || client?.name || ''}
+            faseName={phaseName(fase)}
+          />
 
         </div>
 
