@@ -78,7 +78,7 @@ serve(async (req) => {
       const msg = encodeURIComponent(errorDescription ?? error)
       return new Response(null, {
         status: 302,
-        headers: { Location: `${FRONTEND_BASE}/configuracoes/google?error=${msg}` },
+        headers: { Location: `${FRONTEND_BASE}/?google=error=${msg}` },
       })
     }
 
@@ -94,7 +94,7 @@ serve(async (req) => {
     if (!clientId || !clientSecret) {
       return new Response(null, {
         status: 302,
-        headers: { Location: `${FRONTEND_BASE}/configuracoes/google?error=server_not_configured` },
+        headers: { Location: `${FRONTEND_BASE}/?google=error=server_not_configured` },
       })
     }
 
@@ -113,7 +113,7 @@ serve(async (req) => {
         user_id: state,
         access_token: tokens.accessToken,
         refresh_token: tokens.refreshToken,
-        tokenExpiry: new Date(tokens.expiryDate).toISOString(),
+        tokenexpiry: new Date(tokens.expiryDate).toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' })
 
@@ -121,20 +121,20 @@ serve(async (req) => {
       console.error('google-calendar-callback: upsert failed', upsertErr)
       return new Response(null, {
         status: 302,
-        headers: { Location: `${FRONTEND_BASE}/configuracoes/google?error=db_save_failed` },
+        headers: { Location: `${FRONTEND_BASE}/?google=error=db_save_failed` },
       })
     }
 
     return new Response(null, {
       status: 302,
-      headers: { Location: `${FRONTEND_BASE}/configuracoes/google?success=1` },
-    })
+        headers: { Location: `${FRONTEND_BASE}/?google=success` },
+      })
 
   } catch (err) {
     console.error('google-calendar-callback:', err)
     return new Response(null, {
       status: 302,
-      headers: { Location: `${FRONTEND_BASE}/configuracoes/google?error=unknown` },
+        headers: { Location: `${FRONTEND_BASE}/?google=error=unknown` },
     })
   }
 })

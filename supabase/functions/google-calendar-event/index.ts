@@ -163,7 +163,7 @@ serve(async (req) => {
     // ── Load user tokens ────────────────────────────────────────────────────
     const { data: googleConfig, error: configErr } = await admin
       .from('user_google_configs')
-      .select('refresh_token, tokenExpiry')
+        .select('refresh_token, tokenexpiry')
       .eq('user_id', user.id)
       .maybeSingle()
 
@@ -174,7 +174,8 @@ serve(async (req) => {
 
     // ── Token refresh ──────────────────────────────────────────────────────
     let accessToken: string
-    const needsRefresh = !googleConfig.tokenExpiry || googleConfig.tokenExpiry < Date.now()
+    const needsRefresh = !googleConfig.tokenexpiry ||
+      new Date(googleConfig.tokenexpiry).getTime() < Date.now()
 
     if (needsRefresh) {
       const refreshed = await refreshAccessToken(clientId, clientSecret, googleConfig.refresh_token)
@@ -184,7 +185,7 @@ serve(async (req) => {
         .from('user_google_configs')
         .update({
           access_token: refreshed.accessToken,
-          tokenExpiry: refreshed.expiryDate,
+          tokenExpiry: new Date(refreshed.expiryDate).toISOString(),
           ...(refreshed.newRefreshToken ? { refresh_token: refreshed.newRefreshToken } : {}),
           updated_at: new Date().toISOString(),
         })
