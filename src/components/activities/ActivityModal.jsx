@@ -51,7 +51,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   const { data: contacts = [] } = useContacts(form.client_id ? { client_id: Number(form.client_id) } : {})
   const { isConnected: isGoogleConnected } = useGoogleCalendarStatus()
   const token = useSessionToken()
-  const [syncToGoogle, setSyncToGoogle] = useState(false)
+  const [syncToGoogle, setSyncToGoogle] = useState(!!activity?.google_event_id)
   const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
@@ -86,50 +86,65 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       activityResult = await create.mutateAsync(payload)
     }
 
-    if (!isEdit && syncToGoogle && form.activity_time && token) {
-      let activityId
-      if (Array.isArray(activityResult)) {
-        activityId = activityResult[0]?.id
-      } else if (activityResult?.data?.id) {
-        activityId = activityResult.data.id
-      } else if (activityResult?.id) {
-        activityId = activityResult.id
+    if (token && form.activity_time) {
+      const activityId = isEdit
+        ? activity.id
+        : (Array.isArray(activityResult)
+          ? activityResult[0]?.id
+          : activityResult?.data?.id ?? activityResult?.id)
+
+      if (!activityId) {
+        onClose()
+        return
       }
 
-      if (activityId) {
-        setSyncing(true)
-        try {
-          const [h, m] = form.activity_time.split(':')
-          const startDate = new Date(`${form.activity_date}T${h}:${m}:00`)
-          const startISO = startDate.toISOString()
-          const endISO = new Date(startDate.getTime() + 50 * 60 * 1000).toISOString()
+      const [h, m] = form.activity_time.split(':')
+      const startDate = new Date(`${form.activity_date}T${h}:${m}:00`)
+      const startISO = startDate.toISOString()
+      const endISO = new Date(startDate.getTime() + 50 * 60 * 1000).toISOString()
+      const syncPayload = {
+        summary: form.title || form.description?.slice(0, 100) || 'Atividade',
+        description: form.description,
+        start: startISO,
+        end: endISO,
+        linkedActivity: { table: 'activities', id: String(activityId) },
+      }
 
-          const res = await fetch(EDGE_FUNCTION_URL, {
+      setSyncing(true)
+      try {
+        let res
+
+        if (isEdit && activity.google_event_id && !syncToGoogle) {
+          res = await fetch(EDGE_FUNCTION_URL, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              summary: form.title || form.description?.slice(0, 100) || 'Atividade',
-              description: form.description,
-              start: startISO,
-              end: endISO,
-              linkedActivity: { table: 'activities', id: String(activityId) },
-            }),
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ method: 'DELETE', google_event_id: activity.google_event_id, linkedActivity: syncPayload.linkedActivity }),
           })
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            toast.error(err.error || 'Erro ao sincronizar com Google Calendar')
-          } else {
-            toast.success('Atividade sincronizada com Google Calendar!')
-          }
-        } catch (err) {
-          toast.error('Erro ao sincronizar com Google Calendar')
-        } finally {
-          setSyncing(false)
+          if (res.ok) toast.success('Evento removido do Google Calendar')
+        } else if (isEdit && activity.google_event_id && syncToGoogle) {
+          res = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ method: 'PATCH', ...syncPayload, google_event_id: activity.google_event_id }),
+          })
+          if (res.ok) toast.success('Evento atualizado no Google Calendar!')
+        } else if (!isEdit && syncToGoogle) {
+          res = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ method: 'POST', ...syncPayload }),
+          })
+          if (res.ok) toast.success('Atividade sincronizada com Google Calendar!')
         }
+
+        if (res && !res.ok) {
+          const err = await res.json().catch(() => ({}))
+          toast.error(err.error || 'Erro ao sincronizar com Google Calendar')
+        }
+      } catch {
+        toast.error('Erro ao sincronizar com Google Calendar')
+      } finally {
+        setSyncing(false)
       }
     }
 

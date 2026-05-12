@@ -1,25 +1,29 @@
 /**
  * google-calendar-event — Supabase Edge Function
  *
- * Creates a Google Calendar event for the authenticated user.
+ * Manages Google Calendar events for the authenticated user.
+ * Supports: CREATE, UPDATE (PATCH), DELETE
+ *
  * Requires:
  *   - Client has authorized via OAuth2 (refresh_token stored in user_google_configs)
  *   - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET secrets set in Supabase project
  *
  * Body:
  *   {
- *     "summary":        string       required
- *     "start":          string       required  ISO 8601
- *     "end":            string       required  ISO 8601
- *     "description":    string       optional
- *     "location":       string       optional
- *     "attendees":      string[]     optional  email list
- *     "timeZone":       string       optional  default "America/Sao_Paulo"
- *     "reminders":      Reminder[]   optional
- *     "linkedActivity": { table, id } optional  saves google_event_id back
+ *     "method":           "POST"|"PATCH"|"DELETE"  optional, default "POST"
+ *     "google_event_id":  string                 required for PATCH/DELETE
+ *     "summary":          string                 required for POST/PATCH
+ *     "start":            string                 required for POST/PATCH (ISO 8601)
+ *     "end":              string                 required for POST/PATCH (ISO 8601)
+ *     "description":      string                 optional
+ *     "location":         string                 optional
+ *     "attendees":        string[]               optional
+ *     "timeZone":         string                 optional  default "America/Sao_Paulo"
+ *     "reminders":        Reminder[]             optional
+ *     "linkedActivity":   { table, id }          optional  saves/clears google_event_id
  *   }
  *
- * Response: { id, htmlLink, summary }
+ * Response: { id, htmlLink, summary } or { deleted: true }
  */
 
 // @ts-ignore
@@ -30,13 +34,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-interface GoogleTokens {
-  access_token: string
-  refresh_token: string
-  expires_in: number
-  tokenExpiry?: number
 }
 
 interface GoogleTokenResponse {
@@ -51,13 +48,11 @@ interface CalendarEventInput {
   summary?: string
   description?: string
   location?: string
-  start: string
-  end: string
+  start?: string
+  end?: string
   attendees?: { email: string }[]
   reminders?: { useDefault: boolean; overrides: { method: string; minutes: number }[] }
-  colorId?: string
   timeZone?: string
-  linkedActivity?: { table: 'activities' | 'onboarding_activities'; id: string }
 }
 
 async function refreshAccessToken(
@@ -113,6 +108,34 @@ async function insertCalendarEvent(
   }
 }
 
+async function updateCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  event: CalendarEventInput,
+  calendarId = 'primary',
+): Promise<{ id: string; htmlLink: string; summary: string }> {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(event),
+    },
+  )
+
+  const data = await res.json() as Record<string, unknown>
+  if (!res.ok) throw new Error(`Calendar API: ${res.status} — ${JSON.stringify(data)}`)
+
+  return {
+    id: data.id as string,
+    htmlLink: data.htmlLink as string,
+    summary: data.summary as string,
+  }
+}
+
 async function deleteCalendarEvent(accessToken: string, eventId: string, calendarId = 'primary'): Promise<void> {
   await fetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
@@ -147,11 +170,9 @@ serve(async (req) => {
     const { data: { user }, error: authErr } = await admin.auth.getUser(token)
     if (authErr || !user) return json({ error: 'Invalid token' }, 401)
 
-    // ── Input validation ────────────────────────────────────────────────────
-    const body = await req.json() as CalendarEventInput
-    if (!body?.start || !body?.end) {
-      return json({ error: '"start" and "end" ISO 8601 datetimes are required' }, 400)
-    }
+    // ── Parse body ─────────────────────────────────────────────────────────
+    const body = await req.json() as Record<string, unknown>
+    const method = (body.method as string)?.toUpperCase() ?? 'POST'
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
@@ -161,15 +182,14 @@ serve(async (req) => {
     }
 
     // ── Load user tokens ────────────────────────────────────────────────────
-    const { data: googleConfig, error: configErr } = await admin
+    const { data: googleConfig } = await admin
       .from('user_google_configs')
-        .select('refresh_token, tokenexpiry')
+      .select('refresh_token, tokenexpiry')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (configErr) console.error('Load google config:', configErr)
     if (!googleConfig?.refresh_token) {
-      return json({ error: 'User has not authorized Google Calendar. Redirect to OAuth flow.' }, 403)
+      return json({ error: 'User has not authorized Google Calendar.' }, 403)
     }
 
     // ── Token refresh ──────────────────────────────────────────────────────
@@ -180,23 +200,13 @@ serve(async (req) => {
     if (needsRefresh) {
       const refreshed = await refreshAccessToken(clientId, clientSecret, googleConfig.refresh_token)
       accessToken = refreshed.accessToken
-
-      await admin
-        .from('user_google_configs')
-        .update({
-          access_token: refreshed.accessToken,
-          tokenExpiry: new Date(refreshed.expiryDate).toISOString(),
-          ...(refreshed.newRefreshToken ? { refresh_token: refreshed.newRefreshToken } : {}),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
-
-      if (refreshed.newRefreshToken) {
-        await admin
-          .from('user_google_configs')
-          .update({ refresh_token: refreshed.newRefreshToken })
-          .eq('user_id', user.id)
+      const updates: Record<string, unknown> = {
+        access_token: refreshed.accessToken,
+        tokenExpiry: new Date(refreshed.expiryDate).toISOString(),
+        updated_at: new Date().toISOString(),
       }
+      if (refreshed.newRefreshToken) updates.refresh_token = refreshed.newRefreshToken
+      await admin.from('user_google_configs').update(updates).eq('user_id', user.id)
     } else {
       const { data: config } = await admin
         .from('user_google_configs')
@@ -206,15 +216,38 @@ serve(async (req) => {
       accessToken = config?.access_token ?? ''
     }
 
-    // ── Build event ────────────────────────────────────────────────────────
-    const tz = body.timeZone ?? 'America/Sao_Paulo'
-    const event: CalendarEventInput = {
-      summary: body.summary || 'doncCX Hub Event',
-      description: body.description,
-      location: body.location,
-      start: { dateTime: body.start, timeZone: tz } as unknown as string,
-      end: { dateTime: body.end, timeZone: tz } as unknown as string,
-      attendees: body.attendees,
+    const tz = (body.timeZone as string) ?? 'America/Sao_Paulo'
+    const linkedActivity = body.linkedActivity as { table: string; id: string } | undefined
+
+    // ── DELETE ────────────────────────────────────────────────────────────
+    if (method === 'DELETE') {
+      const googleEventId = body.google_event_id as string
+      if (!googleEventId) return json({ error: 'google_event_id required for DELETE' }, 400)
+
+      await deleteCalendarEvent(accessToken, googleEventId)
+
+      if (linkedActivity?.table && linkedActivity?.id) {
+        await admin
+          .from(linkedActivity.table)
+          .update({ google_event_id: null })
+          .eq('id', linkedActivity.id)
+      }
+
+      return json({ deleted: true })
+    }
+
+    // ── POST / PATCH ──────────────────────────────────────────────────────
+    if (!body.start || !body.end) {
+      return json({ error: '"start" and "end" ISO 8601 datetimes are required' }, 400)
+    }
+
+    const eventPayload: CalendarEventInput = {
+      summary: (body.summary as string) || 'doncCX Hub Event',
+      description: body.description as string,
+      location: body.location as string,
+      start: { dateTime: body.start as string, timeZone: tz } as unknown as string,
+      end: { dateTime: body.end as string, timeZone: tz } as unknown as string,
+      attendees: body.attendees as { email: string }[],
       reminders: body.reminders ?? {
         useDefault: false,
         overrides: [
@@ -224,15 +257,22 @@ serve(async (req) => {
       },
     }
 
-    // ── Insert ──────────────────────────────────────────────────────────────
-    const result = await insertCalendarEvent(accessToken, event)
+    if (method === 'PATCH') {
+      const googleEventId = body.google_event_id as string
+      if (!googleEventId) return json({ error: 'google_event_id required for PATCH' }, 400)
 
-    // ── Link back to activity ──────────────────────────────────────────────
-    if (body.linkedActivity?.table && body.linkedActivity?.id) {
+      const result = await updateCalendarEvent(accessToken, googleEventId, eventPayload)
+      return json(result)
+    }
+
+    // ── POST (create) ─────────────────────────────────────────────────────
+    const result = await insertCalendarEvent(accessToken, eventPayload)
+
+    if (linkedActivity?.table && linkedActivity?.id) {
       await admin
-        .from(body.linkedActivity.table)
+        .from(linkedActivity.table)
         .update({ google_event_id: result.id })
-        .eq('id', body.linkedActivity.id)
+        .eq('id', linkedActivity.id)
     }
 
     return json(result)
