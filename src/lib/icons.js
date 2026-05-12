@@ -28,6 +28,8 @@ import {
   Tag,
   Users,
   ClipboardList,
+  FileQuestion,
+  Send,
   Headphones,
   Bot,
   Sparkles,
@@ -139,6 +141,12 @@ export const SectionIcons = {
 }
 
 export const FallbackSectionIcon = FileText
+
+export const BriefIcons = {
+  activity: ClipboardList,
+  template: FileQuestion,
+  send: Send,
+}
 
 export const PhaseIcons = {
   done:      Check,
