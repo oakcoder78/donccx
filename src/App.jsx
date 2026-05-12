@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
@@ -39,7 +40,6 @@ const qc = new QueryClient({
   },
 })
 
-// Renderiza o Donkie apenas se a feature flag estiver habilitada para o perfil do usuário
 function DonkieGuard() {
   const { profile } = useAuth()
   const { isEnabled } = useFeatureFlags()
@@ -52,12 +52,11 @@ function DonkieGuard() {
   )
 }
 
-// Layout autenticado — inclui Navbar + Donkie (condicional via feature flag)
-function AppLayout() {
+function AppLayout({ googleOAuthSignal }) {
   return (
     <DonkieProvider>
       <div className="min-h-screen bg-bg-secondary">
-        <Navbar />
+        <Navbar googleOAuthSignal={googleOAuthSignal} />
         <Outlet />
       </div>
       <DonkieGuard />
@@ -72,32 +71,27 @@ function PrivateRoute() {
   if (loading) return null
   if (!user) return <Navigate to="/login" replace />
 
-  // Profile ainda carregando após onAuthStateChange — aguardar silenciosamente
   if (!profile) return <Navigate to="/primeiro-acesso" replace />
 
   if (profile.status === 'pending') return <PendingPage status="pending" />
   if (profile.status === 'blocked') return <PendingPage status="blocked" />
 
-  // Convidado que ainda não completou o primeiro acesso
   if (profile.status === 'invited') return <Navigate to="/primeiro-acesso" replace />
 
-  // Perfil recém-criado sem setup (ex: acesso liberado diretamente sem passar pelo fluxo)
   const ageMs = Date.now() - new Date(profile.created_at).getTime()
   if (ageMs < 5 * 60 * 1000 && !profile.gender && !profile.avatar_url) {
     return <Navigate to="/primeiro-acesso" replace />
   }
 
-  // Analyst só pode acessar /atendimento
   if (profile.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
     return <Navigate to="/atendimento" replace />
   }
 
-  // Gate para /atendimento via feature flag
   if (location.pathname.startsWith('/atendimento') && !isEnabled('whatsapp_atendimento', profile?.role)) {
     return <Navigate to="/dashboard" replace />
   }
 
-  return <AppLayout />
+  return <Outlet />
 }
 
 function AdminRoute() {
@@ -116,7 +110,6 @@ function AuthRedirect() {
   const { user, profile, loading } = useAuth()
   if (loading) return null
   if (user && profile?.status === 'active') {
-    // Analyst vai direto para /atendimento ao fazer login
     return <Navigate to={profile?.role === 'analyst' ? '/atendimento' : '/dashboard'} replace />
   }
   return <Outlet />
@@ -124,6 +117,18 @@ function AuthRedirect() {
 
 function AppRoutes() {
   const { loading } = useAuth()
+  const location = useLocation()
+  const [googleOAuthSignal, setGoogleOAuthSignal] = useState({ success: false, error: null })
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const g = params.get('google')
+    if (g === 'success') {
+      setGoogleOAuthSignal({ success: true, error: null })
+    } else if (g?.startsWith('error')) {
+      setGoogleOAuthSignal({ success: false, error: params.get('error_description') || params.get('error') })
+    }
+  }, [location.search])
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
@@ -135,10 +140,10 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-      {/* Rota pública do RMC — sem autenticação, sem Navbar */}
+      {/* Public RMC */}
       <Route path="/r/:token" element={<ReportPublicPage />} />
 
-      {/* Public auth routes */}
+      {/* Public auth */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/primeiro-acesso" element={<PrimeiroAcesso />} />
       <Route element={<AuthRedirect />}>
@@ -146,27 +151,30 @@ function AppRoutes() {
         <Route path="/solicitar-acesso" element={<SolicitarAcessoPage />} />
       </Route>
 
-      {/* Protected routes — dentro do AppLayout (Navbar + Donkie) */}
+      {/* Protected — AppLayout (Navbar + Donkie) + PrivateRoute gate */}
       <Route element={<PrivateRoute />}>
-        <Route path="/atendimento" element={<AtendimentoPage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/empresas" element={<ClientsPage />} />
-        <Route path="/empresas/:id" element={<ClientDetail />} />
-        <Route path="/empresas/:clientId/relatorios/:reportId/editar" element={<ReportEditorPage />} />
-        {/* Legacy redirects */}
-        <Route path="/clientes"     element={<Navigate to="/empresas" replace />} />
-        <Route path="/clientes/:id" element={<Navigate to="/empresas" replace />} />
-        <Route path="/contatos"     element={<ContactsPage />} />
-        <Route path="/atividades"   element={<ActivitiesPage />} />
-        <Route path="/projetos"     element={<ProjectsPage />} />
-        <Route path="/projetos/:id" element={<OnboardingDetailPage />} />
+        <Route element={<AppLayout googleOAuthSignal={googleOAuthSignal} />}>
+          <Route path="/atendimento" element={<AtendimentoPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/empresas" element={<ClientsPage />} />
+          <Route path="/empresas/:id" element={<ClientDetail />} />
+          <Route path="/empresas/:clientId/relatorios/:reportId/editar" element={<ReportEditorPage />} />
+          <Route path="/contatos" element={<ContactsPage />} />
+          <Route path="/atividades" element={<ActivitiesPage />} />
+          <Route path="/projetos" element={<ProjectsPage />} />
+          <Route path="/projetos/:id" element={<OnboardingDetailPage />} />
 
-        <Route element={<AdminRoute />}>
-          <Route path="/configuracoes" element={<SettingsPage />} />
-          <Route path="/config/freshdesk/pendentes" element={<FreshdeskPendingPage />} />
-          <Route path="/config/donc-api/pendentes" element={<DoncAPIPendentes />} />
+          <Route element={<AdminRoute />}>
+            <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="/config/freshdesk/pendentes" element={<FreshdeskPendingPage />} />
+            <Route path="/config/donc-api/pendentes" element={<DoncAPIPendentes />} />
+          </Route>
         </Route>
       </Route>
+
+      {/* Legacy redirects */}
+      <Route path="/clientes" element={<Navigate to="/empresas" replace />} />
+      <Route path="/clientes/:id" element={<Navigate to="/empresas" replace />} />
 
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
