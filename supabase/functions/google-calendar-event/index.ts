@@ -207,7 +207,7 @@ serve(async (req) => {
     }
 
     // ── Build event ────────────────────────────────────────────────────────
-    const tz = timeZone ?? 'America/Sao_Paulo'
+    const tz = body.timeZone ?? 'America/Sao_Paulo'
     const event: CalendarEventInput = {
       summary: body.summary || 'doncCX Hub Event',
       description: body.description,

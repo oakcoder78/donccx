@@ -221,7 +221,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                   />
                 </div>
                 {isGoogleConnected && (
-                  <div className="flex items-center justify-end pb-1">
+                  <div className="flex items-center justify-end">
                     <label className="flex items-center gap-1.5 cursor-pointer select-none group">
                       <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors whitespace-nowrap">Google Calendar</span>
                       <input
@@ -235,7 +235,6 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                         }}
                         className="w-4 h-4 rounded border-border-tertiary text-blue-600 focus:ring-blue-500"
                       />
-                      <Calendar className="w-3.5 h-3.5 text-text-tertiary group-hover:text-blue-600 transition-colors" />
                     </label>
                   </div>
                 )}
