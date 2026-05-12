@@ -118,15 +118,23 @@ function AuthRedirect() {
 function AppRoutes() {
   const { loading } = useAuth()
   const location = useLocation()
-  const [googleOAuthSignal, setGoogleOAuthSignal] = useState({ success: false, error: null })
+  const [googleOAuthSignal, setGoogleOAuthSignal] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    const g = params.get('google')
+    if (g === 'success') return { success: true, error: null }
+    if (g?.startsWith('error')) return { success: false, error: params.get('error_description') || g }
+    return { success: false, error: null }
+  })
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
+    const params = new URLSearchParams(window.location.search)
     const g = params.get('google')
     if (g === 'success') {
       setGoogleOAuthSignal({ success: true, error: null })
     } else if (g?.startsWith('error')) {
-      setGoogleOAuthSignal({ success: false, error: params.get('error_description') || params.get('error') })
+      setGoogleOAuthSignal({ success: false, error: params.get('error_description') || g })
+    } else {
+      setGoogleOAuthSignal(prev => (prev.success || prev.error) ? { success: false, error: null } : prev)
     }
   }, [location.search])
 
