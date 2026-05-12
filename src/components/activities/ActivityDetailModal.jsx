@@ -11,6 +11,11 @@ import toast from 'react-hot-toast'
 import { Paperclip, Eye, Download, Trash2 } from "lucide-react"
 import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
 import { useProfiles } from '../../hooks/useProfiles'
+import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
+import { useSessionToken } from '../../hooks/useSessionToken'
+import { GoogleSyncModal } from './GoogleSyncModal'
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://etfeqblaeuhaobefxilp.supabase.co'
 
 const typeLabel = { reuniao: 'Reunião', ligacao: 'Ligação', email: 'E-mail', whatsapp: 'WhatsApp', tarefa: 'Tarefa', nota: 'Nota' }
 
@@ -28,11 +33,13 @@ function InfoCell({ label, value }) {
   )
 }
 
-export function ActivityDetailModal({ activity: a, onClose }) {
+export function ActivityDetailModal({ activity: a, onClose, onUpdated }) {
   const [showEdit, setShowEdit] = useState(false)
   const [attachments, setAttachments] = useState([])
   const [previewUrl, setPreviewUrl] = useState(null)
   const [profiles, setProfiles] = useState([])
+  const [showTimeConfirm, setShowTimeConfirm] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   // Removed currentUser state – using profile from useProfiles
   const { update, remove } = useActivityMutations()
 
@@ -53,6 +60,8 @@ export function ActivityDetailModal({ activity: a, onClose }) {
   }, [])
 
   const profile = userProfiles?.find(p => p.id === authUser?.id)
+  const { isConnected } = useGoogleCalendarStatus()
+  const sessionToken = useSessionToken()
 
 // Load current authenticated user
 useEffect(() => {
@@ -116,6 +125,47 @@ useEffect(() => {
     onClose()
   }
 
+  function buildISO(date, time) {
+    if (!date) return null
+    const [h, m] = (time || '00:00').split(':')
+    return new Date(`${date}T${h}:${m}:00`).toISOString()
+  }
+
+  async function handleSyncToGoogleCalendar(time) {
+    if (!sessionToken) { toast.error('Sessão não disponível'); return }
+
+    setSyncing(true)
+    try {
+      const startISO = buildISO(a.activity_date, time)
+      const endISO = new Date(new Date(startISO).getTime() + 60 * 60 * 1000).toISOString()
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-event`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sessionToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          summary: a.title || a.description,
+          description: a.description,
+          start: startISO,
+          end: endISO,
+          attendees: a.contact?.email ? [{ email: a.contact.email }] : [],
+          linkedActivity: { table: 'activities', id: a.id },
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Erro desconhecido')
+      toast.success('Evento criado no Google Calendar!')
+      onUpdated?.()
+    } catch (err) {
+      toast.error(`Erro: ${err.message}`)
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   if (showEdit) return <ActivityModal activity={a} onClose={() => { setShowEdit(false); onClose() }} />
 
   const isOverdue = a.due_date && a.status !== 'concluida' && new Date(a.due_date) < new Date();
@@ -137,6 +187,29 @@ useEffect(() => {
               <Badge variant={a.status === 'concluida' ? 'green' : isOverdue ? 'red' : 'amber'}>
                 {a.status === 'concluida' ? 'Concluída' : isOverdue ? 'Atrasada' : 'Pendente'}
               </Badge>
+              {isConnected && (
+                a.google_event_id ? (
+                  <a
+                    href={`https://calendar.google.com/calendar/r/eventedit/${a.google_event_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={e => e.stopPropagation()}
+                    className="flex items-center gap-1 px-2 py-0.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors flex-shrink-0"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-green-600" />
+                    Sincronizado
+                  </a>
+                ) : (
+                  <button
+                    onClick={() => a.activity_time ? handleSyncToGoogleCalendar(a.activity_time) : setShowTimeConfirm(true)}
+                    disabled={syncing}
+                    className="flex items-center gap-1 px-2 py-0.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 flex-shrink-0"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    {syncing ? 'Sincronizando...' : 'Sincronizar'}
+                  </button>
+                )
+              )}
             </div>
             <h2 className="text-base font-semibold text-text-primary mt-0.5">{a.title || a.description}</h2>
             <p className="text-xs text-text-tertiary">{a.client?.name} · {formatDate(a.activity_date)}</p>
@@ -289,6 +362,17 @@ useEffect(() => {
             </div>
           )}
         </div>
+
+        {/* GoogleSyncModal */}
+        {showTimeConfirm && (
+          <GoogleSyncModal
+            isOpen
+            activityTitle={a.title || a.description}
+            activityDate={a.activity_date}
+            onConfirm={time => { setShowTimeConfirm(false); handleSyncToGoogleCalendar(time) }}
+            onClose={() => setShowTimeConfirm(false)}
+          />
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between p-4 border-t border-border-tertiary">
