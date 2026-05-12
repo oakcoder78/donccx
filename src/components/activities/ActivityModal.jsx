@@ -223,7 +223,6 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                 {isGoogleConnected && (
                   <div className="flex items-center justify-end">
                     <label className="flex items-center gap-1.5 cursor-pointer select-none group">
-                      <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors whitespace-nowrap">Google Calendar</span>
                       <input
                         type="checkbox"
                         checked={syncToGoogle}
@@ -235,6 +234,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                         }}
                         className="w-4 h-4 rounded border-border-tertiary text-blue-600 focus:ring-blue-500"
                       />
+                      <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors whitespace-nowrap">Google Calendar</span>
                     </label>
                   </div>
                 )}
