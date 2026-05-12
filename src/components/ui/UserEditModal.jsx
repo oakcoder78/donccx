@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 import { maskPhoneInput, stripPhone } from '../../lib/formatPhone'
@@ -118,6 +118,14 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
   }
 
   const { isLoading, isConnected, connectGoogleCalendar } = useGoogleCalendarStatus()
+  const wasConnectedRef = useRef(false)
+
+  useEffect(() => {
+    if (isConnected && !wasConnectedRef.current) {
+      wasConnectedRef.current = true
+      toast.success('Google Calendar conectado!')
+    }
+  }, [isConnected])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

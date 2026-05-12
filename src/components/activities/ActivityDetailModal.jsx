@@ -137,7 +137,7 @@ useEffect(() => {
     setSyncing(true)
     try {
       const startISO = buildISO(a.activity_date, time)
-      const endISO = new Date(new Date(startISO).getTime() + 60 * 60 * 1000).toISOString()
+      const endISO = new Date(new Date(startISO).getTime() + 50 * 60 * 1000).toISOString()
 
       const res = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-event`, {
         method: 'POST',
@@ -187,29 +187,6 @@ useEffect(() => {
               <Badge variant={a.status === 'concluida' ? 'green' : isOverdue ? 'red' : 'amber'}>
                 {a.status === 'concluida' ? 'Concluída' : isOverdue ? 'Atrasada' : 'Pendente'}
               </Badge>
-              {isConnected && (
-                a.google_event_id ? (
-                  <a
-                    href={`https://calendar.google.com/calendar/r/eventedit/${a.google_event_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={e => e.stopPropagation()}
-                    className="flex items-center gap-1 px-2 py-0.5 text-xs text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors flex-shrink-0"
-                  >
-                    <Calendar className="w-3.5 h-3.5 text-green-600" />
-                    Sincronizado
-                  </a>
-                ) : (
-                  <button
-                    onClick={() => a.activity_time ? handleSyncToGoogleCalendar(a.activity_time) : setShowTimeConfirm(true)}
-                    disabled={syncing}
-                    className="flex items-center gap-1 px-2 py-0.5 text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 flex-shrink-0"
-                  >
-                    <Calendar className="w-3.5 h-3.5" />
-                    {syncing ? 'Sincronizando...' : 'Sincronizar'}
-                  </button>
-                )
-              )}
             </div>
             <h2 className="text-base font-semibold text-text-primary mt-0.5">{a.title || a.description}</h2>
             <p className="text-xs text-text-tertiary">{a.client?.name} · {formatDate(a.activity_date)}</p>
@@ -386,6 +363,28 @@ useEffect(() => {
               {a.status === 'concluida' ? '↩ Reabrir' : '✓ Concluir'}
             </Button>
             <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>✏ Editar</Button>
+            {isConnected && a.status !== 'concluida' && !a.google_event_id && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => a.activity_time ? handleSyncToGoogleCalendar(a.activity_time) : setShowTimeConfirm(true)}
+                disabled={syncing}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                {syncing ? 'Sincronizando...' : 'Sincronizar'}
+              </Button>
+            )}
+            {a.google_event_id && (
+              <a
+                href={`https://calendar.google.com/calendar/r/eventedit/${a.google_event_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-2 py-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors"
+              >
+                <Calendar className="w-3.5 h-3.5 text-green-600" />
+                Sincronizado
+              </a>
+            )}
           </div>
           <Button variant="danger" size="sm" onClick={handleDelete} disabled={remove.isPending}>Excluir</Button>
         </div>

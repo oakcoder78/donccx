@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronDown } from 'lucide-react'
+import { ChevronRight, ChevronDown, Calendar } from 'lucide-react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useActivityMutations } from '../../hooks/useActivities'
 import { useClients } from '../../hooks/useClients'
 import { useProfiles } from '../../hooks/useProfiles'
 import { useContacts } from '../../hooks/useContacts'
+import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
+import { useSessionToken } from '../../hooks/useSessionToken'
 import AttachmentInput from '../activityAttachments/AttachmentInput'
 import { saveActivityAttachments } from '../../services/activityAttachments/saveActivityAttachments'
 import { getActivityAttachments } from '../../services/activityAttachments/getActivityAttachments'
+import toast from 'react-hot-toast'
+
+const EDGE_FUNCTION_URL = 'https://etfeqblaeuhaobefxilp.supabase.co/functions/v1/google-calendar-event'
 
 const TYPES = [
   { value: 'reuniao', label: 'Reunião' },
@@ -44,6 +49,10 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   const { data: clients = [] } = useClients()
   const { data: profiles = [] } = useProfiles()
   const { data: contacts = [] } = useContacts(form.client_id ? { client_id: Number(form.client_id) } : {})
+  const { isConnected: isGoogleConnected } = useGoogleCalendarStatus()
+  const { token } = useSessionToken()
+  const [syncToGoogle, setSyncToGoogle] = useState(false)
+  const [syncing, setSyncing] = useState(false)
 
   useEffect(() => {
     async function loadExistingAttachments() {
@@ -75,6 +84,51 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       activityResult = await update.mutateAsync({ id: activity.id, ...payload })
     } else {
       activityResult = await create.mutateAsync(payload)
+    }
+
+    if (!isEdit && syncToGoogle && form.activity_time && token) {
+      let activityId
+      if (Array.isArray(activityResult)) {
+        activityId = activityResult[0]?.id
+      } else if (activityResult?.data?.id) {
+        activityId = activityResult.data.id
+      } else if (activityResult?.id) {
+        activityId = activityResult.id
+      }
+
+      if (activityId) {
+        setSyncing(true)
+        try {
+          const [h, m] = form.activity_time.split(':')
+          const startISO = new Date(`${form.activity_date}T${h}:${m}:00`).toISOString()
+
+          const res = await fetch(EDGE_FUNCTION_URL, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              activity_id: activityId,
+              title: form.title || form.description?.slice(0, 100) || 'Atividade',
+              description: form.description,
+              start_iso: startISO,
+              duration_minutes: 50,
+            }),
+          })
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            toast.error(err.error || 'Erro ao sincronizar com Google Calendar')
+          } else {
+            toast.success('Atividade sincronizada com Google Calendar!')
+          }
+        } catch (err) {
+          toast.error('Erro ao sincronizar com Google Calendar')
+        } finally {
+          setSyncing(false)
+        }
+      }
     }
 
     if (attachmentFiles.length > 0) {
@@ -146,14 +200,42 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
                 <div>
                   <label className="label-sm">Data *</label>
                   <input name="activity_date" type="date" value={form.activity_date} onChange={handleChange} required className="input-base w-full h-9" />
                 </div>
+                <div className="flex flex-col items-center gap-1 pb-1">
+                  {isGoogleConnected && (
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <input
+                        type="checkbox"
+                        checked={syncToGoogle}
+                        onChange={e => {
+                          setSyncToGoogle(e.target.checked)
+                          if (e.target.checked && !form.activity_time) {
+                            setForm(prev => ({ ...prev, activity_time: '' }))
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-border-tertiary text-blue-600 focus:ring-blue-500"
+                      />
+                      <Calendar className="w-3.5 h-3.5 text-text-tertiary group-hover:text-blue-600 transition-colors" />
+                      <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors whitespace-nowrap">Google Calendar</span>
+                    </label>
+                  )}
+                </div>
                 <div>
-                  <label className="label-sm">Hora</label>
-                  <input name="activity_time" type="time" value={form.activity_time} onChange={handleChange} className="input-base w-full h-9" />
+                  <label className="label-sm">
+                    Hora{syncToGoogle ? ' *' : ''}
+                  </label>
+                  <input
+                    name="activity_time"
+                    type="time"
+                    value={form.activity_time}
+                    onChange={handleChange}
+                    required={syncToGoogle}
+                    className="input-base w-full h-9"
+                  />
                 </div>
               </div>
             </div>
@@ -281,8 +363,8 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
         {/* Footer */}
         <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-border-tertiary">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button type="submit" disabled={isMutating}>
-            {isMutating ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Atividade'}
+          <Button type="submit" disabled={isMutating || syncing}>
+            {syncing ? 'Sincronizando...' : isMutating ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Atividade'}
           </Button>
         </div>
       </form>
