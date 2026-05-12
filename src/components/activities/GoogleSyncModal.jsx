@@ -15,7 +15,7 @@ export function GoogleSyncModal({ isOpen, activityTitle, activityDate, onConfirm
     <Modal isOpen onClose={onClose} title="Sincronizar com Google Calendar" maxWidth="max-w-xs">
       <div className="space-y-4">
         <p className="text-sm text-text-secondary">
-          Defina a hora de início do evento:
+          {displayTitle}
         </p>
 
         <div>
@@ -27,7 +27,7 @@ export function GoogleSyncModal({ isOpen, activityTitle, activityDate, onConfirm
               onChange={e => setTime(e.target.value)}
               className="input-base w-full"
             />
-            <span className="text-xs text-text-tertiary whitespace-nowrap">Duração: 1h</span>
+            <span className="text-xs text-text-tertiary whitespace-nowrap">Duração: 50 min</span>
           </div>
         </div>
 
