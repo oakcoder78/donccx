@@ -100,7 +100,9 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
         setSyncing(true)
         try {
           const [h, m] = form.activity_time.split(':')
-          const startISO = new Date(`${form.activity_date}T${h}:${m}:00`).toISOString()
+          const startDate = new Date(`${form.activity_date}T${h}:${m}:00`)
+          const startISO = startDate.toISOString()
+          const endISO = new Date(startDate.getTime() + 50 * 60 * 1000).toISOString()
 
           const res = await fetch(EDGE_FUNCTION_URL, {
             method: 'POST',
@@ -109,11 +111,11 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
               'Authorization': `Bearer ${token}`,
             },
             body: JSON.stringify({
-              activity_id: activityId,
-              title: form.title || form.description?.slice(0, 100) || 'Atividade',
+              summary: form.title || form.description?.slice(0, 100) || 'Atividade',
               description: form.description,
-              start_iso: startISO,
-              duration_minutes: 50,
+              start: startISO,
+              end: endISO,
+              linkedActivity: { table: 'activities', id: String(activityId) },
             }),
           })
 
@@ -200,29 +202,10 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-end">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
                 <div>
                   <label className="label-sm">Data *</label>
                   <input name="activity_date" type="date" value={form.activity_date} onChange={handleChange} required className="input-base w-full h-9" />
-                </div>
-                <div className="flex flex-col items-center gap-1 pb-1">
-                  {isGoogleConnected && (
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
-                      <input
-                        type="checkbox"
-                        checked={syncToGoogle}
-                        onChange={e => {
-                          setSyncToGoogle(e.target.checked)
-                          if (e.target.checked && !form.activity_time) {
-                            setForm(prev => ({ ...prev, activity_time: '' }))
-                          }
-                        }}
-                        className="w-4 h-4 rounded border-border-tertiary text-blue-600 focus:ring-blue-500"
-                      />
-                      <Calendar className="w-3.5 h-3.5 text-text-tertiary group-hover:text-blue-600 transition-colors" />
-                      <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors whitespace-nowrap">Google Calendar</span>
-                    </label>
-                  )}
                 </div>
                 <div>
                   <label className="label-sm">
@@ -237,6 +220,25 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                     className="input-base w-full h-9"
                   />
                 </div>
+                {isGoogleConnected && (
+                  <div className="flex items-center justify-end pb-1">
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                      <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors whitespace-nowrap">Google Calendar</span>
+                      <input
+                        type="checkbox"
+                        checked={syncToGoogle}
+                        onChange={e => {
+                          setSyncToGoogle(e.target.checked)
+                          if (e.target.checked && !form.activity_time) {
+                            setForm(prev => ({ ...prev, activity_time: '' }))
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-border-tertiary text-blue-600 focus:ring-blue-500"
+                      />
+                      <Calendar className="w-3.5 h-3.5 text-text-tertiary group-hover:text-blue-600 transition-colors" />
+                    </label>
+                  </div>
+                )}
               </div>
             </div>
 
