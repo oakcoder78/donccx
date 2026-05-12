@@ -22,7 +22,7 @@ export function useGoogleCalendarStatus() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_google_configs')
-        .select('refresh_token, tokenExpiry')
+        .select('refresh_token, tokenexpiry')
         .eq('user_id', user.id)
         .single()
       if (error) throw error
@@ -38,8 +38,8 @@ export function useGoogleCalendarStatus() {
   }, [query.isSuccess, query.data?.refresh_token])
 
   const isConnected = !!(query.data?.refresh_token)
-  const isExpired = query.data?.tokenExpiry
-    ? new Date(query.data.tokenExpiry).getTime() < Date.now()
+  const isExpired = query.data?.tokenexpiry
+    ? new Date(query.data.tokenexpiry).getTime() < Date.now()
     : false
 
   function connectGoogleCalendar() {
