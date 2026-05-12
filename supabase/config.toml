@@ -1,3 +1,9 @@
+[functions.google-calendar-callback]
+verify_jwt = false
+
+[functions.google-calendar-event]
+verify_jwt = false
+
 [functions.freshdesk-proxy]
 verify_jwt = false
 
