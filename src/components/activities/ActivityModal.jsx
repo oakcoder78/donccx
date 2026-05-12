@@ -50,7 +50,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   const { data: profiles = [] } = useProfiles()
   const { data: contacts = [] } = useContacts(form.client_id ? { client_id: Number(form.client_id) } : {})
   const { isConnected: isGoogleConnected } = useGoogleCalendarStatus()
-  const { token } = useSessionToken()
+  const token = useSessionToken()
   const [syncToGoogle, setSyncToGoogle] = useState(false)
   const [syncing, setSyncing] = useState(false)
 
