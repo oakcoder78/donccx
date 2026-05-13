@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronRight, ChevronDown, Calendar } from 'lucide-react'
+import { Icons } from '../../lib/icons'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { useActivityMutations } from '../../hooks/useActivities'
@@ -328,8 +328,8 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                 <div className="text-[11px] text-text-tertiary">Notas e anexos da atividade</div>
               </div>
               {showDrawer
-                ? <ChevronDown size={16} className="text-text-tertiary flex-shrink-0" />
-                : <ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
+                ? <Icons.ChevronDown size={16} className="text-text-tertiary flex-shrink-0" />
+                : <Icons.ChevronRight size={16} className="text-text-tertiary flex-shrink-0" />
               }
             </button>
           </div>
