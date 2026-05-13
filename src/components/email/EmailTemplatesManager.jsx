@@ -3,11 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import { SettingsSectionHeader } from '../settings/SettingsSectionHeader'
-import { Mail, Plus, X, Pencil, Trash2, ArrowLeft, Image } from 'lucide-react'
 
 // ─── Example values used in template preview ─────────────────────────────────
 const PREVIEW_VARS = {
@@ -69,7 +68,7 @@ function TemplateList({ templates, onEdit, onDelete, deletingId, onNew, isAdmin 
             <p className="mb-3">Nenhum template cadastrado.</p>
             {isAdmin && (
               <Button size="sm" onClick={onNew}>
-                <Plus className="w-3.5 h-3.5" />
+                <Icons.Plus className="w-3.5 h-3.5" />
                 Criar primeiro template
               </Button>
             )}
@@ -125,7 +124,7 @@ function TemplateList({ templates, onEdit, onDelete, deletingId, onNew, isAdmin 
                         title="Editar"
                         className="p-1 text-text-secondary hover:text-donc-sky rounded"
                       >
-                        <Pencil size={14} />
+                        <Icons.Pencil size={14} />
                       </button>
                       <button
                         onClick={() => onDelete(item)}
@@ -133,7 +132,7 @@ function TemplateList({ templates, onEdit, onDelete, deletingId, onNew, isAdmin 
                         title="Excluir"
                         className="p-1 text-text-secondary hover:text-red-500 rounded disabled:opacity-40"
                       >
-                        {deletingId === item.id ? '...' : <Trash2 size={14} />}
+                        {deletingId === item.id ? '...' : <Icons.Trash2 size={14} />}
                       </button>
                     </div>
                   </td>
@@ -287,7 +286,7 @@ function TemplateEditor({ template, onSave, onCancel, saving }) {
                 {`{{${v}}}`}
               </button>
               <button onClick={() => removeVar(v)} className="text-text-tertiary hover:text-red-500 ml-0.5">
-                <X className="w-3 h-3" />
+                <Icons.X className="w-3 h-3" />
               </button>
             </div>
           ))}
@@ -301,7 +300,7 @@ function TemplateEditor({ template, onSave, onCancel, saving }) {
             className="flex-1 px-2 py-1 border border-border-tertiary rounded text-xs bg-bg-primary text-text-primary outline-none focus:border-donc-sky font-mono"
           />
           <Button variant="secondary" size="xs" onClick={addVar}>
-            <Plus className="w-3 h-3" />
+            <Icons.Plus className="w-3 h-3" />
           </Button>
         </div>
       </div>
@@ -319,7 +318,7 @@ function TemplateEditor({ template, onSave, onCancel, saving }) {
               onChange={handleImageUpload}
             />
             <Button variant="secondary" size="xs" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-              <Image className="w-3.5 h-3.5" />
+              <Icons.Image className="w-3.5 h-3.5" />
               {uploading ? 'Enviando...' : 'Inserir imagem'}
             </Button>
             <Button variant="secondary" size="xs" onClick={() => setShowPreview(p => !p)}>
@@ -437,7 +436,7 @@ export function EmailTemplatesManager() {
     <div className="max-w-6xl space-y-4">
 
       <SettingsSectionHeader
-        icon={SettingsMenuIcons['email-templates'] || Mail}
+        icon={Icons.Mail}
         title={view === 'editor' ? editorTitle : 'Templates de E-mail'}
         subtitle={view === 'editor'
           ? null
@@ -445,7 +444,7 @@ export function EmailTemplatesManager() {
         actions={
           view === 'list' && isAdmin && (
             <Button size="sm" onClick={handleNew}>
-              <Plus className="w-3.5 h-3.5" />
+              <Icons.Plus className="w-3.5 h-3.5" />
               Novo Template
             </Button>
           )
@@ -453,7 +452,7 @@ export function EmailTemplatesManager() {
         backAction={
           view === 'editor' ? (
             <Button variant="secondary" size="sm" onClick={handleCancel}>
-              <ArrowLeft className="w-3.5 h-3.5" />
+              <Icons.ArrowLeft className="w-3.5 h-3.5" />
               Voltar para lista
             </Button>
           ) : undefined

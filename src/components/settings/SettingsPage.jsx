@@ -14,7 +14,26 @@ import { SettingsFeatureFlags } from './SettingsFeatureFlags'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFeatureFlags } from '../../hooks/useFeatureFlags'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
+
+const SETTINGS_MENU_ICONS = {
+  'minha-conta': Icons.User,
+  health: Icons.Heart,
+  catalog: Icons.Package,
+  segments: Icons.Tag,
+  stages: Icons.RefreshCw,
+  users: Icons.Users,
+  logs: Icons.ClipboardList,
+  freshdesk: Icons.Headphones,
+  donkie: Icons.Bot,
+  ai: Icons.Sparkles,
+  'donc-api': Icons.Plug,
+  features: Icons.Flag,
+  'fase-types': Icons.FolderKanban,
+  'activity-types': Icons.Activity,
+  'email-templates': Icons.Mail,
+  default: Icons.Settings,
+}
 
 import { SettingsFaseTypes } from './SettingsFaseTypes'
 import { SettingsActivityTypes } from './SettingsActivityTypes'
@@ -109,7 +128,7 @@ export default function SettingsPage() {
               </p>
               <div className="space-y-0.5">
                 {group.items.map(item => {
-                  const MenuIcon = SettingsMenuIcons[item.key] || SettingsMenuIcons['default']
+                  const MenuIcon = SETTINGS_MENU_ICONS[item.key] || Icons.Settings
                   return (
                     <button
                       key={item.key}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabaseClient'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { Button } from '../ui/Button'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
@@ -69,7 +69,7 @@ export function SettingsDonkie() {
   return (
     <div className="max-w-2xl space-y-6">
       <SettingsSectionHeader
-        icon={SettingsMenuIcons['donkie']}
+        icon={Icons.Bot}
         title="Donkie — Assistente IA"
         subtitle="Configure o comportamento e a personalidade do Donkie. As alterações entram em vigor imediatamente para todos os usuários."
       />

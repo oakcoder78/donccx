@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { ActionIcons, ActivityIcons } from '../../../lib/icons'
+import { Icons } from '../../../lib/icons'
 import { Avatar } from '../../ui/Avatar'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
@@ -76,7 +76,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
               onClick={e => e.stopPropagation()}
               className="text-xs text-text-secondary hover:text-donc-sky transition-colors truncate max-w-[180px] flex items-center gap-1"
             >
-              <ActionIcons.email className="w-3 h-3 flex-shrink-0" /> {c.email}
+              <Icons.Mail className="w-3 h-3 flex-shrink-0" /> {c.email}
             </a>
           )}
           {wp && (
@@ -85,7 +85,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
               onClick={e => e.stopPropagation()}
               className="text-xs text-text-secondary hover:text-donc-verde transition-colors flex items-center gap-1"
             >
-              <ActivityIcons.whatsapp className="w-3 h-3 flex-shrink-0" /> {formatPhone(wp.number)}
+              <Icons.MessageCircle className="w-3 h-3 flex-shrink-0" /> {formatPhone(wp.number)}
             </a>
           )}
         </div>
@@ -99,7 +99,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
             className="p-1.5 rounded-md bg-green-50 hover:bg-green-100 text-green-700 transition-colors"
             title="WhatsApp"
           >
-            <ActivityIcons.whatsapp className="w-4 h-4" />
+            <Icons.MessageCircle className="w-4 h-4" />
           </a>
         )}
         {c.email && (
@@ -107,7 +107,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
             className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
             title="E-mail"
           >
-            <ActionIcons.email className="w-4 h-4" />
+            <Icons.Mail className="w-4 h-4" />
           </a>
         )}
         <button
@@ -115,14 +115,14 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
           className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
           title="Editar"
         >
-          <ActionIcons.edit className="w-4 h-4" />
+          <Icons.Pencil className="w-4 h-4" />
         </button>
         <button
           onClick={() => onUnlink(link.id)}
           className="p-1.5 rounded-md hover:bg-red-50 text-text-tertiary hover:text-donc-red transition-colors"
           title="Desvincular"
         >
-          <ActionIcons.remove className="w-4 h-4" />
+          <Icons.X className="w-4 h-4" />
         </button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
@@ -24,7 +24,7 @@ const FLAG_GROUPS = {
 }
 
 export function SettingsFeatureFlags() {
-  const FeaturesIcon = SettingsMenuIcons['features']
+  const FeaturesIcon = Icons.Flag
   const qc = useQueryClient()
 
   const { data: flags = [], isLoading } = useQuery({

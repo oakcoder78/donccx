@@ -6,7 +6,17 @@ import { Card } from '../../ui/Card'
 import { Badge } from '../../ui/Badge'
 import { Avatar } from '../../ui/Avatar'
 import { Button } from '../../ui/Button'
-import { ActivityIcons, DefaultActivityIcon, HealthDimensionIcons, ActionIcons } from '../../../lib/icons'
+import { Icons } from '../../../lib/icons'
+
+const ACTIVITY_ICONS = {
+  reuniao: Icons.Calendar,
+  ligacao: Icons.Phone,
+  email: Icons.Mail,
+  whatsapp: Icons.MessageCircle,
+  tarefa: Icons.CheckSquare,
+  nota: Icons.FileText,
+  relatorio: Icons.FileText,
+}
 import { syncClient } from '../../../lib/clientSync'
 import { TemperaturaCSM } from '../TemperaturaCSM'
 import { useCatalog } from '../../../hooks/useCatalog'
@@ -461,7 +471,7 @@ export function ClientTabOverview({ client }) {
               {syncing
                 ? 'Sincronizando...'
                 : <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <ActionIcons.recalculate style={{ width: 13, height: 13 }} /> Sincronizar
+                    <Icons.RefreshCw style={{ width: 13, height: 13 }} /> Sincronizar
                   </span>
               }
             </Button>
@@ -620,7 +630,7 @@ export function ClientTabOverview({ client }) {
               <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Próxima atividade</div>
               {nextActivity ? (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  {(() => { const Icon = ActivityIcons[nextActivity.type] || DefaultActivityIcon; return <Icon style={{ width: 15, height: 15, color: '#4a4a46', marginTop: 1, flexShrink: 0 }} strokeWidth={1.8} /> })()}
+                  {(() => { const Icon = ACTIVITY_ICONS[nextActivity.type] || Icons.FileText; return <Icon style={{ width: 15, height: 15, color: '#4a4a46', marginTop: 1, flexShrink: 0 }} strokeWidth={1.8} /> })()}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18' }}>{nextActivity.title || nextActivity.description}</div>
                     <div style={{ fontSize: 11, color: '#888780' }}>{formatDate(nextActivity.due_date)}</div>
@@ -634,7 +644,7 @@ export function ClientTabOverview({ client }) {
               <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Última interação</div>
               {lastActivity ? (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  {(() => { const Icon = ActivityIcons[lastActivity.type] || DefaultActivityIcon; return <Icon style={{ width: 15, height: 15, color: '#4a4a46', marginTop: 1, flexShrink: 0 }} strokeWidth={1.8} /> })()}
+                  {(() => { const Icon = ACTIVITY_ICONS[lastActivity.type] || Icons.FileText; return <Icon style={{ width: 15, height: 15, color: '#4a4a46', marginTop: 1, flexShrink: 0 }} strokeWidth={1.8} /> })()}
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 500, color: '#1a1a18' }}>{lastActivity.title || lastActivity.description}</div>
                     <div style={{ fontSize: 11, color: '#888780' }}>{formatDate(lastActivity.activity_date)} · {lastActivity.responsible?.name}</div>

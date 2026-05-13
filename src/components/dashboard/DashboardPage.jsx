@@ -9,7 +9,15 @@ import { useProfiles } from '../../hooks/useProfiles'
 import { useAuth } from '../../contexts/AuthContext'
 import { useGreeting, GREETING_DEBUG } from '../../lib/greeting-engine'
 import { ActivityDetailModal } from '../activities/ActivityDetailModal'
-import { HealthDimensionIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
+
+const HEALTH_ICONS = {
+  health_uso: Icons.BarChart3,
+  health_suporte: Icons.Target,
+  health_relacionamento: Icons.Handshake,
+  health_financeiro: Icons.Wallet,
+  health_projeto: Icons.Rocket,
+}
 
 // ─── Color tokens ─────────────────────────────────────────────────────────────
 const C = {
@@ -1466,7 +1474,7 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
                   {dimHealth.map(d => {
                     const pct = d.total > 0 ? Math.round((d.ok / d.total) * 100) : 0
-                    const DimIcon = HealthDimensionIcons[d.iconKey]
+                    const DimIcon = HEALTH_ICONS[d.iconKey]
                     const isAlert = d.alert > 0
                     return (
                       <div key={d.key} style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

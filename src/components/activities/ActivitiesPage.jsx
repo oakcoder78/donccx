@@ -8,7 +8,26 @@ import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ActivityModal } from './ActivityModal'
 import { ActivityDetailModal } from './ActivityDetailModal'
-import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon, ActionIcons } from "../../lib/icons";
+import { Icons } from "../../lib/icons"
+
+const ACTIVITY_ICONS = {
+  reuniao: Icons.Calendar,
+  ligacao: Icons.Phone,
+  email: Icons.Mail,
+  whatsapp: Icons.MessageCircle,
+  tarefa: Icons.CheckSquare,
+  nota: Icons.FileText,
+  relatorio: Icons.FileText,
+}
+const ACTIVITY_BG = {
+  reuniao: '#E6F1FB',
+  ligacao: '#FAEEDA',
+  email: '#EAF3DE',
+  whatsapp: '#E6F9EC',
+  tarefa: '#EEEDFE',
+  nota: '#F5F5F3',
+  relatorio: '#E8EEF7',
+}
 
 function getLocalDateString() {
   return new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000)
@@ -164,7 +183,7 @@ export default function ActivitiesPage() {
         />
 
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none">
-          <ActionIcons.search className="w-4 h-4" />
+          <Icons.Search className="w-4 h-4" />
         </span>
       </div>
 
@@ -297,7 +316,7 @@ function ActivityItem({ activity: a, onClick }) {
     a.status !== 'concluida' &&
     a.due_date < today
 
-  const Icon = ActivityIcons[a.type] || DefaultActivityIcon
+  const Icon = ACTIVITY_ICONS[a.type] || Icons.FileText
 
   return (
     <div
@@ -307,7 +326,7 @@ function ActivityItem({ activity: a, onClick }) {
 
       <div
         className="w-8 h-8 rounded-md flex items-center justify-center text-base flex-shrink-0 mt-0.5"
-        style={{ backgroundColor: ActivityIconBackgrounds[a.type] }}
+        style={{ backgroundColor: ACTIVITY_BG[a.type] }}
       >
 
         <Icon
@@ -353,7 +372,7 @@ function ActivityItem({ activity: a, onClick }) {
 
         {a.activity_attachments?.length > 0 && (
           <span className="text-xs text-text-tertiary flex items-center gap-0.5">
-            <ActionIcons.attachment className="w-3 h-3" /> {a.activity_attachments.length}
+            <Icons.Paperclip className="w-3 h-3" /> {a.activity_attachments.length}
           </span>
         )}
 

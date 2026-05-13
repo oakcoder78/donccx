@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Badge } from '../ui/Badge'
 import { useBriefResponses } from '../../hooks/useBrief'
-import { BriefIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 
 const STATUS_CONFIG = {
   draft: { bg: '#e2e8f0', color: '#475569', label: 'Rascunho' },
@@ -167,7 +167,7 @@ export function BriefResponsesModal({ instance, onClose }) {
                   rel="noopener noreferrer"
                   style={{ fontSize: 13, color: '#0a6a96', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#f7fafc', borderRadius: 6, textDecoration: 'none' }}
                 >
-                  <BriefIcons.activity size={14} />
+                  <Icons.ClipboardList size={14} />
                   {att.file_name}
                 </a>
               ))}

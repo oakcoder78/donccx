@@ -4,7 +4,7 @@ import {
   Tooltip, Legend, Filler
 } from 'chart.js'
 import { useClientSupport, useClientSupportMutations } from '../../../../hooks/useClient'
-import { ActionIcons } from "../../../../lib/icons"
+import { Icons } from "../../../../lib/icons"
 import { calcSupportPercentages } from '../../../../lib/supportUtils'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
@@ -124,7 +124,7 @@ export function ClientSubSuporte({ client, onEdit }) {
                           className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
                           title="Editar"
                         >
-                          <ActionIcons.edit className="w-4 h-4" />
+                          <Icons.Pencil className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(u)}
@@ -132,7 +132,7 @@ export function ClientSubSuporte({ client, onEdit }) {
                           className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-red transition-colors"
                           title="Excluir"
                         >
-                          <ActionIcons.delete className="w-4 h-4" />
+                          <Icons.Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </td>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
@@ -181,8 +181,8 @@ function ClientBlock({ client, instances, onSave, onRemove }) {
 
 // ── Componente principal ───────────────────────────────────────────────────────
 export function SettingsDoncAPI() {
-  const APIIcon = SettingsMenuIcons['donc-api']
-  const LogsIcon = SettingsMenuIcons['logs']
+  const APIIcon = Icons.Plug
+  const LogsIcon = Icons.ClipboardList
   const navigate = useNavigate()
 
   // ── Instâncias ─────────────────────────────────────────────────────────────

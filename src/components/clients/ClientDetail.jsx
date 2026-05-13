@@ -14,7 +14,7 @@ import { ClientTabHealth } from './tabs/ClientTabHealth'
 import { ClientTabContatos } from './tabs/ClientTabContatos'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { EmailComposerModal } from '../email/EmailComposerModal'
-import { ActionIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },
@@ -72,7 +72,7 @@ export default function ClientDetail() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => setShowEmail(true)}>
-            <ActionIcons.email className="w-3.5 h-3.5" />
+            <Icons.Mail className="w-3.5 h-3.5" />
             Enviar e-mail
           </Button>
           <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
