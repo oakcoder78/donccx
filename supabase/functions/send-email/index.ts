@@ -91,7 +91,7 @@ serve(async (req) => {
 
     // ── Fetch sender profile ──────────────────────────────────────────────────
     const profileRes = await fetch(
-      `${sbUrl}/rest/v1/profiles?id=eq.${sent_by}&select=name,email,role`,
+      `${sbUrl}/rest/v1/profiles?id=eq.${sent_by}&select=name,email,role,cargo,phone`,
       { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
     )
     const profileRows = await profileRes.json()
