@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
+import { saveBriefAttachment, deleteBriefAttachment } from '../services/briefAttachments/saveBriefAttachment'
 
 const NAVY = '#173557'
 const LIME  = '#d3da47'
@@ -206,6 +207,7 @@ export default function BriefPublicPage() {
   const [session,  setSession]  = useState(stored)   // { email, contact_name, client_name, instance }
   const [instance, setInstance] = useState(null)
   const [responses, setResponses] = useState({})     // { questionId: text }
+  const [attachments, setAttachments] = useState({}) // { questionId: [{ id, file_name, file_size, ... }] }
   const [readOnly,  setReadOnly]  = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
   const [saveStatus, setSaveStatus] = useState({})   // { qId: 'saving'|'saved'|'error' }
@@ -213,6 +215,7 @@ export default function BriefPublicPage() {
   const [completing, setCompleting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [uploadingFor, setUploadingFor] = useState(null) // question_id currently uploading
 
   const debounceRef = useRef({})
 
@@ -224,12 +227,19 @@ export default function BriefPublicPage() {
       const inst = data.instance
       setInstance(inst)
 
-      // Map saved responses
       const resMap = {}
       for (const r of (data.responses || [])) {
         resMap[r.question_id] = r.response_text || ''
       }
       setResponses(resMap)
+
+      const attMap = {}
+      for (const a of (data.attachments || [])) {
+        const qid = a.question_id || '__general__'
+        if (!attMap[qid]) attMap[qid] = []
+        attMap[qid].push(a)
+      }
+      setAttachments(attMap)
 
       setReadOnly(inst.status === 'completed')
       setPhase(inst.status === 'completed' ? 'form' : 'form')
@@ -292,6 +302,47 @@ export default function BriefPublicPage() {
         setSaveStatus(prev => ({ ...prev, [qId]: 'error' }))
       }
     }, 1500)
+  }
+
+  async function handleUpload(qId, file) {
+    if (readOnly) return
+    setUploadingFor(qId)
+    try {
+      const result = await saveBriefAttachment({
+        token,
+        email: session.email,
+        questionId: qId,
+        file,
+        instanceId: instance.id,
+      })
+      if (!result.success) {
+        alert(result.error || 'Erro ao enviar anexo')
+        return
+      }
+      setAttachments(prev => {
+        const key = qId || '__general__'
+        const existing = prev[key] || []
+        return { ...prev, [key]: [...existing, result] }
+      })
+    } catch (err) {
+      alert(err.message || 'Erro ao enviar anexo')
+    } finally {
+      setUploadingFor(null)
+    }
+  }
+
+  async function handleDeleteAttachment(qId, attachmentId) {
+    if (readOnly) return
+    try {
+      await deleteBriefAttachment({ token, email: session.email, attachmentId })
+      setAttachments(prev => {
+        const key = qId || '__general__'
+        const filtered = (prev[key] || []).filter(a => a.id !== attachmentId)
+        return { ...prev, [key]: filtered }
+      })
+    } catch (err) {
+      alert(err.message || 'Erro ao remover anexo')
+    }
   }
 
   // ── Complete brief ──────────────────────────────────────────────────────────
@@ -638,6 +689,10 @@ export default function BriefPublicPage() {
                         onChange={v => handleResponseChange(q.id, v)}
                         saveStatus={saveStatus[q.id]}
                         readOnly={readOnly}
+                        attachments={(attachments[q.id] || []).concat(attachments['__general__'] || [])}
+                        onUpload={file => handleUpload(q.id, file)}
+                        onDelete={attachmentId => handleDeleteAttachment(q.id, attachmentId)}
+                        isUploading={uploadingFor === q.id}
                       />
                     ))
                   }
@@ -752,8 +807,21 @@ export default function BriefPublicPage() {
 }
 
 // ── Question field component ──────────────────────────────────────────────────
-function QuestionField({ question, value, onChange, saveStatus, readOnly }) {
-  const { text, type, required, note } = question
+function QuestionField({ question, value, onChange, saveStatus, readOnly, attachments, onUpload, onDelete, isUploading }) {
+  const { text, type, required, note, allow_attachment } = question
+  const fileInputRef = useRef(null)
+  const [dragOver, setDragOver] = useState(false)
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  function handleFile(file) {
+    if (!file) return
+    onUpload(file)
+  }
 
   return (
     <div>
@@ -806,6 +874,89 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly }) {
           onFocus={e  => !readOnly && (e.target.style.borderColor = SKY)}
           onBlur={e   => (e.target.style.borderColor = '#e2e8f0')}
         />
+      )}
+
+      {/* Attachment area */}
+      {allow_attachment && (
+        <div style={{ marginTop: 12 }}>
+          {/* Existing attachments */}
+          {attachments.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+              {attachments.map((att, idx) => (
+                <div
+                  key={att.id || idx}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px',
+                    background: '#f8fafc', border: '1px solid #e2e8f0',
+                    borderRadius: 8, fontSize: 13,
+                  }}
+                >
+                  <span style={{ flex: 1, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {att.file_name}
+                  </span>
+                  <span style={{ color: '#94a3b8', fontSize: 11, flexShrink: 0 }}>
+                    {formatBytes(att.file_size)}
+                  </span>
+                  {!readOnly && (
+                    <button
+                      onClick={() => onDelete(att.id)}
+                      style={{
+                        width: 22, height: 22, borderRadius: '50%',
+                        background: '#fee2e2', border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, fontSize: 14, color: '#ef4444',
+                        lineHeight: 1,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Upload button / drop zone */}
+          {!readOnly && (
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.zip"
+              style={{ display: 'none' }}
+              onChange={e => handleFile(e.target.files[0])}
+            />
+          )}
+          {!readOnly && (
+            <div
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => {
+                e.preventDefault()
+                setDragOver(false)
+                const file = e.dataTransfer.files[0]
+                handleFile(file)
+              }}
+              style={{
+                border: `2px dashed ${dragOver ? SKY : '#cbd5e1'}`,
+                borderRadius: 9, padding: '14px 16px', textAlign: 'center',
+                background: dragOver ? 'rgba(89,194,237,0.06)' : '#fafafa',
+                cursor: isUploading ? 'not-allowed' : 'pointer',
+                transition: 'all .15s',
+              }}
+            >
+              {isUploading ? (
+                <div style={{ fontSize: 12, color: '#94a3b8' }}>Enviando…</div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#64748b' }}>
+                  <span style={{ fontWeight: 600, color: NAVY }}>Clique para anexar</span>
+                  {' '}ou arraste o arquivo · máx. 10MB
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )
