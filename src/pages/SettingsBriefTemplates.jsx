@@ -185,7 +185,7 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
                       />
                       <button onClick={() => removeQuestion(secIdx, qIdx)} className="text-xs text-red-500">✕</button>
                     </div>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex gap-3 mt-1 items-center">
                       <select
                         value={q.type}
                         onChange={e => updateQuestion(secIdx, qIdx, 'type', e.target.value)}
@@ -194,13 +194,19 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
                         <option value="text">Texto curto</option>
                         <option value="textarea">Texto longo</option>
                       </select>
-                      <label className="flex items-center gap-1 text-xs text-text-secondary">
-                        <input
-                          type="checkbox"
+                      <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+                        <span>Obrigatória</span>
+                        <Toggle
                           checked={q.required}
-                          onChange={e => updateQuestion(secIdx, qIdx, 'required', e.target.checked)}
+                          onChange={v => updateQuestion(secIdx, qIdx, 'required', v)}
                         />
-                        Obrigatória
+                      </label>
+                      <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+                        <span>Anexo</span>
+                        <Toggle
+                          checked={q.allow_attachment ?? false}
+                          onChange={v => updateQuestion(secIdx, qIdx, 'allow_attachment', v)}
+                        />
                       </label>
                     </div>
                   </div>
