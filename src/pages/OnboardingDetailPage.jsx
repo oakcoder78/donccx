@@ -863,7 +863,7 @@ async function handleComplete() {
           <BriefPanel
             faseId={fase.id}
             clientId={clientId}
-            clientName={client?.fantasy_name || client?.name || ''}
+            clientName={onboarding?.client?.fantasy_name || onboarding?.client?.name || ''}
             faseName={phaseName(fase)}
           />
 
