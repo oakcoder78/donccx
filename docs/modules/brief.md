@@ -11,9 +11,9 @@ Questionário de discovery vinculado a uma fase de onboarding. O CSM cria uma in
 ```
 brief_templates (uuid PK)
     └── brief_instances (uuid PK)
-            ├── client_id  → clients.id (integer)
-            ├── fase_id    → onboarding_fases.id (integer)
-            ├── template_id → brief_templates.id (uuid, nullable)
+            ├── client_id    → clients.id (integer)
+            ├── onboarding_id → onboardings.id (integer)
+            ├── template_id  → brief_templates.id (uuid, nullable)
             ├── brief_responses (uuid PK)
             │       └── instance_id → brief_instances.id
             └── brief_attachments (uuid PK)
@@ -35,10 +35,10 @@ brief_templates (uuid PK)
 |---|---|---|
 | id | uuid | PK |
 | client_id | integer | FK → clients |
-| fase_id | integer | FK → onboarding_fases |
+| onboarding_id | integer | FK → onboardings |
 | template_id | uuid | FK → brief_templates (nullable — template pode ser excluído) |
 | structure_snapshot | jsonb | Cópia congelada do template na criação |
-| status | text | `draft \| sent \| in_progress \| completed \| archived` |
+| status | text | `draft | sent | in_progress | completed | archived` |
 | access_token | uuid | Token de acesso público único |
 | public_expires_at | timestamptz | Expiração do link (null = sem expiração) |
 | sent_at / completed_at | timestamptz | Timestamps de ciclo de vida |
@@ -108,7 +108,7 @@ Cliente finaliza
     → atividade registrada no cliente (activity_type: 'brief')
 
 CSM visualiza dentro de OnboardingDetailPage
-    → lê brief_instances filtrado por fase_id
+    → lê brief_instances filtrado por onboarding_id
     → lê brief_responses + brief_attachments
 ```
 

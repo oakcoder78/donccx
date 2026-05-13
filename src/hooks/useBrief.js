@@ -2,17 +2,17 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
-export function useBrief(faseId, clientId) {
+export function useBrief(onboardingId, clientId) {
   const qc = useQueryClient()
 
   const briefInstances = useQuery({
-    queryKey: ['brief_instances', faseId],
-    enabled: !!faseId,
+    queryKey: ['brief_instances', onboardingId],
+    enabled: !!onboardingId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brief_instances')
         .select('*')
-        .eq('fase_id', faseId)
+        .eq('onboarding_id', onboardingId)
         .order('created_at', { ascending: false })
       if (error) {
         console.error('[useBrief] brief_instances error:', error)
@@ -39,14 +39,14 @@ export function useBrief(faseId, clientId) {
   })
 
   const createBrief = useMutation({
-    mutationFn: async ({ fase_id, client_id, template_id, title }) => {
+    mutationFn: async ({ onboarding_id, client_id, template_id, title }) => {
       const template = briefTemplates.data?.find(t => t.id === template_id)
       if (!template) throw new Error('Template não encontrado')
 
       const { data, error } = await supabase
         .from('brief_instances')
         .insert({
-          fase_id,
+          onboarding_id,
           client_id,
           template_id,
           title,
@@ -60,7 +60,7 @@ export function useBrief(faseId, clientId) {
       return data
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['brief_instances', faseId] })
+      qc.invalidateQueries({ queryKey: ['brief_instances', onboardingId] })
       toast.success('Brief criado com sucesso')
     },
     onError: (e) => {
@@ -85,7 +85,7 @@ export function useBrief(faseId, clientId) {
       if (error) throw error
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['brief_instances', faseId] })
+      qc.invalidateQueries({ queryKey: ['brief_instances', onboardingId] })
       toast.success('Status atualizado')
     },
     onError: (e) => {

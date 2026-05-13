@@ -861,7 +861,7 @@ async function handleComplete() {
 
           {/* Brief de Discovery */}
           <BriefPanel
-            faseId={fase.id}
+            onboardingId={onboardingId}
             clientId={clientId}
             clientName={onboarding?.client?.fantasy_name || onboarding?.client?.name || ''}
             faseName={phaseName(fase)}

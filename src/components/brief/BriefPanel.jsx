@@ -27,12 +27,12 @@ function calcProgress(instance, responses) {
   return { answered, total }
 }
 
-export function BriefPanel({ faseId, clientId, clientName, faseName }) {
+export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
   const [showCreate, setShowCreate] = useState(false)
   const [showResponses, setShowResponses] = useState(false)
   const [selectedInstance, setSelectedInstance] = useState(null)
 
-  const { briefInstances, briefTemplates, createBrief, updateBriefStatus, copyPublicLink, isLoading } = useBrief(faseId, clientId)
+  const { briefInstances, briefTemplates, createBrief, updateBriefStatus, copyPublicLink, isLoading } = useBrief(onboardingId, clientId)
 
   const instance = briefInstances[0]
 
@@ -123,7 +123,7 @@ export function BriefPanel({ faseId, clientId, clientName, faseName }) {
 
       {showCreate && (
         <BriefCreateModal
-          faseId={faseId}
+          onboardingId={onboardingId}
           clientId={clientId}
           clientName={clientName}
           faseName={faseName}
