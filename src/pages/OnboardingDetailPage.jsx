@@ -33,7 +33,7 @@ const S = {
   btnPrimary:    { background: '#173557', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' },
   btnPrimarySm:  { background: '#173557', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' },
   btnPrimarySmDis: { background: '#aaa9a3', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'not-allowed', fontFamily: 'inherit' },
-  btnSec:   { background: '#fff', color: '#173557', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' },
+btnSec: { background: '#fff', color: '#173557', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', minWidth: 110, width: 'auto' },
   btnSecSm: { background: '#fff', color: '#173557', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' },
   btnLink: { background: 'transparent', border: 'none', padding: 0, color: '#0a6a96', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' },
   btnBack: { background: 'transparent', border: 'none', padding: 0, color: 'rgba(23,53,87,0.7)', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 },
@@ -416,6 +416,8 @@ function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
           alignItems: 'center',
           gap: 6,
           opacity: isLoading ? 0.7 : 1,
+          minWidth: 110,
+          width: 'auto',
         }}
       >
         {isLoading ? (
@@ -1759,9 +1761,21 @@ export default function OnboardingDetailPage() {
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
               <BriefHeaderButton onboardingId={onboardingId} clientId={clientId} clientName={clientName} />
-              <button style={S.btnSec} onClick={() => setEditModalOpen(true)}>Editar projeto</button>
+              <button style={{ ...S.btnSec, minWidth: 110, width: 'auto' }} onClick={() => setEditModalOpen(true)}>Editar projeto</button>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${project.title}"? Esta ação não pode ser desfeita.`)) return
+                    deleteProject.mutate({ id: project.id, onboarding_id: project.onboarding_id, title: project.title })
+                  }}
+                  title="Excluir projeto"
+                  style={S.iconBtn}
+                >
+                  <Icons.Trash2 size={14} color="#c44" />
+                </button>
+              )}
             </div>
           </div>
 
