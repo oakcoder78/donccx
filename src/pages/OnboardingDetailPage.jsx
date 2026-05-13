@@ -403,28 +403,27 @@ function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
         onClick={handleClick}
         disabled={isLoading}
         style={{
-          ...S.btnSec,
+          background: instance ? '#0a6a96' : '#173557',
+          color: '#fff',
+          border: 'none',
+          borderRadius: 8,
+          padding: '9px 16px',
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: isLoading ? 'not-allowed' : 'pointer',
+          fontFamily: 'inherit',
           display: 'flex',
           alignItems: 'center',
           gap: 6,
-          background: instance ? 'rgba(89,194,237,0.08)' : 'transparent',
+          opacity: isLoading ? 0.7 : 1,
         }}
       >
         {isLoading ? (
           <span style={{ fontSize: 12 }}>...</span>
         ) : instance ? (
           <>
-            <Icons.ClipboardList size={14} />
-            <span>Brief</span>
-            <span style={{
-              fontSize: 10,
-              padding: '1px 6px',
-              borderRadius: 999,
-              background: STATUS_CONFIG[instance.status]?.bg,
-              color: STATUS_CONFIG[instance.status]?.color,
-            }}>
-              {instance.status === 'draft' ? 'Rascunho' : instance.status === 'sent' ? 'Enviado' : instance.status === 'in_progress' ? 'Em progresso' : 'Concluído'}
-            </span>
+            <Icons.Pencil size={14} />
+            <span>Editar Brief</span>
           </>
         ) : (
           <>
@@ -1761,17 +1760,7 @@ export default function OnboardingDetailPage() {
               )}
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-              {isAdmin && (
-                <button
-                  style={{ ...S.btnSec, color: '#b42828', borderColor: 'rgba(180,40,40,0.25)' }}
-                  onClick={() => {
-                    if (!window.confirm(`Tem certeza que deseja excluir o projeto "${project.title}"? Esta ação não pode ser desfeita.`)) return
-                    deleteProject.mutate({ id: project.id, onboarding_id: project.onboarding_id, title: project.title })
-                  }}
-                >
-                  Excluir projeto
-                </button>
-              )}
+              <BriefHeaderButton onboardingId={onboardingId} clientId={clientId} clientName={clientName} />
               <button style={S.btnSec} onClick={() => setEditModalOpen(true)}>Editar projeto</button>
             </div>
           </div>
