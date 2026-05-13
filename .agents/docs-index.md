@@ -76,6 +76,7 @@ Available Modules:
 
 - activities
 - activity-attachments
+- brief
 - clients
 - contexts
 - donkie
