@@ -208,6 +208,7 @@ export default function BriefPublicPage() {
   const [instance, setInstance] = useState(null)
   const [responses, setResponses] = useState({})     // { questionId: text }
   const [attachments, setAttachments] = useState({}) // { questionId: [{ id, file_name, file_size, ... }] }
+  const [attachmentUrls, setAttachmentUrls] = useState({}) // { [id]: signedUrl }
   const [readOnly,  setReadOnly]  = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
   const [saveStatus, setSaveStatus] = useState({})   // { qId: 'saving'|'saved'|'error' }
@@ -234,12 +235,31 @@ export default function BriefPublicPage() {
       setResponses(resMap)
 
       const attMap = {}
+      const allAttachments = []
       for (const a of (data.attachments || [])) {
         const qid = a.question_id || '__general__'
         if (!attMap[qid]) attMap[qid] = []
         attMap[qid].push(a)
+        allAttachments.push(a)
       }
       setAttachments(attMap)
+
+      // Fetch signed URLs for all attachments
+      if (allAttachments.length > 0) {
+        const paths = allAttachments.map(a => a.storage_path).filter(Boolean)
+        try {
+          const urlData = await callBrief({ action: 'get_attachment_urls', token, email, paths })
+          const urlMap = {}
+          for (const a of allAttachments) {
+            if (urlData.urls[a.storage_path]) {
+              urlMap[a.id] = urlData.urls[a.storage_path]
+            }
+          }
+          setAttachmentUrls(urlMap)
+        } catch {
+          // non-critical — attachments won't preview but upload still works
+        }
+      }
 
       setReadOnly(inst.status === 'completed')
       setPhase(inst.status === 'completed' ? 'form' : 'form')
@@ -324,6 +344,17 @@ export default function BriefPublicPage() {
         const existing = prev[key] || []
         return { ...prev, [key]: [...existing, result] }
       })
+      // Get signed URL for the newly uploaded file
+      if (result.storage_path) {
+        try {
+          const urlData = await callBrief({ action: 'get_attachment_urls', token, email, paths: [result.storage_path] })
+          if (urlData.urls[result.storage_path]) {
+            setAttachmentUrls(prev => ({ ...prev, [result.id || result.storage_path]: urlData.urls[result.storage_path] }))
+          }
+        } catch {
+          // non-critical
+        }
+      }
     } catch (err) {
       alert(err.message || 'Erro ao enviar anexo')
     } finally {
@@ -690,6 +721,7 @@ export default function BriefPublicPage() {
                         saveStatus={saveStatus[q.id]}
                         readOnly={readOnly}
                         attachments={(attachments[q.id] || []).concat(attachments['__general__'] || [])}
+                        attachmentUrls={attachmentUrls}
                         onUpload={file => handleUpload(q.id, file)}
                         onDelete={attachmentId => handleDeleteAttachment(q.id, attachmentId)}
                         isUploading={uploadingFor === q.id}
@@ -807,7 +839,7 @@ export default function BriefPublicPage() {
 }
 
 // ── Question field component ──────────────────────────────────────────────────
-function QuestionField({ question, value, onChange, saveStatus, readOnly, attachments, onUpload, onDelete, isUploading }) {
+function QuestionField({ question, value, onChange, saveStatus, readOnly, attachments, attachmentUrls, onUpload, onDelete, isUploading }) {
   const { text, type, required, note, allow_attachment } = question
   const fileInputRef = useRef(null)
   const [dragOver, setDragOver] = useState(false)
@@ -882,38 +914,68 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly, attach
           {/* Existing attachments */}
           {attachments.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-              {attachments.map((att, idx) => (
-                <div
-                  key={att.id || idx}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 12px',
-                    background: '#f8fafc', border: '1px solid #e2e8f0',
-                    borderRadius: 8, fontSize: 13,
-                  }}
-                >
-                  <span style={{ flex: 1, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {att.file_name}
-                  </span>
-                  <span style={{ color: '#94a3b8', fontSize: 11, flexShrink: 0 }}>
-                    {formatBytes(att.file_size)}
-                  </span>
-                  {!readOnly && (
-                    <button
-                      onClick={() => onDelete(att.id)}
-                      style={{
-                        width: 22, height: 22, borderRadius: '50%',
-                        background: '#fee2e2', border: 'none', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0, fontSize: 14, color: '#ef4444',
-                        lineHeight: 1,
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
+              {attachments.map((att, idx) => {
+                const fileType = att.mime_type || att.file_type || ''
+                const signedUrl = attachmentUrls[att.id]
+                const isImage = fileType.startsWith('image/')
+                const isPdf = fileType === 'application/pdf'
+
+                return (
+                  <div
+                    key={att.id || idx}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px',
+                      background: '#f8fafc', border: '1px solid #e2e8f0',
+                      borderRadius: 8, fontSize: 13,
+                    }}
+                  >
+                    {isImage && signedUrl ? (
+                      <img
+                        src={signedUrl}
+                        alt={att.file_name}
+                        style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
+                      />
+                    ) : (
+                      <span style={{ flexShrink: 0, fontSize: 20 }}>
+                        {isPdf ? '📄' : fileType.includes('word') ? '📝' : fileType.includes('sheet') || fileType.includes('csv') || fileType.includes('excel') ? '📊' : '📎'}
+                      </span>
+                    )}
+                    {signedUrl ? (
+                      <a
+                        href={signedUrl}
+                        target={isImage || isPdf ? '_blank' : undefined}
+                        download={!isImage && !isPdf ? att.file_name : undefined}
+                        style={{ flex: 1, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: 'none' }}
+                        title={att.file_name}
+                      >
+                        {att.file_name}
+                      </a>
+                    ) : (
+                      <span style={{ flex: 1, color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {att.file_name}
+                      </span>
+                    )}
+                    <span style={{ color: '#94a3b8', fontSize: 11, flexShrink: 0 }}>
+                      {formatBytes(att.file_size)}
+                    </span>
+                    {!readOnly && (
+                      <button
+                        onClick={() => onDelete(att.id)}
+                        style={{
+                          width: 22, height: 22, borderRadius: '50%',
+                          background: '#fee2e2', border: 'none', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          flexShrink: 0, fontSize: 14, color: '#ef4444',
+                          lineHeight: 1,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
