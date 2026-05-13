@@ -387,7 +387,7 @@ useEffect(() => {
                 onClick={() => a.activity_time ? handleSyncToGoogleCalendar(a.activity_time) : setShowTimeConfirm(true)}
                 disabled={syncing}
               >
-                <Calendar className="w-3.5 h-3.5" />
+                <Icons.Calendar className="w-3.5 h-3.5" />
                 {syncing ? 'Sincronizando...' : 'Sincronizar'}
               </Button>
             )}
@@ -398,7 +398,7 @@ useEffect(() => {
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-2 py-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100 transition-colors"
               >
-                <Calendar className="w-3.5 h-3.5 text-green-600" />
+                <Icons.Calendar className="w-3.5 h-3.5 text-green-600" />
                 Sincronizado
               </a>
             )}
