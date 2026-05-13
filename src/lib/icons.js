@@ -147,3 +147,9 @@ export const PhaseIcons = {
   milestone: Flag,
   normal:    FileText,
 }
+
+export const BriefIcons = {
+  activity:  ClipboardList,
+  template: FileQuestion,
+  send:     Send,
+}
