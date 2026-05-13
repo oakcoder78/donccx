@@ -25,6 +25,7 @@ import FreshdeskPendingPage from './pages/FreshdeskPendingPage'
 import DoncAPIPendentes from './pages/DoncAPIPendentes'
 import ReportEditorPage from './pages/ReportEditorPage'
 import ReportPublicPage from './pages/ReportPublicPage'
+import BriefPublicPage from './pages/BriefPublicPage'
 import AtendimentoPage from './pages/AtendimentoPage'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
 
@@ -150,6 +151,9 @@ function AppRoutes() {
 
       {/* Public RMC */}
       <Route path="/r/:token" element={<ReportPublicPage />} />
+
+      {/* Public Brief */}
+      <Route path="/brief/:token" element={<BriefPublicPage />} />
 
       {/* Public auth */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />
