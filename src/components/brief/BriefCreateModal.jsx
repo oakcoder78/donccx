@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 
-export function BriefCreateModal({ faseId, clientId, clientName, faseName, templates, onClose, onCreate, isCreating }) {
+export function BriefCreateModal({ onboardingId, clientId, clientName, faseName, templates, onClose, onCreate, isCreating }) {
   const [title, setTitle] = useState(`Brief — ${clientName} — ${faseName}`)
   const [selectedTemplate, setSelectedTemplate] = useState('')
 
@@ -25,7 +25,7 @@ export function BriefCreateModal({ faseId, clientId, clientName, faseName, templ
       return
     }
     await onCreate({
-      fase_id: faseId,
+      onboarding_id: onboardingId,
       client_id: clientId,
       template_id: selectedTemplate,
       title: title.trim(),
