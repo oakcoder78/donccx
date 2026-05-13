@@ -20,6 +20,14 @@ Dev: `npm run dev`
 - If you commit, push to `origin main`.
 - Do not rely on root `README.md` for project behavior (it is Supabase CLI upstream text, not this app).
 
+### Icons Registry (src/lib/icons.js)
+- SEMPRE ler o arquivo inteiro antes de modificar
+- NUNCA criar exports agrupados por módulo (ex: BriefIcons, RmcIcons, ProjectIcons)
+- NUNCA importar de lucide-react diretamente em componentes — sempre via este registry
+- Adicionar novos ícones no export central existente, em ordem alfabética
+- Padrão de adição: import { X } from 'lucide-react' no topo do arquivo + X incluído no objeto/export central
+- Antes de adicionar: verificar se o ícone já existe no registry para evitar duplicatas
+
 ## Verified stack and shape
 - Single-package Vite app (React 18 + TailwindCSS 3 + TanStack Query v5 + Supabase JS).
 - App entry: `src/main.jsx` -> `src/App.jsx`.

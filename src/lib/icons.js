@@ -142,12 +142,6 @@ export const SectionIcons = {
 
 export const FallbackSectionIcon = FileText
 
-export const BriefIcons = {
-  activity: ClipboardList,
-  template: FileQuestion,
-  send: Send,
-}
-
 export const PhaseIcons = {
   done:      Check,
   milestone: Flag,
