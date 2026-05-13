@@ -32,6 +32,7 @@ const SETTINGS_MENU_ICONS = {
   'fase-types': Icons.FolderKanban,
   'activity-types': Icons.Activity,
   'email-templates': Icons.Mail,
+  'brief-templates': Icons.FileQuestion,
   default: Icons.Settings,
 }
 
@@ -53,6 +54,7 @@ const MENU_GROUPS = [
     { key: 'fase-types',       label: 'Tipos de Fase',      featureFlag: 'fase_types' },
     { key: 'activity-types',  label: 'Tipos de Atividade', featureFlag: 'activity_types' },
     { key: 'project-templates', label: 'Templates',        featureFlag: 'project_templates' },
+    { key: 'brief-templates', label: 'Templates de Brief', featureFlag: 'brief_templates', href: '/config/brief-templates' },
   ]},
   { label: 'Health Score', items: [
     { key: 'health', label: 'Health Score', featureFlag: 'health' },
