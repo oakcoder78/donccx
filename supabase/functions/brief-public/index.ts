@@ -116,6 +116,24 @@ serve(async (req) => {
       return ok({ completed: true })
     }
 
+    if (action === 'get_attachment_urls') {
+      const { paths } = payload
+      if (!Array.isArray(paths) || paths.length === 0) return ok({ urls: {} })
+
+      const urls: Record<string, string> = {}
+      for (const path of paths) {
+        try {
+          const { data: signedUrl } = await sb.storage
+            .from('project-briefs')
+            .createSignedUrl(path, 3600)
+          if (signedUrl) urls[path] = signedUrl
+        } catch {
+          // path not found or bucket issue — skip
+        }
+      }
+      return ok({ urls, expires_at: Date.now() + 3600 * 1000 })
+    }
+
     if (action === 'upload_attachment') {
       if (instance.status === 'completed') return err('Brief já concluído', 403)
 
@@ -143,7 +161,8 @@ serve(async (req) => {
       const safeName = file_name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
       const path = `${instance.id}/${question_id || 'general'}/${timestamp}_${safeName}`
 
-      const binary = atob(data_base64.replace(/^data:[^,]+,/, ''))
+      const base64Data = data_base64.replace(/^data:[^,]+,/, '')
+      const binary = atob(base64Data)
       const bytes = new Uint8Array(binary.length)
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
 
@@ -160,13 +179,14 @@ serve(async (req) => {
         file_name,
         file_size,
         file_type,
+        mime_type: file_type,
         storage_path: path,
         uploaded_by,
       })
 
       if (insertErr) {
         await sb.storage.from('project-briefs').remove([path])
-        return err('Erro ao registrar anexo', 500)
+        return err('Erro ao registrar anexo: ' + insertErr.message, 500)
       }
 
       return ok({ saved: true, path })
