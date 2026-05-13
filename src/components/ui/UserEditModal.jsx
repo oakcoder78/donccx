@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
 import { maskPhoneInput, stripPhone } from '../../lib/formatPhone'
-import { Calendar } from 'lucide-react'
+import { Icons } from '../../lib/icons'
 import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
 
 const GENDER_OPTIONS = [
@@ -220,7 +220,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
               <span className="text-xs text-text-secondary animate-pulse">Verificando...</span>
             ) : isConnected ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-green-600">
-                <Calendar className="w-3 h-3 text-green-500" />
+                <Icons.Calendar className="w-3 h-3 text-green-500" />
                 Conectado
               </span>
             ) : (
@@ -233,7 +233,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
               onClick={connectGoogleCalendar}
               className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
             >
-              <Calendar className="w-3.5 h-3.5 text-gray-500" />
+              <Icons.Calendar className="w-3.5 h-3.5 text-gray-500" />
               Conectar Google Calendar
             </button>
           )}

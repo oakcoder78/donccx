@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Paperclip, Eye, Download, Trash2, FileText, FileImage, FileSpreadsheet, File, X } from 'lucide-react'
+import { Icons } from '../../../../lib/icons'
 import { supabase } from '../../../../lib/supabaseClient'
 import { getClientAttachments } from '../../../../services/activityAttachments/getClientAttachments'
 import { softDeleteActivityAttachment } from '../../../../services/activityAttachments/softDeleteActivityAttachment'
@@ -70,14 +70,14 @@ function TypeBadge({ mimeType, fileName }) {
 
 function FileIcon({ mimeType, fileName, className = 'w-4 h-4' }) {
   const ext = getExt(fileName)
-  if (mimeType?.startsWith('image/')) return <FileImage className={`${className} text-sky-500`} />
-  if (mimeType === 'application/pdf') return <FileText className={`${className} text-red-500`} />
-  if (mimeType === 'text/html' || ext === 'html' || ext === 'htm') return <FileText className={`${className} text-orange-500`} />
+  if (mimeType?.startsWith('image/')) return <Icons.FileImage className={`${className} text-sky-500`} />
+  if (mimeType === 'application/pdf') return <Icons.FileText className={`${className} text-red-500`} />
+  if (mimeType === 'text/html' || ext === 'html' || ext === 'htm') return <Icons.FileText className={`${className} text-orange-500`} />
   if (mimeType?.includes('sheet') || mimeType?.includes('excel') || ext === 'xlsx' || ext === 'csv')
-    return <FileSpreadsheet className={`${className} text-green-600`} />
+    return <Icons.FileSpreadsheet className={`${className} text-green-600`} />
   if (mimeType?.includes('word') || mimeType?.includes('document'))
-    return <FileText className={`${className} text-blue-500`} />
-  return <File className={`${className} text-text-tertiary`} />
+    return <Icons.FileText className={`${className} text-blue-500`} />
+  return <Icons.File className={`${className} text-text-tertiary`} />
 }
 
 function SourceBadge({ source }) {
@@ -154,7 +154,7 @@ function PreviewModal({ preview, onClose }) {
         <div className="relative max-w-5xl max-h-[92vh] p-2" onClick={e => e.stopPropagation()}>
           <img src={preview.url} alt="Preview" className="max-h-[88vh] max-w-full object-contain rounded-lg shadow-2xl" />
           <button onClick={onClose} className="absolute top-4 right-4 bg-black/50 hover:bg-black/75 text-white rounded-full w-8 h-8 flex items-center justify-center">
-            <X className="w-4 h-4" />
+            <Icons.X className="w-4 h-4" />
           </button>
         </div>
       </div>
@@ -174,7 +174,7 @@ function PreviewModal({ preview, onClose }) {
               <span className="text-sm text-gray-700 truncate">{preview.file.file_name}</span>
             </div>
             <button onClick={onClose} className="p-1 rounded hover:bg-gray-200 text-gray-500 transition-colors flex-shrink-0">
-              <X className="w-4 h-4" />
+              <Icons.X className="w-4 h-4" />
             </button>
           </div>
           <iframe
@@ -200,7 +200,7 @@ function AttachmentPanel({ file, onClose, onView, onDownload, onDelete }) {
       {/* Close */}
       <div className="flex justify-end mb-2">
         <button onClick={onClose} className="text-text-tertiary hover:text-text-primary">
-          <X className="w-4 h-4" />
+          <Icons.X className="w-4 h-4" />
         </button>
       </div>
 
@@ -221,13 +221,13 @@ function AttachmentPanel({ file, onClose, onView, onDownload, onDelete }) {
           onClick={onView}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary"
         >
-          <Eye className="w-3.5 h-3.5" /> Visualizar
+          <Icons.Eye className="w-3.5 h-3.5" /> Visualizar
         </button>
         <button
           onClick={onDownload}
           className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary"
         >
-          <Download className="w-3.5 h-3.5" /> Baixar
+          <Icons.Download className="w-3.5 h-3.5" /> Baixar
         </button>
       </div>
 
@@ -265,7 +265,7 @@ function AttachmentPanel({ file, onClose, onView, onDownload, onDelete }) {
         onClick={onDelete}
         className="mt-4 w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-red-200 rounded-md hover:bg-red-50 transition-colors text-red-500"
       >
-        <Trash2 className="w-3.5 h-3.5" /> Excluir anexo
+        <Icons.Trash2 className="w-3.5 h-3.5" /> Excluir anexo
       </button>
     </div>
   )
@@ -350,7 +350,7 @@ export function ClientSubAnexos({ client }) {
   if (attachments.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-tertiary">
-        <Paperclip className="w-8 h-8 opacity-40" strokeWidth={1.5} />
+        <Icons.Paperclip className="w-8 h-8 opacity-40" strokeWidth={1.5} />
         <p className="text-sm">Nenhum anexo encontrado para este cliente.</p>
       </div>
     )
@@ -361,7 +361,7 @@ export function ClientSubAnexos({ client }) {
   return (
     <div>
       <div className="mb-4 flex items-center gap-2 text-sm text-text-secondary">
-        <Paperclip className="w-4 h-4" strokeWidth={1.8} />
+        <Icons.Paperclip className="w-4 h-4" strokeWidth={1.8} />
         <span>{attachments.length} anexo{attachments.length !== 1 ? 's' : ''}</span>
       </div>
 
@@ -429,21 +429,21 @@ export function ClientSubAnexos({ client }) {
                             className="p-1 text-text-secondary hover:text-donc-sky rounded"
                             title="Visualizar"
                           >
-                            <Eye size={14} />
+                            <Icons.Eye size={14} />
                           </button>
                           <button
                             onClick={() => handleDownload(file)}
                             className="p-1 text-text-secondary hover:text-donc-sky rounded"
                             title="Baixar"
                           >
-                            <Download size={14} />
+                            <Icons.Download size={14} />
                           </button>
                           <button
                             onClick={() => handleDelete(file)}
                             className="p-1 text-text-secondary hover:text-red-500 rounded"
                             title="Excluir"
                           >
-                            <Trash2 size={14} />
+                            <Icons.Trash2 size={14} />
                           </button>
                         </div>
                       </td>

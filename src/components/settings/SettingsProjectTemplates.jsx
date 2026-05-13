@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
-import { LayoutTemplate, Trash2 } from 'lucide-react'
+import { Icons } from '../../lib/icons'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 const TYPE_OPTIONS = [
@@ -264,7 +264,7 @@ export function SettingsProjectTemplates() {
   return (
     <div className="max-w-3xl space-y-6">
       <SettingsSectionHeader
-        icon={LayoutTemplate}
+        icon={Icons.LayoutTemplate}
         title="Templates de Projeto"
         subtitle="Define os templates utilizados na criação automática de projetos e onboardings."
         actions={
@@ -421,7 +421,7 @@ function TemplateCard({
               className="p-1.5 text-text-tertiary hover:text-red-500 rounded transition-colors"
               title="Remover"
             >
-              <Trash2 className="w-4 h-4" />
+              <Icons.Trash2 className="w-4 h-4" />
             </button>
           )}
         </div>
@@ -502,7 +502,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
             title="Remover"
             className="text-text-tertiary hover:text-red-500 transition-colors"
           >
-            <Trash2 className="w-4 h-4" />
+            <Icons.Trash2 className="w-4 h-4" />
           </button>
         )}
       </div>
@@ -518,7 +518,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
                   title="Remover"
                   className="text-text-tertiary hover:text-red-500 transition-colors"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Icons.Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
