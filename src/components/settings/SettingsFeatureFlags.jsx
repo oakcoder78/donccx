@@ -15,7 +15,7 @@ const FLAG_GROUPS = {
   'Barra principal': ['whatsapp_atendimento', 'settings_menu'],
   'Equipe': ['users'],
   'Produto': ['stages', 'segments', 'catalog'],
-  'Projetos': ['fase_types', 'activity_types', 'project_templates'],
+  'Projetos': ['fase_types', 'activity_types', 'project_templates', 'brief_templates'],
   'Health Score': ['health'],
   'IA & Automação': ['donkie', 'ai'],
   'Integrações': ['freshdesk', 'api_donc'],

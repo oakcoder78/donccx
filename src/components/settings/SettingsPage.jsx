@@ -39,6 +39,7 @@ const SETTINGS_MENU_ICONS = {
 import { SettingsFaseTypes } from './SettingsFaseTypes'
 import { SettingsActivityTypes } from './SettingsActivityTypes'
 import { SettingsProjectTemplates } from './SettingsProjectTemplates'
+import SettingsBriefTemplates from '../../pages/SettingsBriefTemplates'
 import { EmailTemplatesManager } from '../email/EmailTemplatesManager'
 
 const MENU_GROUPS = [
@@ -113,6 +114,7 @@ export default function SettingsPage() {
       case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
       case 'activity-types': return isEnabled('activity_types', profile?.role) && <SettingsActivityTypes />
       case 'project-templates': return isEnabled('project_templates', profile?.role) && <SettingsProjectTemplates />
+      case 'brief-templates': return isEnabled('brief_templates', profile?.role) && <SettingsBriefTemplates />
       case 'email-templates': return isManager && isEnabled('email_templates', profile?.role) && <EmailTemplatesManager />
       default: return null
     }
