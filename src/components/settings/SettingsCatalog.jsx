@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useCatalog, useCatalogMutations } from '../../hooks/useCatalog'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
-import { Pencil, Trash2 } from 'lucide-react'
 
 function CatalogForm({ item, onClose }) {
   const isEdit = !!item
@@ -51,7 +50,7 @@ function CatalogForm({ item, onClose }) {
 }
 
 export function SettingsCatalog() {
-  const CatalogIcon = SettingsMenuIcons['catalog']
+  const CatalogIcon = Icons.Package
   const { data: catalog = [], isLoading } = useCatalog()
   const { remove } = useCatalogMutations()
   const { isAdmin } = useAuth()
@@ -92,14 +91,14 @@ export function SettingsCatalog() {
                       title="Editar"
                       className="p-1 text-text-secondary hover:text-donc-sky rounded"
                     >
-                      <Pencil size={14} />
+                      <Icons.Pencil size={14} />
                     </button>
                     <button
                       onClick={() => remove.mutateAsync(item.id)}
                       title="Excluir"
                       className="p-1 text-text-secondary hover:text-red-500 rounded"
                     >
-                      <Trash2 size={14} />
+                      <Icons.Trash2 size={14} />
                     </button>
                   </>
                 )}

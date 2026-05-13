@@ -1,11 +1,24 @@
 import { useState, useMemo } from 'react'
-import { Paperclip } from "lucide-react"
+import { Icons } from "../../../lib/icons"
 
-import {
-  ActivityIcons,
-  ActivityIconBackgrounds,
-  DefaultActivityIcon
-} from "../../../lib/icons"
+const ACTIVITY_ICONS = {
+  reuniao: Icons.Calendar,
+  ligacao: Icons.Phone,
+  email: Icons.Mail,
+  whatsapp: Icons.MessageCircle,
+  tarefa: Icons.CheckSquare,
+  nota: Icons.FileText,
+  relatorio: Icons.FileText,
+}
+const ACTIVITY_BG = {
+  reuniao: '#E6F1FB',
+  ligacao: '#FAEEDA',
+  email: '#EAF3DE',
+  whatsapp: '#E6F9EC',
+  tarefa: '#EEEDFE',
+  nota: '#F5F5F3',
+  relatorio: '#E8EEF7',
+}
 
 import { useActivities } from '../../../hooks/useActivities'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -165,9 +178,7 @@ export function ClientTabActivities({ client }) {
 
         {filteredActivities.map(a => {
 
-          const Icon =
-            ActivityIcons[a.type] ||
-            DefaultActivityIcon
+          const Icon = ACTIVITY_ICONS[a.type] || Icons.FileText
 
           return (
 
@@ -181,7 +192,7 @@ export function ClientTabActivities({ client }) {
                 className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0"
                 style={{
                   backgroundColor:
-                    ActivityIconBackgrounds[a.type]
+                    ACTIVITY_BG[a.type]
                 }}
               >
 
@@ -203,7 +214,7 @@ export function ClientTabActivities({ client }) {
 
                   {a.has_attachments && (
 
-                    <Paperclip
+                    <Icons.Paperclip
                       className="w-3.5 h-3.5 text-text-tertiary"
                       strokeWidth={1.8}
                     />

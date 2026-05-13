@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Save, RefreshCw, CheckCircle } from 'lucide-react'
-import { SettingsMenuIcons, ActionIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
 import { fetchAndSaveFreshdeskConfig, getFreshdeskConfig } from '../../lib/freshdeskConfig'
@@ -59,7 +58,7 @@ function computeSuggestion(client, fdCompanies) {
 
 // ── Seção Mapeamento ──────────────────────────────────────────────────────────
 function MappingSection() {
-  const SearchIcon = ActionIcons.search
+  const SearchIcon = Icons.Search
   const [clients, setClients]         = useState([])
   const [edits, setEdits]             = useState({})         // { clientId: string }
   const [suggestions, setSuggestions] = useState({})         // { clientId: { fdId, fdName } }
@@ -194,7 +193,7 @@ function MappingSection() {
                         {saving[c.id] ? (
                           <span className="text-xs">…</span>
                         ) : (
-                          <Save size={14} />
+                          <Icons.Save size={14} />
                         )}
                       </button>
                     )}
@@ -217,9 +216,9 @@ function MappingSection() {
 // ── Seção Sincronização ───────────────────────────────────────────────────────
 function SyncSection() {
   const navigate = useNavigate()
-  const SyncIcon = ActionIcons.recalculate
-  const LogsIcon = SettingsMenuIcons['logs']
-  const RefreshCwIcon = RefreshCw
+  const SyncIcon = Icons.RefreshCw
+  const LogsIcon = Icons.ClipboardList
+  const RefreshCwIcon = Icons.RefreshCw
   const now          = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [month, setMonth]         = useState(defaultMonth)
@@ -344,7 +343,7 @@ function SyncSection() {
         </Button>
         {lastResult && (
           <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-2">
-            <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+            <Icons.CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
             <p className="text-sm text-green-800">
               {lastResult.synced} empresa{lastResult.synced !== 1 ? 's' : ''} sincronizada{lastResult.synced !== 1 ? 's' : ''} com sucesso
             </p>
@@ -404,8 +403,8 @@ function SyncSection() {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsFreshdesk() {
-  const FreshdeskIcon = SettingsMenuIcons['freshdesk']
-  const MappingIcon = ActionIcons.link
+  const FreshdeskIcon = Icons.Headphones
+  const MappingIcon = Icons.Link
 
   return (
     <div className="max-w-6xl space-y-4">

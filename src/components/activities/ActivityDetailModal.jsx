@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Phone, Mail, MessageCircle, CheckSquare, FileText } from "lucide-react"
 import { useActivityMutations } from '../../hooks/useActivities'
 import { ActivityModal } from './ActivityModal'
 import { Button } from '../ui/Button'
@@ -8,8 +7,26 @@ import { getActivityAttachments } from '../../services/activityAttachments/getAc
 import { softDeleteActivityAttachment } from '../../services/activityAttachments/softDeleteActivityAttachment'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
-import { Paperclip, Eye, Download, Trash2 } from "lucide-react"
-import { ActivityIcons, ActivityIconBackgrounds, DefaultActivityIcon } from "../../lib/icons";
+import { Icons } from "../../lib/icons"
+
+const ACTIVITY_ICONS = {
+  reuniao: Icons.Calendar,
+  ligacao: Icons.Phone,
+  email: Icons.Mail,
+  whatsapp: Icons.MessageCircle,
+  tarefa: Icons.CheckSquare,
+  nota: Icons.FileText,
+  relatorio: Icons.FileText,
+}
+const ACTIVITY_BG = {
+  reuniao: '#E6F1FB',
+  ligacao: '#FAEEDA',
+  email: '#EAF3DE',
+  whatsapp: '#E6F9EC',
+  tarefa: '#EEEDFE',
+  nota: '#F5F5F3',
+  relatorio: '#E8EEF7',
+}
 import { useProfiles } from '../../hooks/useProfiles'
 import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
 import { useSessionToken } from '../../hooks/useSessionToken'
@@ -169,7 +186,7 @@ useEffect(() => {
   if (showEdit) return <ActivityModal activity={a} onClose={() => { setShowEdit(false); onClose() }} />
 
   const isOverdue = a.due_date && a.status !== 'concluida' && new Date(a.due_date) < new Date();
-  const Icon = ActivityIcons[a.type] || DefaultActivityIcon;
+  const Icon = ACTIVITY_ICONS[a.type] || Icons.FileText;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
@@ -177,7 +194,7 @@ useEffect(() => {
         {/* Header */}
         <div className="flex items-start gap-3 p-4 border-b border-border-tertiary">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
-            style={{ backgroundColor: ActivityIconBackgrounds[a.type] }}
+            style={{ backgroundColor: ACTIVITY_BG[a.type] }}
 >
             <Icon className="w-5 h-5 text-text-secondary" strokeWidth={1.8} />
           </div>
@@ -224,7 +241,7 @@ useEffect(() => {
           {attachments.length > 0 && (
             <div className="mt-4">
               <div className="text-sm font-medium mb-2">
-                <Paperclip className="w-4 h-4 text-text-secondary" strokeWidth={1.8} />
+                <Icons.Paperclip className="w-4 h-4 text-text-secondary" strokeWidth={1.8} />
                 <span>Anexos</span>
               </div>
 
@@ -248,7 +265,7 @@ useEffect(() => {
                         className="text-text-secondary hover:text-text-primary text-sm"
                         title="Visualizar"
                       >
-                        <Eye className="w-4 h-4 text-text-secondary hover:text-text-primary"/>
+                        <Icons.Eye className="w-4 h-4 text-text-secondary hover:text-text-primary"/>
                       </button>
 
                       {/* Download */}
@@ -285,7 +302,7 @@ useEffect(() => {
                         className="text-text-secondary hover:text-text-primary text-sm"
                         title="Download"
                       >
-                        <Download className="w-4 h-4 text-text-secondary hover:text-text-primary transition-colors"/>
+                        <Icons.Download className="w-4 h-4 text-text-secondary hover:text-text-primary transition-colors"/>
                       </button>
 
                       {/* Delete */}
@@ -330,7 +347,7 @@ useEffect(() => {
                         className="text-text-secondary hover:text-text-primary text-sm"
                         title="Excluir"
                       >
-                        <Trash2 className="w-4 h-4 text-text-secondary hover:text-text-primary"/>
+                        <Icons.Trash2 className="w-4 h-4 text-text-secondary hover:text-text-primary"/>
                       </button>
                     </div>
                   </div>

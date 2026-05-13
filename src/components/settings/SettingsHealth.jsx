@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { HealthDimensionIcons, SettingsMenuIcons, ActionIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
 import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -266,7 +266,7 @@ function RulesCard({ rules, isAdmin, onSaveAll }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsHealth() {
-  const HealthIcon = SettingsMenuIcons['health']
+  const HealthIcon = Icons.Heart
   const { data, isLoading } = useHealthConfig()
   const { updateConfig, updateRule } = useHealthConfigMutations()
   const { profile } = useAuth()
@@ -316,7 +316,7 @@ export function SettingsHealth() {
               {recalculating
                 ? 'Calculando…'
                 : <span className="flex items-center gap-1.5">
-                    <ActionIcons.recalculate className="w-3.5 h-3.5" /> Recalcular todos
+                    <Icons.RefreshCw className="w-3.5 h-3.5" /> Recalcular todos
                   </span>
               }
             </Button>
@@ -342,7 +342,7 @@ export function SettingsHealth() {
 
 // ── Accordion informativo ─────────────────────────────────────────────────────
 function HealthScoreAccordion() {
-  const InfoIcon = ActionIcons.info
+  const InfoIcon = Icons.Info
   const [open, setOpen] = useState(false)
   const DIMENSIONS_INFO = [
     { name: 'Uso',             desc: 'Adoção da plataforma — módulos ativos, usuários e ordens de serviço' },

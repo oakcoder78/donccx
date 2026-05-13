@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { BriefIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useBrief } from '../../hooks/useBrief'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
@@ -74,7 +74,7 @@ export function BriefPanel({ faseId, clientId, clientName, faseName }) {
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{ fontSize: 13, color: 'rgba(23,53,87,0.6)', marginBottom: 12 }}>Nenhum brief de discovery criado para esta fase</div>
             <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-              <BriefIcons.template size={14} style={{ marginRight: 6 }} />
+              <Icons.FileQuestion size={14} style={{ marginRight: 6 }} />
               Criar Brief
             </Button>
           </div>
@@ -102,18 +102,18 @@ export function BriefPanel({ faseId, clientId, clientName, faseName }) {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {instance.status === 'draft' && (
                 <Button variant="primary" size="sm" onClick={handleSend}>
-                  <BriefIcons.send size={14} style={{ marginRight: 6 }} />
+                  <Icons.Send size={14} style={{ marginRight: 6 }} />
                   Enviar
                 </Button>
               )}
               {instance.status !== 'draft' && (
                 <Button variant="secondary" size="sm" onClick={handleCopyLink}>
-                  <BriefIcons.send size={14} style={{ marginRight: 6 }} />
+                  <Icons.Send size={14} style={{ marginRight: 6 }} />
                   Copiar link
                 </Button>
               )}
               <Button variant="secondary" size="sm" onClick={() => handleViewResponses(instance)}>
-                <BriefIcons.activity size={14} style={{ marginRight: 6 }} />
+                <Icons.ClipboardList size={14} style={{ marginRight: 6 }} />
                 Ver respostas
               </Button>
             </div>

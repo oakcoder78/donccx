@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useStages, useStagesMutations } from '../../hooks/useStages'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
-import { Pencil, Trash2 } from 'lucide-react'
 
 function StageForm({ stage, onClose }) {
   const isEdit = !!stage
@@ -52,7 +51,7 @@ function StageForm({ stage, onClose }) {
 }
 
 export function SettingsStages() {
-  const StagesIcon = SettingsMenuIcons['stages']
+  const StagesIcon = Icons.RefreshCw
   const { data: stages = [], isLoading } = useStages()
   const { remove } = useStagesMutations()
   const { isAdmin } = useAuth()
@@ -95,14 +94,14 @@ export function SettingsStages() {
                     title="Editar"
                     className="p-1 text-text-secondary hover:text-donc-sky rounded"
                   >
-                    <Pencil size={14} />
+                    <Icons.Pencil size={14} />
                   </button>
                   <button
                     onClick={() => remove.mutateAsync(s.id)}
                     title="Excluir"
                     className="p-1 text-text-secondary hover:text-red-500 rounded"
                   >
-                    <Trash2 size={14} />
+                    <Icons.Trash2 size={14} />
                   </button>
                 </>
               )}

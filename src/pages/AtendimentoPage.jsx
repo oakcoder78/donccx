@@ -5,7 +5,7 @@ import { getFreshdeskConfig } from '../lib/freshdeskConfig'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ActionIcons } from "../lib/icons"
+import { Icons } from "../lib/icons"
 
 // ── Tipos de ticket (valores obrigatórios configurados no Freshdesk) ─────────
 const TICKET_TYPES = [
@@ -658,7 +658,7 @@ function Step2({ data, onChange, onNext, onBack }) {
           {analyzing ? '⏳ Analisando atendimento...' : '🤖 Analisar com IA'}
         </button>
         <button onClick={handleManual} disabled={extracting} style={{ ...S.btnSecondary, display: 'inline-flex', alignItems: 'center', gap: 6 }} title="Avançar sem análise de IA e preencher manualmente">
-          <ActionIcons.edit style={{ width: 14, height: 14 }} /> Preencher manualmente
+          <Icons.Pencil style={{ width: 14, height: 14 }} /> Preencher manualmente
         </button>
       </div>
 
@@ -694,8 +694,8 @@ const Step3Fields = memo(function Step3Fields({ initialValues, groups, agents, s
   if (formRef)  formRef.current  = form
   if (patchRef) patchRef.current = (updates) => setForm(p => ({ ...p, ...updates }))
 
-  const SmartphoneIcon = ActionIcons.smartphone
-  const UserIcon = ActionIcons.user
+  const SmartphoneIcon = Icons.Smartphone
+  const UserIcon = Icons.User
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: '0 28px' }}>
@@ -1068,7 +1068,7 @@ export default function AtendimentoPage() {
   const { profile } = useAuth()
   const [step, setStep] = useState(1)
   const [data, setData] = useState(INITIAL_DATA)
-  const SmartphoneIcon = ActionIcons.smartphone
+  const SmartphoneIcon = Icons.Smartphone
 
   function update(patch) { setData(p => ({ ...p, ...patch })) }
 

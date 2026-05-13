@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { PageHeader } from '../ui/PageHeader'
 import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
-import { ActionIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { ProjectModal } from './ProjectModal'
 import { FASE_LABELS } from '../../lib/onboardingLabels'
 
@@ -510,7 +510,7 @@ export default function ProjectsPage() {
 
                                 {respName && (
                                   <p className="text-xs text-text-tertiary mb-2 truncate flex items-center gap-1">
-                                    <ActionIcons.user className="w-3 h-3 flex-shrink-0" /> {respName}
+                                    <Icons.User className="w-3 h-3 flex-shrink-0" /> {respName}
                                   </p>
                                 )}
 

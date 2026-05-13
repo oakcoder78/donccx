@@ -14,7 +14,7 @@ import { FASE_LABELS } from '../lib/onboardingLabels'
 import { FASE_TYPE_IDS } from '../lib/constants'
 import { ProjectModal } from '../components/projects/ProjectModal'
 import { styles } from '../components/onboarding/OnboardingStyles'
-import { ActionIcons, PhaseIcons } from '../lib/icons'
+import { Icons } from '../lib/icons'
 import { BriefPanel } from '../components/brief'
 
 // ── Local style constants ─────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ function RespPicker({ contacts, profiles, selectedId, selectedKind, onChange }) 
   )
 }
 
-// ── PhaseCircle — all clickable, icons from PhaseIcons ───────────────────────
+// ── PhaseCircle — all clickable, icons from Icons ───────────────────────────
 function PhaseCircle({ fase, isActive, isDone, onClick }) {
   const isMilestone = !!fase.onboarding_fase_types?.is_milestone
 
@@ -290,7 +290,7 @@ function PhaseCircle({ fase, isActive, isDone, onClick }) {
   }
 
   const labelColor = isDone ? '#157a47' : isActive ? '#0a6a96' : 'rgba(23,53,87,0.4)'
-  const Icon = isDone ? PhaseIcons.done : isMilestone ? PhaseIcons.milestone : PhaseIcons.normal
+  const Icon = isDone ? Icons.Check : isMilestone ? Icons.Flag : Icons.FileText
   const iconSize = isDone ? 18 : 15
 
   return (
@@ -698,8 +698,8 @@ async function handleComplete() {
             <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(23,53,87,0.55)', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ width: 18, height: 18, borderRadius: '50%', background: 'rgba(89,194,237,0.16)', color: '#0a6a96', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 {isMilestone
-                  ? <PhaseIcons.milestone size={10} strokeWidth={1.6} />
-                  : <PhaseIcons.normal    size={10} strokeWidth={1.6} />}
+                  ? <Icons.Flag size={10} strokeWidth={1.6} />
+                  : <Icons.FileText    size={10} strokeWidth={1.6} />}
               </span>
               {isMilestone ? 'Marco' : 'Fase'} · {onboardingTitle}
             </div>
@@ -720,7 +720,7 @@ async function handleComplete() {
             style={{ width: 32, height: 32, borderRadius: 8, background: 'transparent', border: 'none', color: 'rgba(23,53,87,0.55)', display: 'grid', placeItems: 'center', flexShrink: 0, cursor: 'pointer' }}
             onClick={onClose} title="Fechar (Esc)"
           >
-            <ActionIcons.remove size={14} />
+            <Icons.X size={14} />
           </button>
         </div>
 
@@ -954,8 +954,8 @@ function PendingItem({ pend, onEdit, onDelete }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.55)' }}>{fmt(pend.due_date)}</span>
         <span style={{ display: 'inline-flex', gap: 4 }}>
-          <button style={S.iconBtn} title="Editar" onClick={onEdit}><ActionIcons.edit size={13} /></button>
-          <button style={S.iconBtn} title="Remover" onClick={onDelete}><ActionIcons.delete size={13} /></button>
+          <button style={S.iconBtn} title="Editar" onClick={onEdit}><Icons.Pencil size={13} /></button>
+          <button style={S.iconBtn} title="Remover" onClick={onDelete}><Icons.Trash2 size={13} /></button>
         </span>
       </div>
     </div>
@@ -1156,10 +1156,10 @@ function ActivityItem({ act, expanded, showPendForm, contacts, profiles, onboard
         </div>
         <div style={{ display: 'flex', gap: 2, alignItems: 'center' }} onClick={e => e.stopPropagation()}>
           <button style={S.iconBtn} title="Editar" onClick={() => { setEditActDraft({ title: act.title, status: act.status, due: act.due_date || '', respId: act.responsible_contato_id || act.responsible_interno_id || null, respKind: act.responsible_contato_id ? 'contato' : act.responsible_interno_id ? 'interno' : null }); if (!expanded) onToggleExpand(act.id); setEditActOpen(true) }}>
-            <ActionIcons.edit size={13} />
+            <Icons.Pencil size={13} />
           </button>
           <button style={S.iconBtn} title="Remover" onClick={() => { if (window.confirm(`Remover atividade "${act.title}"?`)) deleteActMut.mutate() }}>
-            <ActionIcons.delete size={13} />
+            <Icons.Trash2 size={13} />
           </button>
         </div>
       </div>
@@ -1277,7 +1277,7 @@ function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, l
   return (
     <div>
       <div style={styles.activity.searchWrap}>
-        <span style={styles.activity.searchIcon}><ActionIcons.search size={14} /></span>
+        <span style={styles.activity.searchIcon}><Icons.Search size={14} /></span>
         <input id="onb-cat-input" ref={inputRef} style={styles.activity.search} placeholder="Buscar no catálogo de atividades…" value={search} onChange={e => { setSearch(e.target.value); setShowDd(true) }} onFocus={() => setShowDd(true)} autoComplete="off" />
         {showDd && (
           <div style={styles.activity.catalogDropdown} ref={ddRef}>
@@ -1664,11 +1664,11 @@ export default function OnboardingDetailPage() {
               {onb && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 10, fontSize: 12, color: 'rgba(23,53,87,0.65)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <ActionIcons.calendar size={12} />
+                    <Icons.Calendar size={12} />
                     Início: {startDateLabel}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <ActionIcons.calendar size={12} />
+                    <Icons.Calendar size={12} />
                     Go-Live previsto: {goLiveLabel}
                   </span>
                 </div>

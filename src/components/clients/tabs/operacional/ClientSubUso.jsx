@@ -1,4 +1,4 @@
-import { ActionIcons } from "../../../../lib/icons"
+import { Icons } from "../../../../lib/icons"
 import { Line } from 'react-chartjs-2'
 import {
   Chart, CategoryScale, LinearScale, PointElement, LineElement,
@@ -172,7 +172,7 @@ export function ClientSubUso({ client, onEdit }) {
                               className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
                               title="Editar"
                             >
-                              <ActionIcons.edit className="w-4 h-4" />
+                              <Icons.Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(u)}
@@ -180,7 +180,7 @@ export function ClientSubUso({ client, onEdit }) {
                               className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-red transition-colors"
                               title="Excluir"
                             >
-                              <ActionIcons.delete className="w-4 h-4" />
+                              <Icons.Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

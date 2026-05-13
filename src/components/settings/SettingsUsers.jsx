@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useProfiles, useProfilesMutations } from '../../hooks/useProfiles'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useAuditLog } from '../../hooks/useAuditLog'
@@ -11,7 +11,6 @@ import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { UserEditModal } from '../ui/UserEditModal'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
-import { Pencil, XCircle, CheckCircle } from 'lucide-react'
 import { formatPhone } from '../../lib/formatPhone'
 import { supabase } from '../../lib/supabaseClient'
 import toast from 'react-hot-toast'
@@ -192,7 +191,7 @@ function ApproveModal({ request, onClose, onDone }) {
 
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsUsers() {
-  const UsersIcon = SettingsMenuIcons['users']
+  const UsersIcon = Icons.Users
   const { data: profiles = [], isLoading, refetch } = useProfiles()
   const { updateStatus, updateRole } = useProfilesMutations()
   const { canManageUsers } = usePermissions()
@@ -350,7 +349,7 @@ export function SettingsUsers() {
                 title="Editar"
                 className="p-1 text-text-secondary hover:text-donc-sky rounded"
               >
-                <Pencil size={14} />
+                <Icons.Pencil size={14} />
               </button>
               {canManageUsers && p.status === 'active' && (
                 <button
@@ -358,7 +357,7 @@ export function SettingsUsers() {
                   title="Bloquear"
                   className="p-1 text-text-secondary hover:text-red-500 rounded"
                 >
-                  <XCircle size={14} />
+                  <Icons.XCircle size={14} />
                 </button>
               )}
               {canManageUsers && p.status === 'blocked' && (
@@ -367,7 +366,7 @@ export function SettingsUsers() {
                   title="Reativar"
                   className="p-1 text-text-secondary hover:text-green-600 rounded"
                 >
-                  <CheckCircle size={14} />
+                  <Icons.CheckCircle size={14} />
                 </button>
               )}
             </div>

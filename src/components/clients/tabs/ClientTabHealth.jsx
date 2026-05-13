@@ -10,7 +10,7 @@ import { Button } from '../../ui/Button'
 import { useHealthConfig } from '../../../hooks/useHealthConfig'
 import { useRecalculateHealth } from '../../../hooks/useHealthScore'
 import { calculateHealthScore } from '../../../lib/healthScore'
-import { ActionIcons } from '../../../lib/icons'
+import { Icons } from '../../../lib/icons'
 import { supabase } from '../../../lib/supabaseClient'
 import { TemperaturaCSM } from '../TemperaturaCSM'
 
@@ -201,7 +201,7 @@ export function ClientTabHealth({ client }) {
           disabled={recalculate.isPending}
           onClick={() => recalculate.mutate({ client, rules })}
         >
-          {recalculate.isPending ? 'Calculando...' : <span className="flex items-center gap-1.5"><ActionIcons.recalculate className="w-3.5 h-3.5" /> Recalcular</span>}
+          {recalculate.isPending ? 'Calculando...' : <span className="flex items-center gap-1.5"><Icons.RefreshCw className="w-3.5 h-3.5" /> Recalcular</span>}
         </Button>
         <span className="text-xs text-text-tertiary">Grupo: {stageGroupLabel[stageGroup] ?? stageGroup}</span>
       </div>

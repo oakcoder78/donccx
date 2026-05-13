@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
@@ -68,7 +68,7 @@ const S = {
 }
 
 export function SettingsAI() {
-  const AIIcon = SettingsMenuIcons['ai']
+  const AIIcon = Icons.Sparkles
   const [loading, setLoading] = useState(true)
 
   // ── Modelos ─────────────────────────────────────────────────────────────────

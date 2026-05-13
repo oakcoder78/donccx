@@ -21,16 +21,18 @@ Dev: `npm run dev`
 - Do not rely on root `README.md` for project behavior (it is Supabase CLI upstream text, not this app).
 
 ### Icons Registry (src/lib/icons.js)
-- SEMPRE ler o arquivo inteiro antes de modificar
-- NUNCA criar exports agrupados por módulo (ex: BriefIcons, RmcIcons, ProjectIcons)
-- NUNCA importar de lucide-react diretamente em componentes — sempre via este registry
-- Adicionar novos ícones no export central existente, em ordem alfabética
-- Padrão de adição: import { X } from 'lucide-react' no topo do arquivo + X incluído no objeto/export central
-- Antes de adicionar: verificar se o ícone já existe no registry para evitar duplicatas
+- SEMPRE ler o arquivo antes de modificar
+- NUNCA importar de lucide-react diretamente em componentes
+- NUNCA criar grupos separados (ActivityIcons, BriefIcons, etc.) — não existem mais
+- SEMPRE usar o objeto central: import { Icons } from '../lib/icons'
+- Para adicionar ícone novo: import no topo do arquivo + entrada no objeto Icons em ordem alfabética
+- Verificar se o ícone já existe antes de adicionar
 
-Exemplo de erro e acerto:
-❌ NUNCA: import { FileQuestion } from 'lucide-react' em componentes
-✅ SEMPRE: import { BriefIcons } from '../lib/icons'
+Exemplo:
+  ❌ import { FileQuestion } from 'lucide-react'
+  ❌ import { BriefIcons } from '../lib/icons'
+  ✅ import { Icons } from '../lib/icons'
+     uso: <Icons.FileQuestion size={16} />
 
 ## Verified stack and shape
 - Single-package Vite app (React 18 + TailwindCSS 3 + TanStack Query v5 + Supabase JS).

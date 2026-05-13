@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
@@ -50,7 +50,7 @@ function DetailCell({ oldValue, newValue }) {
 }
 
 export function SettingsLogs() {
-  const LogsIcon = SettingsMenuIcons['logs']
+  const LogsIcon = Icons.ClipboardList
   const [entityType, setEntityType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo]   = useState('')

@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useSegments, useSegmentsMutations } from '../../hooks/useSegments'
 import { useAuth } from '../../contexts/AuthContext'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
-import { Pencil, Trash2 } from 'lucide-react'
 
 function SegmentForm({ segment, onClose }) {
   const isEdit = !!segment
@@ -37,7 +36,7 @@ function SegmentForm({ segment, onClose }) {
 }
 
 export function SettingsSegments() {
-  const SegmentsIcon = SettingsMenuIcons['segments']
+  const SegmentsIcon = Icons.Tag
   const { data: segments = [], isLoading } = useSegments()
   const { remove } = useSegmentsMutations()
   const { isAdmin } = useAuth()
@@ -72,14 +71,14 @@ export function SettingsSegments() {
                     title="Editar"
                     className="p-1 text-text-secondary hover:text-donc-sky rounded"
                   >
-                    <Pencil size={14} />
+                    <Icons.Pencil size={14} />
                   </button>
                   <button
                     onClick={() => remove.mutateAsync(seg.id)}
                     title="Excluir"
                     className="p-1 text-text-secondary hover:text-red-500 rounded"
                   >
-                    <Trash2 size={14} />
+                    <Icons.Trash2 size={14} />
                   </button>
                 </>
               )}

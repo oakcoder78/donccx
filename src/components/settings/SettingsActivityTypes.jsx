@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { Pencil, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
-import { SettingsMenuIcons } from '../../lib/icons'
+import { Icons } from '../../lib/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
@@ -87,7 +86,7 @@ function InlineForm({ form, setForm, onSave, onCancel, saving }) {
 }
 
 export function SettingsActivityTypes() {
-  const ActivityIcon = SettingsMenuIcons['activity-types']
+  const ActivityIcon = Icons.Activity
   const { isAdmin } = useAuth()
 
   const [items, setItems]           = useState([])
@@ -324,7 +323,7 @@ export function SettingsActivityTypes() {
                                       className="p-1 text-text-secondary hover:text-donc-sky rounded"
                                       title="Editar"
                                     >
-                                      <Pencil size={14} />
+                                      <Icons.Pencil size={14} />
                                     </button>
                                     <button
                                       onClick={() => handleDelete(item)}
@@ -332,7 +331,7 @@ export function SettingsActivityTypes() {
                                       className="p-1 text-text-secondary hover:text-red-500 rounded disabled:opacity-40"
                                       title="Excluir"
                                     >
-                                      {deletingId === item.id ? '...' : <Trash2 size={14} />}
+                                      {deletingId === item.id ? '...' : <Icons.Trash2 size={14} />}
                                     </button>
                                   </div>
                                 </td>
