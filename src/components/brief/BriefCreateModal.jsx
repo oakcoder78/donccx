@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { BriefIcons } from '../../lib/icons'
 
 export function BriefCreateModal({ faseId, clientId, clientName, faseName, templates, onClose, onCreate, isCreating }) {
   const [title, setTitle] = useState(`Brief — ${clientName} — ${faseName}`)
