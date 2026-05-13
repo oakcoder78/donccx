@@ -223,3 +223,34 @@ Icons.Send           // botão de envio do link
 `supabase/functions/brief-public/index.ts`
 
 > **Após deploy:** desabilitar "Verify JWT" em Dashboard → Edge Functions → brief-public → Settings.
+
+---
+
+## Gestão de Templates (Settings)
+
+### Rota
+`/config/brief-templates` — acessível apenas para admin/manager
+
+### Interface
+- Lista de templates com cards: nome, operation_type (Badge), quantidade de seções e perguntas, status ativo/inativo
+- Botão "Novo Template" abre modal de edição
+- Toggle de ativar/desativar diretamente na lista
+- Botões Editar e Excluir por template
+
+### Modal de Editor
+- Campos: Nome (obrigatório), Tipo de Operação (select)
+- Editor de seções:
+  - Adicionar seção: título, entregável, callout (opcional), audience (opcional)
+  - Adicionar pergunta por seção: texto, tipo (texto/textarea), obrigatória, permite anexo
+  - Preview simples de perguntas por seção
+
+### Hook
+`useBriefTemplates.js` expõe:
+- `briefTemplates` — lista todos os templates
+- `createTemplate({ name, operation_type, structure })`
+- `updateTemplate({ id, name, operation_type, structure })`
+- `toggleActive({ id, is_active })`
+- `deleteTemplate(id)`
+
+### Menu de Settings
+Item adicionado em "Projetos": `{ key: 'brief-templates', label: 'Templates de Brief', href: '/config/brief-templates' }`
