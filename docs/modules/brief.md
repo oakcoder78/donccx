@@ -1,57 +1,53 @@
-# Módulo Brief de Discovery
+# Brief Discovery Module
 
-## Propósito
+## Purpose
 
-Questionário de discovery vinculado a uma fase de onboarding. O CSM cria uma instância a partir de um template JSONB, gera um link público e envia ao cliente. O cliente preenche via link autenticado por e-mail (mesmo padrão do RMC). Respostas ficam armazenadas e visíveis ao CSM dentro do `OnboardingDetailPage`.
-
----
-
-## Tabelas e Relações
-
-```
-brief_templates (uuid PK)
-    └── brief_instances (uuid PK)
-            ├── client_id    → clients.id (integer)
-            ├── onboarding_id → onboardings.id (integer)
-            ├── template_id  → brief_templates.id (uuid, nullable)
-            ├── brief_responses (uuid PK)
-            │       └── instance_id → brief_instances.id
-            └── brief_attachments (uuid PK)
-                    └── instance_id → brief_instances.id
-```
-
-### brief_templates
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| id | uuid | PK |
-| name | text | Nome do template |
-| operation_type | text | `entrega \| instalacao \| assistencia \| seguranca` |
-| structure | jsonb | Seções e perguntas (ver schema abaixo) |
-| is_active | boolean | Oculta do seletor quando false |
-| created_by | uuid | FK → profiles |
-
-### brief_instances
-| Coluna | Tipo | Descrição |
-|---|---|---|
-| id | uuid | PK |
-| client_id | integer | FK → clients |
-| onboarding_id | integer | FK → onboardings |
-| template_id | uuid | FK → brief_templates (nullable — template pode ser excluído) |
-| structure_snapshot | jsonb | Cópia congelada do template na criação |
-| status | text | `draft | sent | in_progress | completed | archived` |
-| access_token | uuid | Token de acesso público único |
-| public_expires_at | timestamptz | Expiração do link (null = sem expiração) |
-| sent_at / completed_at | timestamptz | Timestamps de ciclo de vida |
-
-### brief_responses
-Uma linha por pergunta respondida. `question_id` referencia o `id` dentro do JSONB de `structure_snapshot`.
-
-### brief_attachments
-Arquivos opcionais por pergunta ou pelo brief geral (`question_id null`). Bucket: `project-briefs`, path: `{instance_id}/{filename}`.
+Questionnaire linked to an onboarding. CSM creates an instance from a JSONB template, generates a public link, and sends it to the client. The client fills it in via email-authenticated link. Responses are stored and visible to the CSM inside `OnboardingDetailPage`.
 
 ---
 
-## Schema JSONB do Template
+## Responsibilities
+
+- Manage brief templates (create, edit, activate/inactivate, delete) via Settings
+- Create brief instances linked to an onboarding
+- Generate and share public access links
+- Allow clients to fill responses via `/brief/{token}`
+- Allow Hub users (profiles) to access and edit responses
+- Support file attachments per question
+- Track lifecycle: `draft → sent → in_progress → completed / archived`
+- Display brief status and responses in `OnboardingDetailPage`
+
+---
+
+## Key Components
+
+| Component | File | Responsibility |
+|-----------|------|----------------|
+| `BriefCreateModal` | `src/components/brief/BriefCreateModal.jsx` | Create instance: template selection, title, save |
+| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | View/edit responses, attachments, send to client |
+| `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Criar Brief" (navy) / "Editar Brief" (sky) |
+| `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
+| `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` |
+| `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete |
+| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink |
+| `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
+| `useBriefResponses` | `src/hooks/useBriefResponses.js` | Hook: responses and attachments for an instance |
+| `SettingsBriefTemplates` | `src/components/settings/SettingsBriefTemplates.jsx` | Settings page: `/config/brief-templates` |
+
+---
+
+## Data Interaction
+
+| Table | Role |
+|-------|------|
+| `brief_templates` | Catalog of JSONB templates by operation_type |
+| `brief_instances` | One per onboarding. FK: `client_id → clients`, `onboarding_id → onboardings` |
+| `brief_responses` | One row per question (`question_id` from JSONB). Upsert on conflict |
+| `brief_attachments` | Optional files per question or general. Storage bucket `activity-attachments`, path: `brief-attachments/{instance_id}/{question_id}/{filename}` |
+
+Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured in `supabase/config.toml` and verified in Dashboard).
+
+### Template JSONB Schema
 
 ```json
 {
@@ -59,18 +55,18 @@ Arquivos opcionais por pergunta ou pelo brief geral (`question_id null`). Bucket
     {
       "id": "string",
       "order": 1,
-      "title": "Nome da Seção",
-      "deliverable": "O que será entregue nesta seção",
-      "callout": "Aviso ou nota especial (opcional)",
-      "audience": "Para quem esta seção se destina",
+      "title": "Section name",
+      "deliverable": "What will be delivered in this section",
+      "callout": "Special notice or note (optional)",
+      "audience": "Who this section is intended for",
       "questions": [
         {
           "id": "q1",
           "order": 1,
-          "text": "Texto da pergunta",
+          "text": "Question text",
           "type": "text | textarea | select | multiselect | date | boolean",
           "required": true,
-          "note": "Nota de ajuda ao respondente (opcional)",
+          "note": "Help text for the respondent (optional)",
           "allow_attachment": false
         }
       ]
@@ -79,178 +75,69 @@ Arquivos opcionais por pergunta ou pelo brief geral (`question_id null`). Bucket
 }
 ```
 
-`structure_snapshot` em `brief_instances` é uma cópia deste schema no momento da criação — preserva o conteúdo do brief mesmo se o template for editado ou excluído posteriormente.
+`structure_snapshot` in `brief_instances` is a frozen copy of the template at creation time — preserves the brief content even if the template is later edited or deleted.
 
 ---
 
-## Fluxo Operacional
+## UI Behavior
 
-```
-CSM seleciona template
-    → cria brief_instance (status: draft)
-    → copia structure → structure_snapshot
-    → gera access_token único
-    → define public_expires_at (opcional)
-    → status: sent → envia link /brief/{access_token} ao cliente
+### Hub Side — OnboardingDetailPage Header
 
-Cliente abre link público
-    → informa e-mail
-    → edge fn brief-public valida token + e-mail contra contacts do cliente
-    → retorna structure_snapshot + respostas existentes
+`BriefHeaderButton` in the project header:
+- **No instance exists:** Button "Criar Brief" — navy background (`#173557`), white text, `Icons.FileQuestion` icon
+- **Instance exists:** Button "Editar Brief" — sky background (`#0a6a96`), white text, `Icons.Pencil` icon
+- Both buttons have `minWidth: 110` to match the "Editar projeto" button size
+- Admin users see delete icon (`Icons.Trash2` in `S.iconBtn` style, red `#c44`) next to "Editar projeto"
+- Clicking "Criar Brief" opens `BriefCreateModal` (template selector)
+- Clicking "Editar Brief" opens `BriefResponsesModal`
 
-Cliente preenche
-    → save_response por pergunta (upsert)
-    → status muda para in_progress na primeira escrita
+### BriefResponsesModal
 
-Cliente finaliza
-    → action: complete
-    → status: completed + completed_at
-    → atividade registrada no cliente (activity_type: 'brief')
+Editable modal with:
+- Per-question `<textarea>` with auto-save on `onBlur`
+- "Salvando..." indicator during save
+- Per-question attachment upload (`Icons.Paperclip` label triggering `<input type="file">`)
+- Per-question attachment removal
+- "Copiar link" button — copies `/brief/{access_token}` to clipboard
+- "Enviar para cliente" button — marks instance as `sent`, copies link (only visible when status is `draft` or `in_progress`)
 
-CSM visualiza dentro de OnboardingDetailPage
-    → lê brief_instances filtrado por onboarding_id
-    → lê brief_responses + brief_attachments
-```
+### Public Side — BriefPublicPage (`/brief/:token`)
 
----
+Public page without Supabase JWT. Email-authenticated access:
+1. User enters email → `brief-public` validates against `contacts.client_id` OR `profiles.email`
+2. If valid: loads `structure_snapshot` + existing responses
+3. Auto-save with 1500ms debounce per question (`save_response` action)
+4. Status triggers: `sent → in_progress` only for contacts, **not** for internal Hub users
+5. Sidebar shows section progress: empty (gray) / partial (yellow) / done (green)
+6. `complete` action locks form, marks as `completed`, creates activity (contacts only)
+7. After completion: shows "thanks" screen
 
-## URL Pública e Autenticação por E-mail
+### Settings Side — `/config/brief-templates`
 
-- URL: `/brief/{access_token}`
-- Sem JWT do Supabase — edge function `brief-public` roda com `verify_jwt = false`
-- Autenticação: e-mail validado contra `contacts` do cliente dono da instância
-- Sem e-mail na tabela `contacts` → acesso negado (403)
-- Token expirado ou instância arquivada → acesso negado (403)
-
-### Actions da edge function `brief-public`
-
-| Action | Descrição |
-|---|---|
-| `validate` | Valida token + e-mail, retorna metadados e structure_snapshot |
-| `get` | Retorna instância + respostas + anexos existentes |
-| `save_response` | Upsert de resposta por question_id |
-| `complete` | Marca completed, registra atividade |
+Accessible to admin/manager only:
+- Template list with cards: name, operation_type badge, section/question counts, active/inactive toggle
+- "Novo Template" button opens editor modal
+- Edit and delete buttons per template
+- Editor modal: name (required), operation_type select, section builder (title, deliverable, callout, audience), question builder per section (text, type, required, allow_attachment)
+- Preview of questions per section
 
 ---
 
-## RLS
+## Dependencies
 
-| Tabela | Regra |
-|---|---|
-| brief_templates | Todos leem; apenas admin/manager criam e editam |
-| brief_instances | CSM vê só clientes próprios; admin/manager vê tudo |
-| brief_responses | Acesso via instância → cliente → CSM ou admin/manager |
-| brief_attachments | Idem brief_responses |
+- `supabaseClient` — database queries and storage
+- `useBrief`, `useBriefTemplates`, `useBriefResponses` hooks
+- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2` (no direct lucide-react imports)
+- `react-hot-toast` — feedback on save/upload/errors
+- Storage bucket `activity-attachments` with path prefix `brief-attachments/`
+- Edge function `brief-public` deployed with `verify_jwt = false`
 
-Storage bucket `project-briefs`: privado, qualquer usuário autenticado lê e insere (filtrado por RLS da instância no lado da aplicação).
+### Supabase Migrations
 
----
+| File | Description |
+|------|-------------|
+| `20260513000000_project_brief.sql` | Creates: `brief_templates`, `brief_instances`, `brief_responses`, `brief_attachments`, RLS policies, storage bucket `project-briefs` |
+| `20260514000000_brief_fix_onboarding_fk.sql` | Renames `brief_instances.fase_id` → `onboarding_id`, adds FK to `onboardings`, drops old `fase_id` |
+| `20260515000000_add_brief_templates_flag.sql` | Adds `is_active` flag to `brief_templates` |
 
-## Página Pública — BriefPublicPage
-
-`src/pages/BriefPublicPage.jsx` — rota `/brief/:token`
-
-Rota pública sem ProtectedRoute nem AuthProvider. Segue mesmo padrão visual do RMC (`ReportPublicPage.jsx`): inline styles, sem Tailwind, Google Fonts Poppins via `<link>`.
-
-### Fases de renderização
-
-| Fase | Descrição |
-|---|---|
-| `auth` | Formulário de e-mail. Botão "Acessar Brief" chama `validate`. |
-| `validating` | Spinner enquanto edge fn valida. |
-| `loading` | Chama `get` para carregar respostas existentes. |
-| `form` | Layout: header fixo + sidebar (260px) + área principal + footer fixo. |
-| `thanks` | Tela de confirmação após `complete`. |
-| `error` | Mensagem de erro com botão para tentar novamente. |
-
-### Sessão
-
-Chave `brief_session_{token}` em sessionStorage. Armazena `{ email, instance_id, clientName }`. Ao reabrir aba: email preenchido automaticamente, pulando tela de auth se validação OK.
-
-### Auto-save
-
-Debounce de 1500ms por `question_id` via `useRef`. Chama `save_response` silenciosamente. Feedback via indicador "Salvando…" no footer.
-
-### Sidebar
-
-Lista seções com ícone de progresso inline (SVG):
-- `IcoCheck` (círculo verde) — todas perguntas obrigatórias respondidas
-- `IcoHalf` (círculo amarelo) — pelo menos uma resposta
-- `IcoEmpty` (círculo cinza) — sem respostas
-
-### Bloqueio pós-conclusão
-
-`instance.status === 'completed'` → campos `readOnly`, banner "Brief concluído em {data}", footer oculto.
-
-### callBrief helper
-
-```js
-const BASE_URL = import.meta.env.VITE_SUPABASE_URL
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-async function callBrief(payload) {
-  const res = await fetch(`${BASE_URL}/functions/v1/brief-public`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
-    body: JSON.stringify(payload),
-  })
-  const json = await res.json()
-  if (!res.ok) throw { status: res.status, message: json.error || 'Erro desconhecido' }
-  return json
-}
-```
-
----
-
-## Ícones (icons.js)
-
-```js
-import { Icons } from '@/lib/icons'
-
-Icons.ClipboardList  // feed de atividades
-Icons.FileQuestion   // seletor de template
-Icons.Send           // botão de envio do link
-```
-
----
-
-## Migration
-
-`supabase/migrations/20260513000000_project_brief.sql`
-
-## Edge Function
-
-`supabase/functions/brief-public/index.ts`
-
-> **Após deploy:** desabilitar "Verify JWT" em Dashboard → Edge Functions → brief-public → Settings.
-
----
-
-## Gestão de Templates (Settings)
-
-### Rota
-`/config/brief-templates` — acessível apenas para admin/manager
-
-### Interface
-- Lista de templates com cards: nome, operation_type (Badge), quantidade de seções e perguntas, status ativo/inativo
-- Botão "Novo Template" abre modal de edição
-- Toggle de ativar/desativar diretamente na lista
-- Botões Editar e Excluir por template
-
-### Modal de Editor
-- Campos: Nome (obrigatório), Tipo de Operação (select)
-- Editor de seções:
-  - Adicionar seção: título, entregável, callout (opcional), audience (opcional)
-  - Adicionar pergunta por seção: texto, tipo (texto/textarea), obrigatória, permite anexo
-  - Preview simples de perguntas por seção
-
-### Hook
-`useBriefTemplates.js` expõe:
-- `briefTemplates` — lista todos os templates
-- `createTemplate({ name, operation_type, structure })`
-- `updateTemplate({ id, name, operation_type, structure })`
-- `toggleActive({ id, is_active })`
-- `deleteTemplate(id)`
-
-### Menu de Settings
-Item adicionado em "Projetos": `{ key: 'brief-templates', label: 'Templates de Brief', href: '/config/brief-templates' }`
+> **After deploy of `brief-public`:** disable "Verify JWT" in Dashboard → Edge Functions → brief-public → Settings.

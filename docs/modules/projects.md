@@ -19,7 +19,7 @@ The Projects module provides a Kanban‑style board for planning, tracking, and 
 |------|--------------------------|
 | `ProjectsPage.jsx` | Main page component: loads projects, onboardings, clients, profiles; renders filter bar, stats cards, Kanban board with drag‑and‑drop; opens the `ProjectModal`. |
 | `ProjectModal.jsx` | Modal dialog for creating or editing a project. Handles form state, client selection (combobox for global create), project type selection, capability (capabilities) selection for onboarding/expansao projects, and submission via appropriate mutation hooks. |
-| `OnboardingDetailPage.jsx` | Detailed view of an onboarding project: header, timeline (fases), activities list with phase filtering, fase management panel with drag‑and‑drop. |
+| `OnboardingDetailPage.jsx` | Detailed view of an onboarding project: header with `BriefHeaderButton` for brief creation/editing, timeline (fases), activities list with phase filtering, fase management panel with drag‑and‑drop. |
 | `OnboardingStyles.js` | CSS‑in‑JS style objects for onboarding UI components (timeline, activity list, pending items, response picker). |
 
 ## Project Types

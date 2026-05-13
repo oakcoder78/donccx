@@ -142,10 +142,11 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from:    fromAddress,
-            to:      recipient.email,
-            subject: mergedSubject,
-            html:    mergedHtml,
+            from:     fromAddress,
+            to:       recipient.email,
+            subject:  mergedSubject,
+            html:     mergedHtml,
+            reply_to: "suporte@donc.com.br",
           }),
         })
         if (!sendRes.ok) {
