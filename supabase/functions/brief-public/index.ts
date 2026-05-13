@@ -28,16 +28,28 @@ serve(async (req) => {
     if (instance.public_expires_at && new Date(instance.public_expires_at) < new Date())
       return err('Link expirado', 403)
 
-    const { data: contact, error: contErr } = await sb
+    // 1. Busca como contato do cliente
+    const { data: contact } = await sb
       .from('contacts')
-      .select('id, nome, cargo')
+      .select('id, nome, cargo, client_id')
       .eq('email', email)
       .eq('client_id', instance.client_id)
-      .single()
+      .maybeSingle()
 
-    if (contErr || !contact) return err('E-mail não autorizado', 403)
+    // 2. Se não achou, busca como usuário interno do Hub
+    const { data: profile } = (!contact)
+      ? await sb.from('profiles').select('id, name, email').eq('email', email).maybeSingle()
+      : { data: null }
 
-    if (action !== 'validate' && instance.status === 'sent') {
+    // 3. Valida: é contato do cliente OU usuário interno
+    if (!contact && !profile) return err('E-mail não encontrado para este brief', 403)
+
+    // 4. Determina origem e nome
+    const isInternal = !!profile
+    const userName = contact?.nome ?? profile?.name ?? email
+
+    // 5. Trigger in_progress: só ativa se for contato (não usuário interno)
+    if (action !== 'validate' && instance.status === 'sent' && !isInternal) {
       await sb.from('brief_instances')
         .update({ status: 'in_progress' })
         .eq('id', instance.id)
@@ -45,8 +57,8 @@ serve(async (req) => {
 
     if (action === 'validate') {
       return ok({
-        contact_name: contact.nome,
-        client_name: instance.clients.name,
+        contact_name: userName,
+        client_name: isInternal ? null : instance.clients.name,
         instance: {
           id: instance.id,
           title: instance.title,
@@ -77,7 +89,7 @@ serve(async (req) => {
         question_id,
         response_text,
         responded_by_email: email,
-        responded_by_name: contact.nome,
+        responded_by_name: userName,
         responded_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { onConflict: 'instance_id,question_id' })
@@ -91,13 +103,16 @@ serve(async (req) => {
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', instance.id)
 
-      await sb.from('activities').insert({
-        client_id: instance.client_id,
-        activity_type: 'brief',
-        description: `Brief "${instance.title}" respondido pelo cliente`,
-        activity_date: new Date().toISOString(),
-        responsible_id: instance.created_by,
-      })
+      // Só registra atividade se for contato (não usuário interno)
+      if (!isInternal) {
+        await sb.from('activities').insert({
+          client_id: instance.client_id,
+          type: 'brief',
+          title: `Brief "${instance.title}" respondido pelo cliente`,
+          activity_date: new Date().toISOString(),
+          responsible_id: instance.created_by,
+        })
+      }
 
       return ok({ completed: true })
     }
