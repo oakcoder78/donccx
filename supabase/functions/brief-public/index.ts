@@ -103,7 +103,6 @@ serve(async (req) => {
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', instance.id)
 
-      // Só registra atividade se for contato (não usuário interno)
       if (!isInternal) {
         await sb.from('activities').insert({
           client_id: instance.client_id,
@@ -115,6 +114,86 @@ serve(async (req) => {
       }
 
       return ok({ completed: true })
+    }
+
+    if (action === 'upload_attachment') {
+      if (instance.status === 'completed') return err('Brief já concluído', 403)
+
+      const { question_id, file_name, file_size, file_type, data_base64 } = payload
+      if (!file_name || !file_size || !file_type || !data_base64)
+        return err('Parâmetros incompletos', 400)
+
+      const maxSize = 10 * 1024 * 1024
+      if (file_size > maxSize) return err('Arquivo maior que 10MB', 400)
+
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/csv',
+        'application/zip',
+      ]
+      if (!allowedTypes.includes(file_type))
+        return err('Tipo de arquivo não permitido', 400)
+
+      const timestamp = Date.now()
+      const safeName = file_name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const path = `${instance.id}/${question_id || 'general'}/${timestamp}_${safeName}`
+
+      const binary = atob(data_base64.replace(/^data:[^,]+,/, ''))
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+
+      const { error: uploadErr } = await sb.storage
+        .from('project-briefs')
+        .upload(path, bytes, { contentType: file_type })
+
+      if (uploadErr) return err('Erro ao salvar arquivo: ' + uploadErr.message, 500)
+
+      const uploaded_by = contact?.id ?? profile?.id
+      const { error: insertErr } = await sb.from('brief_attachments').insert({
+        instance_id: instance.id,
+        question_id: question_id || null,
+        file_name,
+        file_size,
+        file_type,
+        storage_path: path,
+        uploaded_by,
+      })
+
+      if (insertErr) {
+        await sb.storage.from('project-briefs').remove([path])
+        return err('Erro ao registrar anexo', 500)
+      }
+
+      return ok({ saved: true, path })
+    }
+
+    if (action === 'delete_attachment') {
+      if (instance.status === 'completed') return err('Brief já concluído', 403)
+
+      const { attachment_id } = payload
+      if (!attachment_id) return err('attachment_id requerido', 400)
+
+      const { data: attachment } = await sb
+        .from('brief_attachments')
+        .select('*')
+        .eq('id', attachment_id)
+        .eq('instance_id', instance.id)
+        .maybeSingle()
+
+      if (!attachment) return err('Anexo não encontrado', 404)
+
+      const ownerId = contact?.id ?? profile?.id
+      if (attachment.uploaded_by !== ownerId) return err('Sem permissão', 403)
+
+      await sb.storage.from('project-briefs').remove([attachment.storage_path])
+      await sb.from('brief_attachments').delete().eq('id', attachment_id)
+
+      return ok({ deleted: true })
     }
 
     return err('Action inválida', 400)
