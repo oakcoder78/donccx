@@ -146,14 +146,70 @@ Storage bucket `project-briefs`: privado, qualquer usuário autenticado lê e in
 
 ---
 
+## Página Pública — BriefPublicPage
+
+`src/pages/BriefPublicPage.jsx` — rota `/brief/:token`
+
+Rota pública sem ProtectedRoute nem AuthProvider. Segue mesmo padrão visual do RMC (`ReportPublicPage.jsx`): inline styles, sem Tailwind, Google Fonts Poppins via `<link>`.
+
+### Fases de renderização
+
+| Fase | Descrição |
+|---|---|
+| `auth` | Formulário de e-mail. Botão "Acessar Brief" chama `validate`. |
+| `validating` | Spinner enquanto edge fn valida. |
+| `loading` | Chama `get` para carregar respostas existentes. |
+| `form` | Layout: header fixo + sidebar (260px) + área principal + footer fixo. |
+| `thanks` | Tela de confirmação após `complete`. |
+| `error` | Mensagem de erro com botão para tentar novamente. |
+
+### Sessão
+
+Chave `brief_session_{token}` em sessionStorage. Armazena `{ email, instance_id, clientName }`. Ao reabrir aba: email preenchido automaticamente, pulando tela de auth se validação OK.
+
+### Auto-save
+
+Debounce de 1500ms por `question_id` via `useRef`. Chama `save_response` silenciosamente. Feedback via indicador "Salvando…" no footer.
+
+### Sidebar
+
+Lista seções com ícone de progresso inline (SVG):
+- `IcoCheck` (círculo verde) — todas perguntas obrigatórias respondidas
+- `IcoHalf` (círculo amarelo) — pelo menos uma resposta
+- `IcoEmpty` (círculo cinza) — sem respostas
+
+### Bloqueio pós-conclusão
+
+`instance.status === 'completed'` → campos `readOnly`, banner "Brief concluído em {data}", footer oculto.
+
+### callBrief helper
+
+```js
+const BASE_URL = import.meta.env.VITE_SUPABASE_URL
+const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function callBrief(payload) {
+  const res = await fetch(`${BASE_URL}/functions/v1/brief-public`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', apikey: ANON_KEY },
+    body: JSON.stringify(payload),
+  })
+  const json = await res.json()
+  if (!res.ok) throw { status: res.status, message: json.error || 'Erro desconhecido' }
+  return json
+}
+```
+
+---
+
 ## Ícones (icons.js)
 
 ```js
-import { BriefIcons } from '@/lib/icons'
+import { Icons } from '@/lib/icons'
 
-BriefIcons.activity  // ClipboardList — feed de atividades
-BriefIcons.template  // FileQuestion  — seletor de template
-BriefIcons.send      // Send          — botão de envio do link
+Icons.ClipboardList  // feed de atividades
+Icons.FileQuestion   // seletor de template
+Icons.Send           // botão de envio do link
 ```
 
 ---
