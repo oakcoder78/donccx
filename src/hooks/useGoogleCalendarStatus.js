@@ -21,16 +21,16 @@ export function useGoogleCalendarStatus() {
         .from('user_google_configs')
         .select('refresh_token, tokenexpiry')
         .eq('user_id', user.id)
-        .single()
-      if (error) throw error
+        .maybeSingle()
+      if (error) {
+        if (error.code !== 'PGRST116') console.error('[google-config]', error.message)
+        return null
+      }
       return data
     },
   })
 
   const isConnected = !!(query.data?.refresh_token)
-  const isExpired = query.data?.tokenexpiry
-    ? new Date(query.data.tokenexpiry).getTime() < Date.now()
-    : false
 
   function connectGoogleCalendar() {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
@@ -55,7 +55,6 @@ export function useGoogleCalendarStatus() {
   return {
     isLoading: query.isLoading,
     isConnected,
-    isExpired,
     error: query.error,
     connectGoogleCalendar,
     invalidate,

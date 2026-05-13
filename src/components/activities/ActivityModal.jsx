@@ -15,6 +15,14 @@ import toast from 'react-hot-toast'
 
 const EDGE_FUNCTION_URL = 'https://etfeqblaeuhaobefxilp.supabase.co/functions/v1/google-calendar-event'
 
+const RELEVANT_FIELDS = ['title', 'activity_date', 'activity_time']
+
+function shouldSyncWithCalendar(prev, next) {
+  if (next.type !== 'reuniao') return false
+  if (!next.activity_date) return false
+  return RELEVANT_FIELDS.some(field => prev[field] !== next[field])
+}
+
 const TYPES = [
   { value: 'reuniao', label: 'Reunião' },
   { value: 'ligacao', label: 'Ligação' },
@@ -86,7 +94,12 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       activityResult = await create.mutateAsync(payload)
     }
 
-    if (token && form.activity_time) {
+    if (token && form.activity_time && syncToGoogle) {
+      if (!isGoogleConnected) {
+        onClose()
+        return
+      }
+
       const activityId = isEdit
         ? activity.id
         : (Array.isArray(activityResult)
@@ -94,6 +107,16 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
           : activityResult?.data?.id ?? activityResult?.id)
 
       if (!activityId) {
+        onClose()
+        return
+      }
+
+      if (isEdit && activity.google_event_id && !shouldSyncWithCalendar(activity, form)) {
+        onClose()
+        return
+      }
+
+      if (!isEdit && !shouldSyncWithCalendar({ type: form.type, title: form.title, activity_date: form.activity_date, activity_time: form.activity_time }, form)) {
         onClose()
         return
       }
@@ -114,14 +137,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       try {
         let res
 
-        if (isEdit && activity.google_event_id && !syncToGoogle) {
-          res = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ method: 'DELETE', google_event_id: activity.google_event_id, linkedActivity: syncPayload.linkedActivity }),
-          })
-          if (res.ok) toast.success('Evento removido do Google Calendar')
-        } else if (isEdit && activity.google_event_id && syncToGoogle) {
+        if (isEdit && activity.google_event_id && syncToGoogle) {
           res = await fetch(EDGE_FUNCTION_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },

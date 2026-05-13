@@ -150,6 +150,7 @@ useEffect(() => {
 
   async function handleSyncToGoogleCalendar(time) {
     if (!sessionToken) { toast.error('Sessão não disponível'); return }
+    if (!isConnected) return
 
     setSyncing(true)
     try {
