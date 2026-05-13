@@ -3,14 +3,16 @@ import { Icons } from '../lib/icons'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { PageSpinner } from '../components/ui/Spinner'
+import { SettingsSectionHeader } from '../components/settings/SettingsSectionHeader'
 import { useBriefTemplates } from '../hooks/useBriefTemplates'
 import toast from 'react-hot-toast'
 
 const OPERATION_TYPES = [
+  { value: 'padrao', label: 'Padrão' },
   { value: 'entrega', label: 'Entrega' },
-  { value: 'instalacao', label: 'Instalação' },
+  { value: 'montagem', label: 'Montagem' },
   { value: 'assistencia', label: 'Assistência Técnica' },
-  { value: 'seguranca', label: 'Segurança' },
+  { value: 'instalacao', label: 'Instalação' },
 ]
 
 function Toggle({ checked, onChange, disabled }) {
@@ -19,19 +21,9 @@ function Toggle({ checked, onChange, disabled }) {
       type="button"
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      style={{
-        width: 36, height: 20, borderRadius: 10,
-        backgroundColor: checked ? '#173557' : '#d4d3ce',
-        position: 'relative', transition: 'background 0.2s',
-        cursor: disabled ? 'default' : 'pointer',
-        border: 'none', padding: 0,
-      }}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${checked ? 'bg-donc-navy' : 'bg-gray-300'} ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
-      <span style={{
-        position: 'absolute', top: 2, left: checked ? 18 : 2,
-        width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff',
-        transition: 'left 0.2s',
-      }} />
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-4' : 'translate-x-0.5'}`} />
     </button>
   )
 }
@@ -39,7 +31,7 @@ function Toggle({ checked, onChange, disabled }) {
 function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
   const [form, setForm] = useState({
     name: template?.name || '',
-    operation_type: template?.operation_type || 'entrega',
+    operation_type: template?.operation_type || 'padrao',
     sections: template?.structure?.sections || [],
   })
 
@@ -134,9 +126,9 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+      <div className="bg-bg-primary rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="p-6 border-b border-border-tertiary">
+          <h2 className="text-lg font-semibold text-text-primary">
             {template ? 'Editar Template' : 'Novo Template'}
           </h2>
         </div>
@@ -144,20 +136,20 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome *</label>
+              <label className="label-sm">Nome *</label>
               <input
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="input-base w-full"
                 placeholder="Nome do template"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Operação</label>
+              <label className="label-sm">Tipo de Operação</label>
               <select
                 value={form.operation_type}
                 onChange={e => setForm(f => ({ ...f, operation_type: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="input-base w-full"
               >
                 {OPERATION_TYPES.map(t => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -166,43 +158,43 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Seções</h3>
+          <div className="border-t border-border-tertiary pt-4">
+            <h3 className="text-sm font-semibold text-text-primary mb-3">Seções</h3>
 
             {form.sections.map((sec, secIdx) => (
-              <div key={sec.id || secIdx} className="bg-gray-50 rounded-md p-3 mb-3 border border-gray-200">
+              <div key={sec.id || secIdx} className="bg-bg-secondary rounded-md p-3 mb-3 border border-border-tertiary">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-sm font-medium">{sec.order}. {sec.title}</span>
-                  <button onClick={() => removeSection(secIdx)} className="text-red-500 text-xs">Remover</button>
+                  <span className="text-sm font-medium text-text-primary">{sec.order}. {sec.title}</span>
+                  <button onClick={() => removeSection(secIdx)} className="text-xs text-red-500 hover:underline">Remover</button>
                 </div>
                 {sec.deliverable && (
-                  <p className="text-xs text-gray-600 mb-2">Entregável: {sec.deliverable}</p>
+                  <p className="text-xs text-text-tertiary mb-2">Entregável: {sec.deliverable}</p>
                 )}
-                <div className="text-xs text-gray-500 mb-2">
+                <div className="text-xs text-text-tertiary mb-2">
                   {sec.questions?.length || 0} perguntas
                 </div>
 
                 {(sec.questions || []).map((q, qIdx) => (
-                  <div key={q.id || qIdx} className="ml-4 mt-2 p-2 bg-white rounded border border-gray-200">
+                  <div key={q.id || qIdx} className="ml-4 mt-2 p-2 bg-bg-primary rounded border border-border-tertiary">
                     <div className="flex gap-2 items-start">
                       <input
                         value={q.text}
                         onChange={e => updateQuestion(secIdx, qIdx, 'text', e.target.value)}
-                        className="flex-1 px-2 py-1 text-xs border rounded"
+                        className="input-base flex-1 text-xs"
                         placeholder="Texto da pergunta"
                       />
-                      <button onClick={() => removeQuestion(secIdx, qIdx)} className="text-red-400 text-xs">✕</button>
+                      <button onClick={() => removeQuestion(secIdx, qIdx)} className="text-xs text-red-500">✕</button>
                     </div>
                     <div className="flex gap-2 mt-1">
                       <select
                         value={q.type}
                         onChange={e => updateQuestion(secIdx, qIdx, 'type', e.target.value)}
-                        className="text-xs px-2 py-1 border rounded"
+                        className="input-base text-xs"
                       >
                         <option value="text">Texto curto</option>
                         <option value="textarea">Texto longo</option>
                       </select>
-                      <label className="flex items-center gap-1 text-xs">
+                      <label className="flex items-center gap-1 text-xs text-text-secondary">
                         <input
                           type="checkbox"
                           checked={q.required}
@@ -216,38 +208,38 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
 
                 <button
                   onClick={() => addQuestion(secIdx)}
-                  className="mt-2 text-xs text-blue-600 hover:underline"
+                  className="mt-2 text-xs text-donc-sky hover:underline"
                 >
                   + Adicionar pergunta
                 </button>
               </div>
             ))}
 
-            <div className="border border-dashed border-gray-300 rounded-md p-3">
-              <h4 className="text-xs font-medium text-gray-700 mb-2">Nova Seção</h4>
+            <div className="border border-dashed border-border-secondary rounded-md p-3">
+              <h4 className="text-xs font-medium text-text-secondary mb-2">Nova Seção</h4>
               <div className="space-y-2">
                 <input
                   value={newSection.title}
                   onChange={e => setNewSection(s => ({ ...s, title: e.target.value }))}
-                  className="w-full px-2 py-1 text-sm border rounded"
+                  className="input-base w-full text-sm"
                   placeholder="Título da seção *"
                 />
                 <input
                   value={newSection.deliverable}
                   onChange={e => setNewSection(s => ({ ...s, deliverable: e.target.value }))}
-                  className="w-full px-2 py-1 text-sm border rounded"
+                  className="input-base w-full text-sm"
                   placeholder="Entregável"
                 />
                 <input
                   value={newSection.audience}
                   onChange={e => setNewSection(s => ({ ...s, audience: e.target.value }))}
-                  className="w-full px-2 py-1 text-sm border rounded"
+                  className="input-base w-full text-sm"
                   placeholder="Público (ex: Financeiro, TI)"
                 />
                 <button
                   onClick={addSection}
                   disabled={!newSection.title.trim()}
-                  className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-gray-200 disabled:opacity-50"
+                  className="text-xs bg-bg-secondary px-2 py-1 rounded hover:bg-bg-tertiary disabled:opacity-50"
                 >
                   + Adicionar Seção
                 </button>
@@ -256,7 +248,7 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
           </div>
         </div>
 
-        <div className="p-4 border-t bg-gray-50 flex justify-end gap-2">
+        <div className="p-4 border-t border-border-tertiary bg-bg-secondary flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button variant="primary" onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Salvando...' : 'Salvar'}
@@ -291,41 +283,42 @@ export default function SettingsBriefTemplates() {
   if (isLoading) return <PageSpinner />
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Templates de Brief</h1>
-          <p className="text-sm text-gray-500 mt-1">Gerencie os modelos de questionário de discovery</p>
-        </div>
-        <Button variant="primary" onClick={() => setShowModal(true)}>
-          <Icons.Plus size={16} className="mr-2" />
-          Novo Template
-        </Button>
-      </div>
+    <div className="max-w-3xl space-y-6">
+      <SettingsSectionHeader
+        icon={Icons.FileQuestion}
+        title="Templates de Brief"
+        subtitle="Gerencie os modelos de questionário de discovery."
+        actions={
+          <Button size="sm" onClick={() => setShowModal(true)}>
+            <Icons.Plus size={16} className="mr-1" />
+            Novo Template
+          </Button>
+        }
+      />
 
-      <div className="grid gap-4">
+      <div className="space-y-4">
         {briefTemplates.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-text-tertiary">
             Nenhum template criado ainda
           </div>
         ) : (
           briefTemplates.map(template => (
             <div
               key={template.id}
-              className="bg-white border border-gray-200 rounded-lg p-4 flex items-center justify-between"
+              className="bg-bg-primary border border-border-tertiary rounded-lg p-4 flex items-center justify-between"
             >
               <div className="flex-1">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-medium text-gray-900">{template.name}</h3>
+                  <h3 className="font-medium text-text-primary">{template.name}</h3>
                   <Badge
                     label={OPERATION_TYPES.find(t => t.value === template.operation_type)?.label || template.operation_type}
-                    color={template.operation_type === 'entrega' ? 'blue' : template.operation_type === 'seguranca' ? 'green' : 'blue'}
+                    variant="blue"
                   />
                   {!template.is_active && (
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Inativo</span>
+                    <span className="text-xs text-text-tertiary bg-bg-secondary px-2 py-0.5 rounded">Inativo</span>
                   )}
                 </div>
-                <div className="text-sm text-gray-500 mt-1">
+                <div className="text-sm text-text-tertiary mt-1">
                   {template.structure?.sections?.length || 0} seções • {calcQuestions(template)} perguntas
                 </div>
               </div>
@@ -338,16 +331,17 @@ export default function SettingsBriefTemplates() {
                 <Button variant="secondary" size="sm" onClick={() => { setEditingTemplate(template); setShowModal(true) }}>
                   Editar
                 </Button>
-                <button
+                <Button
+                  variant="danger"
+                  size="sm"
                   onClick={() => {
                     if (window.confirm('Remover este template?')) {
                       deleteTemplate.mutate(template.id)
                     }
                   }}
-                  className="text-red-500 text-sm hover:underline"
                 >
                   Excluir
-                </button>
+                </Button>
               </div>
             </div>
           ))
