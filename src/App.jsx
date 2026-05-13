@@ -26,6 +26,7 @@ import DoncAPIPendentes from './pages/DoncAPIPendentes'
 import ReportEditorPage from './pages/ReportEditorPage'
 import ReportPublicPage from './pages/ReportPublicPage'
 import BriefPublicPage from './pages/BriefPublicPage'
+import SettingsBriefTemplates from './pages/SettingsBriefTemplates'
 import AtendimentoPage from './pages/AtendimentoPage'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
 
@@ -178,6 +179,7 @@ function AppRoutes() {
 
           <Route element={<AdminRoute />}>
             <Route path="/configuracoes" element={<SettingsPage />} />
+            <Route path="/config/brief-templates" element={<SettingsBriefTemplates />} />
             <Route path="/config/freshdesk/pendentes" element={<FreshdeskPendingPage />} />
             <Route path="/config/donc-api/pendentes" element={<DoncAPIPendentes />} />
           </Route>

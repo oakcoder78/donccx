@@ -10,12 +10,14 @@ import { useContacts } from '../hooks/useContacts'
 import { useProfiles } from '../hooks/useProfiles'
 import { useOnboarding } from '../hooks/useOnboardings'
 import { useDeleteProject } from '../hooks/useProjects'
+import { useBrief } from '../hooks/useBrief'
+import { BriefCreateModal, BriefResponsesModal } from '../components/brief'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { FASE_TYPE_IDS } from '../lib/constants'
 import { ProjectModal } from '../components/projects/ProjectModal'
 import { styles } from '../components/onboarding/OnboardingStyles'
 import { Icons } from '../lib/icons'
-import { BriefPanel } from '../components/brief'
+
 
 // ── Local style constants ─────────────────────────────────────────────────────
 const S = {
@@ -360,6 +362,98 @@ function EvidenceRow({ ev, onView, onDelete }) {
         <button style={{ background: 'transparent', border: 'none', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontWeight: 500, color: 'rgba(180,40,40,0.85)', cursor: 'pointer', fontFamily: 'inherit' }} onClick={onDelete}>Remover</button>
       </div>
     </div>
+  )
+}
+
+// ── BriefHeaderButton — botão no header do projeto ─────────────────────────────
+function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
+  const [showCreate, setShowCreate] = useState(false)
+  const [showResponses, setShowResponses] = useState(false)
+  const [selectedInstance, setSelectedInstance] = useState(null)
+
+  const { briefInstances, briefTemplates, createBrief, updateBriefStatus, copyPublicLink, isLoading } = useBrief(onboardingId, clientId)
+
+  const instance = briefInstances[0]
+
+  const handleClick = () => {
+    if (instance) {
+      setSelectedInstance(instance)
+      setShowResponses(true)
+    } else {
+      setShowCreate(true)
+    }
+  }
+
+  const handleSend = async () => {
+    if (!instance) return
+    await updateBriefStatus.mutateAsync({ id: instance.id, status: 'sent' })
+    await copyPublicLink(instance.access_token)
+  }
+
+  const STATUS_CONFIG = {
+    draft: { bg: '#e2e8f0', color: '#475569' },
+    sent: { bg: 'rgba(89,194,237,0.15)', color: '#0a6a96' },
+    in_progress: { bg: 'rgba(211,218,71,0.2)', color: '#4a5c20' },
+    completed: { bg: '#173557', color: '#ffffff' },
+  }
+
+  return (
+    <>
+      <button
+        onClick={handleClick}
+        disabled={isLoading}
+        style={{
+          ...S.btnSec,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          background: instance ? 'rgba(89,194,237,0.08)' : 'transparent',
+        }}
+      >
+        {isLoading ? (
+          <span style={{ fontSize: 12 }}>...</span>
+        ) : instance ? (
+          <>
+            <Icons.ClipboardList size={14} />
+            <span>Brief</span>
+            <span style={{
+              fontSize: 10,
+              padding: '1px 6px',
+              borderRadius: 999,
+              background: STATUS_CONFIG[instance.status]?.bg,
+              color: STATUS_CONFIG[instance.status]?.color,
+            }}>
+              {instance.status === 'draft' ? 'Rascunho' : instance.status === 'sent' ? 'Enviado' : instance.status === 'in_progress' ? 'Em progresso' : 'Concluído'}
+            </span>
+          </>
+        ) : (
+          <>
+            <Icons.FileQuestion size={14} />
+            <span>Criar Brief</span>
+          </>
+        )}
+      </button>
+
+      {showCreate && (
+        <BriefCreateModal
+          onboardingId={onboardingId}
+          clientId={clientId}
+          clientName={clientName}
+          faseName={project?.title || ''}
+          templates={briefTemplates}
+          onClose={() => setShowCreate(false)}
+          onCreate={createBrief.mutateAsync}
+          isCreating={createBrief.isPending}
+        />
+      )}
+
+      {showResponses && selectedInstance && (
+        <BriefResponsesModal
+          instance={selectedInstance}
+          onClose={() => { setShowResponses(false); setSelectedInstance(null) }}
+        />
+      )}
+    </>
   )
 }
 
@@ -858,14 +952,6 @@ async function handleComplete() {
               </div>
             </div>
           </div>
-
-          {/* Brief de Discovery */}
-          <BriefPanel
-            onboardingId={onboardingId}
-            clientId={clientId}
-            clientName={onboarding?.client?.fantasy_name || onboarding?.client?.name || ''}
-            faseName={phaseName(fase)}
-          />
 
         </div>
 
