@@ -28,6 +28,10 @@ Dev: `npm run dev`
 - Padrão de adição: import { X } from 'lucide-react' no topo do arquivo + X incluído no objeto/export central
 - Antes de adicionar: verificar se o ícone já existe no registry para evitar duplicatas
 
+Exemplo de erro e acerto:
+❌ NUNCA: import { FileQuestion } from 'lucide-react' em componentes
+✅ SEMPRE: import { BriefIcons } from '../lib/icons'
+
 ## Verified stack and shape
 - Single-package Vite app (React 18 + TailwindCSS 3 + TanStack Query v5 + Supabase JS).
 - App entry: `src/main.jsx` -> `src/App.jsx`.
