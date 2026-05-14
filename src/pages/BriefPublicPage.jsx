@@ -308,18 +308,34 @@ function QuestionDrawer({ open, onClose, clientQuestions, drawerText, onChange, 
       )}
 
       {generalQuestions.length > 0 && (
-        <div style={{ borderTop: '1px solid rgba(15,34,58,0.08)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ borderTop: '1px solid rgba(15,34,58,0.08)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(23,53,87,0.45)' }}>Dúvidas enviadas</div>
-          {generalQuestions.map((q, i) => (
-            <div key={i} style={{ fontSize: 12, lineHeight: 1.5 }}>
-              <div style={{ color: 'rgba(23,53,87,0.7)', marginBottom: q.csm_reply ? 6 : 0 }}>{q.note_text}</div>
-              {q.csm_reply && (
-                <div style={{ background: 'rgba(23,53,87,0.04)', borderLeft: '3px solid rgba(23,53,87,0.2)', padding: '6px 10px', borderRadius: '0 6px 6px 0', color: NAVY }}>
-                  <strong>Donc:</strong> {q.csm_reply}
+          {generalQuestions.map((q, i) => {
+            const isReplied = !!q.csm_reply
+            return (
+              <div key={i}>
+                <div style={{
+                  background: isReplied ? 'rgba(34,160,98,0.07)' : 'rgba(245,158,11,0.07)',
+                  border: `1px solid ${isReplied ? 'rgba(34,160,98,0.25)' : 'rgba(245,158,11,0.32)'}`,
+                  borderRadius: 8, padding: '7px 10px', marginBottom: isReplied ? 6 : 0,
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4, color: isReplied ? '#157a47' : '#b45309' }}>
+                    {isReplied
+                      ? <><Icons.CheckCircle size={10} color="#157a47" /> Respondida</>
+                      : <><Icons.Clock size={10} color="#b45309" /> Aguardando resposta</>
+                    }
+                  </div>
+                  <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.80)', lineHeight: 1.5 }}>{q.note_text}</div>
                 </div>
-              )}
-            </div>
-          ))}
+                {isReplied && (
+                  <div style={{ background: 'rgba(23,53,87,0.04)', borderLeft: `3px solid ${SKY}`, padding: '6px 10px', fontSize: 12, color: NAVY, lineHeight: 1.5, borderRadius: '0 8px 8px 0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: SKY_D, marginBottom: 4 }}>Resposta da equipe Donc</div>
+                    {q.csm_reply}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -367,6 +383,8 @@ function QuestionCard({
 
   const visibleCsmNotes = (csmNotes || []).filter(n => n.question_id === id)
   const myQuestions = (clientQuestions || []).filter(q => q.question_id === id)
+  const pendingQs = myQuestions.filter(q => !q.csm_reply)
+  const allReplied = myQuestions.length > 0 && pendingQs.length === 0
 
   return (
     <article style={{ background: cardBg, border: `1px solid ${cardBorder}`, borderRadius: 12, padding: '16px 18px 14px', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s', boxShadow: focused ? '0 6px 18px -10px rgba(89,194,237,0.5)' : 'none' }}>
@@ -429,9 +447,26 @@ function QuestionCard({
         )}
 
         {!readOnly && (
-          <button onClick={onDoubtToggle} className="brief-doubt-btn" style={{ background: 'transparent', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: doubtOpen ? SKY_D : 'rgba(23,53,87,0.45)', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', borderRadius: 6, transition: 'color 0.1s' }}>
-            <Icons.MessageCircle size={12} />Dúvida?
-          </button>
+          myQuestions.length === 0 ? (
+            <button onClick={onDoubtToggle} className="brief-doubt-btn" style={{ background: 'transparent', border: 'none', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: doubtOpen ? SKY_D : 'rgba(23,53,87,0.45)', cursor: 'pointer', fontFamily: 'inherit', padding: '4px 8px', borderRadius: 6, transition: 'color 0.1s' }}>
+              <Icons.MessageCircle size={12} />Dúvida?
+            </button>
+          ) : (
+            <button onClick={onDoubtToggle} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              fontSize: 11.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              padding: '4px 10px 4px 8px', borderRadius: 999,
+              border: `1px solid ${allReplied ? 'rgba(34,160,98,0.35)' : 'rgba(217,140,30,0.45)'}`,
+              background: allReplied ? 'rgba(34,160,98,0.08)' : 'rgba(245,158,11,0.09)',
+              color: allReplied ? '#157a47' : '#b45309',
+              transition: 'all 0.15s',
+            }}>
+              {allReplied
+                ? <><Icons.CheckCircle size={12} color="#157a47" /> Respondida pela Donc</>
+                : <><Icons.Clock size={12} color="#b45309" /> {pendingQs.length === 1 ? 'Dúvida enviada' : `${pendingQs.length} dúvidas enviadas`}</>
+              }
+            </button>
+          )
         )}
       </div>
 
@@ -474,6 +509,43 @@ function QuestionCard({
       {/* Doubt expansion */}
       {doubtOpen && (
         <div style={{ marginLeft: 38, marginTop: 10, padding: '10px 12px', background: 'rgba(89,194,237,0.04)', border: '1px solid rgba(89,194,237,0.16)', borderRadius: 8 }}>
+
+          {/* History first */}
+          {myQuestions.map((q, i) => {
+            const isReplied = !!q.csm_reply
+            return (
+              <div key={i} style={{ marginBottom: 10 }}>
+                <div style={{
+                  background: isReplied ? 'rgba(34,160,98,0.07)' : 'rgba(245,158,11,0.07)',
+                  border: `1px solid ${isReplied ? 'rgba(34,160,98,0.25)' : 'rgba(245,158,11,0.32)'}`,
+                  borderRadius: 8, padding: '7px 10px', marginBottom: isReplied ? 6 : 0,
+                }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4, color: isReplied ? '#157a47' : '#b45309' }}>
+                    {isReplied
+                      ? <><Icons.CheckCircle size={10} color="#157a47" /> Respondida</>
+                      : <><Icons.Clock size={10} color="#b45309" /> Aguardando resposta</>
+                    }
+                  </div>
+                  <div style={{ fontSize: 12.5, color: 'rgba(23,53,87,0.80)', lineHeight: 1.5 }}>{q.note_text}</div>
+                </div>
+                {isReplied && (
+                  <div style={{ background: 'rgba(23,53,87,0.04)', borderLeft: `3px solid ${SKY}`, padding: '7px 10px', fontSize: 12.5, color: NAVY, lineHeight: 1.5, borderRadius: '0 8px 8px 0' }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: SKY_D, marginBottom: 4 }}>Resposta da equipe Donc</div>
+                    {q.csm_reply}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {/* Separator before new doubt form when history exists */}
+          {myQuestions.length > 0 && !doubtSent && (
+            <div style={{ borderTop: '1px solid rgba(15,34,58,0.10)', paddingTop: 10, marginBottom: 8 }}>
+              <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(23,53,87,0.40)' }}>Enviar nova dúvida</div>
+            </div>
+          )}
+
+          {/* Submit form */}
           {doubtSent ? (
             <div style={{ fontSize: 12, color: '#157a47', display: 'flex', alignItems: 'center', gap: 6 }}>
               <Icons.Check size={12} color="#157a47" />Dúvida enviada ✓
@@ -490,17 +562,6 @@ function QuestionCard({
               </button>
             </>
           )}
-
-          {myQuestions.map((q, i) => (
-            <div key={i} style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(15,34,58,0.08)' }}>
-              <div style={{ fontSize: 12, color: 'rgba(23,53,87,0.7)', lineHeight: 1.5, marginBottom: q.csm_reply ? 6 : 0 }}>{q.note_text}</div>
-              {q.csm_reply && (
-                <div style={{ background: 'rgba(23,53,87,0.04)', borderLeft: '3px solid rgba(23,53,87,0.2)', padding: '6px 10px', fontSize: 12, color: NAVY, lineHeight: 1.5, borderRadius: '0 6px 6px 0' }}>
-                  <strong>Donc:</strong> {q.csm_reply}
-                </div>
-              )}
-            </div>
-          ))}
         </div>
       )}
     </article>
