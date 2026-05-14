@@ -117,6 +117,79 @@ export function useBrief(onboardingId, clientId) {
   }
 }
 
+export function useBriefCsmNotes(instanceId) {
+  const qc = useQueryClient()
+
+  const csmNotes = useQuery({
+    queryKey: ['brief_csm_notes', instanceId],
+    enabled: !!instanceId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brief_csm_notes')
+        .select('id, note_text, is_visible, created_by, created_at, updated_at')
+        .eq('instance_id', instanceId)
+        .order('created_at', { ascending: true })
+      if (error) {
+        console.error('[useBriefCsmNotes] error:', error)
+        return []
+      }
+      return data || []
+    },
+  })
+
+  const upsertCsmNote = useMutation({
+    mutationFn: async ({ id, note_text, is_visible }) => {
+      if (id) {
+        const { error } = await supabase
+          .from('brief_csm_notes')
+          .update({ note_text, is_visible, updated_at: new Date().toISOString() })
+          .eq('id', id)
+        if (error) throw error
+      } else {
+        const { data: { user } } = await supabase.auth.getUser()
+        const { error } = await supabase
+          .from('brief_csm_notes')
+          .insert({ instance_id: instanceId, note_text, is_visible: is_visible ?? false, created_by: user?.id })
+        if (error) throw error
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brief_csm_notes', instanceId] })
+      toast.success('Nota salva')
+    },
+    onError: (e) => {
+      console.error('[useBriefCsmNotes] upsert error:', e)
+      toast.error(e.message)
+    },
+  })
+
+  const deleteCsmNote = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase
+        .from('brief_csm_notes')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brief_csm_notes', instanceId] })
+      toast.success('Nota removida')
+    },
+    onError: (e) => {
+      console.error('[useBriefCsmNotes] delete error:', e)
+      toast.error(e.message)
+    },
+  })
+
+  return {
+    csmNotes: csmNotes.data || [],
+    upsertCsmNote,
+    deleteCsmNote,
+    isLoading: csmNotes.isLoading,
+    isUpsertingNote: upsertCsmNote.isPending,
+  }
+}
+
 export function useBriefResponses(instanceId) {
   const responses = useQuery({
     queryKey: ['brief_responses', instanceId],
