@@ -183,6 +183,11 @@ export function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }
   const { data: catalogItems = [] } = useCatalog()
   const services = catalogItems.filter(c => c.type === 'servico')
 
+  const fixedOperationTypes = {
+    prepend: ['Padrão'],
+    append: ['Outros'],
+  }
+
   const [name, setName] = useState(template?.name || '')
   const [operationType, setOperationType] = useState(template?.operation_type || '')
   const [sections, setSections] = useState(() => {
@@ -355,8 +360,14 @@ export function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }
                 className="input-base w-full"
               >
                 <option value="">Selecione um serviço…</option>
+                {fixedOperationTypes.prepend.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
                 {services.map(s => (
                   <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+                {fixedOperationTypes.append.map(type => (
+                  <option key={type} value={type}>{type}</option>
                 ))}
               </select>
             </div>

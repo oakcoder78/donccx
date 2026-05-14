@@ -836,7 +836,7 @@ export default function BriefPublicPage() {
             <button onClick={() => { alert('Gerando PDF…'); window.print() }} style={{ background: 'transparent', border: '1px solid rgba(15,34,58,0.08)', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 500, color: 'rgba(23,53,87,0.7)', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: 'inherit' }}>
               <Icons.Download size={13} />Baixar PDF
             </button>
-            <button title="Ajuda" onClick={() => alert('Acesse doncCX.com.br/suporte')} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(15,34,58,0.08)', background: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'rgba(23,53,87,0.7)' }}>
+            <button title="Ajuda" onClick={() => setShowTour(true)} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(15,34,58,0.08)', background: '#fff', display: 'grid', placeItems: 'center', cursor: 'pointer', color: 'rgba(23,53,87,0.7)' }}>
               <Icons.HelpCircle size={14} />
             </button>
           </div>
