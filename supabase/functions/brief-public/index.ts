@@ -83,8 +83,8 @@ serve(async (req) => {
       }
 
       const clientData = instance.clients as any
-      const clientName = isInternal ? null : (clientData?.fantasy_name || clientData?.name || null)
-      const clientLogoUrl = isInternal ? null : (clientData?.logo_url || null)
+      const clientName = clientData?.fantasy_name || clientData?.name || null
+      const clientLogoUrl = clientData?.logo_url || null
 
       return ok({
         contact_name: userName,
