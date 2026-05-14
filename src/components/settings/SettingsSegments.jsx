@@ -39,7 +39,7 @@ export function SettingsSegments() {
   const SegmentsIcon = Icons.Tag
   const { data: segments = [], isLoading } = useSegments()
   const { remove } = useSegmentsMutations()
-  const { isAdmin } = useAuth()
+  const { isManager } = useAuth()
   const [modal, setModal] = useState(null) // null | 'create' | segment
 
   if (isLoading) return <PageSpinner />
@@ -51,7 +51,7 @@ export function SettingsSegments() {
         title="Segmentos"
         subtitle="Define os segmentos utilizados na classificação das empresas."
         actions={
-          isAdmin && (
+          isManager && (
             <Button size="sm" onClick={() => setModal('create')}>
               + Novo Segmento
             </Button>
@@ -64,7 +64,7 @@ export function SettingsSegments() {
           {segments.map(seg => (
             <div key={seg.id} className="flex items-center gap-3 py-1.5 border-b border-border-tertiary last:border-0">
               <span className="text-sm text-text-primary flex-1">{seg.name}</span>
-              {isAdmin && (
+              {isManager && (
                 <>
                   <button
                     onClick={() => setModal(seg)}

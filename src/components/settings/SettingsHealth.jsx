@@ -36,7 +36,7 @@ const WEIGHT_DIMS = [
 ]
 
 // ── Seção: Thresholds ─────────────────────────────────────────────────────────
-function ThresholdsCard({ config, isAdmin, onSave }) {
+function ThresholdsCard({ config, isManager, onSave }) {
   const [vals, setVals] = useState({ threshold_healthy: 75, threshold_attention: 50 })
   useEffect(() => {
     if (config) setVals({ threshold_healthy: config.threshold_healthy, threshold_attention: config.threshold_attention })
@@ -50,13 +50,13 @@ function ThresholdsCard({ config, isAdmin, onSave }) {
           <label className="label-sm">🟢 Saudável (acima de)</label>
           <input type="number" value={vals.threshold_healthy}
             onChange={e => setVals(p => ({ ...p, threshold_healthy: Number(e.target.value) }))}
-            className="input-base w-full" min="0" max="100" disabled={!isAdmin} />
+            className="input-base w-full" min="0" max="100" disabled={!isManager} />
         </div>
         <div className="flex-1">
           <label className="label-sm">🟡 Atenção (acima de)</label>
           <input type="number" value={vals.threshold_attention}
             onChange={e => setVals(p => ({ ...p, threshold_attention: Number(e.target.value) }))}
-            className="input-base w-full" min="0" max="100" disabled={!isAdmin} />
+            className="input-base w-full" min="0" max="100" disabled={!isManager} />
         </div>
         <div className="flex items-end">
           <div className="px-3 py-2 rounded-md text-xs font-medium bg-bg-secondary text-text-tertiary border border-border-tertiary">
@@ -64,7 +64,7 @@ function ThresholdsCard({ config, isAdmin, onSave }) {
           </div>
         </div>
       </div>
-      {isAdmin && (
+      {isManager && (
         <Button size="sm" onClick={() => onSave(vals)}>Salvar faixas</Button>
       )}
     </div>
@@ -72,7 +72,7 @@ function ThresholdsCard({ config, isAdmin, onSave }) {
 }
 
 // ── Seção: Pesos por Estágio ──────────────────────────────────────────────────
-function WeightsCard({ isAdmin }) {
+function WeightsCard({ isManager }) {
   const qc = useQueryClient()
   const [activeGroup, setActiveGroup] = useState('producao')
   const [edits, setEdits] = useState({})
@@ -159,7 +159,7 @@ function WeightsCard({ isAdmin }) {
                 type="number" min="0" max="100"
                 value={getVal(activeGroup, d.key)}
                 onChange={e => setVal(activeGroup, d.key, e.target.value)}
-                disabled={!isAdmin}
+                disabled={!isManager}
                 className="input-base w-full text-right"
               />
               <span className="text-xs text-text-tertiary flex-shrink-0">%</span>
@@ -181,7 +181,7 @@ function WeightsCard({ isAdmin }) {
             </span>
           )}
         </div>
-        {isAdmin && (
+        {isManager && (
           <Button size="sm" onClick={() => saveGroup(activeGroup)} disabled={saving || !valid}>
             {saving ? 'Salvando...' : `Salvar ${STAGE_GROUPS.find(g => g.key === activeGroup)?.label}`}
           </Button>
@@ -192,7 +192,7 @@ function WeightsCard({ isAdmin }) {
 }
 
 // ── Seção: Regras por dimensão ────────────────────────────────────────────────
-function RulesCard({ rules, isAdmin, onSaveAll }) {
+function RulesCard({ rules, isManager, onSaveAll }) {
   const [edits, setEdits] = useState({})
   const [saving, setSaving] = useState(null)
 
@@ -230,7 +230,7 @@ function RulesCard({ rules, isAdmin, onSaveAll }) {
                   <span className="text-sm font-semibold text-text-primary">{meta.label}</span>
                   <span className="text-xs text-text-tertiary">({dimRules.length} regras)</span>
                 </div>
-                {isAdmin && (
+                {isManager && (
                   <Button size="sm" variant="secondary"
                     onClick={() => saveDim(dim, dimRules)}
                     disabled={saving === dim}
@@ -250,7 +250,7 @@ function RulesCard({ rules, isAdmin, onSaveAll }) {
                       type="number"
                       value={getVal(rule.id, rule.points)}
                       onChange={e => setEdits(prev => ({ ...prev, [rule.id]: e.target.value }))}
-                      disabled={!isAdmin}
+                      disabled={!isManager}
                       className="input-base w-20 text-right flex-shrink-0"
                     />
                   </div>
@@ -269,8 +269,7 @@ export function SettingsHealth() {
   const HealthIcon = Icons.Heart
   const { data, isLoading } = useHealthConfig()
   const { updateConfig, updateRule } = useHealthConfigMutations()
-  const { profile } = useAuth()
-  const isAdmin = profile?.role === 'admin'
+  const { profile, isManager } = useAuth()
   const [recalculating, setRecalculating] = useState(false)
 
   async function handleRecalculateAll() {
@@ -307,7 +306,7 @@ export function SettingsHealth() {
         title="Health Score"
         subtitle="Configure os thresholds, pesos e regras de cálculo do health score."
         actions={
-          isAdmin && (
+          isManager && (
             <Button
               size="sm"
               onClick={handleRecalculateAll}
@@ -328,13 +327,13 @@ export function SettingsHealth() {
       <HealthScoreAccordion />
 
       {/* Thresholds */}
-      <ThresholdsCard config={config} isAdmin={isAdmin} onSave={handleSaveThresholds} />
+      <ThresholdsCard config={config} isManager={isManager} onSave={handleSaveThresholds} />
 
       {/* Pesos por Estágio */}
-      <WeightsCard isAdmin={isAdmin} />
+      <WeightsCard isManager={isManager} />
 
       {/* Regras */}
-      <RulesCard rules={rules} isAdmin={isAdmin} onSaveAll={handleSaveRule} />
+      <RulesCard rules={rules} isManager={isManager} onSaveAll={handleSaveRule} />
 
     </div>
   )

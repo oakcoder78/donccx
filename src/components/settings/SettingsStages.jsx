@@ -54,7 +54,7 @@ export function SettingsStages() {
   const StagesIcon = Icons.RefreshCw
   const { data: stages = [], isLoading } = useStages()
   const { remove } = useStagesMutations()
-  const { isAdmin } = useAuth()
+  const { isManager } = useAuth()
   const [modal, setModal] = useState(null)
 
   if (isLoading) return <PageSpinner />
@@ -66,7 +66,7 @@ export function SettingsStages() {
         title="Estágios"
         subtitle="Define os estágios utilizados no ciclo de vida das empresas."
         actions={
-          isAdmin && (
+          isManager && (
             <Button
               size="sm"
               onClick={() => {
@@ -87,7 +87,7 @@ export function SettingsStages() {
               <span className="text-xs text-text-tertiary w-6">#{s.display_order}</span>
               <span className="text-sm text-text-primary flex-1">{s.name}</span>
               {s.description && <span className="text-xs text-text-tertiary">{s.description}</span>}
-              {isAdmin && (
+              {isManager && (
                 <>
                   <button
                     onClick={() => setModal(s)}

@@ -53,7 +53,7 @@ export function SettingsCatalog() {
   const CatalogIcon = Icons.Package
   const { data: catalog = [], isLoading } = useCatalog()
   const { remove } = useCatalogMutations()
-  const { isAdmin } = useAuth()
+  const { isManager } = useAuth()
   const [modal, setModal] = useState(null) // null | 'create' | item
 
   if (isLoading) return <PageSpinner />
@@ -68,7 +68,7 @@ export function SettingsCatalog() {
         title="Catálogos"
         subtitle="Gerencie os serviços e soluções disponíveis para uso em projetos e contratos."
         actions={
-          isAdmin && (
+          isManager && (
             <Button size="sm" onClick={() => setModal('create')}>
               + Novo Item
             </Button>
@@ -84,7 +84,7 @@ export function SettingsCatalog() {
               <div key={item.id} className="flex items-center gap-3">
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                 <span className="text-sm text-text-primary flex-1">{item.name}</span>
-                {isAdmin && (
+                {isManager && (
                   <>
                     <button
                       onClick={() => setModal(item)}
