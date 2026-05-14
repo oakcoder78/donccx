@@ -67,17 +67,18 @@ serve(async (req) => {
         csmName = csmProfile?.name ?? null
       }
 
-      // Fetch operation capabilities via onboarding
-      let operationCapabilities: string[] = []
+      // Fetch operation capabilities via onboarding (services only)
+      let operationCapabilities: {name: string, color: string | null}[] = []
       if (instance.onboarding_id) {
         const { data: caps } = await sb
           .from('onboarding_capabilities')
-          .select('catalog_items(name)')
+          .select('catalog_items(name, color, type)')
           .eq('onboarding_id', instance.onboarding_id)
         if (caps) {
           operationCapabilities = caps
-            .map((c: any) => c.catalog_items?.name)
-            .filter(Boolean)
+            .filter((c: any) => c.catalog_items?.type === 'servico')
+            .map((c: any) => ({ name: c.catalog_items.name, color: c.catalog_items.color || null }))
+            .filter((c: any) => c.name)
         }
       }
 
@@ -95,7 +96,7 @@ serve(async (req) => {
           id: instance.id,
           title: instance.title,
           status: instance.status,
-          sent_at: instance.sent_at,
+          sent_at: instance.sent_at || instance.created_at,
           structure_snapshot: instance.structure_snapshot,
         }
       })
