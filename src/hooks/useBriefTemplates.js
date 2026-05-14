@@ -21,15 +21,10 @@ export function useBriefTemplates() {
   })
 
   const createTemplate = useMutation({
-    mutationFn: async ({ name, operation_type, structure }) => {
+    mutationFn: async ({ name, operation_type, structure, is_active = false }) => {
       const { data, error } = await supabase
         .from('brief_templates')
-        .insert({
-          name,
-          operation_type,
-          structure,
-          is_active: true,
-        })
+        .insert({ name, operation_type, structure, is_active })
         .select()
         .single()
       if (error) throw error
@@ -46,10 +41,12 @@ export function useBriefTemplates() {
   })
 
   const updateTemplate = useMutation({
-    mutationFn: async ({ id, name, operation_type, structure }) => {
+    mutationFn: async ({ id, name, operation_type, structure, is_active }) => {
+      const updates = { name, operation_type, structure }
+      if (is_active !== undefined) updates.is_active = is_active
       const { error } = await supabase
         .from('brief_templates')
-        .update({ name, operation_type, structure })
+        .update(updates)
         .eq('id', id)
       if (error) throw error
     },

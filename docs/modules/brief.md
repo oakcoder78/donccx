@@ -136,11 +136,18 @@ Public page without Supabase JWT. Email-authenticated access:
 ### Settings Side — `/config/brief-templates`
 
 Accessible to admin/manager only:
-- Template list with cards: name, operation_type badge, section/question counts, active/inactive toggle
-- "Novo Template" button opens editor modal
-- Edit and delete buttons per template
-- Editor modal: name (required), operation_type select, section builder (title, deliverable, callout, audience), question builder per section (text, type, required, allow_attachment)
-- Preview of questions per section
+- Template list with cards: name, `operation_type` badge (catalog service name), section/question counts, rascunho/publicado badge, active toggle, Editar/Excluir buttons
+- "Novo template" button opens `BriefTemplateEditorModal`
+- **Editor modal** (`src/components/brief/BriefTemplateEditorModal.jsx`) — wide (max 1080px), two columns:
+  - **Header:** eyebrow (FileQuestion icon + label), template name, rascunho/publicado badge, subtitle, close button
+  - **Basics row:** name input (required) + operation_type select (fed from `catalog_items` where `type='servico'`, via `useCatalog` hook — not hardcoded)
+  - **Left rail (260px):** sortable section list via `@dnd-kit/sortable`; each item shows index badge, title, question count; active item has sky border
+  - **Right editor panel:** sticky section header (inline title input, question count, duplicate/remove buttons), deliverable inline input (sky tinted row), sortable question cards
+  - **Question card controls:** select (Texto curto/Texto longo), pill toggles for Obrigatória (navy) and Anexo (sky), "+ Orientação" button expands note row (Info icon, sky dashed border); duplicate/remove buttons
+  - **Add question dock:** dashed border, "+ Adicionar pergunta", quick-type shortcuts "Texto curto" / "Texto longo"
+  - **Footer:** relative updated_at timestamp (left), Cancel / Salvar rascunho / Publicar template buttons (right)
+- **Draft vs Publish:** "Salvar rascunho" → `is_active: false`; "Publicar template" → `is_active: true`
+- DnD: sections (rail) and questions (editor) each have their own `DndContext` — reuses `@dnd-kit` already installed for `ReportEditorPage`
 
 ---
 
@@ -148,7 +155,7 @@ Accessible to admin/manager only:
 
 - `supabaseClient` — database queries and storage
 - `useBrief`, `useBriefTemplates`, `useBriefResponses` hooks
-- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2` (no direct lucide-react imports)
+- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2`, `Icons.GripVertical`, `Icons.Copy`, `Icons.Info`, `Icons.HelpCircle` (no direct lucide-react imports)
 - `react-hot-toast` — feedback on save/upload/errors
 - Storage bucket `activity-attachments` with path prefix `brief-attachments/`
 - Edge function `brief-public` deployed with `verify_jwt = false`
@@ -160,5 +167,6 @@ Accessible to admin/manager only:
 | `20260513000000_project_brief.sql` | Creates: `brief_templates`, `brief_instances`, `brief_responses`, `brief_attachments`, RLS policies, storage bucket `project-briefs` |
 | `20260514000000_brief_fix_onboarding_fk.sql` | Renames `brief_instances.fase_id` → `onboarding_id`, adds FK to `onboardings`, drops old `fase_id` |
 | `20260515000000_add_brief_templates_flag.sql` | Adds `is_active` flag to `brief_templates` |
+| `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table (RLS, updated_at trigger) for internal CSM notes optionally visible to client |
 
 > **After deploy of `brief-public`:** disable "Verify JWT" in Dashboard → Edge Functions → brief-public → Settings.
