@@ -257,7 +257,7 @@ serve(async (req) => {
 
       if (uploadErr) return err('Erro ao salvar arquivo: ' + uploadErr.message, 500)
 
-      const uploaded_by = contact?.id ?? profile?.id
+      const uploaded_by = profile?.id ?? null  // contacts have integer id, not uuid
       const { error: insertErr } = await sb.from('brief_attachments').insert({
         instance_id: instance.id,
         question_id: question_id || null,
@@ -292,8 +292,9 @@ serve(async (req) => {
 
       if (!attachment) return err('Anexo não encontrado', 404)
 
-      const ownerId = contact?.id ?? profile?.id
-      if (attachment.uploaded_by !== ownerId) return err('Sem permissão', 403)
+      // uploaded_by is uuid (profile) or null (contact) — contacts can delete null-owner attachments
+      const canDelete = attachment.uploaded_by === null || attachment.uploaded_by === profile?.id
+      if (!canDelete) return err('Sem permissão', 403)
 
       await sb.storage.from('project-briefs').remove([attachment.storage_path])
       await sb.from('brief_attachments').delete().eq('id', attachment_id)
