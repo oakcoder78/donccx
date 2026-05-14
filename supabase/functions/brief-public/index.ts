@@ -118,9 +118,53 @@ serve(async (req) => {
         .select('id, question_id, note_text, created_at, created_by')
         .eq('instance_id', instance.id)
         .eq('is_visible', true)
+        .eq('origin', 'csm')
         .order('created_at', { ascending: true })
 
-      return ok({ instance, responses: responses ?? [], attachments: attachments ?? [], csm_notes: csmNotes ?? [] })
+      const { data: clientQuestions } = await sb
+        .from('brief_csm_notes')
+        .select('question_id, note_text, csm_reply, replied_at')
+        .eq('instance_id', instance.id)
+        .eq('origin', 'client')
+        .eq('client_email', email)
+
+      return ok({
+        instance,
+        responses: responses ?? [],
+        attachments: attachments ?? [],
+        csm_notes: csmNotes ?? [],
+        client_questions: clientQuestions ?? [],
+      })
+    }
+
+    if (action === 'submit_question') {
+      const { question_id, note } = payload
+
+      const { error: insertErr } = await sb.from('brief_csm_notes').insert({
+        instance_id: instance.id,
+        question_id: question_id ?? null,
+        note_text: note,
+        origin: 'client',
+        client_email: email,
+        client_name: contact?.nome ?? userName,
+        is_visible: true,
+        created_by: null,
+      })
+
+      if (insertErr) return err('Erro ao enviar dúvida', 500)
+      return ok({ submitted: true })
+    }
+
+    if (action === 'get_client_questions') {
+      const { data: questions } = await sb
+        .from('brief_csm_notes')
+        .select('id, question_id, note_text, csm_reply, replied_at, is_visible, client_email')
+        .eq('instance_id', instance.id)
+        .eq('origin', 'client')
+        .eq('client_email', email)
+        .order('created_at', { ascending: true })
+
+      return ok({ questions: questions ?? [] })
     }
 
     if (action === 'save_response') {
@@ -199,7 +243,7 @@ serve(async (req) => {
         return err('Tipo de arquivo não permitido', 400)
 
       const timestamp = Date.now()
-      const safeName = file_name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
+      const safeName = file_name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_')
       const path = `${instance.id}/${question_id || 'general'}/${timestamp}_${safeName}`
 
       const base64Data = data_base64.replace(/^data:[^,]+,/, '')

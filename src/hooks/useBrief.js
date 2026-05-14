@@ -126,11 +126,29 @@ export function useBriefCsmNotes(instanceId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brief_csm_notes')
-        .select('id, question_id, note_text, is_visible, created_by, created_at, updated_at')
+        .select('id, question_id, note_text, is_visible, created_by, created_at, updated_at, origin, client_email, client_name, csm_reply, replied_at, replied_by')
         .eq('instance_id', instanceId)
         .order('created_at', { ascending: true })
       if (error) {
         console.error('[useBriefCsmNotes] error:', error)
+        return []
+      }
+      return data || []
+    },
+  })
+
+  const clientQuestions = useQuery({
+    queryKey: ['brief_client_questions', instanceId],
+    enabled: !!instanceId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('brief_csm_notes')
+        .select('id, question_id, note_text, is_visible, client_email, client_name, csm_reply, replied_at, replied_by, created_at')
+        .eq('instance_id', instanceId)
+        .eq('origin', 'client')
+        .order('created_at', { ascending: true })
+      if (error) {
+        console.error('[useBriefCsmNotes] clientQuestions error:', error)
         return []
       }
       return data || []
@@ -181,12 +199,40 @@ export function useBriefCsmNotes(instanceId) {
     },
   })
 
+  const replyToQuestion = useMutation({
+    mutationFn: async ({ id, csm_reply }) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { error } = await supabase
+        .from('brief_csm_notes')
+        .update({
+          csm_reply,
+          replied_at: new Date().toISOString(),
+          replied_by: user?.id ?? null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brief_csm_notes', instanceId] })
+      qc.invalidateQueries({ queryKey: ['brief_client_questions', instanceId] })
+      toast.success('Resposta salva')
+    },
+    onError: (e) => {
+      console.error('[useBriefCsmNotes] replyToQuestion error:', e)
+      toast.error(e.message)
+    },
+  })
+
   return {
     csmNotes: csmNotes.data || [],
+    clientQuestions: clientQuestions.data || [],
     upsertCsmNote,
     deleteCsmNote,
+    replyToQuestion,
     isLoading: csmNotes.isLoading,
     isUpsertingNote: upsertCsmNote.isPending,
+    isReplying: replyToQuestion.isPending,
   }
 }
 
