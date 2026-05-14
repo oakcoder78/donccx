@@ -19,7 +19,7 @@ serve(async (req) => {
 
     const { data: instance, error: instErr } = await sb
       .from('brief_instances')
-      .select('*, clients(id, name)')
+      .select('*, clients(id, name, fantasy_name, logo_url)')
       .eq('access_token', token)
       .single()
 
@@ -56,13 +56,46 @@ serve(async (req) => {
     }
 
     if (action === 'validate') {
+      // Fetch CSM name from profiles
+      let csmName: string | null = null
+      if (instance.created_by) {
+        const { data: csmProfile } = await sb
+          .from('profiles')
+          .select('name')
+          .eq('id', instance.created_by)
+          .maybeSingle()
+        csmName = csmProfile?.name ?? null
+      }
+
+      // Fetch operation capabilities via onboarding
+      let operationCapabilities: string[] = []
+      if (instance.onboarding_id) {
+        const { data: caps } = await sb
+          .from('onboarding_capabilities')
+          .select('catalog_items(name)')
+          .eq('onboarding_id', instance.onboarding_id)
+        if (caps) {
+          operationCapabilities = caps
+            .map((c: any) => c.catalog_items?.name)
+            .filter(Boolean)
+        }
+      }
+
+      const clientData = instance.clients as any
+      const clientName = isInternal ? null : (clientData?.fantasy_name || clientData?.name || null)
+      const clientLogoUrl = isInternal ? null : (clientData?.logo_url || null)
+
       return ok({
         contact_name: userName,
-        client_name: isInternal ? null : instance.clients.name,
+        client_name: clientName,
+        client_logo_url: clientLogoUrl,
+        csm_name: csmName,
+        operation_capabilities: operationCapabilities,
         instance: {
           id: instance.id,
           title: instance.title,
           status: instance.status,
+          sent_at: instance.sent_at,
           structure_snapshot: instance.structure_snapshot,
         }
       })

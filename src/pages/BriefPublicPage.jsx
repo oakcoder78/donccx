@@ -106,7 +106,7 @@ function PrimaryBtn({ children, disabled, ...props }) {
   )
 }
 
-function GhostBtn({ children, ...props }) {
+function GhostBtn({ children, style: extraStyle, ...props }) {
   return (
     <button
       style={{
@@ -115,6 +115,7 @@ function GhostBtn({ children, ...props }) {
         border: '1px solid #e2e8f0', borderRadius: 9,
         fontWeight: 600, fontSize: 13, cursor: 'pointer',
         fontFamily: 'inherit', marginTop: 8,
+        ...extraStyle,
       }}
       {...props}
     >
@@ -159,6 +160,34 @@ const IcoChevron = ({ down = false, size = 16 }) => (
     {down ? <polyline points="6 9 12 15 18 9" /> : <polyline points="6 15 12 9 18 15" />}
   </svg>
 )
+const IcoHelpCircle = ({ size = 15, color = SKY }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx={12} cy={12} r={10} />
+    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+    <line x1={12} y1={17} x2="12.01" y2={17} />
+  </svg>
+)
+const IcoLayout = ({ size = 28, color = SKY }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <rect x={3} y={3} width={18} height={18} rx={2} ry={2} />
+    <line x1={3} y1={9} x2={21} y2={9} />
+    <line x1={9} y1={21} x2={9} y2={9} />
+  </svg>
+)
+const IcoTarget = ({ size = 28, color = SKY }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx={12} cy={12} r={10} />
+    <circle cx={12} cy={12} r={6} />
+    <circle cx={12} cy={12} r={2} />
+  </svg>
+)
+const IcoSave = ({ size = 28, color = SKY }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </svg>
+)
 
 // ── Section status icon ────────────────────────────────────────────────────────
 function StatusIcon({ status }) {
@@ -171,7 +200,7 @@ function StatusIcon({ status }) {
 function SaveIndicator({ status }) {
   if (!status) return null
   if (status === 'saving') return (
-    <span style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
+    <span style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
       <span style={{
         width: 10, height: 10, borderRadius: '50%',
         border: '2px solid #94a3b8', borderTopColor: 'transparent',
@@ -181,14 +210,304 @@ function SaveIndicator({ status }) {
     </span>
   )
   if (status === 'saved') return (
-    <span style={{ fontSize: 11, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 3 }}>
+    <span style={{ fontSize: 11, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
       <IcoCheck size={11} color="#22c55e" /> Salvo
     </span>
   )
   if (status === 'error') return (
-    <span style={{ fontSize: 11, color: '#ef4444' }}>Erro ao salvar</span>
+    <span style={{ fontSize: 11, color: '#ef4444', flexShrink: 0 }}>Erro ao salvar</span>
   )
   return null
+}
+
+// ── Cover page ─────────────────────────────────────────────────────────────────
+function CoverPage({ session, onStart }) {
+  const [logoError, setLogoError] = useState(false)
+  const clientName   = session?.client_name || ''
+  const logoUrl      = session?.client_logo_url
+  const capabilities = session?.operation_capabilities || []
+  const sentAt       = session?.instance?.sent_at
+  const csmName      = session?.csm_name
+
+  const formattedDate = sentAt
+    ? new Date(sentAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+    : ''
+
+  const labelSt = {
+    fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: 1.2, color: 'rgba(255,255,255,0.5)',
+    whiteSpace: 'nowrap', paddingTop: 2,
+  }
+  const valueSt = { fontSize: 14, fontWeight: 500, color: '#fff' }
+
+  return (
+    <>
+      <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0e1f3a 0%, #173557 100%)',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        padding: '48px 24px',
+        fontFamily: "'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Radial overlays */}
+        <div style={{
+          position: 'absolute', top: '-15%', right: '-8%',
+          width: 500, height: 500, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(89,194,237,0.14) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-15%', left: '-5%',
+          width: 400, height: 400, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(211,218,71,0.12) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Top gradient bar */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, height: 4,
+          background: 'linear-gradient(90deg, #59c2ed, #d3da47)',
+        }} />
+
+        <div style={{ maxWidth: 680, width: '100%', position: 'relative', zIndex: 1 }}>
+          {/* DONC logo */}
+          <div style={{ marginBottom: 36 }}>
+            <div style={{ fontSize: 32, fontWeight: 800, lineHeight: 1 }}>
+              <span style={{ color: '#d3da47' }}>DONC</span>
+              <span style={{ color: '#59c2ed' }}>.</span>
+            </div>
+            <div style={{
+              fontSize: 11, color: 'rgba(255,255,255,0.6)',
+              textTransform: 'uppercase', letterSpacing: 2, marginTop: 6,
+            }}>
+              Plataforma de gestão de equipes externas
+            </div>
+          </div>
+
+          {/* Divider lime */}
+          <div style={{ width: 60, height: 3, background: '#d3da47', marginBottom: 28 }} />
+
+          {/* Title */}
+          <h1 style={{ fontSize: 30, fontWeight: 800, color: '#fff', margin: '0 0 8px', lineHeight: 1.2 }}>
+            Roteiro de Projeto Técnico
+          </h1>
+          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.78)', margin: '0 0 36px' }}>
+            Levantamento de regras de negócio
+          </p>
+
+          {/* Metadata block */}
+          <div style={{
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 8, padding: '20px 24px',
+            marginBottom: 40,
+          }}>
+            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+              {/* Client logo */}
+              <div style={{ flexShrink: 0, paddingTop: 4 }}>
+                {logoUrl && !logoError ? (
+                  <img
+                    src={logoUrl}
+                    alt={clientName}
+                    style={{ maxHeight: 48, maxWidth: 80, objectFit: 'contain', display: 'block' }}
+                    onError={() => setLogoError(true)}
+                  />
+                ) : (
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 8,
+                    background: '#59c2ed',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 20, fontWeight: 800, color: '#173557',
+                  }}>
+                    {clientName.charAt(0).toUpperCase() || '?'}
+                  </div>
+                )}
+              </div>
+
+              {/* Labels + values */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'auto 1fr',
+                columnGap: 20, rowGap: 10,
+                alignItems: 'center', flex: 1,
+              }}>
+                {clientName && (
+                  <>
+                    <span style={labelSt}>Cliente</span>
+                    <span style={valueSt}>{clientName}</span>
+                  </>
+                )}
+                {capabilities.length > 0 && (
+                  <>
+                    <span style={labelSt}>Operação</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                      {capabilities.map((cap, i) => (
+                        <span key={i} style={{
+                          background: 'rgba(89,194,237,0.15)',
+                          border: '1px solid rgba(89,194,237,0.3)',
+                          color: '#59c2ed', borderRadius: 4,
+                          padding: '2px 8px', fontSize: 12, fontWeight: 500,
+                        }}>{cap}</span>
+                      ))}
+                    </div>
+                  </>
+                )}
+                {formattedDate && (
+                  <>
+                    <span style={labelSt}>Data</span>
+                    <span style={valueSt}>{formattedDate}</span>
+                  </>
+                )}
+                {csmName && (
+                  <>
+                    <span style={labelSt}>Preparado por</span>
+                    <span style={valueSt}>{csmName}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Start button */}
+          <button
+            onClick={onStart}
+            style={{
+              padding: '13px 32px',
+              background: '#d3da47', color: '#173557',
+              border: 'none', borderRadius: 9,
+              fontWeight: 700, fontSize: 15, cursor: 'pointer',
+              fontFamily: "'Montserrat',-apple-system,sans-serif",
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              transition: 'filter .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.05)')}
+            onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+          >
+            Iniciar preenchimento
+            <span style={{ fontSize: 18 }}>→</span>
+          </button>
+
+          {/* Footer */}
+          <div style={{ marginTop: 32, fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+            Documento confidencial — DONC + {clientName || 'Cliente'}
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Tour modal ─────────────────────────────────────────────────────────────────
+const TOUR_STEPS = [
+  {
+    Icon: IcoLayout,
+    title: 'Navegue pelas seções',
+    text: 'Use o menu lateral para navegar entre as seções do questionário. Você pode preencher em qualquer ordem.',
+  },
+  {
+    Icon: IcoTarget,
+    title: 'Entregável esperado',
+    text: 'Cada seção tem um entregável destacado em verde. Ele indica o objetivo daquela parte do questionário.',
+  },
+  {
+    Icon: IcoHelpCircle,
+    title: 'Dicas de preenchimento',
+    text: 'Perguntas com o ícone azul têm dicas de preenchimento. Passe o mouse sobre o ícone para ver a orientação.',
+  },
+  {
+    Icon: IcoSave,
+    title: 'Salvamento automático',
+    text: 'Suas respostas são salvas automaticamente. Você pode fechar e retornar quando quiser — nada será perdido.',
+  },
+]
+
+function TourModal({ onClose }) {
+  const [step, setStep] = useState(0)
+  const { Icon, title, text } = TOUR_STEPS[step]
+  const isLast = step === TOUR_STEPS.length - 1
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 24,
+      fontFamily: "'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+    }}>
+      <div style={{
+        background: '#fff', borderRadius: 12,
+        maxWidth: 420, width: '100%',
+        padding: '32px 28px 24px',
+        position: 'relative',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+      }}>
+        {/* Close */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute', top: 16, right: 16,
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 18, color: '#94a3b8', lineHeight: 1, padding: 4,
+          }}
+        >✕</button>
+
+        {/* Icon badge */}
+        <div style={{
+          width: 56, height: 56, borderRadius: 12,
+          background: 'rgba(89,194,237,0.12)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 20,
+        }}>
+          <Icon size={28} color={SKY} />
+        </div>
+
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: NAVY, margin: '0 0 10px' }}>
+          {title}
+        </h3>
+        <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7, margin: '0 0 28px' }}>
+          {text}
+        </p>
+
+        {/* Progress dots */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 24, justifyContent: 'center' }}>
+          {TOUR_STEPS.map((_, i) => (
+            <div key={i} style={{
+              width: i === step ? 20 : 8, height: 8, borderRadius: 99,
+              background: i === step ? SKY : '#e2e8f0',
+              transition: 'all 0.2s',
+            }} />
+          ))}
+        </div>
+
+        {/* Navigation */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {step > 0 && (
+            <button
+              onClick={() => setStep(s => s - 1)}
+              style={{
+                flex: 1, padding: '10px 16px',
+                background: 'transparent', color: '#64748b',
+                border: '1px solid #e2e8f0', borderRadius: 9,
+                fontWeight: 600, fontSize: 14, cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >Anterior</button>
+          )}
+          <button
+            onClick={isLast ? onClose : () => setStep(s => s + 1)}
+            style={{
+              flex: 1, padding: '10px 16px',
+              background: NAVY, color: '#fff',
+              border: 'none', borderRadius: 9,
+              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >{isLast ? 'Entendi' : 'Próximo'}</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Main component ──────────────────────────────────────────────────────────────
@@ -197,30 +516,30 @@ export default function BriefPublicPage() {
 
   const sessionKey = `brief_session_${token}`
 
-  // Restore session from storage
   const stored = (() => {
     try { return JSON.parse(sessionStorage.getItem(sessionKey)) } catch { return null }
   })()
 
   const [phase,    setPhase]    = useState(stored ? 'loading' : 'auth')
   const [emailVal, setEmailVal] = useState(stored?.email || '')
-  const [session,  setSession]  = useState(stored)   // { email, contact_name, client_name, instance }
+  const [session,  setSession]  = useState(stored)
   const [instance, setInstance] = useState(null)
-  const [responses, setResponses] = useState({})     // { questionId: text }
-  const [attachments, setAttachments] = useState({}) // { questionId: [{ id, file_name, file_size, ... }] }
-  const [attachmentUrls, setAttachmentUrls] = useState({}) // { [id]: signedUrl }
+  const [responses, setResponses] = useState({})
+  const [attachments, setAttachments] = useState({})
+  const [attachmentUrls, setAttachmentUrls] = useState({})
   const [readOnly,  setReadOnly]  = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
-  const [saveStatus, setSaveStatus] = useState({})   // { qId: 'saving'|'saved'|'error' }
+  const [saveStatus, setSaveStatus] = useState({})
   const [errorMsg,   setErrorMsg]   = useState('')
   const [completing, setCompleting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [uploadingFor, setUploadingFor] = useState(null) // question_id currently uploading
+  const [uploadingFor, setUploadingFor] = useState(null)
+  const [showTour, setShowTour] = useState(false)
 
   const debounceRef = useRef({})
 
-  // ── Load brief after auth ───────────────────────────────────────────────────
+  // ── Load brief (called from cover "Iniciar" or auto-restore) ───────────────
   const loadBrief = useCallback(async (email) => {
     setPhase('loading')
     try {
@@ -244,7 +563,6 @@ export default function BriefPublicPage() {
       }
       setAttachments(attMap)
 
-      // Fetch signed URLs for all attachments
       if (allAttachments.length > 0) {
         const paths = allAttachments.map(a => a.storage_path).filter(Boolean)
         try {
@@ -257,26 +575,33 @@ export default function BriefPublicPage() {
           }
           setAttachmentUrls(urlMap)
         } catch {
-          // non-critical — attachments won't preview but upload still works
+          // non-critical
         }
       }
 
       setReadOnly(inst.status === 'completed')
-      setPhase(inst.status === 'completed' ? 'form' : 'form')
+
+      // Show tour on first visit
+      const tourKey = `brief_tour_seen_${inst.id}`
+      if (!sessionStorage.getItem(tourKey)) {
+        setShowTour(true)
+      }
+
+      setPhase('form')
     } catch (err) {
       setErrorMsg(err.message || 'Erro ao carregar brief')
       setPhase('error')
     }
   }, [token])
 
-  // ── Auto-load if session in storage ────────────────────────────────────────
+  // Auto-load from stored session (skip cover)
   useEffect(() => {
     if (stored) {
       loadBrief(stored.email)
     }
   }, []) // eslint-disable-line
 
-  // ── Handle email validation ─────────────────────────────────────────────────
+  // ── Email validation → cover ───────────────────────────────────────────────
   async function handleValidate(e) {
     e.preventDefault()
     const email = emailVal.trim()
@@ -288,7 +613,7 @@ export default function BriefPublicPage() {
       const sess = { email, ...data }
       sessionStorage.setItem(sessionKey, JSON.stringify(sess))
       setSession(sess)
-      await loadBrief(email)
+      setPhase('cover')
     } catch (err) {
       const msg =
         err.status === 404 ? 'Brief não encontrado ou link inválido.' :
@@ -299,7 +624,7 @@ export default function BriefPublicPage() {
     }
   }
 
-  // ── Auto-save with debounce ─────────────────────────────────────────────────
+  // ── Auto-save ──────────────────────────────────────────────────────────────
   function handleResponseChange(qId, value) {
     if (readOnly) return
     setResponses(prev => ({ ...prev, [qId]: value }))
@@ -344,10 +669,9 @@ export default function BriefPublicPage() {
         const existing = prev[key] || []
         return { ...prev, [key]: [...existing, result] }
       })
-      // Get signed URL for the newly uploaded file
       if (result.storage_path) {
         try {
-          const urlData = await callBrief({ action: 'get_attachment_urls', token, email, paths: [result.storage_path] })
+          const urlData = await callBrief({ action: 'get_attachment_urls', token, email: session.email, paths: [result.storage_path] })
           if (urlData.urls[result.storage_path]) {
             setAttachmentUrls(prev => ({ ...prev, [result.id || result.storage_path]: urlData.urls[result.storage_path] }))
           }
@@ -376,7 +700,7 @@ export default function BriefPublicPage() {
     }
   }
 
-  // ── Complete brief ──────────────────────────────────────────────────────────
+  // ── Complete ───────────────────────────────────────────────────────────────
   async function handleComplete() {
     setConfirmOpen(false)
     setCompleting(true)
@@ -393,7 +717,7 @@ export default function BriefPublicPage() {
 
   const sections = instance?.structure_snapshot?.sections || []
 
-  // ── Tela de agradecimento ───────────────────────────────────────────────────
+  // ── Thanks ─────────────────────────────────────────────────────────────────
   if (phase === 'thanks') {
     return (
       <>
@@ -423,15 +747,24 @@ export default function BriefPublicPage() {
     )
   }
 
-  // ── Layout de auth / loading / erro ────────────────────────────────────────
+  // ── Cover ──────────────────────────────────────────────────────────────────
+  if (phase === 'cover') {
+    return (
+      <CoverPage
+        session={session}
+        onStart={() => loadBrief(session.email)}
+      />
+    )
+  }
+
+  // ── Auth / loading / error ─────────────────────────────────────────────────
   if (phase !== 'form') {
     return (
       <>
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <div style={{ minHeight: '100vh', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, ...base }}>
 
-          {/* Auth form */}
-          {(phase === 'auth') && (
+          {phase === 'auth' && (
             <Card>
               <Logo subtitle="Brief de Discovery" />
               <h2 style={{ fontSize: 18, fontWeight: 700, color: NAVY, textAlign: 'center', marginBottom: 8 }}>
@@ -466,7 +799,6 @@ export default function BriefPublicPage() {
             </Card>
           )}
 
-          {/* Loading / Validating */}
           {(phase === 'validating' || phase === 'loading') && (
             <Card>
               <Logo subtitle="Brief de Discovery" />
@@ -477,7 +809,6 @@ export default function BriefPublicPage() {
             </Card>
           )}
 
-          {/* Error */}
           {phase === 'error' && (
             <Card>
               <Logo subtitle="Brief de Discovery" />
@@ -497,7 +828,7 @@ export default function BriefPublicPage() {
     )
   }
 
-  // ── Formulário dinâmico ─────────────────────────────────────────────────────
+  // ── Form ───────────────────────────────────────────────────────────────────
   const progress = calcProgress(sections, responses)
   const ready    = canComplete(sections, responses)
   const activeSection = sections[activeIdx] || null
@@ -520,6 +851,36 @@ export default function BriefPublicPage() {
           .brief-sidebar { display: block !important; }
           .brief-mobile-header { display: none !important; }
         }
+        .brief-help-wrap {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
+        .brief-help-wrap .brief-tooltip {
+          display: none;
+          position: absolute;
+          bottom: calc(100% + 8px);
+          left: 50%;
+          transform: translateX(-50%);
+          background: #173557;
+          color: #fff;
+          font-size: 0.82rem;
+          line-height: 1.55;
+          border-radius: 6px;
+          padding: 8px 12px;
+          max-width: 280px;
+          width: max-content;
+          white-space: normal;
+          z-index: 100;
+          pointer-events: none;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+          font-family: 'Montserrat', sans-serif;
+          font-weight: 400;
+        }
+        .brief-help-wrap:hover .brief-tooltip { display: block; }
+        .brief-help-wrap svg { opacity: 0.7; cursor: help; transition: opacity .15s; }
+        .brief-help-wrap:hover svg { opacity: 1; }
       `}</style>
 
       <div style={{ minHeight: '100vh', background: '#f8fafc', ...base }}>
@@ -533,12 +894,9 @@ export default function BriefPublicPage() {
           display: 'flex', alignItems: 'center', gap: 16,
           boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
         }}>
-          {/* Logo */}
           <div style={{
-            width: 32, height: 32, borderRadius: 7,
-            background: NAVY,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
+            width: 32, height: 32, borderRadius: 7, background: NAVY,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
             <span style={{ color: LIME, fontWeight: 800, fontSize: 15, lineHeight: 1 }}>d</span>
           </div>
@@ -552,14 +910,12 @@ export default function BriefPublicPage() {
             </div>
           </div>
 
-          {/* Progress bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <div style={{ width: 120, height: 6, background: '#e2e8f0', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{
                 height: '100%', borderRadius: 99,
                 background: progress === 100 ? LIME : SKY,
-                width: `${progress}%`,
-                transition: 'width 0.3s ease',
+                width: `${progress}%`, transition: 'width 0.3s ease',
               }} />
             </div>
             <span style={{ fontSize: 12, fontWeight: 600, color: '#64748b', minWidth: 32 }}>{progress}%</span>
@@ -572,10 +928,10 @@ export default function BriefPublicPage() {
           )}
         </div>
 
-        {/* ── Body (sidebar + main) ───────────────────────────── */}
+        {/* ── Body ───────────────────────────────────────────── */}
         <div style={{ display: 'flex', paddingTop: 57, minHeight: '100vh' }}>
 
-          {/* Mobile header for section nav */}
+          {/* Mobile section nav */}
           <div
             className="brief-mobile-header"
             style={{
@@ -603,11 +959,9 @@ export default function BriefPublicPage() {
             className={`brief-sidebar${mobileSidebarOpen ? ' open' : ''}`}
             style={{
               width: 260, flexShrink: 0,
-              borderRight: '1px solid #e2e8f0',
-              background: '#fff',
+              borderRight: '1px solid #e2e8f0', background: '#fff',
               position: 'fixed', top: 57, bottom: 0,
-              overflowY: 'auto',
-              zIndex: 30,
+              overflowY: 'auto', zIndex: 30,
             }}
           >
             <div style={{ padding: '16px 12px' }}>
@@ -637,8 +991,7 @@ export default function BriefPublicPage() {
                     </span>
                     <span style={{
                       fontSize: 13, fontWeight: active ? 700 : 500,
-                      color: active ? NAVY : '#475569',
-                      lineHeight: 1.3,
+                      color: active ? NAVY : '#475569', lineHeight: 1.3,
                     }}>
                       {sec.title}
                     </span>
@@ -650,7 +1003,6 @@ export default function BriefPublicPage() {
 
           {/* ── Main content ─────────────────────────────────── */}
           <div style={{ flex: 1, marginLeft: 260, padding: '32px 40px 120px', minWidth: 0 }}>
-
             {activeSection && (
               <div style={{ maxWidth: 700, margin: '0 auto' }}>
 
@@ -672,13 +1024,22 @@ export default function BriefPublicPage() {
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6 }}>
                     Seção {activeIdx + 1} de {sections.length}
                   </div>
-                  <h1 style={{ fontSize: 22, fontWeight: 800, color: NAVY, margin: '0 0 10px' }}>
+                  <h1 style={{ fontSize: 22, fontWeight: 800, color: NAVY, margin: '0 0 12px' }}>
                     {activeSection.title}
                   </h1>
+
+                  {/* Deliverable — styled */}
                   {activeSection.deliverable && (
-                    <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.6, margin: 0 }}>
+                    <div style={{
+                      borderLeft: `3px solid ${LIME}`,
+                      background: 'rgba(211,218,71,0.08)',
+                      borderRadius: '0 8px 8px 0',
+                      padding: '0.65rem 0.9rem',
+                      fontSize: 14, lineHeight: 1.6, color: '#1e293b',
+                    }}>
+                      <span style={{ fontWeight: 600, color: NAVY }}>✓ Entregável: </span>
                       {activeSection.deliverable}
-                    </p>
+                    </div>
                   )}
                 </div>
 
@@ -761,7 +1122,7 @@ export default function BriefPublicPage() {
           </div>
         </div>
 
-        {/* ── Footer fixo — Concluir ──────────────────────────── */}
+        {/* ── Fixed footer — Concluir ─────────────────────────── */}
         {!readOnly && (
           <div style={{
             position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
@@ -785,8 +1146,7 @@ export default function BriefPublicPage() {
                 border: 'none', borderRadius: 9,
                 fontWeight: 700, fontSize: 14,
                 cursor: ready ? 'pointer' : 'not-allowed',
-                fontFamily: 'inherit',
-                transition: 'all .15s',
+                fontFamily: 'inherit', transition: 'all .15s',
               }}
             >
               {completing ? 'Enviando…' : 'Concluir e enviar'}
@@ -833,12 +1193,20 @@ export default function BriefPublicPage() {
           </div>
         )}
 
+        {/* ── Tour modal ─────────────────────────────────────── */}
+        {showTour && (
+          <TourModal onClose={() => {
+            if (instance?.id) sessionStorage.setItem(`brief_tour_seen_${instance.id}`, '1')
+            setShowTour(false)
+          }} />
+        )}
+
       </div>
     </>
   )
 }
 
-// ── Question field component ──────────────────────────────────────────────────
+// ── Question field ─────────────────────────────────────────────────────────────
 function QuestionField({ question, value, onChange, saveStatus, readOnly, attachments, attachmentUrls, onUpload, onDelete, isUploading }) {
   const { text, type, required, note, allow_attachment } = question
   const fileInputRef = useRef(null)
@@ -857,19 +1225,25 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly, attach
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-        <label style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', lineHeight: 1.5, flex: 1, paddingRight: 12 }}>
-          {text}
-          {required && <span style={{ color: '#ef4444', marginLeft: 3 }}>*</span>}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <label style={{
+          fontSize: 14, fontWeight: 600, color: '#1e293b',
+          lineHeight: 1.5, flex: 1, paddingRight: 12,
+          display: 'flex', alignItems: 'flex-start', gap: 6,
+        }}>
+          <span>
+            {text}
+            {required && <span style={{ color: '#ef4444', marginLeft: 3 }}>*</span>}
+          </span>
+          {note && note.trim() && (
+            <span className="brief-help-wrap" style={{ marginTop: 2 }}>
+              <IcoHelpCircle size={15} color={SKY} />
+              <span className="brief-tooltip">{note}</span>
+            </span>
+          )}
         </label>
         <SaveIndicator status={saveStatus} />
       </div>
-
-      {note && (
-        <p style={{ fontSize: 12, color: '#94a3b8', fontStyle: 'italic', marginBottom: 8, marginTop: 0, lineHeight: 1.5 }}>
-          {note}
-        </p>
-      )}
 
       {type === 'textarea' || type === undefined ? (
         <textarea
@@ -911,7 +1285,6 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly, attach
       {/* Attachment area */}
       {allow_attachment && (
         <div style={{ marginTop: 12 }}>
-          {/* Existing attachments */}
           {attachments.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
               {attachments.map((att, idx) => {
@@ -966,12 +1339,9 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly, attach
                           width: 22, height: 22, borderRadius: '50%',
                           background: '#fee2e2', border: 'none', cursor: 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          flexShrink: 0, fontSize: 14, color: '#ef4444',
-                          lineHeight: 1,
+                          flexShrink: 0, fontSize: 14, color: '#ef4444', lineHeight: 1,
                         }}
-                      >
-                        ✕
-                      </button>
+                      >✕</button>
                     )}
                   </div>
                 )
@@ -979,7 +1349,6 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly, attach
             </div>
           )}
 
-          {/* Upload button / drop zone */}
           {!readOnly && (
             <input
               ref={fileInputRef}
@@ -997,8 +1366,7 @@ function QuestionField({ question, value, onChange, saveStatus, readOnly, attach
               onDrop={e => {
                 e.preventDefault()
                 setDragOver(false)
-                const file = e.dataTransfer.files[0]
-                handleFile(file)
+                handleFile(e.dataTransfer.files[0])
               }}
               style={{
                 border: `2px dashed ${dragOver ? SKY : '#cbd5e1'}`,
