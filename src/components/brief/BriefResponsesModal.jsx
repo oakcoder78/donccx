@@ -415,7 +415,7 @@ function ClientDoubtsPanel({ clientQuestions, structure, onReply, onToggleVisibi
 }
 
 // ── Question card ────────────────────────────────────────────────────────────
-function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote, clientQsForQ, onShowDoubts }) {
+function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote, clientQsForQ, onShowDoubts, onRemove }) {
   const hasResponse = !!response?.response_text
 
   const handleDownload = useCallback(async (att) => {
@@ -441,7 +441,7 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
           {idx + 1}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 flex-wrap">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
             <span className="text-sm font-medium text-text-primary leading-snug flex-1">
               {question.text}
               {question.required && <span className="text-red-400 ml-0.5">*</span>}
@@ -451,6 +451,15 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
                 style={{ background: 'rgba(34,160,98,0.15)', color: GREEN }}>
                 Respondida
               </span>
+            )}
+            {onRemove && (
+              <button
+                onClick={onRemove}
+                className="flex-shrink-0 p-1 text-text-tertiary hover:text-red-500 transition-colors"
+                title="Remover pergunta"
+              >
+                <Icons.Trash2 size={14} />
+              </button>
             )}
           </div>
 
@@ -553,7 +562,9 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
 // ── Main modal ───────────────────────────────────────────────────────────────
 export function BriefResponsesModal({ instance, onClose }) {
   const qc = useQueryClient()
-  const structure = instance?.structure_snapshot?.sections || []
+  const [structure, setStructure] = useState(() => instance?.structure_snapshot?.sections || [])
+  const [hasChanges, setHasChanges] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [activeSectionIdx, setActiveSectionIdx] = useState(0)
   const [activeView, setActiveView] = useState('section') // 'section' | 'doubts'
   const [doubtTarget, setDoubtTarget] = useState(null) // question_id to scroll to in doubts panel
@@ -624,8 +635,122 @@ export function BriefResponsesModal({ instance, onClose }) {
   const getNoteForQ = (qId) => csmNotes.find(n => n.question_id === qId && n.origin === 'csm')
   const getClientQsForQ = (qId) => clientQuestions.filter(q => q.question_id === qId)
 
+  const generateBriefMarkdown = () => {
+    const lines = []
+    lines.push(`# ${instance.title || 'Brief'}`)
+    lines.push('')
+    lines.push(`**Status:** ${STATUS_CONFIG[instance.status]?.label || instance.status}`)
+    if (instance.created_at) {
+      lines.push(`**Criado em:** ${new Date(instance.created_at).toLocaleDateString('pt-BR')}`)
+    }
+    if (instance.completed_at) {
+      lines.push(`**Concluído em:** ${new Date(instance.completed_at).toLocaleDateString('pt-BR')}`)
+    }
+    lines.push('')
+    lines.push('---')
+    lines.push('')
+
+    for (const section of structure) {
+      lines.push(`## ${section.title || 'Seção sem título'}`)
+      if (section.deliverable) {
+        lines.push(`*Entregável:* ${section.deliverable}`)
+      }
+      lines.push('')
+
+      for (const q of section.questions || []) {
+        const resp = responses.find(r => r.question_id === q.id)
+        const answer = resp?.response_text || '*Sem resposta*'
+        const responder = resp?.responded_by_name
+        const date = resp?.responded_at ? new Date(resp.responded_at).toLocaleDateString('pt-BR') : ''
+
+        lines.push(`### ${q.text}${q.required ? ' *' : ''}`)
+        if (q.note) {
+          lines.push(`> **Orientação:** ${q.note}`)
+        }
+        lines.push('')
+        lines.push(`> ${answer.replace(/\n/g, '\n> ')}`)
+        if (responder || date) {
+          lines.push('')
+          lines.push(`*Por ${responder || 'cliente'}${date ? ` · ${date}` : ''}*`)
+        }
+        lines.push('')
+      }
+    }
+
+    return lines.join('\n')
+  }
+
+  const handleExportBrief = () => {
+    const markdown = generateBriefMarkdown()
+    const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${instance.title || 'brief'}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   const canSend = instance.status === 'draft' || instance.status === 'in_progress'
   const statusCfg = STATUS_CONFIG[instance.status] ?? STATUS_CONFIG.draft
+
+  const updateStructureMutation = useMutation({
+    mutationFn: async (newSections) => {
+      const { error } = await supabase
+        .from('brief_instances')
+        .update({ structure_snapshot: { sections: newSections } })
+        .eq('id', instance.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brief_instances', instance.onboarding_id] })
+      setHasChanges(false)
+      toast.success('Estrutura atualizada')
+    },
+    onError: () => toast.error('Erro ao atualizar estrutura'),
+  })
+
+  const handleSaveStructure = () => {
+    updateStructureMutation.mutate(structure)
+  }
+
+  const handleRemoveQuestion = (qIdx) => {
+    const q = activeSection.questions?.[qIdx]
+    const hasResponse = !!getResponse(q?.id)
+    if (hasResponse) {
+      setConfirmDelete({ qIdx, questionId: q.id })
+    } else {
+      removeQuestion(qIdx)
+    }
+  }
+
+  const confirmRemoveQuestion = () => {
+    if (confirmDelete) {
+      removeQuestion(confirmDelete.qIdx)
+      setConfirmDelete(null)
+    }
+  }
+
+  const removeQuestion = (qIdx) => {
+    setStructure(prev => prev.map((sec, i) =>
+      i === activeSectionIdx
+        ? { ...sec, questions: sec.questions.filter((_, qi) => qi !== qIdx) }
+        : sec
+    ))
+    setHasChanges(true)
+  }
+
+  const addQuestion = (type = 'text') => {
+    const newQ = { id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, text: '', type, required: true, allow_attachment: false, note: '' }
+    setStructure(prev => prev.map((sec, i) =>
+      i === activeSectionIdx
+        ? { ...sec, questions: [...(sec.questions || []), newQ] }
+        : sec
+    ))
+    setHasChanges(true)
+  }
   const updatedAt = instance.updated_at || instance.created_at
 
   return (
@@ -729,8 +854,17 @@ export function BriefResponsesModal({ instance, onClose }) {
                   )
                 })}
 
-                {/* Separator + Doubts item */}
+                {/* Separator + Export + Doubts items */}
                 <div className="mx-1 my-2 border-t border-border-tertiary" />
+                <button
+                  onClick={handleExportBrief}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all border border-transparent hover:bg-bg-secondary"
+                >
+                  <div className="w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: 'var(--color-bg-secondary)' }}>
+                    <Icons.Download size={18} style={{ color: 'var(--color-text-tertiary)' }} />
+                  </div>
+                  <span className="text-xs font-semibold text-text-primary">Baixar MD</span>
+                </button>
                 <button
                   onClick={() => { setActiveView('doubts'); setDoubtTarget(null) }}
                   className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all
@@ -822,8 +956,38 @@ export function BriefResponsesModal({ instance, onClose }) {
                         isSavingNote={isUpsertingNote}
                         clientQsForQ={getClientQsForQ(q.id)}
                         onShowDoubts={() => handleShowDoubts(q.id)}
+                        onRemove={() => handleRemoveQuestion(qIdx)}
                       />
                     ))}
+
+                    {/* Add question dock */}
+                    <div
+                      className="mt-2 flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-dashed cursor-pointer transition-all group"
+                      style={{ borderColor: 'var(--color-border-tertiary)' }}
+                      onClick={() => addQuestion('text')}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = SKY; e.currentTarget.style.background = `${SKY}06` }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = ''; e.currentTarget.style.background = '' }}
+                    >
+                      <Icons.Plus size={15} className="text-text-tertiary flex-shrink-0 group-hover:text-[#59c2ed] transition-colors" />
+                      <span className="flex-1 text-sm text-text-tertiary group-hover:text-[#59c2ed] transition-colors">
+                        Adicionar pergunta
+                      </span>
+                      <div className="flex gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => addQuestion('text')}
+                          className="text-xs px-2.5 py-1 rounded-md bg-bg-secondary text-text-secondary hover:text-[#59c2ed] transition-colors"
+                        >
+                          Texto curto
+                        </button>
+                        <button
+                          onClick={() => addQuestion('textarea')}
+                          className="text-xs px-2.5 py-1 rounded-md bg-bg-secondary text-text-secondary hover:text-[#59c2ed] transition-colors"
+                        >
+                          Texto longo
+                        </button>
+                      </div>
+                    </div>
+
                     {(activeSection.questions || []).length === 0 && (
                       <div className="text-center py-12 text-text-tertiary text-sm">
                         Nenhuma pergunta nesta seção
@@ -848,6 +1012,16 @@ export function BriefResponsesModal({ instance, onClose }) {
             {updatedAt && <span>· {relativeTime(updatedAt)}</span>}
           </div>
           <div className="flex items-center gap-2">
+            {hasChanges && activeView === 'section' && (
+              <button
+                onClick={handleSaveStructure}
+                disabled={updateStructureMutation.isPending}
+                className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg font-medium text-white disabled:opacity-60 transition-colors"
+                style={{ background: NAVY }}
+              >
+                {updateStructureMutation.isPending ? 'Salvando...' : 'Salvar alterações'}
+              </button>
+            )}
             <button
               onClick={() => selectSection(Math.max(0, activeSectionIdx - 1))}
               disabled={activeView === 'doubts' || activeSectionIdx === 0}
@@ -867,6 +1041,45 @@ export function BriefResponsesModal({ instance, onClose }) {
           </div>
         </div>
       </div>
+
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setConfirmDelete(null)}>
+          <div
+            className="bg-bg-primary rounded-xl w-full flex flex-col overflow-hidden shadow-2xl"
+            style={{ maxWidth: 400 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <Icons.XCircle size={20} className="text-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-text-primary">Remover pergunta?</h3>
+                </div>
+              </div>
+              <p className="text-sm text-text-secondary mb-4">
+                Esta pergunta já possui uma resposta do cliente. Ao remover, a resposta ficará órfã (sem pergunta associada).
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="flex-1 text-xs px-3 py-2 rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmRemoveQuestion}
+                  className="flex-1 text-xs px-3 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+                >
+                  Remover
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
