@@ -113,7 +113,14 @@ serve(async (req) => {
         .select('*')
         .eq('instance_id', instance.id)
 
-      return ok({ instance, responses: responses ?? [], attachments: attachments ?? [] })
+      const { data: csmNotes } = await sb
+        .from('brief_csm_notes')
+        .select('id, note_text, created_at, created_by')
+        .eq('instance_id', instance.id)
+        .eq('is_visible', true)
+        .order('created_at', { ascending: true })
+
+      return ok({ instance, responses: responses ?? [], attachments: attachments ?? [], csm_notes: csmNotes ?? [] })
     }
 
     if (action === 'save_response') {
