@@ -104,13 +104,34 @@ Editable modal with:
 ### Public Side — BriefPublicPage (`/brief/:token`)
 
 Public page without Supabase JWT. Email-authenticated access:
-1. User enters email → `brief-public` validates against `contacts.client_id` OR `profiles.email`
-2. If valid: loads `structure_snapshot` + existing responses
-3. Auto-save with 1500ms debounce per question (`save_response` action)
-4. Status triggers: `sent → in_progress` only for contacts, **not** for internal Hub users
-5. Sidebar shows section progress: empty (gray) / partial (yellow) / done (green)
-6. `complete` action locks form, marks as `completed`, creates activity (contacts only)
-7. After completion: shows "thanks" screen
+
+**Phase flow:** `auth → validating → cover → loading → form → thanks`
+
+1. User enters email → `brief-public` (action `validate`) validates against `contacts.client_id` OR `profiles.email`
+2. On success: shows **Cover Page** (visual intro) before loading the form
+   - Cover data comes from `validate` response: `client_name`, `client_logo_url`, `csm_name`, `operation_capabilities`, `sent_at`
+   - If session already stored (page reload): cover is skipped, goes straight to form
+3. User clicks "Iniciar preenchimento" → calls `get` action, loads responses + attachments
+4. Auto-save with 1500ms debounce per question (`save_response` action)
+5. Status triggers: `sent → in_progress` only for contacts, **not** for internal Hub users
+6. Sidebar shows section progress: empty (gray) / partial (sky) / done (lime)
+7. **Deliverable** per section is highlighted: left border `#d3da47`, lime background tint, "✓ Entregável:" prefix
+8. **Question notes** (`question.note`): show `IcoHelpCircle` icon (sky, 15px) inline with question label; hover → CSS tooltip (navy bg, max-width 280px)
+9. **Tour modal** shown on first visit after `get` loads (sessionStorage key `brief_tour_seen_{instance_id}`): 4 steps explaining nav, deliverable, hints, autosave
+10. `complete` action locks form, marks as `completed`, creates activity (contacts only)
+11. After completion: shows "thanks" screen
+
+**`validate` action expanded payload:**
+```json
+{
+  "contact_name": "...",
+  "client_name": "...",         // fantasy_name || name
+  "client_logo_url": "...",     // full public URL from company-logos bucket
+  "csm_name": "...",            // from profiles (created_by)
+  "operation_capabilities": [], // from onboarding_capabilities → catalog_items.name
+  "instance": { "id", "title", "status", "sent_at", "structure_snapshot" }
+}
+```
 
 ### Settings Side — `/config/brief-templates`
 
