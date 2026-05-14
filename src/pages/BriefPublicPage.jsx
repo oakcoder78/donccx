@@ -306,16 +306,15 @@ function CoverPage({ session, onStart }) {
             marginBottom: 40,
           }}>
             <div style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}>
-              {/* Client logo */}
+              {/* Client logo — circle, height matches metadata block */}
               <div style={{ flexShrink: 0 }}>
                 {logoUrl && !logoError ? (
                   <img
                     src={logoUrl}
                     alt={clientName}
                     style={{
-                      width: 64,
+                      width: '100%',
                       height: '100%',
-                      minHeight: 100,
                       borderRadius: '50%',
                       objectFit: 'cover',
                       display: 'block',
@@ -324,9 +323,8 @@ function CoverPage({ session, onStart }) {
                   />
                 ) : (
                   <div style={{
-                    width: 64,
+                    width: '100%',
                     height: '100%',
-                    minHeight: 100,
                     borderRadius: '50%',
                     background: '#59c2ed',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -342,6 +340,7 @@ function CoverPage({ session, onStart }) {
                 display: 'grid', gridTemplateColumns: 'auto 1fr',
                 columnGap: 20, rowGap: 10,
                 alignItems: 'center', flex: 1,
+                minHeight: 100,
               }}>
                 {clientName && (
                   <>
@@ -582,15 +581,15 @@ function CoverInline({ session, onStart }) {
               <div style={{ flexShrink: 0 }}>
                 {logoUrl && !logoError ? (
                   <img src={logoUrl} alt={clientName}
-                    style={{ width: 52, height: '100%', minHeight: 80, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
                     onError={() => setLogoError(true)} />
                 ) : (
-                  <div style={{ width: 52, height: '100%', minHeight: 80, borderRadius: '50%', background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#173557' }}>
+                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#173557' }}>
                     {clientName.charAt(0).toUpperCase() || '?'}
                   </div>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 16, rowGap: 8, alignItems: 'center', flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 16, rowGap: 8, alignItems: 'center', flex: 1, minHeight: 80 }}>
                 {clientName && (<><span style={labelSt}>Cliente</span><span style={valueSt}>{clientName}</span></>)}
                 {capabilities.length > 0 && (
                   <><span style={labelSt}>Operação</span>
