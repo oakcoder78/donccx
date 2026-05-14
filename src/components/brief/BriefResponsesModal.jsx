@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useBriefResponses, useBriefCsmNotes } from '../../hooks/useBrief'
 import { Icons } from '../../lib/icons'
@@ -9,6 +9,7 @@ const NAVY = '#173557'
 const SKY = '#59c2ed'
 const LIME = '#d3da47'
 const GREEN = '#1aa56a'
+const AMBER = '#d98c1e'
 
 const STATUS_CONFIG = {
   draft:       { bg: '#e2e8f0',              color: '#475569',  label: 'Rascunho' },
@@ -78,7 +79,7 @@ function SegmentedBar({ structure, responses }) {
         </span>
       </div>
       <div className="flex h-2 rounded-full overflow-hidden gap-px bg-bg-tertiary">
-        {structure.map((sec, idx) => {
+        {structure.map((sec) => {
           const secTotal = sec.questions?.length || 0
           if (secTotal === 0) return null
           const secAns = sec.questions?.filter(q => responses.find(r => r.question_id === q.id)?.response_text).length || 0
@@ -130,7 +131,7 @@ function CsmNoteArea({ questionId, savedNote, onSave, onDelete, isSaving }) {
           <button
             type="button"
             onClick={() => setDraft(d => ({ ...d, isVisible: !d.isVisible }))}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors`}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors"
             style={draft.isVisible
               ? { background: `${LIME}20`, borderColor: `${LIME}60`, color: '#4a5c20' }
               : { background: `${NAVY}0c`, borderColor: `${NAVY}20`, color: NAVY }
@@ -222,11 +223,200 @@ function CsmNoteArea({ questionId, savedNote, onSave, onDelete, isSaving }) {
   )
 }
 
+// ── Client Doubts Panel ───────────────────────────────────────────────────────
+function ClientDoubtsPanel({ clientQuestions, structure, onReply, onToggleVisibility, isReplying, targetId }) {
+  const [drafts, setDrafts] = useState({})
+  const [editingIds, setEditingIds] = useState({})
+  const itemRefs = useRef({})
+
+  useEffect(() => {
+    if (!targetId) return
+    const target = clientQuestions.find(cq => cq.question_id === targetId)
+    if (target && itemRefs.current[target.id]) {
+      setTimeout(() => itemRefs.current[target.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
+    }
+  }, [targetId])
+
+  const getQText = (qId) => {
+    if (!qId) return null
+    for (const sec of structure) {
+      const q = sec.questions?.find(q => q.id === qId)
+      if (q) return q.text
+    }
+    return null
+  }
+
+  const openReply = (id, existing = '') => {
+    setDrafts(d => ({ ...d, [id]: existing }))
+    setEditingIds(e => ({ ...e, [id]: true }))
+  }
+
+  const cancelReply = (id) => setEditingIds(e => ({ ...e, [id]: false }))
+
+  const submitReply = async (q) => {
+    const text = (drafts[q.id] || '').trim()
+    if (!text) { toast.error('Resposta não pode estar vazia'); return }
+    await onReply({ id: q.id, csm_reply: text })
+    setEditingIds(e => ({ ...e, [q.id]: false }))
+  }
+
+  if (clientQuestions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-text-tertiary py-20">
+        <Icons.MessageCircle size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+        <p className="text-sm">Nenhuma dúvida enviada pelo cliente até o momento.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-5 space-y-4">
+      {clientQuestions.map(q => {
+        const hasReply = !!q.csm_reply
+        const isEditing = !!editingIds[q.id]
+        const qText = getQText(q.question_id)
+        const replied = hasReply && !isEditing
+
+        let borderColor = 'rgba(217,140,30,0.35)'
+        let bg = 'rgba(217,140,30,0.06)'
+        let badgeLabel = 'Aguardando resposta'
+        let badgeBg = 'rgba(217,140,30,0.15)'
+        let badgeColor = '#92520a'
+
+        if (replied && q.is_visible) {
+          borderColor = 'rgba(26,165,106,0.35)'
+          bg = 'rgba(26,165,106,0.06)'
+          badgeLabel = 'Respondida · visível ao cliente'
+          badgeBg = 'rgba(26,165,106,0.15)'
+          badgeColor = '#117a4f'
+        } else if (replied && !q.is_visible) {
+          borderColor = 'rgba(148,163,184,0.4)'
+          bg = '#f8fafc'
+          badgeLabel = 'Respondida · interna'
+          badgeBg = '#e2e8f0'
+          badgeColor = '#475569'
+        }
+
+        return (
+          <div
+            key={q.id}
+            ref={el => { itemRefs.current[q.id] = el }}
+            className="rounded-xl border p-4"
+            style={{ borderColor, background: bg }}
+          >
+            {/* Doubt header */}
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <Icons.MessageCircle size={14} style={{ color: '#92520a', flexShrink: 0 }} />
+                <span className="text-xs font-semibold text-text-primary truncate">
+                  {q.client_name || q.client_email}
+                </span>
+                <span className="text-xs text-text-tertiary flex-shrink-0">
+                  · {new Date(q.created_at).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
+                style={{ background: badgeBg, color: badgeColor }}
+              >
+                {badgeLabel}
+              </span>
+            </div>
+
+            {/* Doubt text */}
+            <p className="text-sm text-text-primary leading-relaxed mb-2">{q.note_text}</p>
+
+            {/* Linked question tag */}
+            {qText && (
+              <div
+                className="mb-3 inline-flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-md"
+                style={{ background: `${NAVY}0c`, color: NAVY }}
+              >
+                <Icons.ClipboardList size={10} />
+                {qText.length > 64 ? qText.slice(0, 64) + '…' : qText}
+              </div>
+            )}
+
+            {/* Reply area */}
+            {replied ? (
+              <div
+                className="mt-1 rounded-lg px-3 py-2.5"
+                style={{ background: `${GREEN}08`, borderLeft: `3px solid ${GREEN}` }}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-semibold" style={{ color: GREEN }}>Resposta do CSM</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => onToggleVisibility(q)}
+                      className="text-[10px] px-2 py-0.5 rounded border transition-colors text-text-tertiary hover:text-text-primary"
+                      style={{ borderColor: 'var(--color-border-tertiary)' }}
+                    >
+                      {q.is_visible ? 'Tornar interno' : 'Tornar visível'}
+                    </button>
+                    <button
+                      onClick={() => openReply(q.id, q.csm_reply)}
+                      className="text-[10px] px-2 py-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-secondary transition-colors"
+                    >
+                      Editar resposta
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm text-text-primary leading-relaxed">{q.csm_reply}</p>
+                {q.replied_at && (
+                  <div className="text-[10px] text-text-tertiary mt-1">
+                    {new Date(q.replied_at).toLocaleDateString('pt-BR')}
+                  </div>
+                )}
+              </div>
+            ) : isEditing ? (
+              <div className="mt-2 rounded-lg border border-border-tertiary overflow-hidden">
+                <textarea
+                  value={drafts[q.id] || ''}
+                  onChange={e => setDrafts(d => ({ ...d, [q.id]: e.target.value }))}
+                  rows={3}
+                  placeholder="Digite a resposta…"
+                  autoFocus
+                  className="w-full px-3 py-2.5 text-sm bg-bg-primary text-text-primary placeholder-text-tertiary outline-none resize-none"
+                  style={{ fontFamily: 'inherit' }}
+                />
+                <div className="flex justify-end gap-2 px-3 py-2 border-t border-border-tertiary bg-bg-secondary">
+                  <button
+                    onClick={() => cancelReply(q.id)}
+                    className="text-xs px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => submitReply(q)}
+                    disabled={isReplying}
+                    className="text-xs px-3 py-1.5 rounded-md text-white font-medium disabled:opacity-50 transition-colors"
+                    style={{ background: NAVY }}
+                  >
+                    {isReplying ? 'Salvando…' : 'Responder'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <button
+                  onClick={() => openReply(q.id, '')}
+                  className="text-xs px-3 py-1.5 rounded-lg text-white font-medium transition-colors"
+                  style={{ background: NAVY }}
+                >
+                  Responder
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ── Question card ────────────────────────────────────────────────────────────
-function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote }) {
+function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote, clientQsForQ, onShowDoubts }) {
   const hasResponse = !!response?.response_text
-  const qc = useQueryClient()
-  const instanceId = response?.instance_id
 
   const handleDownload = useCallback(async (att) => {
     const { data, error } = await supabase.storage
@@ -264,7 +454,6 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
             )}
           </div>
 
-          {/* Question hint/note */}
           {question.note && (
             <div className="mt-1.5 flex items-start gap-1.5 text-xs px-2 py-1.5 rounded-md"
               style={{ background: `${SKY}0c`, border: `1px solid ${SKY}30` }}>
@@ -330,6 +519,23 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
         </div>
       )}
 
+      {/* Client doubts indicator */}
+      {clientQsForQ?.length > 0 && (
+        <div className="ml-7 mb-2">
+          <button
+            onClick={onShowDoubts}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-opacity hover:opacity-75"
+            style={{ background: 'rgba(217,140,30,0.08)', border: '1px solid rgba(217,140,30,0.35)' }}
+          >
+            <Icons.MessageCircle size={13} style={{ color: '#92520a', flexShrink: 0 }} />
+            <span className="text-xs font-medium flex-1" style={{ color: '#92520a' }}>
+              {clientQsForQ.length === 1 ? '1 dúvida do cliente' : `${clientQsForQ.length} dúvidas`}
+            </span>
+            <Icons.ChevronRight size={11} style={{ color: '#92520a' }} />
+          </button>
+        </div>
+      )}
+
       {/* CSM note */}
       <div className="ml-7">
         <CsmNoteArea
@@ -349,11 +555,22 @@ export function BriefResponsesModal({ instance, onClose }) {
   const qc = useQueryClient()
   const structure = instance?.structure_snapshot?.sections || []
   const [activeSectionIdx, setActiveSectionIdx] = useState(0)
+  const [activeView, setActiveView] = useState('section') // 'section' | 'doubts'
+  const [doubtTarget, setDoubtTarget] = useState(null) // question_id to scroll to in doubts panel
 
   const { responses, attachments, isLoading } = useBriefResponses(instance.id)
-  const { csmNotes, upsertCsmNote, deleteCsmNote, isUpsertingNote } = useBriefCsmNotes(instance.id)
+  const {
+    csmNotes,
+    clientQuestions,
+    upsertCsmNote,
+    deleteCsmNote,
+    isUpsertingNote,
+    replyToQuestion,
+    isReplying,
+  } = useBriefCsmNotes(instance.id)
 
   const activeSection = structure[activeSectionIdx] ?? null
+  const unansweredCount = clientQuestions.filter(q => !q.csm_reply).length
 
   const updateStatus = useMutation({
     mutationFn: async (status) => {
@@ -383,13 +600,32 @@ export function BriefResponsesModal({ instance, onClose }) {
     await copyLink()
   }
 
+  const handleShowDoubts = useCallback((questionId) => {
+    setActiveView('doubts')
+    setDoubtTarget(questionId)
+  }, [])
+
+  const handleToggleClientQVisibility = useCallback(async (q) => {
+    await upsertCsmNote.mutateAsync({ id: q.id, question_id: q.question_id, note_text: q.note_text, is_visible: !q.is_visible })
+    qc.invalidateQueries({ queryKey: ['brief_client_questions', instance.id] })
+  }, [upsertCsmNote, qc, instance.id])
+
+  const handleReplyToQuestion = useCallback(async ({ id, csm_reply }) => {
+    await replyToQuestion.mutateAsync({ id, csm_reply })
+  }, [replyToQuestion])
+
+  const selectSection = (idx) => {
+    setActiveSectionIdx(idx)
+    setActiveView('section')
+  }
+
   const getResponse = (qId) => responses.find(r => r.question_id === qId)
   const getAttachments = (qId) => attachments.filter(a => a.question_id === qId)
-  const getNoteForQ = (qId) => csmNotes.find(n => n.question_id === qId)
+  const getNoteForQ = (qId) => csmNotes.find(n => n.question_id === qId && n.origin === 'csm')
+  const getClientQsForQ = (qId) => clientQuestions.filter(q => q.question_id === qId)
 
   const canSend = instance.status === 'draft' || instance.status === 'in_progress'
   const statusCfg = STATUS_CONFIG[instance.status] ?? STATUS_CONFIG.draft
-
   const updatedAt = instance.updated_at || instance.created_at
 
   return (
@@ -455,7 +691,7 @@ export function BriefResponsesModal({ instance, onClose }) {
         {/* ── Segmented progress bar ── */}
         <SegmentedBar structure={structure} responses={responses} />
 
-        {/* ── Body: rail + editor ── */}
+        {/* ── Body: rail + panel ── */}
         {isLoading ? (
           <div className="flex-1 flex items-center justify-center text-text-tertiary text-sm">
             Carregando respostas…
@@ -472,13 +708,13 @@ export function BriefResponsesModal({ instance, onClose }) {
                 {structure.map((sec, idx) => {
                   const secTotal = sec.questions?.length || 0
                   const secAns = sec.questions?.filter(q => getResponse(q.id)?.response_text).length || 0
-                  const isActive = idx === activeSectionIdx
+                  const isActive = activeView === 'section' && idx === activeSectionIdx
 
                   return (
                     <button
                       key={sec.id}
-                      onClick={() => setActiveSectionIdx(idx)}
-                      className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left mb-1 transition-all group
+                      onClick={() => selectSection(idx)}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left mb-1 transition-all
                         ${isActive
                           ? 'border border-[#59c2ed] bg-white shadow-sm'
                           : 'border border-transparent hover:bg-bg-secondary'
@@ -492,6 +728,38 @@ export function BriefResponsesModal({ instance, onClose }) {
                     </button>
                   )
                 })}
+
+                {/* Separator + Doubts item */}
+                <div className="mx-1 my-2 border-t border-border-tertiary" />
+                <button
+                  onClick={() => { setActiveView('doubts'); setDoubtTarget(null) }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all
+                    ${activeView === 'doubts'
+                      ? 'border border-[#59c2ed] bg-white shadow-sm'
+                      : 'border border-transparent hover:bg-bg-secondary'
+                    }`}
+                >
+                  <div
+                    className="w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0"
+                    style={{ background: activeView === 'doubts' ? `${SKY}14` : 'var(--color-bg-secondary)' }}
+                  >
+                    <Icons.MessageCircle
+                      size={18}
+                      style={{ color: activeView === 'doubts' ? SKY : 'var(--color-text-tertiary)' }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 flex items-center justify-between gap-1">
+                    <span className="text-xs font-semibold text-text-primary">Dúvidas</span>
+                    {unansweredCount > 0 && (
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{ background: 'rgba(196,68,68,0.14)', color: '#b42828' }}
+                      >
+                        {unansweredCount}
+                      </span>
+                    )}
+                  </div>
+                </button>
               </div>
 
               {/* Rail footer */}
@@ -505,7 +773,25 @@ export function BriefResponsesModal({ instance, onClose }) {
 
             {/* Right panel */}
             <div className="flex-1 overflow-y-auto min-w-0">
-              {activeSection ? (
+              {activeView === 'doubts' ? (
+                <>
+                  <div className="sticky top-0 z-10 bg-bg-primary border-b border-border-tertiary px-5 py-3 flex-shrink-0">
+                    <div className="text-xs text-text-tertiary mb-0.5">Perguntas dos clientes</div>
+                    <h3 className="text-base font-bold" style={{ color: NAVY }}>Dúvidas do cliente</h3>
+                    <p className="text-xs text-text-tertiary mt-0.5">
+                      Perguntas enviadas pelo cliente durante o preenchimento
+                    </p>
+                  </div>
+                  <ClientDoubtsPanel
+                    clientQuestions={clientQuestions}
+                    structure={structure}
+                    onReply={handleReplyToQuestion}
+                    onToggleVisibility={handleToggleClientQVisibility}
+                    isReplying={isReplying}
+                    targetId={doubtTarget}
+                  />
+                </>
+              ) : activeSection ? (
                 <>
                   {/* Sticky section header */}
                   <div className="sticky top-0 z-10 bg-bg-primary border-b border-border-tertiary px-5 py-3 flex-shrink-0">
@@ -534,6 +820,8 @@ export function BriefResponsesModal({ instance, onClose }) {
                         onSaveNote={(payload) => upsertCsmNote.mutateAsync(payload)}
                         onDeleteNote={(id) => deleteCsmNote.mutateAsync(id)}
                         isSavingNote={isUpsertingNote}
+                        clientQsForQ={getClientQsForQ(q.id)}
+                        onShowDoubts={() => handleShowDoubts(q.id)}
                       />
                     ))}
                     {(activeSection.questions || []).length === 0 && (
@@ -561,16 +849,16 @@ export function BriefResponsesModal({ instance, onClose }) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setActiveSectionIdx(i => Math.max(0, i - 1))}
-              disabled={activeSectionIdx === 0}
+              onClick={() => selectSection(Math.max(0, activeSectionIdx - 1))}
+              disabled={activeView === 'doubts' || activeSectionIdx === 0}
               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border-tertiary bg-bg-primary text-text-secondary hover:bg-bg-secondary disabled:opacity-40 transition-colors"
             >
               <Icons.ArrowLeft size={13} />
               Anterior
             </button>
             <button
-              onClick={() => setActiveSectionIdx(i => Math.min(structure.length - 1, i + 1))}
-              disabled={activeSectionIdx >= structure.length - 1}
+              onClick={() => selectSection(Math.min(structure.length - 1, activeSectionIdx + 1))}
+              disabled={activeView === 'doubts' || activeSectionIdx >= structure.length - 1}
               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border-tertiary bg-bg-primary text-text-secondary hover:bg-bg-secondary disabled:opacity-40 transition-colors"
             >
               Próxima seção

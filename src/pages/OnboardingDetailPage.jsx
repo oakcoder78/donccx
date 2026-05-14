@@ -10,7 +10,7 @@ import { useContacts } from '../hooks/useContacts'
 import { useProfiles } from '../hooks/useProfiles'
 import { useOnboarding } from '../hooks/useOnboardings'
 import { useDeleteProject } from '../hooks/useProjects'
-import { useBrief } from '../hooks/useBrief'
+import { useBrief, useBriefCsmNotes } from '../hooks/useBrief'
 import { BriefCreateModal, BriefResponsesModal } from '../components/brief'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { FASE_TYPE_IDS } from '../lib/constants'
@@ -374,6 +374,8 @@ function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
   const { briefInstances, briefTemplates, createBrief, updateBriefStatus, copyPublicLink, isLoading } = useBrief(onboardingId, clientId)
 
   const instance = briefInstances[0]
+  const { clientQuestions } = useBriefCsmNotes(instance?.id)
+  const unansweredDoubts = clientQuestions.filter(q => !q.csm_reply).length
 
   const handleClick = () => {
     if (instance) {
@@ -399,41 +401,64 @@ function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
 
   return (
     <>
-      <button
-        onClick={handleClick}
-        disabled={isLoading}
-        style={{
-          background: instance ? '#0a6a96' : '#173557',
-          color: '#fff',
-          border: 'none',
-          borderRadius: 8,
-          padding: '9px 16px',
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-          fontFamily: 'inherit',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          opacity: isLoading ? 0.7 : 1,
-          minWidth: 110,
-          width: 'auto',
-        }}
-      >
-        {isLoading ? (
-          <span style={{ fontSize: 12 }}>...</span>
-        ) : instance ? (
-          <>
-            <Icons.Pencil size={14} />
-            <span>Editar Brief</span>
-          </>
-        ) : (
-          <>
-            <Icons.FileQuestion size={14} />
-            <span>Criar Brief</span>
-          </>
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        <button
+          onClick={handleClick}
+          disabled={isLoading}
+          style={{
+            background: instance ? '#0a6a96' : '#173557',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            padding: '9px 16px',
+            fontSize: 13,
+            fontWeight: 500,
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            opacity: isLoading ? 0.7 : 1,
+            minWidth: 110,
+            width: 'auto',
+          }}
+        >
+          {isLoading ? (
+            <span style={{ fontSize: 12 }}>...</span>
+          ) : instance ? (
+            <>
+              <Icons.Pencil size={14} />
+              <span>Editar Brief</span>
+            </>
+          ) : (
+            <>
+              <Icons.FileQuestion size={14} />
+              <span>Criar Brief</span>
+            </>
+          )}
+        </button>
+        {unansweredDoubts > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: -6,
+            right: -6,
+            background: '#c44444',
+            color: '#fff',
+            fontSize: 10,
+            fontWeight: 700,
+            borderRadius: '50%',
+            width: 18,
+            height: 18,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '2px solid #fff',
+            pointerEvents: 'none',
+          }}>
+            {unansweredDoubts > 9 ? '9+' : unansweredDoubts}
+          </span>
         )}
-      </button>
+      </div>
 
       {showCreate && (
         <BriefCreateModal
