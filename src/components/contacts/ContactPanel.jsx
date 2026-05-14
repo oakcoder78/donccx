@@ -23,7 +23,7 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
   const primaryEmail = c.contact_emails?.find(e => e.is_primary)?.email ?? c.email
 
   return (
-    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 sticky top-20">
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 sticky top-20 w-96 max-w-[90vw]">
       <div className="flex justify-end mb-2">
         <button onClick={onClose} className="text-text-tertiary hover:text-text-primary"><Icons.X className="w-4 h-4" /></button>
       </div>
@@ -64,10 +64,10 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
           <p className="text-xs font-medium text-text-tertiary uppercase mb-2">Contato</p>
           {/* Multiple emails via contact_emails, fall back to contacts.email */}
           {(c.contact_emails?.length > 0 ? c.contact_emails : c.email ? [{ email: c.email, is_primary: true }] : []).map((em, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm text-text-primary mb-1">
+            <div key={i} className="flex items-center gap-2 text-xs text-text-primary mb-1">
               <Icons.Mail className="w-3.5 h-3.5 text-text-tertiary flex-shrink-0" />
-              <a href={`mailto:${em.email}`} className="hover:underline">{em.email}</a>
-              {em.is_primary && <span className="text-xs text-text-tertiary bg-bg-secondary px-1 rounded">principal</span>}
+              <a href={`mailto:${em.email}`} className="hover:underline truncate max-w-[240px]" title={em.email}>{em.email}</a>
+              {em.is_primary && <span className="text-[10px] text-text-tertiary bg-bg-secondary px-1 rounded">principal</span>}
             </div>
           ))}
           {phones.map((p, i) => (
