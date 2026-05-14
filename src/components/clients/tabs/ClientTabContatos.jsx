@@ -92,7 +92,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-1 flex-shrink-0 min-w-[100px] justify-end" onClick={e => e.stopPropagation()}>
+      <div className="flex items-center gap-1 flex-shrink-0 min-w-[100px] justify-end self-center" onClick={e => e.stopPropagation()}>
         {wp && (
           <a href={`https://wa.me/${wp.number.replace(/\D/g,'')}`}
             target="_blank" rel="noreferrer"

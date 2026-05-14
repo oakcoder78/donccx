@@ -133,7 +133,7 @@ export default function ContactsPage() {
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1 flex-shrink-0 self-center">
                     {clientLinks.slice(0,1).map(l => (
                       <Badge key={l.id} variant={PAPEL_VARIANT[l.papel] || 'slate'}>{l.papel}</Badge>
                     ))}
