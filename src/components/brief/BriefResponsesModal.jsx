@@ -623,7 +623,11 @@ export function BriefResponsesModal({ instance, onClose }) {
 
   const handleReplyToQuestion = useCallback(async ({ id, csm_reply }) => {
     await replyToQuestion.mutateAsync({ id, csm_reply })
-  }, [replyToQuestion])
+    // update cache immediately so badge clears without waiting for refetch
+    qc.setQueryData(['brief_client_questions', instance.id], (old) =>
+      (old || []).map(q => q.id === id ? { ...q, csm_reply } : q)
+    )
+  }, [replyToQuestion, qc, instance.id])
 
   const selectSection = (idx) => {
     setActiveSectionIdx(idx)
