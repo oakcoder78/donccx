@@ -201,5 +201,6 @@ Accessible to admin/manager only:
 | `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table (RLS, updated_at trigger) for internal CSM notes |
 | `20260519000000_brief_csm_notes_question_id.sql` | Adds `question_id text` column to `brief_csm_notes` for per-question notes |
 | `20260520000000_brief_csm_notes_client_questions.sql` | Extends `brief_csm_notes` with `origin`, `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by`; index on `(instance_id, origin)` |
+| `20260521000000_brief_csm_notes_allow_reply_to_client_questions.sql` | Broadens `brief_csm_notes_update` RLS policy to allow CSM reply on client questions (`created_by = null`) |
 
 > **After deploy of `brief-public`:** disable "Verify JWT" in Dashboard → Edge Functions → brief-public → Settings.
