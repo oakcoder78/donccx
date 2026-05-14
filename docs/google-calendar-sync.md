@@ -142,8 +142,6 @@ API must be enabled: [Google Calendar API](https://console.developers.google.com
 
 ## Key Files
 
-| File | Role |
-|---|---|
 | `src/hooks/useGoogleCalendarStatus.js` | Query OAuth status, `connectGoogleCalendar()` |
 | `src/hooks/useSessionToken.js` | Returns Supabase `access_token` for Bearer auth |
 | `src/components/ui/UserEditModal.jsx` | Account modal: badge + connect button + toast |
@@ -165,8 +163,10 @@ API must be enabled: [Google Calendar API](https://console.developers.google.com
 - **`ActivityDetailModal` sync button** only shows when `status !== 'concluida'`.
 - **OAuth cold load**: `App.jsx` reads `window.location.search` in `useState` initializer to handle page refresh with OAuth params in URL.
 - **`google-calendar-event` token updates** write `tokenExpiry` (camelCase) to DB — Supabase accepts both, PostgreSQL stores as `tokenexpiry` (lowercase).
+- **`user_google_configs` empty result (PGRST116):** `useGoogleCalendarStatus` uses `.maybeSingle()` instead of `.single()` to avoid "JSON object expected, got null" crash when no config exists.
+- **`isExpired` removed from hook:** the boolean `isExpired` was removed from the hook return object as it was not consumed anywhere. Token expiry is still checked internally.
 
-## Future Work
+## Recent Changes
 
-- [ ] Sync `onboarding_activities` with the same logic (not yet implemented in `OnboardingDetailPage`)
-- [ ] Migration file should include `access_token`, `refresh_token`, `tokenexpiry` columns (currently missing — columns exist in production DB but not in the migration file)
+- **2026-05-13 (commit `6a3bd88`):** Fixed Google Calendar sync integration — `ActivityModal` now only syncs on relevant field changes (type=reuniao, title, activity_date, activity_time); `ActivityDetailModal` guards `handleSyncToGoogleCalendar` with `if (!isConnected) return`; `useGoogleCalendarStatus` handles empty config gracefully; `isExpired` removed from hook return.
+- **2026-05-13 (commit `1641ccf`):** `Icons.Calendar` replaces direct lucide-react import in `ActivityDetailModal`.
