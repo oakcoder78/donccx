@@ -29,8 +29,8 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | `BriefTemplateEditorModal` | `src/components/brief/BriefTemplateEditorModal.jsx` | Full editor modal: sections/questions CRUD, DnD sort, allow_attachment toggle |
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
 | `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` with cover, form, attachments, tour |
-| `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete |
-| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink, useBriefCsmNotes |
+| `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete, submit_question, get_client_questions |
+| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink, useBriefCsmNotes (csmNotes, clientQuestions, replyToQuestion) |
 | `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
 | `useBriefResponses` | `src/hooks/useBriefResponses.js` | Hook: responses and attachments for an instance |
 | `SettingsBriefTemplates` | `src/components/settings/SettingsBriefTemplates.jsx` | Settings page: `/config/brief-templates` |
@@ -45,6 +45,7 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | `brief_instances` | One per onboarding. FK: `client_id → clients`, `onboarding_id → onboardings` |
 | `brief_responses` | One row per question (`question_id` from JSONB). Upsert on conflict |
 | `brief_attachments` | Optional files per question or general. Storage bucket `activity-attachments`, path: `brief-attachments/{instance_id}/{question_id}/{filename}` |
+| `brief_csm_notes` | CSM internal notes (`origin='csm'`) and client questions (`origin='client'`). Client questions include `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by`. Index on `(instance_id, origin)`. |
 
 Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured in `supabase/config.toml` and verified in Dashboard).
 
@@ -185,5 +186,6 @@ Accessible to admin/manager only:
 | `20260516000000_fix_brief_attachments_schema.sql` | Adds `file_type text` and `uploaded_by uuid` to `brief_attachments` |
 | `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table (RLS, updated_at trigger) for internal CSM notes |
 | `20260519000000_brief_csm_notes_question_id.sql` | Adds `question_id text` column to `brief_csm_notes` for per-question notes |
+| `20260520000000_brief_csm_notes_client_questions.sql` | Extends `brief_csm_notes` with `origin`, `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by`; index on `(instance_id, origin)` |
 
 > **After deploy of `brief-public`:** disable "Verify JWT" in Dashboard → Edge Functions → brief-public → Settings.
