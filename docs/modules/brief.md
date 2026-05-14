@@ -24,12 +24,12 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | Component | File | Responsibility |
 |-----------|------|----------------|
 | `BriefCreateModal` | `src/components/brief/BriefCreateModal.jsx` | Create instance: template selection, title, save |
-| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | View/edit responses, attachments, send to client |
+| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client |
 | `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Criar Brief" (navy) / "Editar Brief" (sky) |
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
 | `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` |
 | `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete |
-| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink |
+| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink, useBriefCsmNotes |
 | `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
 | `useBriefResponses` | `src/hooks/useBriefResponses.js` | Hook: responses and attachments for an instance |
 | `SettingsBriefTemplates` | `src/components/settings/SettingsBriefTemplates.jsx` | Settings page: `/config/brief-templates` |
@@ -93,13 +93,19 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
 
 ### BriefResponsesModal
 
-Editable modal with:
-- Per-question `<textarea>` with auto-save on `onBlur`
-- "Salvando..." indicator during save
-- Per-question attachment upload (`Icons.Paperclip` label triggering `<input type="file">`)
-- Per-question attachment removal
-- "Copiar link" button — copies `/brief/{access_token}` to clipboard
-- "Enviar para cliente" button — marks instance as `sent`, copies link (only visible when status is `draft` or `in_progress`)
+Wide (max 1000px) two-column modal — CSM read-only view with internal notes layer:
+- **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + close
+- **Segmented progress bar:** one segment per section, width ∝ question count; green=complete, sky gradient=partial
+- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow
+- **Right panel:** sticky section header (eyebrow, title, deliverable); per-question cards showing: hint box (sky, if `question.note`), client response (read-only, green tinted box), attachments with signed URL download, CSM note area
+- **CSM note area** per question (from `brief_csm_notes` where `question_id` matches):
+  - Collapsed: ghost "+ Adicionar nota interna" button
+  - Expanded: textarea + visibility pill toggle (`is_visible: false` → navy "Apenas interno" + EyeOff; `true` → lime "Visível ao cliente" + Eye) + Salvar/Cancelar
+  - Saved note: box with left border (navy if visible, lime if internal), label + text + edit/remove buttons
+- **Footer:** "Salvo automaticamente" dot + relative timestamp + Anterior/Próxima seção buttons
+- `useBriefCsmNotes(instance.id)` provides `csmNotes`, `upsertCsmNote({ id, question_id, note_text, is_visible })`, `deleteCsmNote`
+- Attachments: signed URL generated via `supabase.storage.from('project-briefs').createSignedUrl(path, 300)` on click
+- Response field: `response_text` column (not `answer`)
 
 ### Public Side — BriefPublicPage (`/brief/:token`)
 
@@ -168,5 +174,6 @@ Accessible to admin/manager only:
 | `20260514000000_brief_fix_onboarding_fk.sql` | Renames `brief_instances.fase_id` → `onboarding_id`, adds FK to `onboardings`, drops old `fase_id` |
 | `20260515000000_add_brief_templates_flag.sql` | Adds `is_active` flag to `brief_templates` |
 | `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table (RLS, updated_at trigger) for internal CSM notes optionally visible to client |
+| `20260519000000_brief_csm_notes_question_id.sql` | Adds `question_id text` column to `brief_csm_notes` for per-question notes |
 
 > **After deploy of `brief-public`:** disable "Verify JWT" in Dashboard → Edge Functions → brief-public → Settings.

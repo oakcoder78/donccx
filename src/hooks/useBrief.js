@@ -126,7 +126,7 @@ export function useBriefCsmNotes(instanceId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brief_csm_notes')
-        .select('id, note_text, is_visible, created_by, created_at, updated_at')
+        .select('id, question_id, note_text, is_visible, created_by, created_at, updated_at')
         .eq('instance_id', instanceId)
         .order('created_at', { ascending: true })
       if (error) {
@@ -138,7 +138,7 @@ export function useBriefCsmNotes(instanceId) {
   })
 
   const upsertCsmNote = useMutation({
-    mutationFn: async ({ id, note_text, is_visible }) => {
+    mutationFn: async ({ id, question_id, note_text, is_visible }) => {
       if (id) {
         const { error } = await supabase
           .from('brief_csm_notes')
@@ -149,7 +149,7 @@ export function useBriefCsmNotes(instanceId) {
         const { data: { user } } = await supabase.auth.getUser()
         const { error } = await supabase
           .from('brief_csm_notes')
-          .insert({ instance_id: instanceId, note_text, is_visible: is_visible ?? false, created_by: user?.id })
+          .insert({ instance_id: instanceId, question_id: question_id ?? null, note_text, is_visible: is_visible ?? false, created_by: user?.id })
         if (error) throw error
       }
     },

@@ -1,107 +1,377 @@
-import { useState, useRef } from 'react'
-import { Modal } from '../ui/Modal'
-import { Badge } from '../ui/Badge'
-import { useBriefResponses } from '../../hooks/useBrief'
+import { useState, useCallback, useRef } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useBriefResponses, useBriefCsmNotes } from '../../hooks/useBrief'
 import { Icons } from '../../lib/icons'
 import { supabase } from '../../lib/supabaseClient'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 
+const NAVY = '#173557'
+const SKY = '#59c2ed'
+const LIME = '#d3da47'
+const GREEN = '#1aa56a'
+
 const STATUS_CONFIG = {
-  draft: { bg: '#e2e8f0', color: '#475569', label: 'Rascunho' },
-  sent: { bg: 'rgba(89,194,237,0.15)', color: '#0a6a96', label: 'Enviado' },
-  in_progress: { bg: 'rgba(211,218,71,0.2)', color: '#4a5c20', label: 'Em progresso' },
-  completed: { bg: '#173557', color: '#ffffff', label: 'Concluído' },
+  draft:       { bg: '#e2e8f0',              color: '#475569',  label: 'Rascunho' },
+  sent:        { bg: 'rgba(89,194,237,0.18)', color: '#0a6a96', label: 'Enviado' },
+  in_progress: { bg: 'rgba(211,218,71,0.22)', color: '#4a5c20', label: 'Em progresso' },
+  completed:   { bg: NAVY,                   color: '#ffffff',  label: 'Concluído' },
+  archived:    { bg: '#e2e8f0',              color: '#94a3b8',  label: 'Arquivado' },
 }
 
-export function BriefResponsesModal({ instance, onClose }) {
-  const qc = useQueryClient()
-  const { responses, attachments, isLoading } = useBriefResponses(instance.id)
-  const [openSections, setOpenSections] = useState({})
-  const [savingId, setSavingId] = useState(null)
-  const [uploadingId, setUploadingId] = useState(null)
-  const fileInputRefs = useRef({})
+function relativeTime(isoStr) {
+  if (!isoStr) return null
+  const diff = (Date.now() - new Date(isoStr).getTime()) / 1000
+  if (diff < 60) return 'agora mesmo'
+  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `há ${Math.floor(diff / 3600)} h`
+  return `há ${Math.floor(diff / 86400)} dias`
+}
 
-  const structure = instance?.structure_snapshot?.sections || []
+// ── SVG progress ring ────────────────────────────────────────────────────────
+function ProgressRing({ answered, total, size = 38 }) {
+  const r = (size - 6) / 2
+  const cx = size / 2
+  const circumference = 2 * Math.PI * r
+  const pct = total === 0 ? 0 : answered / total
+  const done = answered === total && total > 0
 
-  const toggleSection = (secId) => {
-    setOpenSections(prev => ({ ...prev, [secId]: !prev[secId] }))
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={cx} cy={cx} r={r} fill="none" stroke="#e2e8f0" strokeWidth="3.5" />
+      {pct > 0 && (
+        <circle
+          cx={cx} cy={cx} r={r}
+          fill="none"
+          stroke={done ? GREEN : SKY}
+          strokeWidth="3.5"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - pct)}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${cx} ${cx})`}
+        />
+      )}
+      {done ? (
+        <text x={cx} y={cx + 4.5} textAnchor="middle" fontSize="13" fill={GREEN} fontWeight="700">✓</text>
+      ) : (
+        <text x={cx} y={cx + 3.5} textAnchor="middle" fontSize="9" fill={NAVY} fontWeight="600" fontFamily="Montserrat, sans-serif">
+          {answered}/{total}
+        </text>
+      )}
+    </svg>
+  )
+}
+
+// ── Segmented progress bar ───────────────────────────────────────────────────
+function SegmentedBar({ structure, responses }) {
+  const totalQ = structure.reduce((a, s) => a + (s.questions?.length || 0), 0)
+  const totalAnswered = structure.reduce((a, s) => {
+    return a + (s.questions?.filter(q => responses.find(r => r.question_id === q.id)?.response_text)?.length || 0)
+  }, 0)
+  const pct = totalQ > 0 ? Math.round((totalAnswered / totalQ) * 100) : 0
+
+  return (
+    <div className="px-5 py-3 border-b border-border-tertiary bg-bg-secondary/50 flex-shrink-0">
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-xs font-semibold text-text-secondary">Progresso Geral</span>
+        <span className="text-xs font-semibold" style={{ color: NAVY }}>
+          {totalAnswered} de {totalQ} respondidas · {pct}%
+        </span>
+      </div>
+      <div className="flex h-2 rounded-full overflow-hidden gap-px bg-bg-tertiary">
+        {structure.map((sec, idx) => {
+          const secTotal = sec.questions?.length || 0
+          if (secTotal === 0) return null
+          const secAns = sec.questions?.filter(q => responses.find(r => r.question_id === q.id)?.response_text).length || 0
+          const fillPct = secTotal > 0 ? (secAns / secTotal) * 100 : 0
+          const done = secAns === secTotal && secTotal > 0
+          const widthPct = (secTotal / totalQ) * 100
+
+          return (
+            <div key={sec.id} style={{ width: `${widthPct}%`, position: 'relative', background: '#e2e8f0', overflow: 'hidden' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${fillPct}%`,
+                  background: done ? GREEN : `linear-gradient(to right, ${SKY}, #3aafe0)`,
+                  transition: 'width 0.4s ease',
+                }}
+              />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── CSM Note area ────────────────────────────────────────────────────────────
+function CsmNoteArea({ questionId, savedNote, onSave, onDelete, isSaving }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState({ text: '', isVisible: false })
+
+  const openEdit = (existing) => {
+    setDraft({ text: existing?.note_text || '', isVisible: existing?.is_visible || false })
+    setEditing(true)
   }
 
-  const saveAnswer = useMutation({
-    mutationFn: async ({ questionId, answer }) => {
-      const { error } = await supabase
-        .from('brief_responses')
-        .upsert(
-          { instance_id: instance.id, question_id: questionId, answer, updated_at: new Date().toISOString() },
-          { onConflict: 'instance_id,question_id' }
-        )
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['brief_responses', instance.id] })
-    },
-    onError: e => {
-      console.error(e)
-      toast.error('Erro ao salvar resposta')
-    },
-  })
+  const handleSave = async () => {
+    if (!draft.text.trim()) { toast.error('Nota não pode estar vazia'); return }
+    await onSave({ id: savedNote?.id, question_id: questionId, note_text: draft.text.trim(), is_visible: draft.isVisible })
+    setEditing(false)
+  }
 
-  const uploadAttachment = useMutation({
-    mutationFn: async ({ questionId, file }) => {
-      const ext = file.name.split('.').pop()
-      const path = `brief-attachments/${instance.id}/${questionId}/${Date.now()}_${Math.random().toString(36).slice(2, 6)}.${ext}`
-      const { error: upErr } = await supabase.storage.from('activity-attachments').upload(path, file)
-      if (upErr) throw upErr
-      const { error: dbErr } = await supabase.from('brief_attachments').insert({
-        instance_id: instance.id, question_id: questionId, file_name: file.name, file_size: file.size,
-        file_type: file.type, storage_path: path,
-      })
-      if (dbErr) throw dbErr
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['brief_attachments', instance.id] })
-      toast.success('Anexo salvo')
-    },
-    onError: e => {
-      console.error(e)
-      toast.error('Erro ao anexar arquivo')
-    },
-  })
+  const handleCancel = () => setEditing(false)
 
-  const deleteAttachment = useMutation({
-    mutationFn: async (att) => {
-      await supabase.storage.from('activity-attachments').remove([att.storage_path])
-      const { error } = await supabase.from('brief_attachments').delete().eq('id', att.id)
-      if (error) throw error
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['brief_attachments', instance.id] })
-    },
-    onError: e => {
-      console.error(e)
-      toast.error('Erro ao remover anexo')
-    },
-  })
+  if (editing) {
+    return (
+      <div className="mt-2 rounded-lg border border-border-tertiary overflow-hidden">
+        <div className="px-3 py-2 bg-bg-secondary flex items-center justify-between border-b border-border-tertiary">
+          <span className="text-xs font-semibold text-text-secondary">Nota interna do CSM</span>
+          <button
+            type="button"
+            onClick={() => setDraft(d => ({ ...d, isVisible: !d.isVisible }))}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-colors`}
+            style={draft.isVisible
+              ? { background: `${LIME}20`, borderColor: `${LIME}60`, color: '#4a5c20' }
+              : { background: `${NAVY}0c`, borderColor: `${NAVY}20`, color: NAVY }
+            }
+          >
+            {draft.isVisible
+              ? <><Icons.Eye size={12} /> Visível ao cliente</>
+              : <><Icons.EyeOff size={12} /> Apenas interno</>
+            }
+          </button>
+        </div>
+        <textarea
+          value={draft.text}
+          onChange={e => setDraft(d => ({ ...d, text: e.target.value }))}
+          rows={3}
+          placeholder="Adicione uma observação interna sobre esta resposta…"
+          autoFocus
+          className="w-full px-3 py-2.5 text-sm bg-bg-primary text-text-primary placeholder-text-tertiary outline-none resize-none"
+          style={{ fontFamily: 'inherit' }}
+        />
+        <div className="flex justify-end gap-2 px-3 py-2 border-t border-border-tertiary bg-bg-secondary">
+          <button
+            onClick={handleCancel}
+            className="text-xs px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-tertiary transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="text-xs px-3 py-1.5 rounded-md text-white font-medium disabled:opacity-50 transition-colors"
+            style={{ background: NAVY }}
+          >
+            {isSaving ? 'Salvando…' : 'Salvar nota'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (savedNote) {
+    const isVisible = savedNote.is_visible
+    return (
+      <div
+        className="mt-2 rounded-lg px-3 py-2.5 text-sm"
+        style={isVisible
+          ? { background: `${NAVY}08`, borderLeft: `3px solid ${NAVY}` }
+          : { background: `${LIME}14`, borderLeft: `3px solid ${LIME}` }
+        }
+      >
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-1.5">
+            {isVisible
+              ? <Icons.Eye size={12} style={{ color: NAVY }} />
+              : <Icons.EyeOff size={12} style={{ color: '#4a5c20' }} />
+            }
+            <span className="text-xs font-semibold" style={{ color: isVisible ? NAVY : '#4a5c20' }}>
+              {isVisible ? 'Nota da equipe DONC' : 'Nota interna'}
+            </span>
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => openEdit(savedNote)}
+              className="text-xs px-2 py-0.5 rounded text-text-tertiary hover:text-text-primary hover:bg-bg-secondary transition-colors"
+            >
+              Editar
+            </button>
+            <button
+              onClick={() => onDelete(savedNote.id)}
+              className="text-xs px-2 py-0.5 rounded text-text-tertiary hover:text-red-500 hover:bg-bg-secondary transition-colors"
+            >
+              Remover
+            </button>
+          </div>
+        </div>
+        <p className="text-text-primary text-sm leading-relaxed">{savedNote.note_text}</p>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => openEdit(null)}
+      className="mt-2 w-full text-left text-xs text-text-tertiary hover:text-[#59c2ed] py-1.5 px-2 rounded-md border border-dashed border-transparent hover:border-[#59c2ed]/40 transition-all flex items-center gap-1.5"
+    >
+      <Icons.Plus size={11} />
+      Adicionar nota interna
+    </button>
+  )
+}
+
+// ── Question card ────────────────────────────────────────────────────────────
+function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote }) {
+  const hasResponse = !!response?.response_text
+  const qc = useQueryClient()
+  const instanceId = response?.instance_id
+
+  const handleDownload = useCallback(async (att) => {
+    const { data, error } = await supabase.storage
+      .from('project-briefs')
+      .createSignedUrl(att.storage_path, 300)
+    if (error || !data?.signedUrl) { toast.error('Erro ao gerar link'); return }
+    window.open(data.signedUrl, '_blank', 'noopener')
+  }, [])
+
+  return (
+    <div
+      className="rounded-xl border transition-all p-4 mb-3"
+      style={hasResponse
+        ? { borderColor: 'rgba(34,160,98,0.32)', background: '#f9fcfa' }
+        : { borderColor: 'var(--color-border-tertiary)', background: '#fff' }
+      }
+    >
+      {/* Question header */}
+      <div className="flex items-start gap-2 mb-3">
+        <span className="w-5 h-5 rounded text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5"
+          style={{ background: hasResponse ? 'rgba(34,160,98,0.15)' : 'rgba(23,53,87,0.08)', color: hasResponse ? GREEN : NAVY }}>
+          {idx + 1}
+        </span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start gap-2 flex-wrap">
+            <span className="text-sm font-medium text-text-primary leading-snug flex-1">
+              {question.text}
+              {question.required && <span className="text-red-400 ml-0.5">*</span>}
+            </span>
+            {hasResponse && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                style={{ background: 'rgba(34,160,98,0.15)', color: GREEN }}>
+                Respondida
+              </span>
+            )}
+          </div>
+
+          {/* Question hint/note */}
+          {question.note && (
+            <div className="mt-1.5 flex items-start gap-1.5 text-xs px-2 py-1.5 rounded-md"
+              style={{ background: `${SKY}0c`, border: `1px solid ${SKY}30` }}>
+              <Icons.HelpCircle size={12} className="flex-shrink-0 mt-0.5" style={{ color: SKY }} />
+              <span className="text-text-secondary">{question.note}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Response (read-only) */}
+      {hasResponse ? (
+        <div className="ml-7 mb-2">
+          <div className="text-xs text-text-tertiary mb-1 font-medium">Resposta do cliente</div>
+          <div
+            className="text-sm text-text-primary leading-relaxed px-3 py-2 rounded-lg whitespace-pre-wrap"
+            style={{ background: 'rgba(34,160,98,0.06)', border: '1px solid rgba(34,160,98,0.18)' }}
+          >
+            {response.response_text}
+          </div>
+          {response.responded_by_name && (
+            <div className="text-[10px] text-text-tertiary mt-1">
+              Por {response.responded_by_name}
+              {response.responded_at && ` · ${new Date(response.responded_at).toLocaleDateString('pt-BR')}`}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="ml-7 mb-2">
+          <div className="text-xs text-text-tertiary italic px-3 py-2 rounded-lg border border-dashed border-border-tertiary bg-bg-secondary">
+            Sem resposta ainda
+          </div>
+        </div>
+      )}
+
+      {/* Attachments */}
+      {attachments?.length > 0 && (
+        <div className="ml-7 mb-2 flex flex-col gap-1">
+          {attachments.map(att => (
+            <div key={att.id}
+              className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-border-tertiary bg-bg-secondary">
+              <div className="flex items-center gap-2 min-w-0">
+                <Icons.Paperclip size={11} className="text-text-tertiary flex-shrink-0" />
+                <span className="text-xs text-text-primary truncate">{att.file_name}</span>
+                {att.file_size && (
+                  <span className="text-[10px] text-text-tertiary flex-shrink-0">
+                    {att.file_size < 1024 * 1024
+                      ? `${Math.round(att.file_size / 1024)}KB`
+                      : `${(att.file_size / (1024 * 1024)).toFixed(1)}MB`
+                    }
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => handleDownload(att)}
+                className="flex items-center gap-1 text-xs px-2 py-0.5 rounded text-[#0a6a96] hover:bg-[#59c2ed]/10 transition-colors flex-shrink-0 ml-2"
+              >
+                <Icons.Download size={11} />
+                Ver
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* CSM note */}
+      <div className="ml-7">
+        <CsmNoteArea
+          questionId={question.id}
+          savedNote={savedNote}
+          onSave={onSaveNote}
+          onDelete={onDeleteNote}
+          isSaving={isSavingNote}
+        />
+      </div>
+    </div>
+  )
+}
+
+// ── Main modal ───────────────────────────────────────────────────────────────
+export function BriefResponsesModal({ instance, onClose }) {
+  const qc = useQueryClient()
+  const structure = instance?.structure_snapshot?.sections || []
+  const [activeSectionIdx, setActiveSectionIdx] = useState(0)
+
+  const { responses, attachments, isLoading } = useBriefResponses(instance.id)
+  const { csmNotes, upsertCsmNote, deleteCsmNote, isUpsertingNote } = useBriefCsmNotes(instance.id)
+
+  const activeSection = structure[activeSectionIdx] ?? null
 
   const updateStatus = useMutation({
     mutationFn: async (status) => {
       const updates = { status }
       if (status === 'sent') updates.sent_at = new Date().toISOString()
-      if (status === 'completed') updates.completed_at = new Date().toISOString()
       const { error } = await supabase.from('brief_instances').update(updates).eq('id', instance.id)
       if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['brief_instances', instance.onboarding_id] })
+      toast.success('Status atualizado')
     },
-    onError: e => toast.error('Erro ao atualizar status'),
+    onError: () => toast.error('Erro ao atualizar status'),
   })
 
   const copyLink = async () => {
-    const url = `${window.location.origin}/brief/${instance.access_token}`
     try {
-      await navigator.clipboard.writeText(url)
+      await navigator.clipboard.writeText(`${window.location.origin}/brief/${instance.access_token}`)
       toast.success('Link copiado!')
     } catch {
       toast.error('Erro ao copiar link')
@@ -113,282 +383,202 @@ export function BriefResponsesModal({ instance, onClose }) {
     await copyLink()
   }
 
-  const calcProgress = () => {
-    let total = 0, answered = 0
-    for (const sec of structure) {
-      for (const q of sec.questions || []) {
-        total++
-        const resp = responses.find(r => r.question_id === q.id)
-        if (resp?.answer) answered++
-      }
-    }
-    return { answered, total }
-  }
-
-  const { answered, total } = calcProgress()
-  const pct = total > 0 ? Math.round((answered / total) * 100) : 0
-
-  const getAnswer = (questionId) => {
-    const resp = responses.find(r => r.question_id === questionId)
-    return resp?.answer || ''
-  }
-
-  const getQuestionAttachments = (questionId) => {
-    return attachments.filter(a => a.question_id === questionId)
-  }
-
-  const getGeneralAttachments = () => {
-    return attachments.filter(a => !a.question_id)
-  }
-
-  const openFirstBlankSection = () => {
-    for (const sec of structure) {
-      const hasBlank = sec.questions?.some(q => !getAnswer(q.id))
-      if (hasBlank) {
-        setOpenSections(prev => ({ ...prev, [sec.id]: true }))
-        break
-      }
-    }
-  }
+  const getResponse = (qId) => responses.find(r => r.question_id === qId)
+  const getAttachments = (qId) => attachments.filter(a => a.question_id === qId)
+  const getNoteForQ = (qId) => csmNotes.find(n => n.question_id === qId)
 
   const canSend = instance.status === 'draft' || instance.status === 'in_progress'
+  const statusCfg = STATUS_CONFIG[instance.status] ?? STATUS_CONFIG.draft
+
+  const updatedAt = instance.updated_at || instance.created_at
 
   return (
-    <Modal isOpen onClose={onClose} title={instance.title} maxWidth="max-w-2xl">
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 16, borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Badge bg={STATUS_CONFIG[instance.status]?.bg} color={STATUS_CONFIG[instance.status]?.color}>
-              {STATUS_CONFIG[instance.status]?.label}
-            </Badge>
-            {instance.completed_at && (
-              <span style={{ fontSize: 12, color: 'rgba(23,53,87,0.5)' }}>
-                Concluído em {new Date(instance.completed_at).toLocaleDateString('pt-BR')}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={copyLink}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, border: '1px solid rgba(15,34,58,0.14)', background: '#fff', color: '#173557', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              <Icons.Link size={12} />
-              Copiar link
-            </button>
-            {canSend && (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-bg-primary rounded-xl w-full flex flex-col overflow-hidden shadow-2xl"
+        style={{ maxWidth: 1000, maxHeight: '92vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* ── Header ── */}
+        <div className="px-5 pt-5 pb-4 border-b border-border-tertiary flex-shrink-0">
+          <div className="flex items-start gap-3 justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-xs text-text-tertiary mb-1">
+                <Icons.ClipboardList size={13} style={{ color: SKY }} />
+                <span>Roteiro do Cliente</span>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h2 className="text-lg font-bold text-text-primary truncate">{instance.title}</h2>
+                <span
+                  className="text-xs font-semibold px-2.5 py-0.5 rounded-full flex-shrink-0"
+                  style={{ background: statusCfg.bg, color: statusCfg.color }}
+                >
+                  {statusCfg.label}
+                </span>
+                {instance.completed_at && (
+                  <span className="text-xs text-text-tertiary flex-shrink-0">
+                    Concluído em {new Date(instance.completed_at).toLocaleDateString('pt-BR')}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                onClick={handleSendToClient}
-                disabled={updateStatus.isPending}
-                style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, border: 'none', background: '#173557', color: '#fff', fontSize: 12, fontWeight: 500, cursor: updateStatus.isPending ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: updateStatus.isPending ? 0.7 : 1 }}
+                onClick={copyLink}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border-tertiary bg-bg-secondary hover:bg-bg-tertiary transition-colors font-medium text-text-primary"
               >
-                <Icons.Send size={12} />
-                {updateStatus.isPending ? 'Enviando...' : 'Enviar para cliente'}
+                <Icons.Link size={13} />
+                Copiar link
               </button>
-            )}
+              {canSend && (
+                <button
+                  onClick={handleSendToClient}
+                  disabled={updateStatus.isPending}
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium text-white disabled:opacity-60 transition-colors"
+                  style={{ background: NAVY }}
+                >
+                  <Icons.Send size={13} />
+                  {updateStatus.isPending ? 'Enviando…' : 'Enviar para cliente'}
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-bg-secondary transition-colors"
+              >
+                <Icons.X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(23,53,87,0.7)' }}>Progresso Geral</span>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#173557' }}>{answered} / {total} ({pct}%)</span>
-          </div>
-          <div style={{ height: 8, background: '#e2e8f0', borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{ height: '100%', width: `${pct}%`, background: '#59c2ed', borderRadius: 999, transition: 'width 0.3s ease' }} />
-          </div>
-        </div>
+        {/* ── Segmented progress bar ── */}
+        <SegmentedBar structure={structure} responses={responses} />
 
+        {/* ── Body: rail + editor ── */}
         {isLoading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'rgba(23,53,87,0.5)' }}>Carregando respostas...</div>
+          <div className="flex-1 flex items-center justify-center text-text-tertiary text-sm">
+            Carregando respostas…
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {structure.map((sec, secIdx) => {
-              const secAnswered = sec.questions?.filter(q => getAnswer(q.id)).length || 0
-              const secTotal = sec.questions?.length || 0
-              const isOpen = openSections[sec.id]
+          <div className="flex flex-1 overflow-hidden">
 
-              return (
-                <div key={sec.id} style={{ border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      background: '#fafbfc',
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => {
-                      if (secIdx === 0 && !isOpen) openFirstBlankSection()
-                      else toggleSection(sec.id)
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 12, transform: isOpen ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform 0.2s ease' }}>▶</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#173557' }}>{sec.order}. {sec.title}</span>
+            {/* Left rail */}
+            <div className="flex-shrink-0 border-r border-border-tertiary flex flex-col overflow-hidden" style={{ width: 240 }}>
+              <div className="px-3 py-2.5 border-b border-border-tertiary flex-shrink-0">
+                <span className="text-xs font-semibold text-text-secondary">Seções</span>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2">
+                {structure.map((sec, idx) => {
+                  const secTotal = sec.questions?.length || 0
+                  const secAns = sec.questions?.filter(q => getResponse(q.id)?.response_text).length || 0
+                  const isActive = idx === activeSectionIdx
+
+                  return (
+                    <button
+                      key={sec.id}
+                      onClick={() => setActiveSectionIdx(idx)}
+                      className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left mb-1 transition-all group
+                        ${isActive
+                          ? 'border border-[#59c2ed] bg-white shadow-sm'
+                          : 'border border-transparent hover:bg-bg-secondary'
+                        }`}
+                    >
+                      <ProgressRing answered={secAns} total={secTotal} size={38} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-text-primary truncate leading-tight">{sec.title}</div>
+                        <div className="text-[10px] text-text-tertiary mt-0.5">{secAns}/{secTotal} respondidas</div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Rail footer */}
+              <div className="px-3 py-2 border-t border-border-tertiary flex-shrink-0">
+                <div className="flex items-center gap-1.5 text-[10px] text-text-tertiary">
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+                  Salvo automaticamente
+                </div>
+              </div>
+            </div>
+
+            {/* Right panel */}
+            <div className="flex-1 overflow-y-auto min-w-0">
+              {activeSection ? (
+                <>
+                  {/* Sticky section header */}
+                  <div className="sticky top-0 z-10 bg-bg-primary border-b border-border-tertiary px-5 py-3 flex-shrink-0">
+                    <div className="text-xs text-text-tertiary mb-0.5">
+                      Seção {activeSectionIdx + 1} de {structure.length}
                     </div>
-                    <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.5)' }}>
-                      {secAnswered}/{secTotal}
-                    </span>
+                    <h3 className="text-base font-bold" style={{ color: NAVY }}>{activeSection.title}</h3>
+                    {activeSection.deliverable && (
+                      <p className="text-xs text-text-tertiary mt-1 max-w-xl">
+                        <span className="font-medium" style={{ color: SKY }}>Entregável:</span>{' '}
+                        {activeSection.deliverable}
+                      </p>
+                    )}
                   </div>
 
-                  {isOpen && (
-                    <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 20, borderTop: '1px solid #e2e8f0' }}>
-                      {sec.questions?.map(q => {
-                        const answer = getAnswer(q.id)
-                        const qAttachments = getQuestionAttachments(q.id)
-                        const isSaving = savingId === q.id
-                        const isUploading = uploadingId === q.id
-
-                        return (
-                          <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-                              <div style={{ fontSize: 12, fontWeight: 500, color: '#173557' }}>
-                                {q.order}. {q.text}
-                                {q.required && <span style={{ color: '#e53e3e' }}> *</span>}
-                              </div>
-                              {isSaving && (
-                                <span style={{ fontSize: 10, color: '#0a6a96', flexShrink: 0, marginTop: 2 }}>salvando...</span>
-                              )}
-                            </div>
-
-                            <textarea
-                              rows={3}
-                              value={answer}
-                              placeholder="Digite a resposta..."
-                              disabled={isSaving}
-                              onChange={e => {
-                                const newVal = e.target.value
-                                const { error } = supabase
-                                  .from('brief_responses')
-                                  .upsert(
-                                    { instance_id: instance.id, question_id: q.id, answer: newVal, updated_at: new Date().toISOString() },
-                                    { onConflict: 'instance_id,question_id' }
-                                  )
-                                if (!error) qc.invalidateQueries({ queryKey: ['brief_responses', instance.id] })
-                              }}
-                              onBlur={e => {
-                                const newVal = e.target.value
-                                const existing = responses.find(r => r.question_id === q.id)?.answer || ''
-                                if (newVal !== existing) {
-                                  setSavingId(q.id)
-                                  saveAnswer.mutate({ questionId: q.id, answer: newVal }, {
-                                    onSettled: () => setSavingId(null),
-                                  })
-                                }
-                              }}
-                              style={{
-                                width: '100%',
-                                border: `1px solid ${isSaving ? '#59c2ed' : '#d4d3ce'}`,
-                                borderRadius: 7,
-                                padding: '8px 12px',
-                                fontSize: 13,
-                                fontFamily: 'inherit',
-                                color: '#173557',
-                                background: '#fff',
-                                outline: 'none',
-                                resize: 'vertical',
-                                minHeight: 72,
-                                boxSizing: 'border-box',
-                                opacity: isSaving ? 0.8 : 1,
-                              }}
-                            />
-
-                            {qAttachments?.length > 0 && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
-                                {qAttachments.map(att => (
-                                  <div key={att.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 10px', background: '#f7fafc', borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                                    <span style={{ fontSize: 12, color: '#0a6a96', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                                      {att.file_name}
-                                    </span>
-                                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                                      <a
-                                        href={att.storage_path}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        style={{ fontSize: 11, color: '#0a6a96', textDecoration: 'none', padding: '2px 4px' }}
-                                      >
-                                        Ver
-                                      </a>
-                                      <button
-                                        onClick={() => deleteAttachment.mutate(att)}
-                                        disabled={deleteAttachment.isPending}
-                                        style={{ fontSize: 11, color: '#c44', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontFamily: 'inherit' }}
-                                      >
-                                        Remover
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            <label
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 5,
-                                padding: '5px 10px',
-                                borderRadius: 6,
-                                border: '1px dashed rgba(15,34,58,0.2)',
-                                cursor: isUploading ? 'default' : 'pointer',
-                                width: 'fit-content',
-                                opacity: isUploading ? 0.6 : 1,
-                              }}
-                            >
-                              <Icons.Paperclip size={12} style={{ color: 'rgba(23,53,87,0.6)' }} />
-                              <span style={{ fontSize: 11, color: 'rgba(23,53,87,0.7)', fontFamily: 'inherit' }}>
-                                {isUploading ? 'Enviando...' : 'Anexar'}
-                              </span>
-                              <input
-                                ref={el => fileInputRefs.current[q.id] = el}
-                                type="file"
-                                style={{ display: 'none' }}
-                                disabled={isUploading}
-                                onChange={e => {
-                                  const file = e.target.files?.[0]
-                                  if (!file) return
-                                  setUploadingId(q.id)
-                                  uploadAttachment.mutate({ questionId: q.id, file }, {
-                                    onSettled: () => {
-                                      setUploadingId(null)
-                                      if (fileInputRefs.current[q.id]) fileInputRefs.current[q.id].value = ''
-                                    },
-                                  })
-                                }}
-                              />
-                            </label>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
+                  {/* Questions */}
+                  <div className="p-5">
+                    {(activeSection.questions || []).map((q, qIdx) => (
+                      <QuestionCard
+                        key={q.id}
+                        question={q}
+                        idx={qIdx}
+                        response={getResponse(q.id)}
+                        attachments={getAttachments(q.id)}
+                        savedNote={getNoteForQ(q.id)}
+                        onSaveNote={(payload) => upsertCsmNote.mutateAsync(payload)}
+                        onDeleteNote={(id) => deleteCsmNote.mutateAsync(id)}
+                        isSavingNote={isUpsertingNote}
+                      />
+                    ))}
+                    {(activeSection.questions || []).length === 0 && (
+                      <div className="text-center py-12 text-text-tertiary text-sm">
+                        Nenhuma pergunta nesta seção
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full text-sm text-text-tertiary">
+                  Selecione uma seção
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {getGeneralAttachments().length > 0 && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(23,53,87,0.7)', marginBottom: 8 }}>Anexos Gerais</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {getGeneralAttachments().map(att => (
-                <a
-                  key={att.id}
-                  href={att.storage_path}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 13, color: '#0a6a96', display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: '#f7fafc', borderRadius: 6, textDecoration: 'none' }}
-                >
-                  <Icons.ClipboardList size={14} />
-                  {att.file_name}
-                </a>
-              ))}
+              )}
             </div>
           </div>
         )}
+
+        {/* ── Footer ── */}
+        <div className="px-5 py-3 border-t border-border-tertiary bg-bg-secondary flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 text-xs text-text-tertiary">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" />
+            <span>Salvo automaticamente</span>
+            {updatedAt && <span>· {relativeTime(updatedAt)}</span>}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveSectionIdx(i => Math.max(0, i - 1))}
+              disabled={activeSectionIdx === 0}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border-tertiary bg-bg-primary text-text-secondary hover:bg-bg-secondary disabled:opacity-40 transition-colors"
+            >
+              <Icons.ArrowLeft size={13} />
+              Anterior
+            </button>
+            <button
+              onClick={() => setActiveSectionIdx(i => Math.min(structure.length - 1, i + 1))}
+              disabled={activeSectionIdx >= structure.length - 1}
+              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border border-border-tertiary bg-bg-primary text-text-secondary hover:bg-bg-secondary disabled:opacity-40 transition-colors"
+            >
+              Próxima seção
+              <Icons.ChevronRight size={13} />
+            </button>
+          </div>
+        </div>
       </div>
-    </Modal>
+    </div>
   )
 }
