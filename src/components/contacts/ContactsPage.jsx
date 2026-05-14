@@ -8,8 +8,18 @@ import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ContactModal } from './ContactModal'
 import { ContactPanel } from './ContactPanel'
+import { Icons } from '../../lib/icons'
+import { formatPhone } from '../../lib/formatPhone'
 
 const PAPEL_VARIANT = { Decisor: 'navy', Influenciador: 'purple', Técnico: 'sky', Usuário: 'slate' }
+
+function getWhatsapp(phones = []) {
+  return phones.find(p => p.type === 'WhatsApp')
+}
+
+function getPrimaryEmail(c) {
+  return c.contact_emails?.find(e => e.is_primary)?.email ?? c.email
+}
 
 const CHIPS = [
   { key: 'Decisor',     label: 'Decisor',      type: 'papel' },
@@ -95,7 +105,11 @@ export default function ContactsPage() {
           {/* Contact list */}
           {isLoading ? <PageSpinner /> : (
             <div className="space-y-2">
-              {contacts.map(c => (
+              {contacts.map(c => {
+                const wp = getWhatsapp(c.contact_phones || [])
+                const email = getPrimaryEmail(c)
+                const clientLinks = c.contact_links || []
+                return (
                 <div
                   key={c.id}
                   onClick={() => setSelected(c)}
@@ -109,15 +123,50 @@ export default function ContactsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
                     <p className="text-xs text-text-tertiary truncate">{c.cargo}</p>
+                    {clientLinks.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {clientLinks.map(l => (
+                          <Badge key={l.id} variant="sky" className="text-[10px] py-0 px-1.5">
+                            {l.clients?.fantasy_name || l.clients?.name || '—'}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {c.contact_links?.slice(0,1).map(l => (
+                    {clientLinks.slice(0,1).map(l => (
                       <Badge key={l.id} variant={PAPEL_VARIANT[l.papel] || 'slate'}>{l.papel}</Badge>
                     ))}
-                    {c.contact_links?.some(l => l.champion) && <span className="text-yellow-500 text-xs">⭐</span>}
+                    {clientLinks.some(l => l.champion) && <span className="text-yellow-500 text-xs">⭐</span>}
+                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      {wp && (
+                        <a href={`https://wa.me/${wp.number.replace(/\D/g,'')}`}
+                          target="_blank" rel="noreferrer"
+                          className="p-1 rounded-md hover:bg-green-50 text-green-700 transition-colors"
+                          title="WhatsApp"
+                        >
+                          <Icons.MessageCircle className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                      {email && (
+                        <a href={`mailto:${email}`}
+                          className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
+                          title="E-mail"
+                        >
+                          <Icons.Mail className="w-3.5 h-3.5" />
+                        </a>
+                      )}
+                      <button
+                        onClick={() => setEditContact(c)}
+                        className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
+                        title="Editar"
+                      >
+                        <Icons.Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
+              )})}
               {contacts.length === 0 && (
                 <p className="text-center py-16 text-text-tertiary">Nenhum contato encontrado.</p>
               )}
