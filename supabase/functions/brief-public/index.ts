@@ -115,7 +115,7 @@ serve(async (req) => {
 
       const { data: csmNotes } = await sb
         .from('brief_csm_notes')
-        .select('id, note_text, created_at, created_by')
+        .select('id, question_id, note_text, created_at, created_by')
         .eq('instance_id', instance.id)
         .eq('is_visible', true)
         .order('created_at', { ascending: true })
