@@ -28,12 +28,12 @@ serve(async (req) => {
     if (instance.public_expires_at && new Date(instance.public_expires_at) < new Date())
       return err('Link expirado', 403)
 
-    // 1. Busca como contato do cliente
+    // 1. Busca como contato do cliente via contact_links (contacts.client_id não existe — link é via junction)
     const { data: contact } = await sb
       .from('contacts')
-      .select('id, nome, cargo, client_id')
+      .select('id, name, cargo, contact_links!inner(client_id)')
       .eq('email', email)
-      .eq('client_id', instance.client_id)
+      .eq('contact_links.client_id', instance.client_id)
       .maybeSingle()
 
     // 2. Se não achou, busca como usuário interno do Hub
@@ -46,7 +46,7 @@ serve(async (req) => {
 
     // 4. Determina origem e nome
     const isInternal = !!profile
-    const userName = contact?.nome ?? profile?.name ?? email
+    const userName = contact?.name ?? profile?.name ?? email
 
     // 5. Trigger in_progress: só ativa se for contato (não usuário interno)
     if (action !== 'validate' && instance.status === 'sent' && !isInternal) {
@@ -146,7 +146,7 @@ serve(async (req) => {
         note_text: note,
         origin: 'client',
         client_email: email,
-        client_name: contact?.nome ?? userName,
+        client_name: contact?.name ?? userName,
         is_visible: true,
         created_by: null,
       })
