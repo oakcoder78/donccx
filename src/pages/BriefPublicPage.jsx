@@ -305,22 +305,32 @@ function CoverPage({ session, onStart }) {
             borderRadius: 8, padding: '20px 24px',
             marginBottom: 40,
           }}>
-            <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}>
               {/* Client logo */}
-              <div style={{ flexShrink: 0, paddingTop: 4 }}>
+              <div style={{ flexShrink: 0 }}>
                 {logoUrl && !logoError ? (
                   <img
                     src={logoUrl}
                     alt={clientName}
-                    style={{ maxHeight: 48, maxWidth: 80, objectFit: 'contain', display: 'block' }}
+                    style={{
+                      width: 64,
+                      height: '100%',
+                      minHeight: 100,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
                     onError={() => setLogoError(true)}
                   />
                 ) : (
                   <div style={{
-                    width: 48, height: 48, borderRadius: 8,
+                    width: 64,
+                    height: '100%',
+                    minHeight: 100,
+                    borderRadius: '50%',
                     background: '#59c2ed',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 20, fontWeight: 800, color: '#173557',
+                    fontSize: 24, fontWeight: 800, color: '#173557',
                   }}>
                     {clientName.charAt(0).toUpperCase() || '?'}
                   </div>
@@ -568,14 +578,14 @@ function CoverInline({ session, onStart }) {
 
           {/* Metadata */}
           <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '16px 20px', marginBottom: 28 }}>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}>
               <div style={{ flexShrink: 0 }}>
                 {logoUrl && !logoError ? (
                   <img src={logoUrl} alt={clientName}
-                    style={{ maxHeight: 40, maxWidth: 64, objectFit: 'contain', display: 'block' }}
+                    style={{ width: 52, height: '100%', minHeight: 80, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
                     onError={() => setLogoError(true)} />
                 ) : (
-                  <div style={{ width: 40, height: 40, borderRadius: 6, background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#173557' }}>
+                  <div style={{ width: 52, height: '100%', minHeight: 80, borderRadius: '50%', background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#173557' }}>
                     {clientName.charAt(0).toUpperCase() || '?'}
                   </div>
                 )}
