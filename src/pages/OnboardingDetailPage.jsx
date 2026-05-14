@@ -460,8 +460,6 @@ function BriefPanelModal({ onboardingId, clientId, clientName, faseName, onClose
     </div>
   )
 }
-  )
-}
 
 // ── FasePanel — modal overlay, design do HTML aprovado ───────────────────────
 function FasePanel({ fase, orderedFases, onboardingId, onClose, user, clientId, qc, logAction, activities, onboardingTitle, onboarding }) {
