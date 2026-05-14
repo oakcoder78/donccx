@@ -1625,6 +1625,7 @@ export default function OnboardingDetailPage() {
   const { id }        = useParams()
   const navigate      = useNavigate()
   const location      = useLocation()
+  const from          = location.state?.from
   const qc            = useQueryClient()
   const { user, isAdmin } = useAuth()
   const { logAction }   = useAuditLog()
@@ -1683,7 +1684,6 @@ export default function OnboardingDetailPage() {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p></div>
   }
   if (error || !project) {
-    const from = location.state?.from
   return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Projeto não encontrado.</p><button style={S.btnBack} onClick={() => navigate(from || '/projetos')}>← Voltar</button></div>
   }
   if (onboardingError) {
