@@ -87,7 +87,7 @@ function InlineForm({ form, setForm, onSave, onCancel, saving }) {
 
 export function SettingsActivityTypes() {
   const ActivityIcon = Icons.Activity
-  const { isAdmin } = useAuth()
+  const { isManager } = useAuth()
 
   const [items, setItems]           = useState([])
   const [loading, setLoading]       = useState(true)
@@ -207,7 +207,7 @@ export function SettingsActivityTypes() {
 
   if (loading) return <PageSpinner />
 
-  const colSpan = isAdmin ? 6 : 4
+  const colSpan = isManager ? 6 : 4
 
   return (
     <div className="max-w-6xl space-y-4">
@@ -217,7 +217,7 @@ export function SettingsActivityTypes() {
         title="Tipos de Atividade"
         subtitle="Gerencie os tipos de atividades disponíveis para uso em templates"
         actions={
-          isAdmin && (
+          isManager && (
             <Button
               size="sm"
               onClick={() => {
@@ -253,17 +253,17 @@ export function SettingsActivityTypes() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border-tertiary bg-donc-navy text-white">
-                {isAdmin && <th className="w-8 px-3 py-2.5" />}
+                {isManager && <th className="w-8 px-3 py-2.5" />}
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Nome</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Descrição</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ordem</th>
                 <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ativo</th>
-                {isAdmin && <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ações</th>}
+                {isManager && <th className="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">Ações</th>}
               </tr>
             </thead>
 
             <DragDropContext onDragEnd={handleDragEnd}>
-              <Droppable droppableId="activity-types" isDropDisabled={!isAdmin}>
+              <Droppable droppableId="activity-types" isDropDisabled={!isManager}>
                 {(provided) => (
                   <tbody ref={provided.innerRef} {...provided.droppableProps}>
                     {items.map((item, index) => (
@@ -271,7 +271,7 @@ export function SettingsActivityTypes() {
                         key={item.id}
                         draggableId={String(item.id)}
                         index={index}
-                        isDragDisabled={!isAdmin || editingId === item.id}
+                        isDragDisabled={!isManager || editingId === item.id}
                       >
                         {(drag, snapshot) =>
                           editingId === item.id ? (
@@ -298,7 +298,7 @@ export function SettingsActivityTypes() {
                                 snapshot.isDragging ? 'bg-bg-tertiary shadow-sm' : 'hover:bg-bg-secondary'
                               }`}
                             >
-                              {isAdmin && (
+                              {isManager && (
                                 <td className="px-3 py-2.5 text-text-tertiary" {...drag.dragHandleProps}>
                                   <svg className="w-4 h-4 cursor-grab" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
@@ -312,10 +312,10 @@ export function SettingsActivityTypes() {
                                 <Toggle
                                   value={item.active}
                                   onChange={() => handleToggleAtivo(item)}
-                                  disabled={!isAdmin}
+                                  disabled={!isManager}
                                 />
                               </td>
-                              {isAdmin && (
+                              {isManager && (
                                 <td className="px-4 py-2.5 text-center">
                                   <div className="flex items-center justify-center gap-3">
                                     <button

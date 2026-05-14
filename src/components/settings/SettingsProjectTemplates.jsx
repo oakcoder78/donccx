@@ -118,7 +118,7 @@ function useTemplateActivities(templateId, faseTypeId) {
 }
 
 export function SettingsProjectTemplates() {
-  const { isAdmin } = useAuth()
+  const { isManager } = useAuth()
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState({})
   const [showForm, setShowForm] = useState(false)
@@ -257,7 +257,7 @@ export function SettingsProjectTemplates() {
     items: templates?.filter(t => t.type === type.value) ?? [],
   }))
 
-  if (!isAdmin) {
+  if (!isManager) {
     return <div className="p-6 text-text-secondary">Acesso restrito a administradores.</div>
   }
 
@@ -268,7 +268,7 @@ export function SettingsProjectTemplates() {
         title="Templates de Projeto"
         subtitle="Define os templates utilizados na criação automática de projetos e onboardings."
         actions={
-          isAdmin && (
+          isManager && (
             <Button
               size="sm"
               onClick={() => {
@@ -350,7 +350,7 @@ export function SettingsProjectTemplates() {
                   template={template}
                   expanded={expanded[template.id]}
                   onToggle={() => toggleExpanded(template.id)}
-                  isAdmin={isAdmin}
+                  isManager={isManager}
                   onDelete={() => deleteTemplate.mutate(template.id)}
                   onToggleDefault={(val) => toggleDefault.mutate({ id: template.id, type: template.type, currentDefault: template.is_default })}
                   addingFase={addingFase}
@@ -379,7 +379,7 @@ export function SettingsProjectTemplates() {
 }
 
 function TemplateCard({
-  template, expanded, onToggle, isAdmin, onDelete, onToggleDefault,
+  template, expanded, onToggle, isManager, onDelete, onToggleDefault,
   addingFase, setAddingFase, selectedFaseType, setSelectedFaseType, faseTypes, onAddFase, onRemoveFase,
   addingActivity, setAddingActivity, selectedActivityType, setSelectedActivityType, activityTypes, onAddActivity, onRemoveActivity,
 }) {
@@ -415,7 +415,7 @@ function TemplateCard({
               onChange={e => { e.stopPropagation(); onToggleDefault(template.is_default) }}
             />
           </label>
-          {isAdmin && (
+          {isManager && (
             <button
               onClick={e => { e.stopPropagation(); if (confirm('Remover este template?')) onDelete() }}
               className="p-1.5 text-text-tertiary hover:text-red-500 rounded transition-colors"
@@ -438,7 +438,7 @@ function TemplateCard({
                   key={fase.id}
                   fase={fase}
                   templateId={template.id}
-                  isAdmin={isAdmin}
+                  isManager={isManager}
                   addingActivity={addingActivity}
                   setAddingActivity={setAddingActivity}
                   selectedActivityType={selectedActivityType}
@@ -484,7 +484,7 @@ function TemplateCard({
   )
 }
 
-function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity, selectedActivityType, setSelectedActivityType, activityTypes, onAddActivity, onRemoveActivity, onRemoveFase }) {
+function FaseRow({ fase, templateId, isManager, addingActivity, setAddingActivity, selectedActivityType, setSelectedActivityType, activityTypes, onAddActivity, onRemoveActivity, onRemoveFase }) {
   const { data: activities } = useTemplateActivities(templateId, fase.fase_type_id)
 
   return (
@@ -496,7 +496,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
           )}
           <span className="font-medium text-text-primary text-sm">{fase.fase_type?.name}</span>
         </div>
-        {isAdmin && (
+        {isManager && (
           <button
             onClick={() => onRemoveFase(fase.fase_type_id)}
             title="Remover"
@@ -512,7 +512,7 @@ function FaseRow({ fase, templateId, isAdmin, addingActivity, setAddingActivity,
           {activities.map(act => (
             <div key={act.id} className="flex items-center justify-between text-xs">
               <span className="text-text-secondary">• {act.activity_type?.name}</span>
-              {isAdmin && (
+              {isManager && (
                 <button
                   onClick={() => onRemoveActivity(act.id, fase.fase_type_id)}
                   title="Remover"
