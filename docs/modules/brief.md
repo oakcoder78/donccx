@@ -121,21 +121,27 @@ Public page without Supabase JWT. Email-authenticated access:
 **Phase flow:** `auth → validating → cover → loading → form → thanks`
 
 1. User enters email → `brief-public` (action `validate`) validates against `contacts.client_id` OR `profiles.email`
-2. On success: shows **Cover Page** (visual intro) before loading the form
+2. On success: shows **Cover Page** (fullscreen dark gradient) before loading the form
    - Cover data from `validate`: `client_name`, `client_logo_url` (public URL, company-logos bucket), `csm_name`, `operation_capabilities` (`[{name, color}]`), `sent_at` (falls back to `created_at`)
-   - CoverPage: client logo as circle (100×100px fixed, `objectFit: cover`), capability badges with dynamic colors, formatted date, CSM name, "Iniciar preenchimento" button — navy/lime/sky palette
-   - CoverInline: compact version (80×80px logo) for sidebar when `activeIdx === -1`
+   - Cover card: 720px centered, dark navy gradient background with radial sky+lime overlays, gradient top bar, client logo 64×64px circular (fallback: initials on `#0c1626`, lime text), `dl` metadata grid, lime CTA button
    - If session stored (page reload): cover skipped, goes straight to form
-3. User clicks "Iniciar preenchimento" → calls `get` action, loads responses + attachments
+3. User clicks "Iniciar preenchimento" → calls `get` action, loads responses + attachments + client_questions + csm_notes
 4. Auto-save with 1500ms debounce per question (`save_response` action)
 5. Status triggers: `sent → in_progress` only for contacts, **not** for internal Hub users
-6. Sidebar shows section progress: empty (gray) / partial (sky) / done (lime) + "Apresentação" item when `activeIdx === -1`
-7. **Deliverable** per section: left border `#d3da47`, lime background tint, "✓ Entregável:" prefix
-8. **Question notes** (`question.note`): `Icons.HelpCircle` icon (sky, 15px) inline with label; CSS-only tooltip on hover (navy bg, max-width 280px)
-9. **Tour modal** on first visit (sessionStorage key `brief_tour_seen_{instance_id}`): 4 steps — navigation, deliverable highlight, hint tooltips, autosave confirmation
-10. **Attachment support:** drag-drop upload zone per question (when `allow_attachment: true`), file list with preview/download via signed URLs (`get_attachment_urls` action, 1h expiry), delete action
-11. `complete` action locks form, marks as `completed`, creates activity (contacts only)
-12. After completion: shows "thanks" screen
+6. **Cover overlay** within form: "Capa" button in appbar re-shows cover on top of the app (fade transition via `coverLeaving` state). Completed state shows "Brief enviado" banner instead of CTA.
+7. **Rail (280px):** section list with SVG circular progress rings (32×32, same geometry as BriefResponsesModal); section sub-label from `audience` field; X/Y badge; "Salvo automaticamente" pill; "Fale com a Donc" link → opens **QuestionDrawer** (slide panel inside rail)
+8. **Appbar:** 3-column grid — Left (Capa btn + DONC logo 40×40 lime + breadcrumb), Center (segmented progress bar per section), Right (Baixar PDF → window.print(), Help → toast)
+9. **Section header:** eyebrow + step dots (14×3px bars, sky_deep=current, green=done, muted=rest) + h1 (26px/700) + deliverable block (sky border-left 3px, sky soft bg) + persona pill (dashed, audience field)
+10. **Question cards:** grid `26px 1fr auto` — num badge (color by state), label+asterisk, "Respondida" badge; helper box (Info icon, sky bg) when `note`; textarea/input (13.5px); save indicator; attach chip (compact, dashed→solid when files present); "Dúvida?" ghost button
+11. **Per-question doubt:** clicking "Dúvida?" expands inline textarea → `submit_question` action with `question_id`; shows existing client_questions + CSM replies; auto-closes after 2s
+12. **QuestionDrawer:** slide panel inside rail for general questions (question_id: null); shows history with CSM replies
+13. **CSM notes visible to client:** box with navy left border (3px), "Nota da equipe Donc" label, sourced from `csm_notes` (origin=csm, is_visible=true) from `get` action
+14. **Footer (sticky):** answered count + amber missing count; ← Anterior, Salvar e sair, Próxima seção → / Concluir e enviar (disabled if missing required)
+15. **Tour modal** on first visit (sessionStorage key `brief_tour_seen_{instance_id}`): 5 steps — LayoutList, Target, Info, Save, MessageCircle
+16. **Attachment support:** compact chip per question (when `allow_attachment: true`), file list with signed URL download, delete; upload via hidden file input
+17. `complete` action → confirm modal → locks form, marks as `completed`, phase=thanks
+18. **Print (`@media print`):** hides `.no-print` (appbar, footer, rail); renders `.print-section` (all sections with responses, page-break between)
+19. After completion (readOnly): shows completed banner, fields disabled
 
 **`validate` action expanded payload:**
 ```json
