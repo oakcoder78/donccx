@@ -969,7 +969,15 @@ export default function BriefPublicPage() {
                       doubtText={doubtText[q.id] || ''}
                       doubtSent={!!doubtSent[q.id]}
                       doubtSubmitting={!!doubtSending[q.id]}
-                      onDoubtToggle={() => setDoubtOpen(prev => ({ ...prev, [q.id]: !prev[q.id] }))}
+                      onDoubtToggle={() => {
+                        const opening = !doubtOpen[q.id]
+                        setDoubtOpen(prev => ({ ...prev, [q.id]: !prev[q.id] }))
+                        if (opening) {
+                          callBrief({ action: 'get_client_questions', token, email: session.email })
+                            .then(data => setClientQs(data.questions || []))
+                            .catch(() => {})
+                        }
+                      }}
                       onDoubtTextChange={t => setDoubtText(prev => ({ ...prev, [q.id]: t }))}
                       onDoubtSubmit={() => handleSubmitQuestion(q.id)}
                     />
