@@ -25,9 +25,10 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 |-----------|------|----------------|
 | `BriefCreateModal` | `src/components/brief/BriefCreateModal.jsx` | Create instance: template selection, title, save |
 | `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client |
-| `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Criar Brief" (navy) / "Editar Brief" (sky) |
+| `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Criar Brief" (navy) / "Editar Brief" (sky), equalized size |
+| `BriefTemplateEditorModal` | `src/components/brief/BriefTemplateEditorModal.jsx` | Full editor modal: sections/questions CRUD, DnD sort, allow_attachment toggle |
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
-| `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` |
+| `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` with cover, form, attachments, tour |
 | `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete |
 | `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink, useBriefCsmNotes |
 | `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
@@ -93,18 +94,23 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
 
 ### BriefResponsesModal
 
-Wide (max 1000px) two-column modal — CSM read-only view with internal notes layer:
+Wide (max 1000px) two-column modal — Hub CSM view with internal notes layer:
 - **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + close
 - **Segmented progress bar:** one segment per section, width ∝ question count; green=complete, sky gradient=partial
-- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow
-- **Right panel:** sticky section header (eyebrow, title, deliverable); per-question cards showing: hint box (sky, if `question.note`), client response (read-only, green tinted box), attachments with signed URL download, CSM note area
+- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; **edit mode** via "Editar Brief" button
+- **Right panel:** sticky section header (eyebrow, title, deliverable, callout if present); per-question cards:
+  - hint box (sky, if `question.note`)
+  - client response (read-only in view mode; editable textarea in edit mode, lime tinted)
+  - attachments with signed URL download (edit mode: drag-drop upload zone)
+  - CSM note area
 - **CSM note area** per question (from `brief_csm_notes` where `question_id` matches):
   - Collapsed: ghost "+ Adicionar nota interna" button
-  - Expanded: textarea + visibility pill toggle (`is_visible: false` → navy "Apenas interno" + EyeOff; `true` → lime "Visível ao cliente" + Eye) + Salvar/Cancelar
+  - Expanded: textarea + visibility pill toggle (`is_visible: false` → navy "Apenas interno" + `Icons.EyeOff`; `true` → lime "Visível ao cliente" + `Icons.Eye`) + Salvar/Cancelar
   - Saved note: box with left border (navy if visible, lime if internal), label + text + edit/remove buttons
-- **Footer:** "Salvo automaticamente" dot + relative timestamp + Anterior/Próxima seção buttons
+- **Footer (view mode):** "Salvo automaticamente" dot + relative timestamp + Anterior/Próxima seção buttons
+- **Footer (edit mode):** Salvar respuestas button → calls `update_response` action for each changed answer
 - `useBriefCsmNotes(instance.id)` provides `csmNotes`, `upsertCsmNote({ id, question_id, note_text, is_visible })`, `deleteCsmNote`
-- Attachments: signed URL generated via `supabase.storage.from('project-briefs').createSignedUrl(path, 300)` on click
+- Attachments: signed URL generated via `supabase.storage.from('project-briefs').createSignedUrl(path, 3600)` on click
 - Response field: `response_text` column (not `answer`)
 
 ### Public Side — BriefPublicPage (`/brief/:token`)
@@ -115,26 +121,30 @@ Public page without Supabase JWT. Email-authenticated access:
 
 1. User enters email → `brief-public` (action `validate`) validates against `contacts.client_id` OR `profiles.email`
 2. On success: shows **Cover Page** (visual intro) before loading the form
-   - Cover data comes from `validate` response: `client_name`, `client_logo_url`, `csm_name`, `operation_capabilities`, `sent_at`
-   - If session already stored (page reload): cover is skipped, goes straight to form
+   - Cover data from `validate`: `client_name`, `client_logo_url` (public URL, company-logos bucket), `csm_name`, `operation_capabilities` (`[{name, color}]`), `sent_at` (falls back to `created_at`)
+   - CoverPage: client logo as circle (100×100px fixed, `objectFit: cover`), capability badges with dynamic colors, formatted date, CSM name, "Iniciar preenchimento" button — navy/lime/sky palette
+   - CoverInline: compact version (80×80px logo) for sidebar when `activeIdx === -1`
+   - If session stored (page reload): cover skipped, goes straight to form
 3. User clicks "Iniciar preenchimento" → calls `get` action, loads responses + attachments
 4. Auto-save with 1500ms debounce per question (`save_response` action)
 5. Status triggers: `sent → in_progress` only for contacts, **not** for internal Hub users
-6. Sidebar shows section progress: empty (gray) / partial (sky) / done (lime)
-7. **Deliverable** per section is highlighted: left border `#d3da47`, lime background tint, "✓ Entregável:" prefix
-8. **Question notes** (`question.note`): show `IcoHelpCircle` icon (sky, 15px) inline with question label; hover → CSS tooltip (navy bg, max-width 280px)
-9. **Tour modal** shown on first visit after `get` loads (sessionStorage key `brief_tour_seen_{instance_id}`): 4 steps explaining nav, deliverable, hints, autosave
-10. `complete` action locks form, marks as `completed`, creates activity (contacts only)
-11. After completion: shows "thanks" screen
+6. Sidebar shows section progress: empty (gray) / partial (sky) / done (lime) + "Apresentação" item when `activeIdx === -1`
+7. **Deliverable** per section: left border `#d3da47`, lime background tint, "✓ Entregável:" prefix
+8. **Question notes** (`question.note`): `Icons.HelpCircle` icon (sky, 15px) inline with label; CSS-only tooltip on hover (navy bg, max-width 280px)
+9. **Tour modal** on first visit (sessionStorage key `brief_tour_seen_{instance_id}`): 4 steps — navigation, deliverable highlight, hint tooltips, autosave confirmation
+10. **Attachment support:** drag-drop upload zone per question (when `allow_attachment: true`), file list with preview/download via signed URLs (`get_attachment_urls` action, 1h expiry), delete action
+11. `complete` action locks form, marks as `completed`, creates activity (contacts only)
+12. After completion: shows "thanks" screen
 
 **`validate` action expanded payload:**
 ```json
 {
   "contact_name": "...",
-  "client_name": "...",         // fantasy_name || name
-  "client_logo_url": "...",     // full public URL from company-logos bucket
-  "csm_name": "...",            // from profiles (created_by)
-  "operation_capabilities": [], // from onboarding_capabilities → catalog_items.name
+  "client_name": "...",              // fantasy_name || name
+  "client_logo_url": "...",          // full public URL from company-logos bucket
+  "csm_name": "...",                 // from profiles (created_by)
+  "operation_capabilities": [{"name": "...", "color": "#59c2ed"}],
+  "sent_at": "2026-05-...",         // sent_at with created_at fallback
   "instance": { "id", "title", "status", "sent_at", "structure_snapshot" }
 }
 ```
@@ -161,10 +171,9 @@ Accessible to admin/manager only:
 
 - `supabaseClient` — database queries and storage
 - `useBrief`, `useBriefTemplates`, `useBriefResponses` hooks
-- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2`, `Icons.GripVertical`, `Icons.Copy`, `Icons.Info`, `Icons.HelpCircle` (no direct lucide-react imports)
+- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2`, `Icons.GripVertical`, `Icons.Copy`, `Icons.Info`, `Icons.HelpCircle`, `Icons.Eye`, `Icons.EyeOff`, `Icons.GripVertical` (no direct lucide-react imports)
 - `react-hot-toast` — feedback on save/upload/errors
-- Storage bucket `activity-attachments` with path prefix `brief-attachments/`
-- Edge function `brief-public` deployed with `verify_jwt = false`
+- Storage bucket `project-briefs` with path prefix `brief-attachments/` (public bucket, signed URLs via service role)
 
 ### Supabase Migrations
 
@@ -173,7 +182,8 @@ Accessible to admin/manager only:
 | `20260513000000_project_brief.sql` | Creates: `brief_templates`, `brief_instances`, `brief_responses`, `brief_attachments`, RLS policies, storage bucket `project-briefs` |
 | `20260514000000_brief_fix_onboarding_fk.sql` | Renames `brief_instances.fase_id` → `onboarding_id`, adds FK to `onboardings`, drops old `fase_id` |
 | `20260515000000_add_brief_templates_flag.sql` | Adds `is_active` flag to `brief_templates` |
-| `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table (RLS, updated_at trigger) for internal CSM notes optionally visible to client |
+| `20260516000000_fix_brief_attachments_schema.sql` | Adds `file_type text` and `uploaded_by uuid` to `brief_attachments` |
+| `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table (RLS, updated_at trigger) for internal CSM notes |
 | `20260519000000_brief_csm_notes_question_id.sql` | Adds `question_id text` column to `brief_csm_notes` for per-question notes |
 
 > **After deploy of `brief-public`:** disable "Verify JWT" in Dashboard → Edge Functions → brief-public → Settings.

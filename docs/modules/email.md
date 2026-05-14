@@ -12,6 +12,7 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 - **Logging** — every send attempt is recorded in `email_logs` for auditability.
 - **Activity creation** — successful sends generate a `type=email` activity on the client timeline.
 - **Role-based sender** — `from_mode` controls whether the email appears to come from the CSM or from `noreply@donc.com.br`.
+- **Reply-to** — all emails include `reply_to: suporte@donc.com.br` set via Resend API parameter.
 
 ## Key Components
 
@@ -131,6 +132,11 @@ Edge function:
 - `cargo` field null on profile: `csm_cargo` variable defaults to empty string
 - Image upload: stores in `report-images` bucket; returns `publicUrl` embedded as `<img src>`
 
+## Recent Changes
+
+- **2026-05-13 (commit `0f8e363`):** `reply_to: suporte@donc.com.br` added to all outgoing emails via Resend API `reply_to` parameter
+- **2026-05-13 (commit `1e7b9b9`):** `from_mode` field added to request body (`csm` | `noreply`); `reply_to` field added to email template schema; admin/manager can override sender; `csm_email` variable added to template variables
+
 ## Template Variables Reference
 
 All templates support these variables via `{{variable}}` merge syntax:
@@ -143,6 +149,7 @@ All templates support these variables via `{{variable}}` merge syntax:
 | `csm_cargo` | `profiles.cargo` of sender | "Customer Success Manager" |
 | `csm_telefone` | `profiles.phone` of sender | "(11) 99999-9999" |
 | `csm_email` | `profiles.email` of sender | "joao.silva@donc.com.br" |
+| `reply_to` | fixed: `suporte@donc.com.br` | Set via Resend API `reply_to` param on every send |
 
 Additional variables can be defined per template in the manager (stored as JSONB array).
 
@@ -169,4 +176,4 @@ Layout was revised in migration `20260511120000_fix_email_template_signature.sql
 
 ---
 
-*Generated from source code and commit history (2026-05-11).*
+*Generated from source code and commit history (2026-05-13).*
