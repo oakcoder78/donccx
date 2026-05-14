@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { formatPhone } from '../../lib/formatPhone'
 import { Icons } from '../../lib/icons'
+import { EmailComposerModal } from '../email/EmailComposerModal'
 
 const STATUS_INFO = {
   ativo: { emoji: '🟢', label: 'Ativo' },
@@ -17,6 +19,8 @@ const STATUS_INFO = {
 const PAPEL_VARIANT = { Decisor: 'navy', Influenciador: 'purple', Técnico: 'sky', Usuário: 'slate' }
 
 export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
+  const [showEmailCompose, setShowEmailCompose] = useState(false)
+
   const phones = c.contact_phones || []
   const links  = c.contact_links  || []
   const whatsapp = phones.find(p => p.type === 'WhatsApp')
@@ -44,10 +48,11 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
       {/* Action buttons */}
       <div className="flex gap-2 mb-4">
         {primaryEmail && (
-          <a href={`mailto:${primaryEmail}`}
+          <button
+            onClick={() => setShowEmailCompose(true)}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary transition-colors text-text-secondary">
             <Icons.Mail className="w-3.5 h-3.5" /> E-mail
-          </a>
+          </button>
         )}
         {whatsapp && (
           <a href={`https://wa.me/${whatsapp.number.replace(/\D/g,'')}`}
@@ -123,6 +128,14 @@ export function ContactPanel({ contact: c, onEdit, onClose, onClientClick }) {
       <Button variant="secondary" size="sm" className="w-full justify-center" onClick={onEdit}>
         Editar Contato
       </Button>
+
+      <EmailComposerModal
+        isOpen={showEmailCompose}
+        onClose={() => setShowEmailCompose(false)}
+        mode="individual"
+        preselectedClientId={links[0]?.client_id}
+        preselectedContactId={c.id}
+      />
     </div>
   )
 }
