@@ -231,6 +231,7 @@ function CoverPage({ session, onStart }) {
 
   const formattedDate = sentAt
     ? new Date(sentAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+        .replace(/^\w/, c => c.toUpperCase())
     : ''
 
   const labelSt = {
@@ -342,14 +343,17 @@ function CoverPage({ session, onStart }) {
                   <>
                     <span style={labelSt}>Operação</span>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                      {capabilities.map((cap, i) => (
-                        <span key={i} style={{
-                          background: 'rgba(89,194,237,0.15)',
-                          border: '1px solid rgba(89,194,237,0.3)',
-                          color: '#59c2ed', borderRadius: 4,
-                          padding: '2px 8px', fontSize: 12, fontWeight: 500,
-                        }}>{cap}</span>
-                      ))}
+                      {capabilities.map((cap, i) => {
+                        const color = cap.color || '#59c2ed'
+                        return (
+                          <span key={i} style={{
+                            background: `${color}15`,
+                            border: `1px solid ${color}`,
+                            color, borderRadius: 4,
+                            padding: '2px 8px', fontSize: 12, fontWeight: 500,
+                          }}>{cap.name}</span>
+                        )
+                      })}
                     </div>
                   </>
                 )}
@@ -510,6 +514,117 @@ function TourModal({ onClose }) {
   )
 }
 
+// ── Cover inline (shown in form sidebar view when Apresentação is active) ──────
+function CoverInline({ session, onStart }) {
+  const [logoError, setLogoError] = useState(false)
+  const clientName   = session?.client_name || ''
+  const logoUrl      = session?.client_logo_url
+  const capabilities = session?.operation_capabilities || []
+  const sentAt       = session?.instance?.sent_at
+  const csmName      = session?.csm_name
+
+  const formattedDate = sentAt
+    ? new Date(sentAt).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+        .replace(/^\w/, c => c.toUpperCase())
+    : ''
+
+  const labelSt = {
+    fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: 1.2, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap',
+  }
+  const valueSt = { fontSize: 13, fontWeight: 500, color: '#fff' }
+
+  return (
+    <div style={{ maxWidth: 700, margin: '0 auto' }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #0e1f3a 0%, #173557 100%)',
+        borderRadius: 12, padding: '36px 40px',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Top bar */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg, #59c2ed, #d3da47)' }} />
+        {/* Radial overlays */}
+        <div style={{ position: 'absolute', top: '-20%', right: '-5%', width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(89,194,237,0.12) 0%, transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-20%', left: '-5%', width: 220, height: 220, borderRadius: '50%', background: 'radial-gradient(circle, rgba(211,218,71,0.10) 0%, transparent 70%)', pointerEvents: 'none' }} />
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          {/* DONC logo */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1 }}>
+              <span style={{ color: '#d3da47' }}>DONC</span>
+              <span style={{ color: '#59c2ed' }}>.</span>
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: 2, marginTop: 4 }}>
+              Plataforma de gestão de equipes externas
+            </div>
+          </div>
+          <div style={{ width: 40, height: 2, background: '#d3da47', marginBottom: 20 }} />
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: '#fff', margin: '0 0 6px' }}>
+            Roteiro de Projeto Técnico
+          </h2>
+          <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: '0 0 28px' }}>
+            Levantamento de regras de negócio
+          </p>
+
+          {/* Metadata */}
+          <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '16px 20px', marginBottom: 28 }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+              <div style={{ flexShrink: 0 }}>
+                {logoUrl && !logoError ? (
+                  <img src={logoUrl} alt={clientName}
+                    style={{ maxHeight: 40, maxWidth: 64, objectFit: 'contain', display: 'block' }}
+                    onError={() => setLogoError(true)} />
+                ) : (
+                  <div style={{ width: 40, height: 40, borderRadius: 6, background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#173557' }}>
+                    {clientName.charAt(0).toUpperCase() || '?'}
+                  </div>
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 16, rowGap: 8, alignItems: 'center', flex: 1 }}>
+                {clientName && (<><span style={labelSt}>Cliente</span><span style={valueSt}>{clientName}</span></>)}
+                {capabilities.length > 0 && (
+                  <><span style={labelSt}>Operação</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                    {capabilities.map((cap, i) => {
+                      const color = cap.color || '#59c2ed'
+                      return (
+                        <span key={i} style={{ background: `${color}15`, border: `1px solid ${color}`, color, borderRadius: 4, padding: '1px 6px', fontSize: 11, fontWeight: 500 }}>{cap.name}</span>
+                      )
+                    })}
+                  </div></>
+                )}
+                {formattedDate && (<><span style={labelSt}>Data</span><span style={valueSt}>{formattedDate}</span></>)}
+                {csmName && (<><span style={labelSt}>Preparado por</span><span style={valueSt}>{csmName}</span></>)}
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={onStart}
+            style={{
+              padding: '11px 24px',
+              background: '#d3da47', color: '#173557',
+              border: 'none', borderRadius: 9,
+              fontWeight: 700, fontSize: 14, cursor: 'pointer',
+              fontFamily: "'Montserrat',-apple-system,sans-serif",
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              transition: 'filter .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.filter = 'brightness(1.05)')}
+            onMouseLeave={e => (e.currentTarget.style.filter = 'none')}
+          >
+            Iniciar preenchimento <span style={{ fontSize: 16 }}>→</span>
+          </button>
+
+          <div style={{ marginTop: 20, fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>
+            Documento confidencial — DONC + {clientName || 'Cliente'}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ──────────────────────────────────────────────────────────────
 export default function BriefPublicPage() {
   const { token } = useParams()
@@ -528,7 +643,7 @@ export default function BriefPublicPage() {
   const [attachments, setAttachments] = useState({})
   const [attachmentUrls, setAttachmentUrls] = useState({})
   const [readOnly,  setReadOnly]  = useState(false)
-  const [activeIdx, setActiveIdx] = useState(0)
+  const [activeIdx, setActiveIdx] = useState(-1)
   const [saveStatus, setSaveStatus] = useState({})
   const [errorMsg,   setErrorMsg]   = useState('')
   const [completing, setCompleting] = useState(false)
@@ -943,7 +1058,7 @@ export default function BriefPublicPage() {
             }}
           >
             <span style={{ fontSize: 12, fontWeight: 600, color: NAVY, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {activeSection?.title || 'Seções'}
+              {activeIdx === -1 ? 'Apresentação' : (activeSection?.title || 'Seções')}
             </span>
             <button
               onClick={() => setMobileSidebarOpen(v => !v)}
@@ -968,6 +1083,29 @@ export default function BriefPublicPage() {
               <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10, paddingLeft: 8 }}>
                 Seções
               </div>
+
+              {/* Apresentação item */}
+              <button
+                onClick={() => { setActiveIdx(-1); setMobileSidebarOpen(false) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  width: '100%', textAlign: 'left',
+                  padding: '9px 10px', borderRadius: 8, border: 'none',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  background: activeIdx === -1 ? '#eff6ff' : 'transparent',
+                  marginBottom: 2, transition: 'background .1s',
+                }}
+                onMouseEnter={e => activeIdx !== -1 && (e.currentTarget.style.background = '#f8fafc')}
+                onMouseLeave={e => activeIdx !== -1 && (e.currentTarget.style.background = 'transparent')}
+              >
+                <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                  <IcoLayout size={14} color={activeIdx === -1 ? NAVY : '#94a3b8'} />
+                </span>
+                <span style={{ fontSize: 13, fontWeight: activeIdx === -1 ? 700 : 500, color: activeIdx === -1 ? NAVY : '#475569', lineHeight: 1.3 }}>
+                  Apresentação
+                </span>
+              </button>
+
               {sections.map((sec, idx) => {
                 const st = sectionStatus(sec, responses)
                 const active = idx === activeIdx
@@ -1003,7 +1141,9 @@ export default function BriefPublicPage() {
 
           {/* ── Main content ─────────────────────────────────── */}
           <div style={{ flex: 1, marginLeft: 260, padding: '32px 40px 120px', minWidth: 0 }}>
-            {activeSection && (
+            {activeIdx === -1 ? (
+              <CoverInline session={session} onStart={() => setActiveIdx(0)} />
+            ) : activeSection && (
               <div style={{ maxWidth: 700, margin: '0 auto' }}>
 
                 {/* Completed banner */}

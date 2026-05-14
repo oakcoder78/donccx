@@ -209,6 +209,15 @@ function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }) {
                         />
                       </label>
                     </div>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Icons.HelpCircle size={14} className="text-donc-sky flex-shrink-0" />
+                      <input
+                        value={q.note || ''}
+                        onChange={e => updateQuestion(secIdx, qIdx, 'note', e.target.value)}
+                        className="input-base flex-1 text-xs"
+                        placeholder="Orientação opcional para o cliente ao responder esta pergunta"
+                      />
+                    </div>
                   </div>
                 ))}
 
