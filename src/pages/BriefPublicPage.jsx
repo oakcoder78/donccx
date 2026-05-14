@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { saveBriefAttachment, deleteBriefAttachment } from '../services/briefAttachments/saveBriefAttachment'
 import { Icons } from '../lib/icons'
+import { supabase } from '../lib/supabaseClient'
 
 const NAVY    = '#173557'
 const LIME    = '#d3da47'
@@ -10,8 +11,9 @@ const SKY_D   = '#0a6a96'
 const GREEN   = '#1aa56a'
 const FONT    = "'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
-const BASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://etfeqblaeuhaobefxilp.supabase.co'
-const ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+// Reuse the already-configured client to guarantee URL/key always match
+const BASE_URL = supabase.supabaseUrl
+const ANON_KEY = supabase.supabaseKey
 
 const GLOBAL_CSS = `
   @keyframes spin { to { transform: rotate(360deg) } }
