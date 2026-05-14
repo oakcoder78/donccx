@@ -6,6 +6,9 @@ import { Button } from '../../../ui/Button'
 import { Badge } from '../../../ui/Badge'
 import { Modal } from '../../../ui/Modal'
 import { ProjectModal } from '../../../projects/ProjectModal'
+import { BriefPanel } from '../../../brief'
+import { useBrief, useBriefUnansweredCount } from '../../../../hooks/useBrief'
+import { Icons } from '../../../../lib/icons'
 
 const PROJ_STATUS = {
   planejado:    { label: 'Planejado',    variant: 'slate'  },
@@ -76,6 +79,15 @@ export function ClientSubProjetos({ client }) {
   const [showProjModal, setShowProjModal] = useState(false)
   const [editProj, setEditProj]           = useState(null)
   const [projForm, setProjForm]           = useState(EMPTY_PROJ)
+
+  // brief panel modal
+  const [showBriefPanel, setShowBriefPanel] = useState(false)
+  const [briefProject, setBriefProject]     = useState(null)
+
+  // brief data
+  const { briefInstances } = useBrief(briefProject?.onboarding_id, client.id)
+  const instanceIds = briefInstances?.map(i => i.id) || []
+  const { data: unansweredDoubts = 0 } = useBriefUnansweredCount(instanceIds)
 
   function openEditProj(p) {
     if (p.type === 'onboarding' || p.type === 'expansao') {
@@ -220,15 +232,32 @@ export function ClientSubProjetos({ client }) {
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                {proj.onboarding_id && (
+                  <div className="relative">
+                    <button
+                      onClick={() => { setBriefProject(proj); setShowBriefPanel(true) }}
+                      className="p-1.5 rounded-md hover:bg-donc-sky/10 text-text-secondary transition-colors"
+                      title="Questionários"
+                    >
+                      <Icons.ClipboardList className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
                 <button
                   onClick={() => openEditProj(proj)}
-                  className="text-xs text-donc-sky hover:underline px-1"
-                >Editar</button>
+                  className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
+                  title="Editar"
+                >
+                  <Icons.Pencil className="w-4 h-4" />
+                </button>
                 <button
                   onClick={() => handleDeleteProj(proj.id)}
-                  className="text-xs text-donc-red hover:underline px-1"
-                >Excluir</button>
+                  className="p-1.5 rounded-md hover:bg-red-50 text-text-tertiary hover:text-donc-red transition-colors"
+                  title="Excluir"
+                >
+                  <Icons.Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </button>
 
@@ -455,6 +484,45 @@ export function ClientSubProjetos({ client }) {
         </div>
       </Modal>
 
+      {/* Brief Panel Modal */}
+      {showBriefPanel && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 200,
+            background: 'rgba(0,0,0,0.45)',
+            display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+            padding: '48px 24px 24px',
+            overflowY: 'auto',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowBriefPanel(false); setBriefProject(null) } }}
+        >
+          <div style={{
+            background: '#fff', borderRadius: 14, width: '100%', maxWidth: 660,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px', borderBottom: '1px solid rgba(23,53,87,0.08)',
+            }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#173557' }}>Questionários</div>
+              <button
+                onClick={() => { setShowBriefPanel(false); setBriefProject(null) }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: 'rgba(23,53,87,0.5)', borderRadius: 6 }}
+              >
+                <Icons.X size={17} />
+              </button>
+            </div>
+            <div style={{ padding: '0 24px 24px' }}>
+              <BriefPanel
+                onboardingId={briefProject?.onboarding_id}
+                clientId={client.id}
+                clientName={client.fantasy_name || client.name}
+                faseName={briefProject?.title || ''}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       
     </div>
   )
