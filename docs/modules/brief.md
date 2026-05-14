@@ -98,21 +98,29 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
 Wide (max 1000px) two-column modal — Hub CSM view with internal notes layer:
 - **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + close
 - **Segmented progress bar:** one segment per section, width ∝ question count; green=complete, sky gradient=partial
-- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; **edit mode** via "Editar Brief" button
-- **Right panel:** sticky section header (eyebrow, title, deliverable, callout if present); per-question cards:
+- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; below sections: separator + **"Dúvidas" item** (`Icons.MessageCircle`, sky ring bg when active) with red badge counting unanswered `clientQuestions`
+- **Navigation state:** `activeView: 'section' | 'doubts'` + `activeSectionIdx`. Clicking a section sets `activeView='section'`; clicking "Dúvidas" sets `activeView='doubts'`. Footer Anterior/Próxima disabled when `activeView='doubts'`.
+- **Right panel — section view:** sticky section header (eyebrow, title, deliverable); per-question cards:
   - hint box (sky, if `question.note`)
-  - client response (read-only in view mode; editable textarea in edit mode, lime tinted)
-  - attachments with signed URL download (edit mode: drag-drop upload zone)
+  - client response (read-only)
+  - attachments with signed URL download
+  - **client doubts indicator:** amber box + `Icons.MessageCircle` below response if `clientQuestions` has entries for that `question_id`; clicking navigates to doubts view scrolled to that question's doubt
   - CSM note area
-- **CSM note area** per question (from `brief_csm_notes` where `question_id` matches):
+- **Right panel — doubts view (`activeView='doubts'`):** sticky header "Dúvidas do cliente"; `ClientDoubtsPanel` component:
+  - Empty state: `Icons.MessageCircle` large, gray text
+  - Each doubt card: contact name + date + badge (amber=awaiting, green=replied+visible, gray=replied+internal); doubt text; linked question tag (first 64 chars); reply area
+  - **Awaiting reply:** amber border/bg, "Responder" navy button → opens textarea → calls `replyToQuestion({ id, csm_reply })`
+  - **Replied (is_visible=true):** green border/bg, reply text, "Tornar interno" + "Editar resposta" buttons
+  - **Replied (is_visible=false):** gray border/bg, "Tornar visível" + "Editar resposta" buttons; visibility toggle calls `upsertCsmNote` + manual invalidation of `brief_client_questions`
+- **CSM note area** per question (from `brief_csm_notes` where `question_id` matches and `origin='csm'`):
   - Collapsed: ghost "+ Adicionar nota interna" button
   - Expanded: textarea + visibility pill toggle (`is_visible: false` → navy "Apenas interno" + `Icons.EyeOff`; `true` → lime "Visível ao cliente" + `Icons.Eye`) + Salvar/Cancelar
   - Saved note: box with left border (navy if visible, lime if internal), label + text + edit/remove buttons
-- **Footer (view mode):** "Salvo automaticamente" dot + relative timestamp + Anterior/Próxima seção buttons
-- **Footer (edit mode):** Salvar respuestas button → calls `update_response` action for each changed answer
-- `useBriefCsmNotes(instance.id)` provides `csmNotes`, `upsertCsmNote({ id, question_id, note_text, is_visible })`, `deleteCsmNote`
-- Attachments: signed URL generated via `supabase.storage.from('project-briefs').createSignedUrl(path, 3600)` on click
+- **Footer:** "Salvo automaticamente" dot + relative timestamp + Anterior/Próxima seção buttons (disabled in doubts view)
+- `useBriefCsmNotes(instance.id)` provides `csmNotes`, `clientQuestions`, `upsertCsmNote`, `deleteCsmNote`, `replyToQuestion`, `isReplying`
+- Attachments: signed URL generated via `supabase.storage.from('project-briefs').createSignedUrl(path, 300)` on click
 - Response field: `response_text` column (not `answer`)
+- **`BriefHeaderButton` badge:** `useBriefCsmNotes(instance?.id)` in `BriefHeaderButton` — red circular badge (18px, `#c44444`, white border) on button top-right corner showing count of `clientQuestions` with `csm_reply: null`
 
 ### Public Side — BriefPublicPage (`/brief/:token`)
 
