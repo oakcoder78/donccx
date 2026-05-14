@@ -8,6 +8,7 @@ import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ContactModal } from './ContactModal'
 import { ContactPanel } from './ContactPanel'
+import { EmailComposerModal } from '../email/EmailComposerModal'
 import { Icons } from '../../lib/icons'
 import { formatPhone } from '../../lib/formatPhone'
 
@@ -39,6 +40,8 @@ export default function ContactsPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [selected, setSelected]     = useState(null)
   const [editContact, setEditContact] = useState(null)
+  const [showEmailCompose, setShowEmailCompose] = useState(false)
+  const [emailContact, setEmailContact] = useState(null)
 
   const filters = {
     search,
@@ -152,12 +155,13 @@ export default function ContactsPage() {
                       </a>
                     )}
                     {email && (
-                      <a href={`mailto:${email}`}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEmailContact(c); setShowEmailCompose(true) }}
                         className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
-                        title="E-mail"
+                        title="Enviar e-mail"
                       >
                         <Icons.Mail className="w-3.5 h-3.5" />
-                      </a>
+                      </button>
                     )}
                     <button
                       onClick={() => setEditContact(c)}
@@ -191,6 +195,13 @@ export default function ContactsPage() {
 
       {showCreate && <ContactModal onClose={() => setShowCreate(false)} />}
       {editContact && <ContactModal contact={editContact} onClose={() => setEditContact(null)} />}
+      <EmailComposerModal
+        isOpen={showEmailCompose}
+        onClose={() => { setShowEmailCompose(false); setEmailContact(null) }}
+        mode="individual"
+        preselectedClientId={emailContact?.contact_links?.[0]?.client_id}
+        preselectedContactId={emailContact?.id}
+      />
     </div>
   )
 }
