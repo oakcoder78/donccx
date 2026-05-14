@@ -11,7 +11,7 @@ import { useProfiles } from '../hooks/useProfiles'
 import { useOnboarding } from '../hooks/useOnboardings'
 import { useDeleteProject } from '../hooks/useProjects'
 import { useBrief, useBriefUnansweredCount } from '../hooks/useBrief'
-import { BriefCreateModal, BriefResponsesModal } from '../components/brief'
+import { BriefCreateModal, BriefResponsesModal, BriefPanel } from '../components/brief'
 import { FASE_LABELS } from '../lib/onboardingLabels'
 import { FASE_TYPE_IDS } from '../lib/constants'
 import { ProjectModal } from '../components/projects/ProjectModal'
@@ -366,82 +366,30 @@ function EvidenceRow({ ev, onView, onDelete }) {
 }
 
 // ── BriefHeaderButton — botão no header do projeto ─────────────────────────────
-const BRIEF_STATUS_LABELS = {
-  draft: 'Rascunho', sent: 'Enviado', in_progress: 'Em progresso',
-  completed: 'Concluído', archived: 'Arquivado',
-}
-const BRIEF_STATUS_COLORS = {
-  draft:       { bg: '#e2e8f0', color: '#475569' },
-  sent:        { bg: 'rgba(89,194,237,0.15)', color: '#0a6a96' },
-  in_progress: { bg: 'rgba(211,218,71,0.2)', color: '#4a5c20' },
-  completed:   { bg: '#173557', color: '#ffffff' },
-  archived:    { bg: 'rgba(23,53,87,0.08)', color: 'rgba(23,53,87,0.5)' },
-}
-
 function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
-  const [showCreate,       setShowCreate]       = useState(false)
-  const [showResponses,    setShowResponses]     = useState(false)
-  const [selectedInstance, setSelectedInstance] = useState(null)
-  const [dropdownOpen,     setDropdownOpen]     = useState(false)
-  const dropdownRef = useRef(null)
+  const [showPanel, setShowPanel] = useState(false)
 
-  const { briefInstances, briefTemplates, createBrief, isLoading } = useBrief(onboardingId, clientId)
+  const { briefInstances } = useBrief(onboardingId, clientId)
 
   const instanceIds = briefInstances.map(i => i.id)
   const { data: unansweredDoubts = 0 } = useBriefUnansweredCount(instanceIds)
 
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!dropdownOpen) return
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target))
-        setDropdownOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [dropdownOpen])
-
-  const handleClick = () => {
-    if (briefInstances.length === 0) {
-      setShowCreate(true)
-    } else if (briefInstances.length === 1) {
-      setSelectedInstance(briefInstances[0])
-      setShowResponses(true)
-    } else {
-      setDropdownOpen(prev => !prev)
-    }
-  }
-
-  const n = briefInstances.length
-  const hasMany = n > 1
-  const btnBg = n === 0 ? '#173557' : '#0a6a96'
-
   return (
     <>
-      <div style={{ position: 'relative', display: 'inline-flex' }} ref={hasMany ? dropdownRef : null}>
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
         <button
-          onClick={handleClick}
-          disabled={isLoading}
+          onClick={() => setShowPanel(true)}
           style={{
-            background: btnBg, color: '#fff', border: 'none', borderRadius: 8,
+            background: '#0a6a96', color: '#fff', border: 'none', borderRadius: 8,
             padding: '9px 16px', fontSize: 13, fontWeight: 500,
-            cursor: isLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-            display: 'flex', alignItems: 'center', gap: 6,
-            opacity: isLoading ? 0.7 : 1, minWidth: 110,
+            cursor: 'pointer', fontFamily: 'inherit',
+            display: 'flex', alignItems: 'center', gap: 6, minWidth: 110,
           }}
         >
-          {isLoading ? (
-            <span style={{ fontSize: 12 }}>...</span>
-          ) : n === 0 ? (
-            <><Icons.FileQuestion size={14} /><span>Criar Brief</span></>
-          ) : n === 1 ? (
-            <><Icons.Pencil size={14} /><span>Editar Brief</span></>
-          ) : (
-            <><Icons.ClipboardList size={14} /><span>Briefs ({n})</span><Icons.ChevronDown size={12} /></>
-          )}
+          <Icons.ClipboardList size={14} />
+          <span>Questionários</span>
         </button>
 
-        {/* Badge — unanswered doubts across all instances */}
         {unansweredDoubts > 0 && (
           <span style={{
             position: 'absolute', top: -6, right: -6,
@@ -453,65 +401,65 @@ function BriefHeaderButton({ project, onboardingId, clientId, clientName }) {
             {unansweredDoubts > 9 ? '9+' : unansweredDoubts}
           </span>
         )}
-
-        {/* Dropdown — shown when 2+ briefs */}
-        {dropdownOpen && hasMany && (
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-            background: '#fff', border: '1px solid rgba(15,34,58,0.12)',
-            borderRadius: 10, boxShadow: '0 8px 24px -8px rgba(0,0,0,0.18)',
-            minWidth: 248, zIndex: 50, overflow: 'hidden',
-          }}>
-            {briefInstances.map((inst, idx) => {
-              const sc = BRIEF_STATUS_COLORS[inst.status] || BRIEF_STATUS_COLORS.draft
-              const label = BRIEF_STATUS_LABELS[inst.status] || inst.status
-              return (
-                <button key={inst.id} onClick={() => {
-                  setSelectedInstance(inst); setShowResponses(true); setDropdownOpen(false)
-                }} style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
-                  textAlign: 'left', fontFamily: 'inherit',
-                  borderBottom: idx < briefInstances.length - 1 ? '1px solid rgba(15,34,58,0.06)' : 'none',
-                }}>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: '#173557', marginRight: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{inst.title}</span>
-                  <span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: sc.bg, color: sc.color, flexShrink: 0 }}>{label}</span>
-                </button>
-              )
-            })}
-            <div style={{ borderTop: '1px solid rgba(15,34,58,0.08)' }} />
-            <button onClick={() => { setShowCreate(true); setDropdownOpen(false) }}
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 7,
-                padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer',
-                fontFamily: 'inherit', color: '#0a6a96', fontSize: 13, fontWeight: 500,
-              }}>
-              <Icons.Plus size={13} />Novo Brief
-            </button>
-          </div>
-        )}
       </div>
 
-      {showCreate && (
-        <BriefCreateModal
+      {showPanel && (
+        <BriefPanelModal
           onboardingId={onboardingId}
           clientId={clientId}
           clientName={clientName}
           faseName={project?.title || ''}
-          templates={briefTemplates}
-          onClose={() => setShowCreate(false)}
-          onCreate={createBrief.mutateAsync}
-          isCreating={createBrief.isPending}
-        />
-      )}
-
-      {showResponses && selectedInstance && (
-        <BriefResponsesModal
-          instance={selectedInstance}
-          onClose={() => { setShowResponses(false); setSelectedInstance(null) }}
+          onClose={() => setShowPanel(false)}
         />
       )}
     </>
+  )
+}
+
+// ── BriefPanelModal — wrapper modal para BriefPanel ──────────────────────────
+function BriefPanelModal({ onboardingId, clientId, clientName, faseName, onClose }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      padding: '48px 24px 24px',
+      overflowY: 'auto',
+    }} onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{
+        background: '#fff', borderRadius: 14, width: '100%', maxWidth: 660,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', overflow: 'hidden',
+      }}>
+        {/* Modal header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '18px 24px 16px',
+          borderBottom: '1px solid rgba(15,34,58,0.07)',
+        }}>
+          <div>
+            <div style={{ fontSize: 10.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(23,53,87,0.5)', marginBottom: 2 }}>
+              {faseName}
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#173557' }}>Questionários</div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, color: 'rgba(23,53,87,0.5)', borderRadius: 6 }}>
+            <Icons.X size={17} />
+          </button>
+        </div>
+
+        {/* BriefPanel content */}
+        <div style={{ padding: '0 24px 24px' }}>
+          <BriefPanel
+            onboardingId={onboardingId}
+            clientId={clientId}
+            clientName={clientName}
+            faseName={faseName}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
   )
 }
 
