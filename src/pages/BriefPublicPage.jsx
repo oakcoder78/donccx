@@ -305,16 +305,16 @@ function CoverPage({ session, onStart }) {
             borderRadius: 8, padding: '20px 24px',
             marginBottom: 40,
           }}>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}>
-              {/* Client logo — circle, height matches metadata block */}
-              <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+              {/* Client logo — fixed circle */}
+              <div style={{ flexShrink: 0, width: 100, height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {logoUrl && !logoError ? (
                   <img
                     src={logoUrl}
                     alt={clientName}
                     style={{
-                      width: '100%',
-                      height: '100%',
+                      width: 100,
+                      height: 100,
                       borderRadius: '50%',
                       objectFit: 'cover',
                       display: 'block',
@@ -323,12 +323,12 @@ function CoverPage({ session, onStart }) {
                   />
                 ) : (
                   <div style={{
-                    width: '100%',
-                    height: '100%',
+                    width: 100,
+                    height: 100,
                     borderRadius: '50%',
                     background: '#59c2ed',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 24, fontWeight: 800, color: '#173557',
+                    fontSize: 36, fontWeight: 800, color: '#173557',
                   }}>
                     {clientName.charAt(0).toUpperCase() || '?'}
                   </div>
@@ -340,7 +340,6 @@ function CoverPage({ session, onStart }) {
                 display: 'grid', gridTemplateColumns: 'auto 1fr',
                 columnGap: 20, rowGap: 10,
                 alignItems: 'center', flex: 1,
-                minHeight: 100,
               }}>
                 {clientName && (
                   <>
@@ -577,19 +576,19 @@ function CoverInline({ session, onStart }) {
 
           {/* Metadata */}
           <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '16px 20px', marginBottom: 28 }}>
-            <div style={{ display: 'flex', gap: 20, alignItems: 'stretch' }}>
-              <div style={{ flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
+              <div style={{ flexShrink: 0, width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {logoUrl && !logoError ? (
                   <img src={logoUrl} alt={clientName}
-                    style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', display: 'block' }}
+                    style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', display: 'block' }}
                     onError={() => setLogoError(true)} />
                 ) : (
-                  <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#173557' }}>
+                  <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#59c2ed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 800, color: '#173557' }}>
                     {clientName.charAt(0).toUpperCase() || '?'}
                   </div>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 16, rowGap: 8, alignItems: 'center', flex: 1, minHeight: 80 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 16, rowGap: 8, alignItems: 'center', flex: 1 }}>
                 {clientName && (<><span style={labelSt}>Cliente</span><span style={valueSt}>{clientName}</span></>)}
                 {capabilities.length > 0 && (
                   <><span style={labelSt}>Operação</span>
