@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { saveBriefAttachment, deleteBriefAttachment } from '../services/briefAttachments/saveBriefAttachment'
 import { Icons } from '../lib/icons'
 import { supabase } from '../lib/supabaseClient'
+import toast from 'react-hot-toast'
 
 const NAVY    = '#173557'
 const LIME    = '#d3da47'
@@ -1010,7 +1011,7 @@ export default function BriefPublicPage() {
               style={{ background: 'none', color: activeIdx === 0 ? 'rgba(23,53,87,0.25)' : 'rgba(23,53,87,0.7)', border: 'none', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: activeIdx === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               ← Anterior
             </button>
-            <button onClick={() => {}} style={{ background: '#fff', color: NAVY, border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={() => { toast.success('Progresso salvo'); setCoverOverlay(true) }} style={{ background: '#fff', color: NAVY, border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
               Salvar e sair
             </button>
             {activeIdx < sections.length - 1 ? (
