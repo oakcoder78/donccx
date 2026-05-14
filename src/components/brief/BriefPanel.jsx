@@ -205,15 +205,15 @@ export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
         {/* Panel header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(23,53,87,0.65)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 8 }}>
-            Brief de Discovery
+            Lista de Questionários
             {briefInstances.length > 0 && (
               <span style={{ fontSize: 10, background: 'rgba(23,53,87,0.08)', color: 'rgba(23,53,87,0.7)', padding: '1px 7px', borderRadius: 999, fontWeight: 600, textTransform: 'none', letterSpacing: 0 }}>
                 {briefInstances.length}
               </span>
             )}
           </div>
-          <Button variant="secondary" size="sm" onClick={() => setShowCreate(true)}>
-            <Icons.Plus size={12} style={{ marginRight: 5 }} />Novo Brief
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Icons.Plus size={14} className="mr-1" />Novo
           </Button>
         </div>
 
