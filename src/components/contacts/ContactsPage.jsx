@@ -113,57 +113,59 @@ export default function ContactsPage() {
                 <div
                   key={c.id}
                   onClick={() => setSelected(c)}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  className={`grid grid-cols-[1fr_120px_80px] gap-3 items-center p-3 rounded-lg border cursor-pointer transition-colors ${
                     selected?.id === c.id
                       ? 'border-donc-sky bg-donc-sky/5'
                       : 'border-border-tertiary bg-bg-primary hover:border-border-secondary'
                   }`}
                 >
-                  <Avatar name={c.name} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
-                    <p className="text-xs text-text-tertiary truncate">{c.cargo}</p>
-                    {clientLinks.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {clientLinks.map(l => (
-                          <Badge key={l.id} variant="sky" className="text-[10px] py-0 px-1.5">
-                            {l.clients?.fantasy_name || l.clients?.name || '—'}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar name={c.name} size="md" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">{c.name}</p>
+                      <p className="text-xs text-text-tertiary truncate">{c.cargo}</p>
+                      {clientLinks.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {clientLinks.map(l => (
+                            <Badge key={l.id} variant="sky" className="text-[10px] py-0 px-1.5">
+                              {l.clients?.fantasy_name || l.clients?.name || '—'}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0 self-center">
+                  <div className="flex justify-center items-center gap-1">
                     {clientLinks.slice(0,1).map(l => (
                       <Badge key={l.id} variant={PAPEL_VARIANT[l.papel] || 'slate'}>{l.papel}</Badge>
                     ))}
                     {clientLinks.some(l => l.champion) && <span className="text-yellow-500 text-xs">⭐</span>}
-                    <div className="flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                      {wp && (
-                        <a href={`https://wa.me/${wp.number.replace(/\D/g,'')}`}
-                          target="_blank" rel="noreferrer"
-                          className="p-1 rounded-md hover:bg-green-50 text-green-700 transition-colors"
-                          title="WhatsApp"
-                        >
-                          <Icons.MessageCircle className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                      {email && (
-                        <a href={`mailto:${email}`}
-                          className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
-                          title="E-mail"
-                        >
-                          <Icons.Mail className="w-3.5 h-3.5" />
-                        </a>
-                      )}
-                      <button
-                        onClick={() => setEditContact(c)}
-                        className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
-                        title="Editar"
+                  </div>
+                  <div className="flex justify-end items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                    {wp && (
+                      <a href={`https://wa.me/${wp.number.replace(/\D/g,'')}`}
+                        target="_blank" rel="noreferrer"
+                        className="p-1 rounded-md hover:bg-green-50 text-green-700 transition-colors"
+                        title="WhatsApp"
                       >
-                        <Icons.Pencil className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                        <Icons.MessageCircle className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    {email && (
+                      <a href={`mailto:${email}`}
+                        className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
+                        title="E-mail"
+                      >
+                        <Icons.Mail className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    <button
+                      onClick={() => setEditContact(c)}
+                      className="p-1 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
+                      title="Editar"
+                    >
+                      <Icons.Pencil className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               )})}
