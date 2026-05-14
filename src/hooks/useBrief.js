@@ -11,7 +11,7 @@ export function useBrief(onboardingId, clientId) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('brief_instances')
-        .select('*')
+        .select('*, brief_views(count)')
         .eq('onboarding_id', onboardingId)
         .order('created_at', { ascending: false })
       if (error) {
@@ -234,6 +234,37 @@ export function useBriefCsmNotes(instanceId) {
     isUpsertingNote: upsertCsmNote.isPending,
     isReplying: replyToQuestion.isPending,
   }
+}
+
+export function useBriefViews(instanceId) {
+  return useQuery({
+    queryKey: ['brief_views', instanceId],
+    enabled: !!instanceId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('brief_views')
+        .select('email, viewed_at')
+        .eq('instance_id', instanceId)
+        .order('viewed_at', { ascending: false })
+      return data || []
+    },
+  })
+}
+
+export function useBriefUnansweredCount(instanceIds) {
+  return useQuery({
+    queryKey: ['brief_unanswered_count', instanceIds],
+    enabled: Array.isArray(instanceIds) && instanceIds.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('brief_csm_notes')
+        .select('id')
+        .in('instance_id', instanceIds)
+        .eq('origin', 'client')
+        .is('csm_reply', null)
+      return data?.length ?? 0
+    },
+  })
 }
 
 export function useBriefResponses(instanceId) {

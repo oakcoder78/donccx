@@ -128,6 +128,15 @@ serve(async (req) => {
         .eq('origin', 'client')
         .eq('client_email', email)
 
+      // Track view — contacts only, not internal Hub users
+      if (!isInternal) {
+        await sb.from('brief_views').insert({
+          instance_id: instance.id,
+          email,
+          viewed_at: new Date().toISOString(),
+        }).then(() => {}).catch(() => {})
+      }
+
       return ok({
         instance,
         responses: responses ?? [],
