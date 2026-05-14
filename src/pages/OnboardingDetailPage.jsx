@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import toast from 'react-hot-toast'
@@ -1624,6 +1624,7 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
 export default function OnboardingDetailPage() {
   const { id }        = useParams()
   const navigate      = useNavigate()
+  const location      = useLocation()
   const qc            = useQueryClient()
   const { user, isAdmin } = useAuth()
   const { logAction }   = useAuditLog()
@@ -1682,10 +1683,11 @@ export default function OnboardingDetailPage() {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}><p style={{ color: 'rgba(23,53,87,0.55)', fontSize: 14 }}>Carregando…</p></div>
   }
   if (error || !project) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Projeto não encontrado.</p><button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button></div>
+    const from = location.state?.from
+  return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Projeto não encontrado.</p><button style={S.btnBack} onClick={() => navigate(from || '/projetos')}>← Voltar</button></div>
   }
   if (onboardingError) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Onboarding vinculado não encontrado.</p><button style={S.btnBack} onClick={() => navigate('/projetos')}>← Voltar</button></div>
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}><p style={{ color: '#b42828', fontSize: 14 }}>Onboarding vinculado não encontrado.</p><button style={S.btnBack} onClick={() => navigate(from || '/projetos')}>← Voltar</button></div>
   }
 
   const onb        = onboarding
@@ -1740,7 +1742,7 @@ export default function OnboardingDetailPage() {
 
         <div style={{ padding: '22px 28px 60px' }}>
 
-          <button style={S.btnBack} onClick={() => navigate('/projetos')}>← Projetos</button>
+          <button style={S.btnBack} onClick={() => navigate(from || '/projetos')}>← Voltar</button>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 22 }}>
             <div style={{ minWidth: 0 }}>
               <h1 style={{ fontSize: 24, fontWeight: 600, margin: 0, letterSpacing: '-0.2px', color: '#173557' }}>{project.title}</h1>

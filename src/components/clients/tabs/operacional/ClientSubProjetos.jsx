@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useProjects, useProjectMutations } from '../../../../hooks/useProjects'
 import { useProfiles } from '../../../../hooks/useProfiles'
 import { Button } from '../../../ui/Button'
@@ -49,6 +49,7 @@ function ChevronIcon({ open }) {
 
 export function ClientSubProjetos({ client }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const { data: projects = [], isLoading } = useProjects(client.id)
   const { createProject, updateProject, removeProject } = useProjectMutations(client.id)
   const { createMilestone, updateMilestone, removeMilestone } =
@@ -183,7 +184,7 @@ export function ClientSubProjetos({ client }) {
             <button
               onClick={() => {
                 if (proj.type === 'onboarding' || proj.type === 'expansao') {
-                  navigate('/projetos/' + proj.id)
+                  navigate('/projetos/' + proj.id, { state: { from: location.pathname + location.search } })
                 } else {
                   toggleProj(proj.id)
                 }
