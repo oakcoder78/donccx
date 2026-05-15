@@ -68,7 +68,12 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   const [comboOpen,   setComboOpen]   = useState(false)
   const [selClient,   setSelClient]   = useState(null)
 
-const { data: profiles      = [] } = useProfiles()
+const createOnboardingFlow  = useCreateOnboardingFlow()
+  const updateOnboardingFlow  = useUpdateOnboardingFlow()
+  const createInternalProject = useCreateInternalProject()
+  const updateProject         = useUpdateProject()
+
+  const { data: profiles      = [] } = useProfiles()
   const { data: clients       = [] } = useClients()
   const { data: catalogItems  = [] } = useCatalogItems()
   const { data: templates = [] } = useProjectTemplates(!isEdit ? type : null)
