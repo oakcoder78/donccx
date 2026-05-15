@@ -30,7 +30,15 @@ function isCurrentMonth(ym) {
 
 export function ClientSubUso({ client, onEdit }) {
   const { remove } = useClientUsageMutations()
-  const [showOsTypes, setShowOsTypes] = useState(true)
+  const [expandedRows, setExpandedRows] = useState(new Set())
+
+  function toggleRow(id) {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   const usageData  = client.client_usage || []
   const sorted     = [...usageData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
@@ -102,13 +110,8 @@ export function ClientSubUso({ client, onEdit }) {
       {/* Tabela histórica */}
       {sorted.length > 0 ? (
         <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-border-tertiary flex items-center justify-between">
+          <div className="px-4 py-3 border-b border-border-tertiary">
             <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Histórico completo</p>
-            <button onClick={() => setShowOsTypes(p => !p)}
-              className="text-xs text-text-tertiary hover:text-text-primary flex items-center gap-1 transition-colors">
-              {showOsTypes ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}
-              Tipos de OS
-            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -175,6 +178,13 @@ export function ClientSubUso({ client, onEdit }) {
                         <td className="px-4 py-2.5 text-right" style={{ width: 72 }}>
                           <div className="flex items-center justify-end gap-2">
                             <button
+                              onClick={() => toggleRow(u.id)}
+                              className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-navy transition-colors"
+                              title={expandedRows.has(u.id) ? 'Ocultar tipos de OS' : 'Ver tipos de OS'}
+                            >
+                              {expandedRows.has(u.id) ? <Icons.EyeOff className="w-4 h-4" /> : <Icons.Eye className="w-4 h-4" />}
+                            </button>
+                            <button
                               onClick={() => onEdit(u.ref_month)}
                               className="p-1 rounded hover:bg-bg-tertiary text-text-tertiary hover:text-donc-sky transition-colors"
                               title="Editar"
@@ -195,7 +205,7 @@ export function ClientSubUso({ client, onEdit }) {
                     )
 
                     // Chips de OS por tipo
-                    if (showOsTypes && osPorTipo) {
+                    if (expandedRows.has(u.id) && osPorTipo) {
                       entries.push(
                         <tr key={`chips-${u.id || `${month}-${idx}`}`} className="border-t border-border-tertiary bg-bg-secondary">
                           <td colSpan={COL_COUNT} className="px-4 py-2">
