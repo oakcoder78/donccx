@@ -39,7 +39,7 @@ function getWhatsapp(phones = []) {
 }
 
 // ─── Rich contact card ──────────────────────────────────────────────────────────
-function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
+function ContactCard({ link, onEdit, onUnlink, onEmailClick, isSelected, onClick }) {
   const c   = link.contacts || {}
   const st  = STATUS_INFO[link.engajamento] || STATUS_INFO.morno
   const wp  = getWhatsapp(c.contact_phones || [])
@@ -104,7 +104,7 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
           </a>
         )}
         {c.email && (
-          <button onClick={() => setEmailContactId(link.contact_id)}
+          <button onClick={() => onEmailClick(link.contact_id)}
             className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
             title="Compor e-mail"
           >
@@ -268,6 +268,7 @@ export function ClientTabContatos({ client }) {
               link={link}
               onEdit={handleEdit}
               onUnlink={handleUnlink}
+              onEmailClick={setEmailContactId}
               isSelected={selectedLink?.id === link.id}
               onClick={() => handleCardClick(link)}
             />
