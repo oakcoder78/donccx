@@ -153,10 +153,14 @@ serve(async (req) => {
     let resendAttachments: Array<{ filename: string; content: string; content_type: string }> | undefined
     if (attachments.length > 0) {
       resendAttachments = await Promise.all(attachments.map(async (att) => {
-        const fileRes = await fetch(`${sbUrl}/storage/v1/object/${att.storage_path}`, {
+        const fileRes = await fetch(`${sbUrl}/storage/v1/object/activity-attachments/${att.storage_path}`, {
           headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
         })
         if (!fileRes.ok) throw new Error(`Failed to read attachment: ${att.file_name}`)
+        const ct = fileRes.headers.get("content-type") ?? ""
+        if (!ct.includes("/") || ct.includes("text/html")) {
+          throw new Error(`Unexpected storage response for ${att.file_name}: ${ct}`)
+        }
         const buffer = await fileRes.arrayBuffer()
         return {
           filename:     att.file_name,
