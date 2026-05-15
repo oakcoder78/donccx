@@ -580,7 +580,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
 
       {/* Preview drawer */}
       {selectedTemplate && (
-      <Drawer isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" width="w-96" noBackdrop>
+      <Drawer isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" width="w-[420px]" noBackdrop>
         <div className="space-y-4">
           <div>
             <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Destinatários</p>
