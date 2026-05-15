@@ -13,6 +13,7 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 - **Activity creation** — successful sends generate a `type=email` activity on the client timeline.
 - **Role-based sender** — `from_mode` controls whether the email appears to come from the CSM or from `noreply@donc.com.br`.
 - **Reply-to** — all emails include `reply_to: suporte@donc.com.br` set via Resend API parameter.
+- **Attachments** — files up to 5 MB each (max 5) uploaded to `activity-attachments` bucket, sent via Resend, and persisted as `activity_attachments` records linked to the auto-created activity. Reuses the existing activity attachment system — files appear in `ActivityDetailModal`, `ClientSubAnexos`, and the client timeline.
 
 ## Key Components
 
@@ -48,7 +49,13 @@ Authorization: Bearer <user_token>
   template_id: string,
   recipients: [{ contact_id, client_id, email, variables: {} }],
   sent_by: uuid,
-  from_mode?: "csm" | "noreply"   // default: "csm"
+  from_mode?: "csm" | "noreply",   // default: "csm"
+  attachments?: [{                  // optional
+    storage_path: string,           // "activity-attachments/{clientId}/email_temp/{ts}_{file}"
+    file_name: string,
+    file_size: number,
+    file_type: string
+  }]
 }
 ```
 
@@ -101,7 +108,7 @@ Step 2: picks template, fills {{assunto}}, {{corpo_mensagem}}
 Step 3: preview (local mergeTags)
        │
        ▼
-handleSend() → fetch /functions/v1/send-email
+handleSend() → fetch /functions/v1/send-email (with attachments metadata)
        │
        ▼
 Edge function:
@@ -110,12 +117,14 @@ Edge function:
   3. Validate from_mode permission (admin/manager required for "noreply")
   4. Resolve from_address
   5. Fetch template from DB
-  6. Loop recipients:
-       a. mergeTags(template, vars)
-       b. POST /emails (Resend)
-       c. INSERT email_log
-       d. INSERT activity (if sent)
-  7. Return { sent, failed, logs }
+  6. Download attachments from storage → base64 encode (once, before recipient loop)
+  7. Loop recipients:
+        a. mergeTags(template, vars)
+        b. POST /emails (Resend) — includes attachments if present
+        c. INSERT email_log
+        d. INSERT activity — `Prefer: return=representation` to capture ID
+        e. INSERT activity_attachments (if activity created + files attached)
+  8. Return { sent, failed, logs }
 ```
 
 ## Dependencies
@@ -130,6 +139,32 @@ Edge function:
 
 1. **CSM sends email** — clicks "Enviar e-mail" on client page → selects contacts → picks `csm_individual` template → writes message → previews → sends → activity appears on client timeline
 2. **Admin manages templates** — navigates to Settings > Templates de E-mail → creates or edits template → inserts variables → uploads images → previews → saves
+
+## Attachments
+
+### File restrictions
+
+| Rule | Value |
+|------|-------|
+| Max per file | 5 MB |
+| Max files | 5 |
+| Allowed types | PDF, DOC/DOCX, XLS/XLSX, JPEG, PNG, GIF, WebP |
+
+### Upload flow
+
+1. User selects files in Step 3 (Preview) — validated client-side (type, size, count)
+2. On send click, files upload to bucket `activity-attachments/{clientId}/email_temp/{timestamp}_{filename}`
+3. Edge function downloads from storage (service role), base64-encodes, sends via Resend
+4. On send success: edge function creates `activity_attachments` records linked to the auto-created activity
+5. On close/cancel: orphaned files (uploaded but not linked to an activity) are cleaned up from storage
+
+### UI display
+
+No changes needed — the existing `activity_attachments` infrastructure renders attachments in:
+- `ActivityDetailModal` — preview/download/delete
+- `ClientTabActivities` — Paperclip icon on email activities  
+- `ClientSubAnexos` — unified attachments table
+- `ActivitiesPage` — attachment count per activity
 
 ## Edge Cases
 
