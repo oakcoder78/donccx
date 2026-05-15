@@ -25,7 +25,7 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 |-----------|------|----------------|
 | `BriefCreateModal` | `src/components/brief/BriefCreateModal.jsx` | Create instance: template selection, title, save |
 | `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client |
-| `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Criar Brief" (navy) / "Editar Brief" (sky), equalized size |
+| `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Questionários" (navy), opens BriefPanel modal; badge shows unanswered clientQuestions count |
 | `BriefTemplateEditorModal` | `src/components/brief/BriefTemplateEditorModal.jsx` | Full editor modal: sections/questions CRUD, DnD sort, allow_attachment toggle |
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
 | `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` with cover, form, attachments, tour |
@@ -33,6 +33,8 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink, useBriefCsmNotes (csmNotes, clientQuestions, replyToQuestion) |
 | `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
 | `useBriefResponses` | `src/hooks/useBriefResponses.js` | Hook: responses and attachments for an instance |
+| `useBriefViews` | `src/hooks/useBrief.js` | Hook: briefViews (who viewed each brief instance), tracked via `BriefViewsModal` |
+| `BriefViewsModal` | `src/components/brief/BriefPanel.jsx` | Modal showing who viewed each brief: email, viewed_at, link to contact |
 | `SettingsBriefTemplates` | `src/components/settings/SettingsBriefTemplates.jsx` | Settings page: `/config/brief-templates` |
 
 ---
@@ -46,6 +48,7 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | `brief_responses` | One row per question (`question_id` from JSONB). Upsert on conflict |
 | `brief_attachments` | Optional files per question or general. Storage bucket `activity-attachments`, path: `brief-attachments/{instance_id}/{question_id}/{filename}` |
 | `brief_csm_notes` | CSM internal notes (`origin='csm'`) and client questions (`origin='client'`). Client questions include `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by`. Index on `(instance_id, origin)`. |
+| `brief_views` | Tracks who viewed each brief instance. Columns: `id`, `instance_id`, `email`, `viewed_at`. RLS: select=authenticated, insert=service role only. |
 
 Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured in `supabase/config.toml` and verified in Dashboard).
 
@@ -86,17 +89,25 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
 ### Hub Side — OnboardingDetailPage Header
 
 `BriefHeaderButton` in the project header:
-- **No instance exists:** Button "Criar Brief" — navy background (`#173557`), white text, `Icons.FileQuestion` icon
-- **Instance exists:** Button "Editar Brief" — sky background (`#0a6a96`), white text, `Icons.Pencil` icon
-- Both buttons have `minWidth: 110` to match the "Editar projeto" button size
+- **Button "Questionários"** — navy background (`#173557`), white text, `Icons.FileQuestion` icon, minWidth 110
+- **Badge:** red circular badge (18px, `#c44444`, white border) on top-right corner showing count of `clientQuestions` with `csm_reply: null` from any brief instance for this onboarding
+- Clicking "Questionários" opens `BriefPanelModal` which contains `BriefPanel`
 - Admin users see delete icon (`Icons.Trash2` in `S.iconBtn` style, red `#c44`) next to "Editar projeto"
-- Clicking "Criar Brief" opens `BriefCreateModal` (template selector)
-- Clicking "Editar Brief" opens `BriefResponsesModal`
+
+### BriefPanel (`BriefPanelModal`)
+
+Modal panel (max 900px) listing all brief instances for the onboarding:
+- **Header:** "Questionários" title + status filter tabs (Todos, Rascunho, Enviado, Em progresso, Concluído, Arquivado) + "Criar novo" button (opens `BriefCreateModal`)
+- **Instance cards:** Each card shows: title, status badge, progress (X/Y answered), dates (created, sent, completed), view count + "Ver visualizações" link, action buttons (copy link, send to client, open responses, archive/delete)
+- **Card click:** Opens `BriefResponsesModal` for that specific instance
+- **BriefViewsModal:** Triggered by "Ver visualizações" link — shows table of who viewed: contact name (resolved via `contact_links`), email, viewed_at timestamp
+- **Multi-brief support:** Multiple brief instances can exist per onboarding (one per project/fase)
 
 ### BriefResponsesModal
 
 Wide (max 1000px) two-column modal — Hub CSM view with internal notes layer:
-- **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + close
+- **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + "Exportar MD" + "Ajuda" (tour) + close
+- **"Exportar MD" button:** Downloads all responses as a Markdown file with sections, questions, and client answers formatted as headings and blockquotes
 - **Segmented progress bar:** one segment per section, width ∝ question count; green=complete, sky gradient=partial
 - **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; below sections: separator + **"Dúvidas" item** (`Icons.MessageCircle`, sky ring bg when active) with red badge counting unanswered `clientQuestions`
 - **Navigation state:** `activeView: 'section' | 'doubts'` + `activeSectionIdx`. Clicking a section sets `activeView='section'`; clicking "Dúvidas" sets `activeView='doubts'`. Footer Anterior/Próxima disabled when `activeView='doubts'`.
@@ -186,7 +197,7 @@ Accessible to admin/manager only:
 
 - `supabaseClient` — database queries and storage
 - `useBrief`, `useBriefTemplates`, `useBriefResponses` hooks
-- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2`, `Icons.GripVertical`, `Icons.Copy`, `Icons.Info`, `Icons.HelpCircle`, `Icons.Eye`, `Icons.EyeOff`, `Icons.GripVertical` (no direct lucide-react imports)
+- `Icons` registry — `Icons.FileQuestion`, `Icons.Pencil`, `Icons.Paperclip`, `Icons.ClipboardList`, `Icons.Send`, `Icons.Trash2`, `Icons.GripVertical`, `Icons.Copy`, `Icons.Info`, `Icons.HelpCircle`, `Icons.Eye`, `Icons.EyeOff`, `Icons.MessageCircle` (no direct lucide-react imports)
 - `react-hot-toast` — feedback on save/upload/errors
 - Storage bucket `project-briefs` with path prefix `brief-attachments/` (public bucket, signed URLs via service role)
 

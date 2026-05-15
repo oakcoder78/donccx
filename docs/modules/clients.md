@@ -44,6 +44,15 @@ The Clients module provides the primary user interface for managing customer rec
 - **Operacional** tab contains a secondary tab bar for sub‑tabs (Dados, Onboarding, …) and can open **RegistrarDadosModal**.
 - All components consume the `styles` object from `OnboardingStyles.js` for consistent layout and theming.
 
+### Contact Panel (ClientTabContatos)
+
+The Contacts tab (`ClientTabContatos`) displays client contacts with:
+- **Layout:** CSS grid with 3 fixed columns (Name/Role, Contact Info, Actions)
+- **Contact cards:** Show name, role, email, phone; badge for primary contact; action buttons (edit, delete, send email)
+- **Email integration:** Each contact has "Enviar e-mail" button (`Icons.Mail`) that opens `EmailComposerModal` with preselected recipient
+- **Drawer:** Enlarged contact drawer for better editing UX
+- **Vertical alignment:** Actions aligned with `self-center` for consistent positioning
+
 ## Data Flow
 1. `ClientsPage` uses a custom hook (e.g., `useClients`) to fetch client list from Supabase and stores it in local state.
 2. Clicking a client triggers navigation to `/clients/:id`.

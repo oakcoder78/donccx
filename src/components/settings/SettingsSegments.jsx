@@ -62,7 +62,7 @@ export function SettingsSegments() {
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4">
         <div className="space-y-2">
           {segments.map(seg => (
-            <div key={seg.id} className="flex items-center gap-3 py-1.5 border-b border-border-tertiary last:border-0">
+            <div key={seg.id} className="flex items-center gap-3 py-1.5">
               <span className="text-sm text-text-primary flex-1">{seg.name}</span>
               {isManager && (
                 <>
@@ -84,7 +84,7 @@ export function SettingsSegments() {
               )}
             </div>
           ))}
-          {segments.length === 0 && <p className="text-sm text-text-tertiary">Nenhum segmento cadastrado.</p>}
+          {segments.length === 0 && <p className="text-sm text-text-tertiary">Nenhum item.</p>}
         </div>
       </div>
 
