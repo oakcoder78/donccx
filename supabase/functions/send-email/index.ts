@@ -3,10 +3,12 @@
  *
  * Sends emails via Resend, merges template variables, logs results,
  * and creates an activity record for each successful send.
+ * Supports file attachments: frontend uploads to storage, edge downloads
+ * and sends base64-encoded via Resend.
  *
  * Secrets: RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY
- * Body: { template_id, recipients: [{ contact_id, client_id, email, variables: {} }], sent_by, from_mode? }
- * from_mode: 'csm' (default) | 'noreply' — only admin/manager can use 'noreply'
+ * Body: { template_id, recipients, sent_by, from_mode?, attachments? }
+ * attachments: [{ storage_path, file_name, file_size, file_type }]
  */
 
 // @ts-ignore
@@ -41,6 +43,20 @@ function mergeTags(template: string, variables: Record<string, string>): string 
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => variables[key] ?? `{{${key}}}`)
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ""
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i])
+  return btoa(binary)
+}
+
+interface Attachment {
+  storage_path: string
+  file_name: string
+  file_size: number
+  file_type: string
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin")
 
@@ -71,7 +87,7 @@ serve(async (req) => {
 
     // ── Parse body ────────────────────────────────────────────────────────────
     const body = await req.json()
-    const { template_id, recipients, sent_by, from_mode: rawFromMode } = body as {
+    const { template_id, recipients, sent_by, from_mode: rawFromMode, attachments = [] } = body as {
       template_id: string
       recipients: Array<{
         contact_id: number
@@ -81,6 +97,7 @@ serve(async (req) => {
       }>
       sent_by: string
       from_mode?: string
+      attachments?: Attachment[]
     }
 
     const from_mode: "csm" | "noreply" = rawFromMode === "noreply" ? "noreply" : "csm"
@@ -122,6 +139,23 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY")
     if (!resendKey) return json({ error: "RESEND_API_KEY not configured" }, 500)
 
+    // ── Download attachments from storage, encode for Resend ─────────────────
+    let resendAttachments: Array<{ filename: string; content: string; content_type: string }> | undefined
+    if (attachments.length > 0) {
+      resendAttachments = await Promise.all(attachments.map(async (att) => {
+        const fileRes = await fetch(`${sbUrl}/storage/v1/object/${att.storage_path}`, {
+          headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+        })
+        if (!fileRes.ok) throw new Error(`Failed to read attachment: ${att.file_name}`)
+        const buffer = await fileRes.arrayBuffer()
+        return {
+          filename:     att.file_name,
+          content:      arrayBufferToBase64(buffer),
+          content_type: att.file_type,
+        }
+      }))
+    }
+
     const logs: Array<{ contact_id: number; email: string; status: string; error?: string }> = []
     let sentCount   = 0
     let failedCount = 0
@@ -135,19 +169,22 @@ serve(async (req) => {
       let errorMsg: string | null = null
 
       try {
+        const sendBody: Record<string, unknown> = {
+          from:     fromAddress,
+          to:       recipient.email,
+          subject:  mergedSubject,
+          html:     mergedHtml,
+          reply_to: "suporte@donc.com.br",
+        }
+        if (resendAttachments) sendBody.attachments = resendAttachments
+
         const sendRes = await fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${resendKey}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            from:     fromAddress,
-            to:       recipient.email,
-            subject:  mergedSubject,
-            html:     mergedHtml,
-            reply_to: "suporte@donc.com.br",
-          }),
+          body: JSON.stringify(sendBody),
         })
         if (!sendRes.ok) {
           const errBody = await sendRes.text()
@@ -196,13 +233,13 @@ serve(async (req) => {
         } catch (_) { /* non-fatal */ }
 
         // ── Insert activity ───────────────────────────────────────────────
-        await fetch(`${sbUrl}/rest/v1/activities`, {
+        const actRes = await fetch(`${sbUrl}/rest/v1/activities`, {
           method: "POST",
           headers: {
             apikey: sbKey,
             Authorization: `Bearer ${sbKey}`,
             "Content-Type": "application/json",
-            Prefer: "return=minimal",
+            Prefer: "return=representation",
           },
           body: JSON.stringify({
             type:           "email",
@@ -213,6 +250,31 @@ serve(async (req) => {
             status:         "concluida",
           }),
         })
+        const actBody = await actRes.json()
+        const activityId: number | undefined = actBody?.[0]?.id
+
+        // ── Link attachments to activity ──────────────────────────────────
+        if (activityId && attachments.length > 0) {
+          await fetch(`${sbUrl}/rest/v1/activity_attachments`, {
+            method: "POST",
+            headers: {
+              apikey: sbKey,
+              Authorization: `Bearer ${sbKey}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify(attachments.map(a => ({
+              activity_id:  activityId,
+              client_id:    recipient.client_id,
+              uploaded_by:  sent_by,
+              file_name:    a.file_name,
+              file_size:    a.file_size,
+              file_type:    a.file_type,
+              storage_path: a.storage_path,
+              is_deleted:   false,
+            }))),
+          })
+        }
       } else {
         failedCount++
       }

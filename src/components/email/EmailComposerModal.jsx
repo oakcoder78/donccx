@@ -1,12 +1,39 @@
 import { useState, useEffect, useRef } from 'react'
+import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
+import { Icons } from '../../lib/icons'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 
 // ─── Merge tags ───────────────────────────────────────────────────────────────
 function mergeTags(template, vars) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`)
+}
+
+// ─── Attachment constants ──────────────────────────────────────────────────────
+const ALLOWED_TYPES = [
+  'application/pdf',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]
+const MAX_FILE_SIZE = 5 * 1024 * 1024
+const MAX_FILES = 5
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function sanitizeFileName(name) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
@@ -65,6 +92,11 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   // step 3 / send
   const [sending,        setSending]        = useState(false)
   const [result,         setResult]         = useState(null)
+
+  // attachments
+  const [attachments,    setAttachments]    = useState([])
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const fileInputRef = useRef(null)
 
   const debounceRef = useRef(null)
 
@@ -135,7 +167,17 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   }, [clientSearch, client])
 
   // ── Reset on close ──────────────────────────────────────────────────────────
-  function reset() {
+  async function reset() {
+    const sendSucceeded = result && !result.error
+    if (!sendSucceeded) {
+      for (const att of attachments) {
+        if (att.storagePath) {
+          try {
+            await supabase.storage.from('activity-attachments').remove([att.storagePath])
+          } catch (_) { /* non-fatal */ }
+        }
+      }
+    }
     setStep(1)
     setClient(null)
     setClientSearch('')
@@ -148,10 +190,11 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     setFromMode('csm')
     setResult(null)
     setSending(false)
+    setAttachments([])
   }
 
-  function handleClose() {
-    reset()
+  async function handleClose() {
+    await reset()
     onClose()
   }
 
@@ -176,6 +219,39 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       })
   }
 
+  // ── Attachment handlers ──────────────────────────────────────────────────────
+  function handleFileSelect(e) {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+
+    for (const file of files) {
+      if (attachments.length >= MAX_FILES) {
+        toast.error(`Máximo de ${MAX_FILES} arquivos.`)
+        break
+      }
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error(`Tipo não permitido: ${file.name}`)
+        continue
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} excede 5 MB.`)
+        continue
+      }
+      setAttachments(prev => [...prev, {
+        id: crypto.randomUUID(),
+        file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        storagePath: null,
+      }])
+    }
+  }
+
+  function removeAttachment(id) {
+    setAttachments(prev => prev.filter(a => a.id !== id))
+  }
+
   // ── Selected template ────────────────────────────────────────────────────────
   const selectedTemplate = templates.find(t => t.id === templateId)
 
@@ -195,6 +271,28 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   async function handleSend() {
     setSending(true)
     try {
+      // Upload attachments first
+      let attachmentMeta = []
+      if (attachments.length > 0) {
+        setUploadingFiles(true)
+        for (const att of attachments) {
+          const safeName = sanitizeFileName(att.name)
+          const storagePath = `${client.id}/email_temp/${Date.now()}_${safeName}`
+          const { error } = await supabase.storage
+            .from('activity-attachments')
+            .upload(storagePath, att.file)
+          if (error) throw new Error(`Falha ao enviar ${att.name}: ${error.message}`)
+          att.storagePath = storagePath
+          attachmentMeta.push({
+            storage_path: storagePath,
+            file_name:    att.name,
+            file_size:    att.size,
+            file_type:    att.type,
+          })
+        }
+        setUploadingFiles(false)
+      }
+
       const vars = buildVars()
       const recipients = selectedIds.map(id => {
         const link = contactLinks.find(l => l.contact_id === id)
@@ -221,6 +319,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
           recipients,
           sent_by:    user.id,
           from_mode:  fromMode,
+          attachments: attachmentMeta,
         }),
       })
 
@@ -230,6 +329,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       setResult({ error: String(err), sent: 0, failed: selectedIds.length, logs: [] })
     } finally {
       setSending(false)
+      setUploadingFiles(false)
     }
   }
 
@@ -487,6 +587,51 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                 </div>
               </div>
 
+              {/* Attachments */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
+                    Anexos {attachments.length > 0 && `(${attachments.length})`}
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={attachments.length >= MAX_FILES || sending || uploadingFiles}
+                    className="text-xs text-donc-sky hover:text-donc-sky/80 font-medium disabled:opacity-40"
+                  >
+                    <Icons.Paperclip className="w-3.5 h-3.5 inline mr-1" />
+                    Anexar arquivos
+                  </button>
+                </div>
+                {attachments.length > 0 && (
+                  <div className="space-y-1 mb-2">
+                    {attachments.map(att => (
+                      <div key={att.id}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-bg-tertiary rounded-md text-sm"
+                      >
+                        <Icons.Paperclip className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+                        <span className="flex-1 truncate text-text-primary min-w-0">{att.name}</span>
+                        <span className="text-xs text-text-tertiary whitespace-nowrap">{formatFileSize(att.size)}</span>
+                        {!sending && !uploadingFiles && (
+                          <button onClick={() => removeAttachment(att.id)}
+                            className="text-text-tertiary hover:text-red-500 p-0.5"
+                          >
+                            <Icons.X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* HTML preview */}
               {selectedTemplate && (
                 <div>
@@ -494,6 +639,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                   <div className="border border-border-tertiary rounded-md overflow-hidden" style={{ height: 320 }}>
                     <iframe
                       title="preview"
+                      sandbox=""
                       style={{ width: '100%', height: '100%', border: 'none' }}
                       srcDoc={mergeTags(selectedTemplate.html_body, buildVars())}
                     />
@@ -505,10 +651,10 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                 <Button variant="secondary" size="sm" onClick={() => setStep(2)}>← Voltar</Button>
                 <Button
                   variant="primary" size="sm"
-                  disabled={sending}
+                  disabled={sending || uploadingFiles}
                   onClick={handleSend}
                 >
-                  {sending ? 'Enviando...' : `Enviar para ${selectedIds.length} contato${selectedIds.length !== 1 ? 's' : ''}`}
+                  {uploadingFiles ? 'Enviando arquivos...' : sending ? 'Enviando...' : `Enviar para ${selectedIds.length} contato${selectedIds.length !== 1 ? 's' : ''}`}
                 </Button>
               </div>
             </>
