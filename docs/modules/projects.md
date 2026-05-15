@@ -155,7 +155,8 @@ Activities can be searched inline via `onboarding_activity_types` catalog. New t
 - Two layout modes:
   - **Global create** (no clientId) – shows a combobox to select a client.
   - **Contextual** (clientId supplied or editing) – shows a pill with the current client.
-- Form fields: type (segmented control), title, description/notes, responsible (CSM), start/end dates, status, and for onboarding/expansao projects, capability chip selection, kickoff date, and phase info.
+- Form fields: type (segmented control), title, description/notes, responsible (CSM), status, and for onboarding/expansao projects, capability chip selection.
+  - Note: For internal projects, start/end dates are available. For onboarding/expansao projects, dates are managed via the onboarding detail page (fase timeline), not in this modal.
 
 ### OnboardingDetailPage
 - **Header**: project title, client name, badges (type, context, situação, CSM), dates row (start date, Go-Live previsto).
@@ -189,11 +190,11 @@ Each top‑level key contains nested objects that map directly to JSX elements v
 4. **Go‑Live completion** – When Go‑Live is concluded, a task is auto‑created to review the client's stage.
 
 ## Dependencies
-- **Hooks**: `useAllProjects`, `useUpdateProjectStatus`, `useAllOnboardings`, `useClients`, `useProfiles`, `useCatalogItems`, `useOnboarding`, `useOnboardingCapabilities`, `useCreateOnboardingFlow`, `useUpdateOnboardingFlow`, `useCreateInternalProject`, `useUpdateProject`, `useOnboardingConfig`.
+- **Hooks**: `useAllProjects`, `useUpdateProjectStatus`, `useAllOnboardings`, `useClients`, `useProfiles`, `useCatalogItems`, `useOnboarding`, `useOnboardingCapabilities`, `useCreateOnboardingFlow`, `useUpdateOnboardingFlow`, `useCreateInternalProject`, `useUpdateProject`.
 - **UI components**: `PageHeader`, `Badge`, `PageSpinner`, `ActionIcons`, `DragDropContext`/`Droppable`/`Draggable`.
 - **Routing**: `useNavigate` for navigation from board cards and drawer items.
 - **Auth context**: `useAuth` for role‑based filter visibility.
-- **Constants**: `FASE_LABELS` for onboarding phase names.
+
 
 ## Integration Points
 - **Clients** – projects reference a `client_id`; client data is displayed on cards and used for filtering.

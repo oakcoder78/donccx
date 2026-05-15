@@ -28,6 +28,10 @@
 - **Fix:** `isExpired` removed from hook return (unused)
 - **Fix:** `Icons.Calendar` replaces direct lucide-react import in `ActivityDetailModal`
 
+### Projects
+- **Refactor:** Simplified `ProjectModal` — removed redundant fields for onboarding/expansao projects (kickoff_date, start_date, end_date are now managed via onboarding detail page; removed `FASE_LABELS` import and `useOnboardingConfig` dependency)
+- **Fix:** Restored missing mutation hooks in `ProjectModal` — `useCreateOnboardingFlow`, `useUpdateOnboardingFlow`, `useCreateInternalProject`, `useUpdateProject` were missing after refactor
+
 ## 2026-05-13
 
 *(See `docs/modules/brief.md` and `docs/modules/email.md` for full module history)*
