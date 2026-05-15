@@ -22,10 +22,10 @@ export function Drawer({ isOpen, onClose, title, children, width = 'max-w-lg', n
         />
       )}
       <div
-        className={`absolute top-[60px] right-4 ${width} bg-bg-primary rounded-lg shadow-xl pointer-events-auto transition-all duration-200 overflow-hidden ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}
+        className={`absolute top-[60px] bottom-4 right-4 ${width} bg-bg-primary rounded-lg shadow-xl pointer-events-auto transition-all duration-200 flex flex-col overflow-hidden ${visible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full'}`}
       >
-        <div className="flex items-center justify-between p-4 border-b border-border-tertiary">
-          <h2 className="text-base font-semibold text-text-primary">{title}</h2>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border-tertiary shrink-0">
+          <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
           <button
             onClick={onClose}
             className="text-text-tertiary hover:text-text-primary transition-colors p-1 rounded-md hover:bg-bg-tertiary"
@@ -35,7 +35,7 @@ export function Drawer({ isOpen, onClose, title, children, width = 'max-w-lg', n
             </svg>
           </button>
         </div>
-        <div className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 140px)' }}>
+        <div className="flex-1 px-4 py-3 overflow-y-auto overflow-x-hidden">
           {children}
         </div>
       </div>
