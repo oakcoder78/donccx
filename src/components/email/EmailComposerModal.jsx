@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { Icons } from '../../lib/icons'
+import { Drawer } from '../ui/Drawer'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 
@@ -644,10 +645,10 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
         </div>
       )}
 
-      {/* Preview modal */}
+      {/* Preview drawer */}
       {selectedTemplate && (subject.trim() || body.trim()) && (
-        <Modal isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" maxWidth="max-w-3xl">
-          <div className="space-y-3">
+        <Drawer isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview">
+          <div className="space-y-4">
             <div>
               <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Destinatários</p>
               <div className="flex flex-wrap gap-2">
@@ -678,11 +679,8 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                 />
               </div>
             </div>
-            <div className="flex justify-end pt-2">
-              <Button variant="primary" size="sm" onClick={() => setShowPreview(false)}>Fechar</Button>
-            </div>
           </div>
-        </Modal>
+        </Drawer>
       )}
 
     </Modal>
