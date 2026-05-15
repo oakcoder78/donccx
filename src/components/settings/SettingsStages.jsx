@@ -110,7 +110,9 @@ export function SettingsStages() {
         </div>
       </div>
 
-      {modal && <StageForm stage={modal === 'create' ? null : modal} onClose={() => setModal(null)} />}
+      {modal && (
+        <StageForm stage={modal === 'create' ? null : modal} onClose={() => setModal(null)} />
+      )}
     </div>
   )
 }

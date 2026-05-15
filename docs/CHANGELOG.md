@@ -2,33 +2,31 @@
 
 ## 2026-05-14
 
+### Brief Discovery Module
+- **Feature:** Header button renamed from "Brief" / "Editar Brief" to **"Questionários"** — opens `BriefPanelModal` containing `BriefPanel`
+- **Feature:** `BriefPanel` — modal listing all brief instances per onboarding, supports multiple briefs per project
+- **Feature:** `BriefViewsModal` — shows who viewed each brief (email, viewed_at, resolved contact name via `contact_links`)
+- **Feature:** Export MD — "Exportar MD" button in `BriefResponsesModal` header downloads responses as formatted Markdown
+- **Feature:** Badge on "Questionários" button shows count of unanswered client questions across all briefs for the onboarding
+- **Fix:** Back button navigation from project details properly returns to onboarding cover
+
+### Clients / Contacts
+- **Feature:** ClientTabContatos now shows badges and action buttons per contact (edit, delete, send email)
+- **Feature:** Contact list uses CSS grid with 3 fixed columns, vertical action alignment with self-center
+- **Feature:** Contact drawer enlarged for better UX
+
+### Email Module
+- **Feature:** `EmailComposerModal` integrated into ContactPanel — "Enviar e-mail" button per contact in ClientTabContatos
+
+### Settings
+- **Fix:** Manager role now allowed to edit settings components (previously admin-only)
+
 ### Google Calendar Sync
 - **Fix:** `useGoogleCalendarStatus` uses `.maybeSingle()` to avoid crash when no `user_google_configs` row exists (PGRST116 error handled gracefully — returns `connected: false`)
 - **Fix:** `ActivityModal` only syncs on relevant field changes — `shouldSyncWithCalendar()` checks `type === 'reuniao'` + changed `title | activity_date | activity_time`; guard `if (!isGoogleConnected) return`
 - **Fix:** `ActivityDetailModal` `handleSyncToGoogleCalendar` guarded with `if (!isConnected) return`
 - **Fix:** `isExpired` removed from hook return (unused)
 - **Fix:** `Icons.Calendar` replaces direct lucide-react import in `ActivityDetailModal`
-
-### Brief Discovery Module
-- **Feature:** `BriefTemplateEditorModal` redesign — modal 1080px, 2 columns, sortable sections/questions via `@dnd-kit`, pill toggles for "Obrigatória" / "Anexo", expandable note row, add-question dock with quick-type shortcuts
-- **Feature:** `BriefResponsesModal` redesign — 1000px 2-column, SVG progress rings, segmented bar, per-question CSM notes with `is_visible` toggle (navy/lime), edit mode for responses and attachments
-- **Feature:** `BriefHeaderButton` added to project header — "Criar Brief" (navy) / "Editar Brief" (sky); button sizes equalized via `minWidth: 110`
-- **Feature:** Visual cover page — client logo (100×100 circle), capability badges with dynamic colors, formatted date, CSM name, "Iniciar preenchimento" CTA; inline variant (80×80) for sidebar
-- **Feature:** Question-level attachments — `allow_attachment` toggle in template editor; drag-drop upload/delete on public page; signed URL preview (1h expiry via `get_attachment_urls` action)
-- **Feature:** `brief_csm_notes` table with per-question `question_id` — CSM internal notes (optionally visible to client via `is_visible` toggle)
-- **Feature:** Question `note` field with `Icons.HelpCircle` and CSS-only tooltip
-- **Feature:** Tour modal (4 steps, sessionStorage flag per instance)
-- **Feature:** `operation_type` in template editor fed from `catalog_items` where `type='servico'` via `useCatalog` hook — no longer hardcoded
-- **Feature:** Allow Hub users (internal profiles) to access brief via email link
-- **Fix:** Cover logo circular with fixed 100×100 (CoverPage) / 80×80 (CoverInline) dimensions, `objectFit: cover`
-- **Fix:** `brief-public` edge always returns client name/logo regardless of Hub user access level
-- **Fix:** Capabilities colored by `catalog_items.color`; `sent_at` with `created_at` fallback; date formatted as "Mês de Ano"
-- **Fix:** `brief_attachments` schema — `file_type text` + `uploaded_by uuid` columns added via migration
-
-### Email Module
-- **Feature:** `from_mode` field — CSM personal email or `noreply@donc.com.br`; admin/manager can override sender
-- **Feature:** `reply_to` field in template schema; `suporte@donc.com.br` set on every send via Resend API parameter
-- **Feature:** `csm_email` template variable
 
 ## 2026-05-13
 
@@ -38,10 +36,22 @@
 
 | Migration | Description |
 |-----------|-------------|
+| `20260522000000_brief_views.sql` | Creates `brief_views` table for tracking who viewed each brief |
+| `20260521000000_brief_csm_notes_allow_reply_to_client_questions.sql` | Broadens RLS to allow CSM reply on client questions |
+| `20260520000000_brief_csm_notes_client_questions.sql` | Adds `origin`, `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by` to `brief_csm_notes` |
+| `20260519000000_brief_csm_notes_question_id.sql` | Adds `question_id` column to `brief_csm_notes` for per-question notes |
+| `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table for CSM internal notes |
+| `20260517000000_fix_brief_attachments_schema.sql` | `file_type` + `uploaded_by` columns on `brief_attachments` |
+| `20260516000000_fix_email_module.sql` | Adds `from_mode` column to `email_logs` (`csm` or `noreply`) |
+| `20260515000000_add_brief_templates_flag.sql` | Adds `is_active` flag to `brief_templates` |
+| `20260514000000_brief_fix_onboarding_fk.sql` | Renames `brief_instances.fase_id` to `onboarding_id` + adds FK |
 | `20260513000000_project_brief.sql` | Creates brief module tables and storage bucket `project-briefs` |
-| `20260514000000_brief_fix_onboarding_fk.sql` | `fase_id` → `onboarding_id` rename + FK |
-| `20260515000000_add_brief_templates_flag.sql` | Adds `is_active` to `brief_templates` |
-| `20260516000000_fix_brief_attachments_schema.sql` | `file_type` + `uploaded_by` on `brief_attachments` |
-| `20260518000000_brief_csm_notes.sql` | Creates `brief_csm_notes` table |
-| `20260519000000_brief_csm_notes_question_id.sql` | `question_id` column on `brief_csm_notes` |
-| `20260512120000_user_google_configs.sql` | Google Calendar OAuth tokens table |
+| `20260512120000_user_google_configs.sql` | Creates `user_google_configs` table for Google Calendar OAuth tokens |
+| `20260512000000_add_email_templates_feature_flag.sql` | Adds `email_templates` feature flag (enabled for admin/manager) |
+| `20260511120000_fix_email_template_signature.sql` | Resizes signature columns to 60%/20%/20%; fixes font sizes |
+| `20260511000000_email_module.sql` | Creates `email_templates` and `email_logs` tables; adds `cargo` to profiles; seeds templates |
+| `20260509000000_add_allows_attachments.sql` | Adds `allows_attachments` column to `onboarding_fase_types` and `onboarding_fases`; updates `create_default_fases` function |
+| `20260508120000_trigger_situacao_geral_on_fases.sql` | Creates trigger to recalculate `situacao_geral` on fase status/planned_end changes |
+| `20260508000000_profiles_birth_date.sql` | Adds `birth_date` column to `profiles` table |
+| `20260506000101_add_monthly_sync_cron.sql` | Adds monthly sync cron job |
+| `20260505115123_add_health_snapshot_column.sql` | Adds `health_snapshot` column to `client_usage` table |

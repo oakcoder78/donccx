@@ -78,6 +78,14 @@ Authorization: Bearer <user_token>
 
 `mode` prop is `individual` (default); `preselectedClientId` / `preselectedContactId` allow direct invocation from client context.
 
+### EmailComposerModal (from ContactPanel — ClientTabContatos)
+
+Per-contact action button in the contacts list:
+- Each contact row in `ClientTabContatos` shows an "Enviar e-mail" button (`Icons.Mail`)
+- Clicking opens `EmailComposerModal` with `preselectedContactId` and `preselectedClientId` pre-filled
+- Flow: skip to Step 2 (Mensagem) since recipient is already selected
+- Uses same 3-step stepper as ClientDetail integration
+
 ## Data Flow
 
 ```

@@ -62,7 +62,7 @@ export function SettingsCatalog() {
   const solucoes = catalog.filter(c => c.type === 'solucao')
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-2xl space-y-4">
       <SettingsSectionHeader
         icon={CatalogIcon}
         title="Catálogos"
@@ -81,7 +81,7 @@ export function SettingsCatalog() {
           <h3 className="text-sm font-semibold text-text-primary mb-3">{label}</h3>
           <div className="space-y-2">
             {items.map(item => (
-              <div key={item.id} className="flex items-center gap-3">
+              <div key={item.id} className="flex items-center gap-3 py-1.5">
                 <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                 <span className="text-sm text-text-primary flex-1">{item.name}</span>
                 {isManager && (
