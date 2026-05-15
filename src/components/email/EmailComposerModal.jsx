@@ -6,12 +6,10 @@ import { Icons } from '../../lib/icons'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 
-// ─── Merge tags ───────────────────────────────────────────────────────────────
 function mergeTags(template, vars) {
   return template.replace(/\{\{(\w+)\}\}/g, (_, k) => vars[k] ?? `{{${k}}}`)
 }
 
-// ─── Attachment constants ──────────────────────────────────────────────────────
 const ALLOWED_TYPES = [
   'application/pdf',
   'image/jpeg', 'image/png', 'image/gif', 'image/webp',
@@ -36,71 +34,36 @@ function sanitizeFileName(name) {
     .replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
-// ─── Stepper ──────────────────────────────────────────────────────────────────
-function Stepper({ step }) {
-  const steps = ['Destinatário', 'Mensagem', 'Preview e envio']
-  return (
-    <div className="flex items-center gap-0 mb-6">
-      {steps.map((label, i) => {
-        const idx   = i + 1
-        const done  = idx < step
-        const active = idx === step
-        return (
-          <div key={label} className="flex items-center gap-0">
-            <div className="flex flex-col items-center">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
-                ${done  ? 'bg-donc-navy text-white' : ''}
-                ${active ? 'bg-donc-sky text-white' : ''}
-                ${!done && !active ? 'bg-bg-tertiary text-text-tertiary' : ''}`}>
-                {done ? '✓' : idx}
-              </div>
-              <span className={`text-xs mt-1 ${active ? 'text-donc-navy font-semibold' : 'text-text-tertiary'}`}>
-                {label}
-              </span>
-            </div>
-            {i < steps.length - 1 && (
-              <div className={`h-px w-12 mx-1 mb-5 ${done ? 'bg-donc-navy' : 'bg-border-tertiary'}`} />
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ─── Main component ───────────────────────────────────────────────────────────
 export function EmailComposerModal({ isOpen, onClose, mode = 'individual', preselectedClientId, preselectedContactId }) {
   const { user } = useAuth()
-  const [step, setStep]           = useState(1)
-  const [profile, setProfile]     = useState(null)
+  const [profile, setProfile]           = useState(null)
 
-  // step 1
   const [clientSearch,   setClientSearch]   = useState('')
   const [clientResults,  setClientResults]  = useState([])
   const [client,         setClient]         = useState(null)
   const [contactLinks,   setContactLinks]   = useState([])
   const [selectedIds,    setSelectedIds]    = useState([])
   const [loadingContacts, setLoadingContacts] = useState(false)
+  const [contactSearch,  setContactSearch]  = useState('')
 
-  // step 2
   const [templates,      setTemplates]      = useState([])
   const [templateId,     setTemplateId]     = useState('')
   const [subject,        setSubject]        = useState('')
   const [body,           setBody]           = useState('')
   const [fromMode,       setFromMode]       = useState('csm')
 
-  // step 3 / send
   const [sending,        setSending]        = useState(false)
   const [result,         setResult]         = useState(null)
 
-  // attachments
   const [attachments,    setAttachments]    = useState([])
   const [uploadingFiles, setUploadingFiles] = useState(false)
   const fileInputRef = useRef(null)
 
-  const debounceRef = useRef(null)
+  const [showPreview, setShowPreview] = useState(false)
 
-  // ── Load profile ────────────────────────────────────────────────────────────
+  const debounceRef = useRef(null)
+  const contactSearchRef = useRef(null)
+
   useEffect(() => {
     if (!user || !isOpen) return
     supabase
@@ -111,14 +74,12 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       .then(({ data }) => setProfile(data))
   }, [user, isOpen])
 
-  // ── Auto-select noreply when CSM has invalid domain ─────────────────────────
   useEffect(() => {
     if (profile && !profile.email?.endsWith('@donc.com.br')) {
       setFromMode('noreply')
     }
   }, [profile])
 
-  // ── Load templates ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return
     supabase
@@ -128,7 +89,20 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       .then(({ data }) => setTemplates(data || []))
   }, [isOpen])
 
-  // ── Preselect client ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isOpen || !preselectedContactId) return
+    supabase
+      .from('contacts')
+      .select('id, name, email, contact_emails(email, is_primary)')
+      .eq('id', preselectedContactId)
+      .single()
+      .then(({ data }) => {
+        if (data && !selectedIds.includes(data.id)) {
+          setSelectedIds([data.id])
+        }
+      })
+  }, [isOpen, preselectedContactId])
+
   useEffect(() => {
     if (!isOpen || !preselectedClientId) return
     supabase
@@ -139,9 +113,8 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       .then(({ data }) => { if (data) setClient(data) })
   }, [isOpen, preselectedClientId])
 
-  // ── Load contacts when client set ───────────────────────────────────────────
   useEffect(() => {
-    if (!client) { setContactLinks([]); setSelectedIds([]); return }
+    if (!client) { setContactLinks([]); return }
     setLoadingContacts(true)
     supabase
       .from('contact_links')
@@ -149,14 +122,10 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       .eq('client_id', client.id)
       .then(({ data }) => {
         setContactLinks(data || [])
-        if (preselectedContactId) {
-          setSelectedIds([preselectedContactId])
-        }
         setLoadingContacts(false)
       })
-  }, [client, preselectedContactId])
+  }, [client])
 
-  // ── Client search debounce ──────────────────────────────────────────────────
   useEffect(() => {
     if (!clientSearch.trim() || client) { setClientResults([]); return }
     clearTimeout(debounceRef.current)
@@ -173,7 +142,6 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     return () => clearTimeout(debounceRef.current)
   }, [clientSearch, client])
 
-  // ── Reset on close ──────────────────────────────────────────────────────────
   async function reset() {
     const sendSucceeded = result && !result.error
     if (!sendSucceeded) {
@@ -181,16 +149,16 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
         if (att.storagePath) {
           try {
             await supabase.storage.from('activity-attachments').remove([att.storagePath])
-          } catch (_) { /* non-fatal */ }
+          } catch (_) { }
         }
       }
     }
-    setStep(1)
     setClient(null)
     setClientSearch('')
     setClientResults([])
     setContactLinks([])
     setSelectedIds([])
+    setContactSearch('')
     setTemplateId('')
     setSubject('')
     setBody('')
@@ -198,6 +166,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     setResult(null)
     setSending(false)
     setAttachments([])
+    setShowPreview(false)
   }
 
   async function handleClose() {
@@ -205,7 +174,6 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     onClose()
   }
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
   function getContactEmail(link) {
     const emails = link.contacts?.contact_emails || []
     const primary = emails.find(e => e.is_primary)
@@ -218,15 +186,24 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     )
   }
 
-  function canAdvanceStep1() {
-    return selectedIds.length > 0 &&
-      selectedIds.every(id => {
-        const link = contactLinks.find(l => l.contact_id === id)
-        return !!getContactEmail(link)
-      })
+  function selectContact(id) {
+    if (!selectedIds.includes(id)) {
+      setSelectedIds(prev => [...prev, id])
+    }
+    setContactSearch('')
+    contactSearchRef.current?.focus()
   }
 
-  // ── Attachment handlers ──────────────────────────────────────────────────────
+  const filteredContacts = contactSearch.trim()
+    ? contactLinks.filter(link => {
+        const c = link.contacts || {}
+        const name = (c.name || '').toLowerCase()
+        const email = getContactEmail(link).toLowerCase()
+        const q = contactSearch.toLowerCase()
+        return name.includes(q) || email.includes(q)
+      })
+    : contactLinks.filter(link => !selectedIds.includes(link.contact_id))
+
   function handleFileSelect(e) {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
@@ -259,10 +236,8 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     setAttachments(prev => prev.filter(a => a.id !== id))
   }
 
-  // ── Selected template ────────────────────────────────────────────────────────
   const selectedTemplate = templates.find(t => t.id === templateId)
 
-  // ── Merge vars for preview ───────────────────────────────────────────────────
   function buildVars() {
     return {
       assunto:        subject,
@@ -274,11 +249,9 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     }
   }
 
-  // ── Send ─────────────────────────────────────────────────────────────────────
   async function handleSend() {
     setSending(true)
     try {
-      // Upload attachments first
       let attachmentMeta = []
       if (attachments.length > 0) {
         setUploadingFiles(true)
@@ -340,19 +313,57 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
     }
   }
 
+  const canSend = selectedIds.length > 0 && templateId && subject.trim() && body.trim() && client
+  const allRecipientsHaveEmail = selectedIds.every(id => {
+    const link = contactLinks.find(l => l.contact_id === id)
+    return !!getContactEmail(link)
+  })
+
   if (!isOpen) return null
 
-  // ── Render steps ─────────────────────────────────────────────────────────────
   const clientDisplayName = client ? (client.fantasy_name || client.name) : ''
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Enviar e-mail" maxWidth="max-w-2xl">
-      <Stepper step={step} />
+    <Modal isOpen={isOpen} onClose={handleClose} title="Compor e-mail" maxWidth="max-w-2xl">
 
-      {/* ── Step 1: Destinatário ───────────────────────────────────────────── */}
-      {step === 1 && (
+      {result ? (
         <div className="space-y-4">
-          {/* Client */}
+          {result.error ? (
+            <div className="text-center py-8">
+              <Icons.XCircle className="w-10 h-10 text-red-500 mx-auto mb-3" />
+              <p className="text-sm text-red-600 mb-4">{result.error}</p>
+              <div className="flex justify-center gap-2">
+                <Button variant="secondary" size="sm" onClick={handleClose}>Fechar</Button>
+                <Button variant="primary" size="sm" onClick={() => setResult(null)}>Tentar novamente</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+                <Icons.Check className="w-5 h-5 text-green-600" />
+              </div>
+              <p className="text-base font-semibold text-donc-navy mb-1">
+                {result.sent} e-mail{result.sent !== 1 ? 's' : ''} enviado{result.sent !== 1 ? 's' : ''}!
+              </p>
+              {result.failed > 0 && (
+                <div className="text-sm text-red-600 mt-2">
+                  {result.failed} falha{result.failed !== 1 ? 's' : ''}:
+                  {result.logs?.filter(l => l.status === 'failed').map((l, i) => (
+                    <div key={i} className="text-xs mt-1">{l.email}: {l.error}</div>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-center gap-2 mt-4">
+                <Button variant="secondary" size="sm" onClick={handleClose}>Fechar</Button>
+                <Button variant="primary" size="sm" onClick={() => { reset(); setShowPreview(false) }}>Enviar outro</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+
+          {/* Empresa */}
           <div>
             <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
               Empresa
@@ -361,7 +372,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
               <div className="flex items-center justify-between px-3 py-2 bg-bg-tertiary rounded-md">
                 <span className="text-sm font-medium text-text-primary">{clientDisplayName}</span>
                 {!preselectedClientId && (
-                  <button onClick={() => { setClient(null); setContactLinks([]); setSelectedIds([]) }}
+                  <button onClick={() => { setClient(null); setContactLinks([]); setSelectedIds([]); setContactSearch('') }}
                     className="text-xs text-text-tertiary hover:text-text-primary">Alterar</button>
                 )}
               </div>
@@ -375,7 +386,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                   className="w-full px-3 py-2 border border-border-tertiary rounded-md text-sm bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
                 />
                 {clientResults.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-bg-primary border border-border-tertiary rounded-md shadow-lg">
+                  <div className="absolute z-10 w-full mt-1 bg-bg-primary border border-border-tertiary rounded-md shadow-lg max-h-48 overflow-y-auto">
                     {clientResults.map(c => (
                       <button
                         key={c.id}
@@ -392,61 +403,75 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             )}
           </div>
 
-          {/* Contacts */}
+          {/* Para */}
           {client && (
             <div>
               <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
-                Destinatários
+                Para
               </label>
               {loadingContacts ? (
                 <p className="text-sm text-text-tertiary">Carregando contatos...</p>
-              ) : contactLinks.length === 0 ? (
-                <p className="text-sm text-text-tertiary">Nenhum contato vinculado.</p>
               ) : (
-                <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {contactLinks.map(link => {
-                    const c     = link.contacts || {}
-                    const email = getContactEmail(link)
-                    const sel   = selectedIds.includes(link.contact_id)
-                    return (
-                      <label key={link.contact_id}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer border transition-colors
-                          ${sel ? 'border-donc-sky bg-donc-sky/5' : 'border-border-tertiary hover:bg-bg-tertiary'}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={sel}
-                          onChange={() => toggleContact(link.contact_id)}
-                          className="accent-donc-sky"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-text-primary truncate">{c.name}</div>
-                          <div className="text-xs text-text-tertiary truncate">
-                            {email || <span className="text-amber-500">Sem e-mail cadastrado</span>}
-                          </div>
-                        </div>
-                        {link.papel && (
-                          <span className="text-xs text-text-tertiary">{link.papel}</span>
-                        )}
-                      </label>
-                    )
-                  })}
+                <div className="relative">
+                  <div className="flex flex-wrap items-center gap-1 px-2 py-1.5 border border-border-tertiary rounded-md bg-bg-primary min-h-[38px] focus-within:border-donc-sky">
+                    {selectedIds.map(id => {
+                      const link = contactLinks.find(l => l.contact_id === id)
+                      const c = link?.contacts || {}
+                      const email = getContactEmail(link)
+                      return (
+                        <span key={id}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 bg-donc-sky/10 text-donc-navy text-xs rounded-full border border-donc-sky/20"
+                        >
+                          <span className="truncate max-w-[140px]">{c.name || email}</span>
+                          <button onClick={() => toggleContact(id)}
+                            className="hover:text-red-500 shrink-0"
+                          >
+                            <Icons.X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )
+                    })}
+                    <input
+                      ref={contactSearchRef}
+                      type="text"
+                      value={contactSearch}
+                      onChange={e => setContactSearch(e.target.value)}
+                      placeholder={selectedIds.length === 0 ? 'Digite para buscar contatos...' : 'Adicionar mais...'}
+                      className="flex-1 min-w-[120px] text-sm bg-transparent text-text-primary outline-none border-none p-0.5"
+                    />
+                  </div>
+                  {contactSearch.trim() && filteredContacts.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-bg-primary border border-border-tertiary rounded-md shadow-lg max-h-48 overflow-y-auto">
+                      {filteredContacts.map(link => {
+                        const c = link.contacts || {}
+                        const email = getContactEmail(link)
+                        return (
+                          <button
+                            key={link.contact_id}
+                            onClick={() => selectContact(link.contact_id)}
+                            disabled={!email}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-bg-tertiary text-text-primary disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-between"
+                          >
+                            <div className="min-w-0">
+                              <div className="font-medium truncate">{c.name || 'Sem nome'}</div>
+                              <div className="text-xs text-text-tertiary truncate">
+                                {email || <span className="text-amber-500">Sem e-mail</span>}
+                              </div>
+                            </div>
+                            {link.papel && <span className="text-xs text-text-tertiary ml-2 shrink-0">{link.papel}</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {contactLinks.length === 0 && (
+                    <p className="text-xs text-text-tertiary mt-1">Nenhum contato vinculado a esta empresa.</p>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          <div className="flex justify-end pt-2">
-            <Button variant="primary" size="sm" disabled={!canAdvanceStep1()} onClick={() => setStep(2)}>
-              Próximo →
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Step 2: Mensagem ───────────────────────────────────────────────── */}
-      {step === 2 && (
-        <div className="space-y-4">
           {/* Template */}
           <div>
             <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
@@ -464,7 +489,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             </select>
           </div>
 
-          {/* Subject */}
+          {/* Assunto */}
           <div>
             <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
               Assunto
@@ -478,7 +503,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             />
           </div>
 
-          {/* Body */}
+          {/* Mensagem */}
           <div>
             <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
               Mensagem
@@ -492,7 +517,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             />
           </div>
 
-          {/* Attachments */}
+          {/* Anexos */}
           <div>
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
@@ -547,7 +572,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             </div>
           )}
 
-          {/* Remetente — só para admin/manager */}
+          {/* Remetente */}
           {(profile?.role === 'admin' || profile?.role === 'manager') && (
             <div>
               <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
@@ -583,7 +608,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             </div>
           )}
 
-          {/* CSM info preview */}
+          {/* Assinatura */}
           {profile && (
             <div className="bg-bg-tertiary rounded-md px-3 py-2 text-xs text-text-tertiary">
               Assinatura: <span className="text-text-primary font-medium">{profile.name}</span>
@@ -593,92 +618,72 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             </div>
           )}
 
-          <div className="flex justify-between pt-2">
-            <Button variant="secondary" size="sm" onClick={() => setStep(1)}>← Voltar</Button>
-            <Button
-              variant="primary" size="sm"
-              disabled={!templateId || !subject.trim() || !body.trim()}
-              onClick={() => setStep(3)}
-            >
-              Visualizar →
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-2 border-t border-border-tertiary">
+            <Button variant="secondary" size="sm" onClick={handleClose}>
+              Cancelar
             </Button>
-          </div>
-        </div>
-      )}
-
-      {/* ── Step 3: Preview + envio ────────────────────────────────────────── */}
-      {step === 3 && (
-        <div className="space-y-4">
-          {result ? (
-            /* Post-send result */
-            <div className="text-center py-4">
-              {result.error ? (
-                <p className="text-sm text-red-600">Erro: {result.error}</p>
-              ) : (
-                <>
-                  <p className="text-base font-semibold text-donc-navy mb-1">
-                    {result.sent} e-mail{result.sent !== 1 ? 's' : ''} enviado{result.sent !== 1 ? 's' : ''}!
-                  </p>
-                  {result.failed > 0 && (
-                    <div className="text-sm text-red-600 mt-2">
-                      {result.failed} falha{result.failed !== 1 ? 's' : ''}:
-                      {result.logs?.filter(l => l.status === 'failed').map((l, i) => (
-                        <div key={i} className="text-xs mt-1">{l.email}: {l.error}</div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-              <Button variant="primary" size="sm" className="mt-4" onClick={handleClose}>Fechar</Button>
-            </div>
-          ) : (
-            <>
-              {/* Recipients list */}
-              <div>
-                <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Destinatários</p>
-                <div className="flex flex-wrap gap-2">
-                  {selectedIds.map(id => {
-                    const link  = contactLinks.find(l => l.contact_id === id)
-                    const name  = link?.contacts?.name || ''
-                    const email = getContactEmail(link)
-                    return (
-                      <span key={id} className="px-2 py-0.5 bg-bg-tertiary rounded text-xs text-text-primary">
-                        {name} &lt;{email}&gt;
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* HTML preview */}
-              {selectedTemplate && (
-                <div>
-                  <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Preview</p>
-                  <div className="border border-border-tertiary rounded-md overflow-hidden" style={{ height: 320 }}>
-                    <iframe
-                      title="preview"
-                      sandbox=""
-                      style={{ width: '100%', height: '100%', border: 'none' }}
-                      srcDoc={mergeTags(selectedTemplate.html_body, buildVars())}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-between pt-2">
-                <Button variant="secondary" size="sm" onClick={() => setStep(2)}>← Voltar</Button>
-                <Button
-                  variant="primary" size="sm"
-                  disabled={sending || uploadingFiles}
-                  onClick={handleSend}
-                >
-                  {uploadingFiles ? 'Enviando arquivos...' : sending ? 'Enviando...' : `Enviar para ${selectedIds.length} contato${selectedIds.length !== 1 ? 's' : ''}`}
+            <div className="flex items-center gap-2">
+              {selectedTemplate && (subject.trim() || body.trim()) && (
+                <Button variant="secondary" size="sm" onClick={() => setShowPreview(true)}>
+                  <Icons.Eye className="w-3.5 h-3.5 mr-1" />
+                  Preview
                 </Button>
-              </div>
-            </>
-          )}
+              )}
+              <Button
+                variant="primary" size="sm"
+                disabled={!canSend || !allRecipientsHaveEmail || sending || uploadingFiles}
+                onClick={handleSend}
+              >
+                {uploadingFiles ? 'Enviando arquivos...' : sending ? 'Enviando...' : 'Enviar'}
+              </Button>
+            </div>
+          </div>
+
         </div>
       )}
+
+      {/* Preview modal */}
+      {selectedTemplate && (subject.trim() || body.trim()) && (
+        <Modal isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" maxWidth="max-w-3xl">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Destinatários</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedIds.map(id => {
+                  const link  = contactLinks.find(l => l.contact_id === id)
+                  const name  = link?.contacts?.name || ''
+                  const email = getContactEmail(link)
+                  return (
+                    <span key={id} className="px-2 py-0.5 bg-bg-tertiary rounded text-xs text-text-primary">
+                      {name} &lt;{email}&gt;
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Assunto</p>
+              <p className="text-sm text-text-primary">{subject}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Mensagem</p>
+              <div className="border border-border-tertiary rounded-md overflow-hidden" style={{ height: 400 }}>
+                <iframe
+                  title="preview"
+                  sandbox=""
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  srcDoc={mergeTags(selectedTemplate.html_body, buildVars())}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <Button variant="primary" size="sm" onClick={() => setShowPreview(false)}>Fechar</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
     </Modal>
   )
 }
