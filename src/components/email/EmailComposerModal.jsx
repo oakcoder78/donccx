@@ -372,10 +372,10 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             {client ? (
               <div className="flex items-center justify-between px-3 py-2 bg-bg-tertiary rounded-md">
                 <span className="text-sm font-medium text-text-primary">{clientDisplayName}</span>
-                {!preselectedClientId && (
-                  <button onClick={() => { setClient(null); setContactLinks([]); setSelectedIds([]); setContactSearch('') }}
-                    className="text-xs text-text-tertiary hover:text-text-primary">Alterar</button>
-                )}
+                <button onClick={() => { setClient(null); setContactLinks([]); setSelectedIds([]); setContactSearch('') }}
+                  className="p-1 text-text-tertiary hover:text-donc-sky rounded transition-colors" title="Trocar empresa">
+                  <Icons.RefreshCw size={14} />
+                </button>
               </div>
             ) : (
               <div className="relative">

@@ -5,6 +5,7 @@ import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { ContactModal } from '../../contacts/ContactModal'
 import { ContactPanel } from '../../contacts/ContactPanel'
+import { EmailComposerModal } from '../../email/EmailComposerModal'
 import { useUnlinkContact } from '../../../hooks/useContacts'
 import { formatPhone } from '../../../lib/formatPhone'
 
@@ -103,12 +104,12 @@ function ContactCard({ link, onEdit, onUnlink, isSelected, onClick }) {
           </a>
         )}
         {c.email && (
-          <a href={`mailto:${c.email}`}
+          <button onClick={() => setEmailContactId(link.contact_id)}
             className="p-1.5 rounded-md hover:bg-bg-secondary text-text-secondary transition-colors"
-            title="E-mail"
+            title="Compor e-mail"
           >
             <Icons.Mail className="w-4 h-4" />
-          </a>
+          </button>
         )}
         <button
           onClick={() => onEdit(link)}
@@ -194,6 +195,7 @@ export function ClientTabContatos({ client }) {
   const [showCreate, setShowCreate]         = useState(false)
   const [editingContact, setEditingContact] = useState(null)
   const [selectedLink, setSelectedLink]     = useState(null)
+  const [emailContactId, setEmailContactId] = useState(null)
   const unlinkContact = useUnlinkContact()
 
   const links = useMemo(() => {
@@ -295,6 +297,14 @@ export function ClientTabContatos({ client }) {
       {editingContact && (
         <ContactModal contact={editingContact} onClose={() => setEditingContact(null)} />
       )}
+
+      <EmailComposerModal
+        isOpen={!!emailContactId}
+        onClose={() => setEmailContactId(null)}
+        mode="individual"
+        preselectedClientId={client.id}
+        preselectedContactId={emailContactId}
+      />
     </div>
   )
 }
