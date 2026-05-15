@@ -7,11 +7,12 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 ## Responsibilities
 
 - **Template management** — CRUD interface for HTML email templates with variable support, image upload, and live preview. Admin-only.
-- **Email composition** — 3-step modal (recipient selection → message → preview & send) accessible from the client detail page.
+- **Email composition** — single-screen composer with chips-style recipient input (Gmail-like), template/subject/body fields, attachment upload, optional preview modal.
 - **Delivery** — sends via Resend API through a Supabase Edge Function.
 - **Logging** — every send attempt is recorded in `email_logs` for auditability.
 - **Activity creation** — successful sends generate a `type=email` activity on the client timeline.
 - **Role-based sender** — `from_mode` controls whether the email appears to come from the CSM or from `noreply@donc.com.br`.
+- **Domain validation** — CSM sender requires profile email ending in `@donc.com.br`. Invalid domain disables the radio button, auto-selects noreply, and shows a warning. Edge function returns 400 on invalid domain.
 - **Reply-to** — all emails include `reply_to: suporte@donc.com.br` set via Resend API parameter.
 - **Attachments** — files up to 5 MB each (max 5) uploaded to `activity-attachments` bucket, sent via Resend, and persisted as `activity_attachments` records linked to the auto-created activity. Reuses the existing activity attachment system — files appear in `ActivityDetailModal`, `ClientSubAnexos`, and the client timeline.
 
@@ -20,9 +21,12 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 | File | Role |
 |------|------|
 | `src/components/email/EmailTemplatesManager.jsx` | Settings page — template list, HTML editor, variable management, preview |
-| `src/components/email/EmailComposerModal.jsx` | Modal — 3-step composer: recipients, message, preview & send |
+| `src/components/email/EmailComposerModal.jsx` | Composer — single-screen: chips Para:, company swap, template, attachments, preview modal |
 | `src/components/clients/ClientDetail.jsx` | Integrates the send button and modal |
-| `supabase/functions/send-email/index.ts` | Edge Function — Resend API, template merge, logging, activity creation |
+| `src/components/clients/tabs/ClientTabContatos.jsx` | Email button per contact — opens composer with preselected contact |
+| `src/components/contacts/ContactPanel.jsx` | Email button in contact side panel |
+| `src/components/contacts/ContactsPage.jsx` | Email button in contacts table |
+| `supabase/functions/send-email/index.ts` | Edge Function — Resend API, template merge, logging, activity creation, attachment download+base64 |
 
 ## Data Interaction
 
@@ -75,56 +79,75 @@ Authorization: Bearer <user_token>
 - New templates get a random UUID until saved (upsert by `id`)
 - Admin-only access enforced by `managerOnly` flag in `SettingsPage` menu
 
-### EmailComposerModal (from ClientDetail)
+### EmailComposerModal — Single-Screen Composer
 
-3-step stepper:
+No stepper. All fields visible on one screen. Modal width adapts to preview state.
 
-1. **Destinatário** — search client (if not preselected), select contact checkboxes from client contact links
-2. **Mensagem** — select template, fill subject and body, optionally choose `from_mode` (admin/manager only)
-3. **Preview e envio** — HTML iframe preview, recipient list, send button, post-send result
+**Layout (top to bottom):**
+
+1. **Empresa** — auto-selected via `preselectedClientId`, or searchable dropdown. `RefreshCw` icon button to change company.
+2. **Para:** — Gmail-style chips input:
+   - Selected contacts show as rounded pills with `×` remove button
+   - Text input filters contacts from current company (by name or email)
+   - Dropdown shows matching contacts; disabled entries indicate missing email
+   - `preselectedContactId` pre-fills the chip
+3. **Template** — select from active templates
+4. **Assunto** — text input
+5. **Mensagem** — textarea
+6. **Anexos** — file picker (PDF/DOC/XLS/IMG, max 5 files, 5 MB each), uploaded on send
+7. **Domain warning** — amber banner if profile email is not `@donc.com.br`
+8. **Remetente** — radio group (admin/manager only):
+   - `Meu e-mail (user@donc.com.br)` — disabled if domain invalid
+   - `noreply@donc.com.br` — auto-selected when domain invalid
+9. **Assinatura** — profile name, cargo, phone, email (read-only preview)
+10. **Actions** — `[Preview]` (optional, opens modal) `[Enviar]`
+
+**Preview:** Opens a `Modal` (`max-w-3xl`) showing recipients, subject, and HTML iframe. Not a required step.
+
+**Result:** Shown inline (replaces form) after send:
+- Success: green check, count, `[Fechar]` `[Enviar outro]`
+- Error: red error message, `[Fechar]` `[Tentar novamente]`
 
 `mode` prop is `individual` (default); `preselectedClientId` / `preselectedContactId` allow direct invocation from client context.
 
-### EmailComposerModal (from ContactPanel — ClientTabContatos)
+### Entry Points
 
-Per-contact action button in the contacts list:
-- Each contact row in `ClientTabContatos` shows an "Enviar e-mail" button (`Icons.Mail`)
-- Clicking opens `EmailComposerModal` with `preselectedContactId` and `preselectedClientId` pre-filled
-- Flow: skip to Step 2 (Mensagem) since recipient is already selected
-- Uses same 3-step stepper as ClientDetail integration
+| Entry Point | Source | Preselected |
+|------------|--------|-------------|
+| Client Detail | `ClientDetail.jsx` | `preselectedClientId` |
+| Contact Side Panel | `ContactPanel.jsx` | Both |
+| Contacts Page | `ContactsPage.jsx` | Both |
+| Contacts Tab | `ClientTabContatos.jsx` | Both |
 
 ## Data Flow
 
 ```
-User opens modal
+User opens modal (from ClientDetail / ContactPanel / ClientTabContatos)
        │
        ▼
-Step 1: selects client + contacts
+Fills form: company, Para: chips, template, subject, message, attachments
+       │
+       ├── [Preview] optional → opens Modal with recipients, subject, iframe
        │
        ▼
-Step 2: picks template, fills {{assunto}}, {{corpo_mensagem}}
-       │
-       ▼
-Step 3: preview (local mergeTags)
-       │
-       ▼
-handleSend() → fetch /functions/v1/send-email (with attachments metadata)
+handleSend() → upload attachments → fetch /functions/v1/send-email (with attachments metadata)
        │
        ▼
 Edge function:
   1. Auth (user token)
   2. Fetch profile (sender name/email/role)
   3. Validate from_mode permission (admin/manager required for "noreply")
-  4. Resolve from_address
-  5. Fetch template from DB
-  6. Download attachments from storage → base64 encode (once, before recipient loop)
-  7. Loop recipients:
+  4. Validate CSM domain: if `from_mode='csm'` and email not `@donc.com.br` → return 400
+  5. Resolve from_address
+  6. Fetch template from DB
+  7. Download attachments from storage → base64 encode (once, before recipient loop)
+  8. Loop recipients:
         a. mergeTags(template, vars)
         b. POST /emails (Resend) — includes attachments if present
         c. INSERT email_log
         d. INSERT activity — `Prefer: return=representation` to capture ID
         e. INSERT activity_attachments (if activity created + files attached)
-  8. Return { sent, failed, logs }
+  9. Return { sent, failed, logs }
 ```
 
 ## Dependencies
@@ -137,7 +160,7 @@ Edge function:
 
 ## Main User Flows
 
-1. **CSM sends email** — clicks "Enviar e-mail" on client page → selects contacts → picks `csm_individual` template → writes message → previews → sends → activity appears on client timeline
+1. **CSM sends email** — clicks "Enviar e-mail" → composer opens → selects/confirms company → types contact name in "Para:" (chips) → picks template → writes subject + body → attaches files (optional) → [Preview] (optional) → [Enviar] → activity + attachments appear on client timeline
 2. **Admin manages templates** — navigates to Settings > Templates de E-mail → creates or edits template → inserts variables → uploads images → previews → saves
 
 ## Attachments
@@ -152,7 +175,7 @@ Edge function:
 
 ### Upload flow
 
-1. User selects files in Step 3 (Preview) — validated client-side (type, size, count)
+1. User selects files in Step 2 (Mensagem) — validated client-side (type, size, count)
 2. On send click, files upload to bucket `activity-attachments/{clientId}/email_temp/{timestamp}_{filename}`
 3. Edge function downloads from storage (service role), base64-encodes, sends via Resend
 4. On send success: edge function creates `activity_attachments` records linked to the auto-created activity
@@ -168,15 +191,18 @@ No changes needed — the existing `activity_attachments` infrastructure renders
 
 ## Edge Cases
 
-- Contact without email registered: shows amber warning in step 1, blocked from advancing
+- Contact without email registered: shows amber warning in step 1, blocked from selecting
 - `from_mode=noreply` by non-admin/manager: edge function returns `403`
+- CSM without `@donc.com.br` email: radio "Meu e-mail" disabled, "noreply" auto-selected, amber warning shown. Edge function returns `400` if `from_mode='csm'` with invalid domain
 - Resend API failure: email logged as `failed`, error message stored, `result.failed` incremented, activity NOT created
 - Template not found (404): edge function returns error before any send
 - `cargo` field null on profile: `csm_cargo` variable defaults to empty string
 - Image upload: stores in `report-images` bucket; returns `publicUrl` embedded as `<img src>`
+- Attachments: files uploaded to storage before send. Orphaned files (uploaded but send failed) cleaned up on modal close
 
 ## Recent Changes
 
+- **2026-05-15 (multiple commits):** Email attachments — upload to storage, download+base64 in edge, send via Resend, persist as `activity_attachments`. Composer redesigned: single-screen with chips "Para:", company swap icon, preview modal (not a step). Domain validation: CSM sender requires `@donc.com.br`. Email button added to ClientTabContatos.
 - **2026-05-13 (commit `0f8e363`):** `reply_to: suporte@donc.com.br` added to all outgoing emails via Resend API `reply_to` parameter
 - **2026-05-13 (commit `1e7b9b9`):** `from_mode` field added to request body (`csm` | `noreply`); `reply_to` field added to email template schema; admin/manager can override sender; `csm_email` variable added to template variables
 
@@ -209,8 +235,9 @@ Layout was revised in migration `20260511120000_fix_email_template_signature.sql
 
 ## File Reference Map
 
-- `src/components/email/EmailComposerModal.jsx` — composer modal entry point
+- `src/components/email/EmailComposerModal.jsx` — composer modal entry point (single-screen)
 - `src/components/email/EmailTemplatesManager.jsx` — template CRUD manager
+- `src/components/clients/tabs/ClientTabContatos.jsx` — email button per contact
 - `src/components/settings/SettingsPage.jsx` — menu integration (EmailTemplatesManager under "Comunicação")
 - `src/lib/icons.js` — `Mail` icon for settings section header
 - `supabase/functions/send-email/index.ts` — edge function implementation

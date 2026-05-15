@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-05-15
+
+### Email Module
+- **Feature:** Email attachments — upload to `activity-attachments` bucket, edge downloads+base64, sends via Resend, persisted as `activity_attachments` records (visible in ActivityDetailModal, ClientSubAnexos, ClientTabActivities)
+- **Refactor:** EmailComposerModal redesigned — single-screen composer with chips "Para:" input (Gmail-style), company swap icon (`RefreshCw`), preview opens optional Modal (not a required step)
+- **Fix:** Domain validation — CSM sender requires `@donc.com.br`, radio button disabled + warning shown, edge function returns 400 on invalid domain
+- **Fix:** Storage download URL corrected — bucket name `activity-attachments` added to download path
+- **Feature:** Email button in ClientTabContatos replaces `mailto:` link — opens composer with preselected contact and company
+
+### Brief Module
+- **Feature:** Delete questionnaire — `Trash2` icon per card with response count warning, confirmation dialog, audit log entry (`action='deleted', entity_type='questionnaire'`)
+
+### Client Usage
+- **Feature:** Per-row toggle for OS type chips — `Eye`/`EyeOff` icon per month in actions column, independent expand/collapse via `Set`
+
 ## 2026-05-14
 
 ### Brief Discovery Module

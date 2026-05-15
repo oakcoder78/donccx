@@ -30,7 +30,7 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
 | `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` with cover, form, attachments, tour |
 | `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete, submit_question, get_client_questions |
-| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, copyPublicLink, useBriefCsmNotes (csmNotes, clientQuestions, replyToQuestion) |
+| `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, deleteBrief, copyPublicLink, useBriefCsmNotes (csmNotes, clientQuestions, replyToQuestion) |
 | `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
 | `useBriefResponses` | `src/hooks/useBriefResponses.js` | Hook: responses and attachments for an instance |
 | `useBriefViews` | `src/hooks/useBrief.js` | Hook: briefViews (who viewed each brief instance), tracked via `BriefViewsModal` |
@@ -100,6 +100,7 @@ Modal panel (max 900px) listing all brief instances for the onboarding:
 - **Header:** "Questionários" title + status filter tabs (Todos, Rascunho, Enviado, Em progresso, Concluído, Arquivado) + "Criar novo" button (opens `BriefCreateModal`)
 - **Instance cards:** Each card shows: title, status badge, progress (X/Y answered), dates (created, sent, completed), view count + "Ver visualizações" link, action buttons (copy link, send to client, open responses, archive/delete)
 - **Card click:** Opens `BriefResponsesModal` for that specific instance
+- **Delete:** `Trash2` icon right-aligned in card action row — counts responses, warns if data will be lost, calls `deleteBrief` mutation, logs to `audit_logs` (`action='deleted', entity_type='questionnaire'`)
 - **BriefViewsModal:** Triggered by "Ver visualizações" link — shows table of who viewed: contact name (resolved via `contact_links`), email, viewed_at timestamp
 - **Multi-brief support:** Multiple brief instances can exist per onboarding (one per project/fase)
 
