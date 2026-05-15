@@ -114,6 +114,8 @@ serve(async (req) => {
     const profileRows = await profileRes.json()
     const senderProfile = profileRows?.[0] as { name: string; email: string; role: string } | undefined
 
+    const csmEmail = senderProfile?.email ?? ""
+
     // ── Validate from_mode permission ─────────────────────────────────────────
     if (from_mode === "noreply") {
       const role = senderProfile?.role ?? ""
@@ -122,13 +124,18 @@ serve(async (req) => {
       }
     }
 
-    // ── Resolve from / reply_to ──────────────────────────────────────────────
-    // From must always be a verified domain in Resend (donc.com.br).
-    // The CSM's personal email goes in reply_to so replies reach them.
-    const fromAddress = "DONC <noreply@donc.com.br>"
-    const replyTo = from_mode === "noreply"
-      ? "suporte@donc.com.br"
-      : (senderProfile?.email ?? "suporte@donc.com.br")
+    // ── Validate CSM has @donc.com.br email ─────────────────────────────────
+    if (from_mode === "csm" && !csmEmail.endsWith("@donc.com.br")) {
+      return json({
+        error: `Seu e-mail de perfil (${csmEmail}) não é @donc.com.br. ` +
+               "Para enviar e-mails como remetente individual, atualize seu e-mail em Configurações > Perfil."
+      }, 400)
+    }
+
+    // ── Resolve from address ──────────────────────────────────────────────────
+    const fromAddress = from_mode === "noreply"
+      ? "DONC <noreply@donc.com.br>"
+      : `${senderProfile?.name ?? "DONC"} <${csmEmail}>`
 
     // ── Fetch template ────────────────────────────────────────────────────────
     const tplRes = await fetch(
@@ -177,7 +184,7 @@ serve(async (req) => {
           to:       recipient.email,
           subject:  mergedSubject,
           html:     mergedHtml,
-          reply_to: replyTo,
+          reply_to: "suporte@donc.com.br",
         }
         if (resendAttachments) sendBody.attachments = resendAttachments
 
