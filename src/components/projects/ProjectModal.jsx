@@ -12,7 +12,6 @@ import {
   useProjectTemplates,
 } from '../../hooks/useOnboardings'
 import { useUpdateProject } from '../../hooks/useProjects'
-import { FASE_LABELS } from '../../lib/onboardingLabels'
 
 // ── CSS injetado: pseudo-classes que não podem ser inline ──────────────────
 const MODAL_CSS = `
@@ -36,12 +35,6 @@ function initials(name = '') {
     .slice(0, 2).map(s => s[0]).join('').toUpperCase() || '?'
 }
 
-function addDays(dateStr, days) {
-  const d = new Date((dateStr || new Date().toISOString().slice(0, 10)) + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
 // ── Shared inline styles ───────────────────────────────────────────────────
 const label$ = {
   display: 'block', fontSize: '12px', fontWeight: 500,
@@ -56,7 +49,7 @@ const inputRO$ = { ...input$, background: '#f4f5f7', color: 'rgba(23,53,87,0.75)
 
 const EMPTY_FORM = {
   title: '', description: '', responsible_id: '',
-  start_date: '', end_date: '', kickoff_date: '', status: 'em_andamento',
+  start_date: '', end_date: '', status: 'em_andamento',
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -75,16 +68,9 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   const [comboOpen,   setComboOpen]   = useState(false)
   const [selClient,   setSelClient]   = useState(null)
 
-  const { data: profiles      = [] } = useProfiles()
+const { data: profiles      = [] } = useProfiles()
   const { data: clients       = [] } = useClients()
   const { data: catalogItems  = [] } = useCatalogItems()
-  const { data: onbCfg        = {} } = useOnboardingConfig()
-
-  const createOnboardingFlow  = useCreateOnboardingFlow()
-  const updateOnboardingFlow  = useUpdateOnboardingFlow()
-  const createInternalProject = useCreateInternalProject()
-  const updateProject         = useUpdateProject()
-
   const { data: templates = [] } = useProjectTemplates(!isEdit ? type : null)
 
   const isOnbType = type === 'onboarding' || type === 'expansao'
@@ -98,7 +84,6 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
       setSelectedTemplate(null)
     }
   }, [templates, isOnbType, isEdit])
-  const kickoffSla = onbCfg.kickoff_sla_days ?? 5
 
   // Onboarding data — only loaded in edit mode for onboarding/expansao projects
   const onboardingId = isEdit && isOnbType && isOpen ? project?.onboarding_id : null
@@ -135,44 +120,36 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
   const capsOk    = !isOnbType || caps.length > 0
   const canSubmit = titleOk && empresaOk && capsOk
 
-  // Init form when modal opens
+// Init form when modal opens
   useEffect(() => {
     if (!isOpen) return
     if (isEdit) {
       const pType  = project.type
       const pIsOnb = pType === 'onboarding' || pType === 'expansao'
-      const sd = project.start_date ? project.start_date.slice(0, 10) : ''
-      const ed = project.end_date   ? project.end_date.slice(0, 10)   : ''
+      const sd = pIsOnb ? '' : (project.start_date ? project.start_date.slice(0, 10) : '')
+      const ed = pIsOnb ? '' : (project.end_date   ? project.end_date.slice(0, 10)   : '')
       setType(pType)
       setForm({
         title:          project.title        || '',
         description:    pIsOnb ? '' : (project.description  || ''),
-        responsible_id: pIsOnb ? '' : (project.responsible_id || ''),
+        responsible_id:  pIsOnb ? '' : (project.responsible_id || ''),
         start_date:     sd,
         end_date:       ed,
-        kickoff_date:   '',
         status:         project.status       || 'em_andamento',
       })
       if (pIsOnb) { setCaps([]); setCapsInitialized(false) }
     } else {
-      setForm(p => ({ ...p, kickoff_date: p.kickoff_date || addDays(p.start_date, kickoffSla) }))
+      setForm({ title: '', description: '', responsible_id: '', start_date: '', end_date: '', status: 'em_andamento' })
     }
   }, [isOpen, project?.id])
 
   // Fill onboarding-specific fields when data loads (edit mode)
   useEffect(() => {
     if (!onboardingData || !isOpen) return
-    const kickoffFase = (onboardingData.onboarding_fases ?? [])
-      .slice()
-      .sort((a, b) => a.display_order - b.display_order)
-      .find(f => f.onboarding_fase_types?.is_milestone)
     setForm(p => ({
       ...p,
       description:    onboardingData.notes  || '',
       responsible_id: onboardingData.csm_id || '',
-      kickoff_date:   kickoffFase?.planned_start ? kickoffFase.planned_start.slice(0, 10) : '',
-      start_date:     p.start_date || (onboardingData.start_date ? onboardingData.start_date.slice(0, 10) : ''),
-      end_date:       p.end_date   || (onboardingData.end_date   ? onboardingData.end_date.slice(0, 10)   : ''),
     }))
   }, [onboardingData, isOpen])
 
@@ -227,10 +204,7 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
           title:        form.title.trim(),
           csm_id:       form.responsible_id || undefined,
           notes:        form.description    || undefined,
-          start_date:   form.start_date     || undefined,
-          end_date:     form.end_date       || undefined,
           capabilities: caps,
-          kickoff_date: form.kickoff_date   || undefined,
         })
       }
     } else {
@@ -250,11 +224,8 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
           type,
           title:        form.title.trim(),
           csm_id:       form.responsible_id || undefined,
-          start_date:   form.start_date     || undefined,
-          end_date:     form.end_date       || undefined,
           notes:        form.description    || undefined,
           capabilities: caps,
-          kickoff_date: form.kickoff_date   || undefined,
           templateId:   selectedTemplate    || undefined,
         })
       }
@@ -577,51 +548,52 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
                 </select>
               </div>
 
-              {/* Datas */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <label style={label$}>Data início</label>
-                  <input
-                    className="pm-input"
-                    type="date"
-                    value={form.start_date}
-                    onChange={e => {
-                      const d = e.target.value
-                      setForm(p => ({
-                        ...p,
-                        start_date:   d,
-                        kickoff_date: isOnbType && !isEdit ? addDays(d, kickoffSla) : p.kickoff_date,
-                      }))
-                    }}
-                    style={input$}
-                  />
+              {/* Datas - apenas para projetos internos */}
+              {!isOnbType && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
+                  <div>
+                    <label style={label$}>Data início</label>
+                    <input
+                      className="pm-input"
+                      type="date"
+                      value={form.start_date}
+                      onChange={e => setForm(p => ({ ...p, start_date: e.target.value }))}
+                      style={input$}
+                    />
+                  </div>
+                  <div>
+                    <label style={label$}>Data fim</label>
+                    <input
+                      className="pm-input"
+                      type="date"
+                      value={form.end_date}
+                      onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))}
+                      style={input$}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label style={label$}>Data fim</label>
-                  <input
-                    className="pm-input"
-                    type="date"
-                    value={form.end_date}
-                    onChange={e => setForm(p => ({ ...p, end_date: e.target.value }))}
-                    style={input$}
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Status */}
               <div style={{ marginBottom: '14px' }}>
                 <label style={label$}>Status</label>
-                <select
-                  className="pm-input"
-                  value={form.status}
-                  onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-                  style={input$}
-                >
-                  <option value="planejado">Planejado</option>
-                  <option value="em_andamento">Em Andamento</option>
-                  <option value="concluido">Concluído</option>
-                  <option value="suspenso">Suspenso</option>
-                </select>
+                {isOnbType ? (
+                  <div style={{ ...inputRO$, display: 'inline-block', width: 'auto', padding: '7px 14px' }}>
+                    {onboardingData?.status === 'ativo' ? 'Em Andamento' : onboardingData?.status === 'encerrado' ? 'Concluído' : onboardingData?.status === 'cancelado' ? 'Suspenso' : '—'}
+                  </div>
+                ) : (
+                  <select
+                    className="pm-input"
+                    value={form.status}
+                    onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                    style={input$}
+                  >
+                    <option value="planejado">Planejado</option>
+                    <option value="em_andamento">Em Andamento</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="suspenso">Suspenso</option>
+                  </select>
+                )}
               </div>
             </div>
 
@@ -654,41 +626,6 @@ export function ProjectModal({ isOpen, onClose, clientId, project }) {
                       ? 'Selecione ao menos uma capacidade.'
                       : `${caps.length} capacidade${caps.length > 1 ? 's' : ''} selecionada${caps.length > 1 ? 's' : ''}.`
                     }
-                  </div>
-                </div>
-
-                {/* Kickoff + Fase */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-                  <div>
-                    <label style={label$}>Kickoff previsto</label>
-                    <input
-                      className="pm-input"
-                      type="date"
-                      value={form.kickoff_date}
-                      onChange={e => setForm(p => ({ ...p, kickoff_date: e.target.value }))}
-                      style={input$}
-                    />
-                    {!isEdit && (
-                      <div style={{ fontSize: '11px', color: 'rgba(23,53,87,0.5)', marginTop: '4px' }}>
-                        Padrão: {kickoffSla} dias a partir do início.
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <label style={label$}>{isEdit ? 'Fase atual' : 'Fase inicial'}</label>
-                    <input
-                      type="text"
-                      value={isEdit ? (() => {
-                        const currentFaseId = onboardingData?.fase_atual_id
-                        const currentFase = (onboardingData?.onboarding_fases ?? []).find(f => f.id === currentFaseId)
-                        const faseName = currentFase?.onboarding_fase_types?.name
-                        if (faseName) return faseName
-                        if (currentFase?.display_order) return `Fase ${currentFase.display_order}`
-                        return '—'
-                      })() : FASE_LABELS.definicao_escopo}
-                      readOnly
-                      style={inputRO$}
-                    />
                   </div>
                 </div>
 
