@@ -579,6 +579,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       )}
 
       {/* Preview drawer */}
+      {selectedTemplate && (
       <Drawer isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" width="w-96" noBackdrop>
         <div className="space-y-4">
           <div>
@@ -610,6 +611,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
           </div>
         </div>
       </Drawer>
+      )}
 
     </Modal>
   )
