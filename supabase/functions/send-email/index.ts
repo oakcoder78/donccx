@@ -122,10 +122,13 @@ serve(async (req) => {
       }
     }
 
-    // ── Resolve from address ──────────────────────────────────────────────────
-    const fromAddress = from_mode === "noreply"
-      ? "DONC <noreply@donc.com.br>"
-      : `${senderProfile?.name ?? "DONC"} <${senderProfile?.email ?? "onboarding@resend.dev"}>`
+    // ── Resolve from / reply_to ──────────────────────────────────────────────
+    // From must always be a verified domain in Resend (donc.com.br).
+    // The CSM's personal email goes in reply_to so replies reach them.
+    const fromAddress = "DONC <noreply@donc.com.br>"
+    const replyTo = from_mode === "noreply"
+      ? "suporte@donc.com.br"
+      : (senderProfile?.email ?? "suporte@donc.com.br")
 
     // ── Fetch template ────────────────────────────────────────────────────────
     const tplRes = await fetch(
@@ -174,7 +177,7 @@ serve(async (req) => {
           to:       recipient.email,
           subject:  mergedSubject,
           html:     mergedHtml,
-          reply_to: "suporte@donc.com.br",
+          reply_to: replyTo,
         }
         if (resendAttachments) sendBody.attachments = resendAttachments
 

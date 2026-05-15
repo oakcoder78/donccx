@@ -485,11 +485,11 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             />
           </div>
 
-          {/* Remetente — só para admin/manager */}
+          {/* Resposta — só para admin/manager */}
           {(profile?.role === 'admin' || profile?.role === 'manager') && (
             <div>
               <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
-                Remetente
+                Responder para
               </label>
               <div className="flex gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -502,7 +502,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                     className="accent-donc-sky"
                   />
                   <span className="text-sm text-text-primary">
-                    Meu e-mail ({profile?.email})
+                    {profile?.name} ({profile?.email})
                   </span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -514,7 +514,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                     onChange={() => setFromMode('noreply')}
                     className="accent-donc-sky"
                   />
-                  <span className="text-sm text-text-primary">noreply@donc.com.br</span>
+                  <span className="text-sm text-text-primary">suporte@donc.com.br</span>
                 </label>
               </div>
             </div>
