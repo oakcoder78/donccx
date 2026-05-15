@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Icons } from "../../../../lib/icons"
 import { Line } from 'react-chartjs-2'
 import {
@@ -29,6 +30,7 @@ function isCurrentMonth(ym) {
 
 export function ClientSubUso({ client, onEdit }) {
   const { remove } = useClientUsageMutations()
+  const [showOsTypes, setShowOsTypes] = useState(true)
 
   const usageData  = client.client_usage || []
   const sorted     = [...usageData].sort((a, b) => a.ref_month.localeCompare(b.ref_month))
@@ -100,8 +102,13 @@ export function ClientSubUso({ client, onEdit }) {
       {/* Tabela histórica */}
       {sorted.length > 0 ? (
         <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-          <div className="px-4 py-3 border-b border-border-tertiary">
+          <div className="px-4 py-3 border-b border-border-tertiary flex items-center justify-between">
             <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Histórico completo</p>
+            <button onClick={() => setShowOsTypes(p => !p)}
+              className="text-xs text-text-tertiary hover:text-text-primary flex items-center gap-1 transition-colors">
+              {showOsTypes ? <Icons.EyeOff size={14} /> : <Icons.Eye size={14} />}
+              Tipos de OS
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -188,7 +195,7 @@ export function ClientSubUso({ client, onEdit }) {
                     )
 
                     // Chips de OS por tipo
-                    if (osPorTipo) {
+                    if (showOsTypes && osPorTipo) {
                       entries.push(
                         <tr key={`chips-${u.id || `${month}-${idx}`}`} className="border-t border-border-tertiary bg-bg-secondary">
                           <td colSpan={COL_COUNT} className="px-4 py-2">
