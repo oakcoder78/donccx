@@ -106,14 +106,33 @@ export function useBrief(onboardingId, clientId) {
     }
   }
 
+  const deleteBrief = useMutation({
+    mutationFn: async (id) => {
+      const { error } = await supabase
+        .from('brief_instances')
+        .delete()
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brief_instances', onboardingId] })
+      toast.success('Questionário removido')
+    },
+    onError: (e) => {
+      toast.error(e.message)
+    },
+  })
+
   return {
     briefInstances: briefInstances.data || [],
     briefTemplates: briefTemplates.data || [],
     createBrief,
     updateBriefStatus,
+    deleteBrief,
     copyPublicLink,
     isLoading: briefInstances.isLoading,
     isCreating: createBrief.isPending,
+    isDeleting: deleteBrief.isPending,
   }
 }
 
