@@ -111,6 +111,13 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       .then(({ data }) => setProfile(data))
   }, [user, isOpen])
 
+  // ── Auto-select noreply when CSM has invalid domain ─────────────────────────
+  useEffect(() => {
+    if (profile && !profile.email?.endsWith('@donc.com.br')) {
+      setFromMode('noreply')
+    }
+  }, [profile])
+
   // ── Load templates ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (!isOpen) return
@@ -485,11 +492,66 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             />
           </div>
 
-          {/* Resposta — só para admin/manager */}
+          {/* Attachments */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
+                Anexos {attachments.length > 0 && `(${attachments.length})`}
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={attachments.length >= MAX_FILES}
+                className="text-xs text-donc-sky hover:text-donc-sky/80 font-medium disabled:opacity-40"
+              >
+                <Icons.Paperclip className="w-3.5 h-3.5 inline mr-1" />
+                Anexar arquivos
+              </button>
+            </div>
+            {attachments.length > 0 && (
+              <div className="space-y-1 mb-2">
+                {attachments.map(att => (
+                  <div key={att.id}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-bg-tertiary rounded-md text-sm"
+                  >
+                    <Icons.Paperclip className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
+                    <span className="flex-1 truncate text-text-primary min-w-0">{att.name}</span>
+                    <span className="text-xs text-text-tertiary whitespace-nowrap">{formatFileSize(att.size)}</span>
+                    <button onClick={() => removeAttachment(att.id)}
+                      className="text-text-tertiary hover:text-red-500 p-0.5"
+                    >
+                      <Icons.X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Domain warning */}
+          {profile && !profile.email?.endsWith('@donc.com.br') && (
+            <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
+              <Icons.HelpCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                Seu e-mail de perfil (<strong>{profile.email}</strong>) não é @donc.com.br.
+                Para enviar e-mails como remetente individual, atualize seu e-mail em{' '}
+                <strong>Configurações &gt; Perfil</strong>.
+              </span>
+            </div>
+          )}
+
+          {/* Remetente — só para admin/manager */}
           {(profile?.role === 'admin' || profile?.role === 'manager') && (
             <div>
               <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">
-                Responder para
+                Remetente
               </label>
               <div className="flex gap-3">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -499,10 +561,11 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                     value="csm"
                     checked={fromMode === 'csm'}
                     onChange={() => setFromMode('csm')}
+                    disabled={!profile?.email?.endsWith('@donc.com.br')}
                     className="accent-donc-sky"
                   />
                   <span className="text-sm text-text-primary">
-                    {profile?.name} ({profile?.email})
+                    Meu e-mail ({profile?.email})
                   </span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -514,7 +577,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                     onChange={() => setFromMode('noreply')}
                     className="accent-donc-sky"
                   />
-                  <span className="text-sm text-text-primary">suporte@donc.com.br</span>
+                  <span className="text-sm text-text-primary">noreply@donc.com.br</span>
                 </label>
               </div>
             </div>
@@ -585,51 +648,6 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
                     )
                   })}
                 </div>
-              </div>
-
-              {/* Attachments */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
-                    Anexos {attachments.length > 0 && `(${attachments.length})`}
-                  </p>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={attachments.length >= MAX_FILES || sending || uploadingFiles}
-                    className="text-xs text-donc-sky hover:text-donc-sky/80 font-medium disabled:opacity-40"
-                  >
-                    <Icons.Paperclip className="w-3.5 h-3.5 inline mr-1" />
-                    Anexar arquivos
-                  </button>
-                </div>
-                {attachments.length > 0 && (
-                  <div className="space-y-1 mb-2">
-                    {attachments.map(att => (
-                      <div key={att.id}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-bg-tertiary rounded-md text-sm"
-                      >
-                        <Icons.Paperclip className="w-3.5 h-3.5 text-text-tertiary shrink-0" />
-                        <span className="flex-1 truncate text-text-primary min-w-0">{att.name}</span>
-                        <span className="text-xs text-text-tertiary whitespace-nowrap">{formatFileSize(att.size)}</span>
-                        {!sending && !uploadingFiles && (
-                          <button onClick={() => removeAttachment(att.id)}
-                            className="text-text-tertiary hover:text-red-500 p-0.5"
-                          >
-                            <Icons.X className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* HTML preview */}
