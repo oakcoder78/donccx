@@ -3,7 +3,6 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { Icons } from '../../lib/icons'
-import { Drawer } from '../ui/Drawer'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 
@@ -578,39 +577,39 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
         </div>
       )}
 
-      {/* Preview drawer */}
+      {/* Preview modal */}
       {selectedTemplate && (
-      <Drawer isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" width="w-[420px]" noBackdrop>
-        <div className="space-y-4">
-          <div>
-            <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Destinatários</p>
-            <div className="flex flex-wrap gap-2">
-              {selectedIds.map(id => {
-                const link  = contactLinks.find(l => l.contact_id === id)
-                const name  = link?.contacts?.name || ''
-                const email = getContactEmail(link)
-                return (
-                  <span key={id} className="px-2 py-0.5 bg-bg-tertiary rounded text-xs text-text-primary">
-                    {name} &lt;{email}&gt;
-                  </span>
-                )
-              })}
+        <Modal isOpen={showPreview} onClose={() => setShowPreview(false)} title="Preview" maxWidth="max-w-3xl">
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Destinatários</p>
+              <div className="flex flex-wrap gap-2">
+                {selectedIds.map(id => {
+                  const link  = contactLinks.find(l => l.contact_id === id)
+                  const name  = link?.contacts?.name || ''
+                  const email = getContactEmail(link)
+                  return (
+                    <span key={id} className="px-2 py-0.5 bg-bg-tertiary rounded text-xs text-text-primary">
+                      {name} &lt;{email}&gt;
+                    </span>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Assunto</p>
+              <p className="text-sm text-text-primary">{subject}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Mensagem</p>
+              <div className="border border-border-tertiary rounded-md overflow-hidden" style={{ height: 400 }}>
+                <iframe title="preview" sandbox=""
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  srcDoc={mergeTags(selectedTemplate.html_body, buildVars())} />
+              </div>
             </div>
           </div>
-          <div>
-            <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Assunto</p>
-            <p className="text-sm text-text-primary">{subject}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Mensagem</p>
-            <div className="border border-border-tertiary rounded-md overflow-hidden" style={{ height: 400 }}>
-              <iframe title="preview" sandbox=""
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                srcDoc={mergeTags(selectedTemplate.html_body, buildVars())} />
-            </div>
-          </div>
-        </div>
-      </Drawer>
+        </Modal>
       )}
 
     </Modal>
