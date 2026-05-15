@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Icons } from '../../lib/icons'
+import { supabase } from '../../lib/supabaseClient'
 import { useBrief, useBriefResponses, useBriefViews } from '../../hooks/useBrief'
+import { useAuditLog } from '../../hooks/useAuditLog'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { BriefCreateModal } from './BriefCreateModal'
@@ -106,7 +108,7 @@ function ProgressInfo({ instance }) {
 }
 
 // ── Brief card ───────────────────────────────────────────────────────────────────
-function BriefCard({ inst, onViewResponses, onSend, onCopyLink, onViewViewers }) {
+function BriefCard({ inst, onViewResponses, onSend, onCopyLink, onViewViewers, onDelete, isDeleting }) {
   const viewCount = inst.brief_views?.[0]?.count ?? 0
   const statusCfg = STATUS_CONFIG[inst.status] || STATUS_CONFIG.draft
 
@@ -158,6 +160,10 @@ function BriefCard({ inst, onViewResponses, onSend, onCopyLink, onViewViewers })
             <Icons.Eye size={12} style={{ marginRight: 5 }} />Visualizações
           </Button>
         )}
+        <button onClick={onDelete} disabled={isDeleting}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: isDeleting ? 'default' : 'pointer', padding: '0 4px', color: 'rgba(23,53,87,0.3)', opacity: isDeleting ? 0.4 : 1 }}>
+          <Icons.Trash2 size={14} />
+        </button>
       </div>
     </div>
   )
@@ -170,7 +176,8 @@ export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
   const [showViews,    setShowViews]    = useState(false)
   const [selectedInstance, setSelectedInstance] = useState(null)
 
-  const { briefInstances, briefTemplates, createBrief, updateBriefStatus, copyPublicLink, isLoading } = useBrief(onboardingId, clientId)
+  const { briefInstances, briefTemplates, createBrief, updateBriefStatus, deleteBrief, copyPublicLink, isLoading, isDeleting } = useBrief(onboardingId, clientId)
+  const { logAction } = useAuditLog()
 
   const handleSend = async (inst) => {
     await updateBriefStatus.mutateAsync({ id: inst.id, status: 'sent' })
@@ -189,6 +196,25 @@ export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
   const handleViewViewers = (inst) => {
     setSelectedInstance(inst)
     setShowViews(true)
+  }
+
+  const handleDelete = async (inst) => {
+    const { count } = await supabase
+      .from('brief_responses')
+      .select('id', { count: 'exact', head: true })
+      .eq('instance_id', inst.id)
+
+    const msg = count > 0
+      ? `"${inst.title}" tem ${count} resposta(s).\nTodas as respostas, anexos e visualizações serão excluídos permanentemente.\n\nConfirmar exclusão?`
+      : `Excluir "${inst.title}"?`
+
+    if (!window.confirm(msg)) return
+
+    await deleteBrief.mutateAsync(inst.id)
+    logAction('deleted', 'questionnaire', inst.id, inst.title, {
+      status: inst.status,
+      has_responses: count,
+    })
   }
 
   if (isLoading) {
@@ -232,6 +258,8 @@ export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
                 onSend={() => handleSend(inst)}
                 onCopyLink={() => handleCopyLink(inst)}
                 onViewViewers={() => handleViewViewers(inst)}
+                onDelete={() => handleDelete(inst)}
+                isDeleting={isDeleting}
               />
             ))}
           </div>
