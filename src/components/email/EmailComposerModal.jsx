@@ -175,6 +175,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   }
 
   function getContactEmail(link) {
+    if (!link) return ''
     const emails = link.contacts?.contact_emails || []
     const primary = emails.find(e => e.is_primary)
     return primary?.email || link.contacts?.email || ''
