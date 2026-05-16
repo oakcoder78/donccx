@@ -3,6 +3,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuth } from '../../contexts/AuthContext'
 import { Icons } from '../../lib/icons'
+import EmailEditor from '../email/EmailEditor'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 
@@ -242,7 +243,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   function buildVars() {
     return {
       assunto:        subject,
-      corpo_mensagem: body.replace(/\n/g, '<br>'),
+      corpo_mensagem: body,
       csm_nome:       profile?.name    || '',
       csm_cargo:      profile?.cargo   || '',
       csm_telefone:   profile?.phone   || '',
@@ -476,9 +477,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             {/* Mensagem */}
             <div>
               <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Mensagem</label>
-              <textarea value={body} onChange={e => setBody(e.target.value)} rows={7}
-                placeholder="Escreva aqui o conteúdo do e-mail..."
-                className="w-full px-3 py-2 border border-border-tertiary rounded-md text-sm bg-bg-primary text-text-primary outline-none focus:border-donc-sky resize-y" />
+              <EmailEditor value={body} onChange={setBody} />
             </div>
 
             {/* Anexos */}
