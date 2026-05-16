@@ -61,6 +61,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
   const fileInputRef = useRef(null)
 
   const [showPreview, setShowPreview] = useState(false)
+  const [rewriting, setRewriting] = useState(false)
 
   const debounceRef = useRef(null)
   const contactSearchRef = useRef(null)
@@ -205,6 +206,57 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
         return name.includes(q) || email.includes(q)
       })
     : contactLinks.filter(link => !selectedIds.includes(link.contact_id))
+
+  const DEFAULT_EMAIL_PROMPT =
+    `Você é um assistente de redação profissional da DONC, plataforma de gestão de equipes externas.
+Reescreva e-mails corporativos em português mantendo o tom profissional e todo o conteúdo original.
+Melhore a clareza, coesão e persuasão da mensagem.
+Preserve qualquer formatação HTML existente.
+Não adicione informações que não estavam no texto original.
+Responda APENAS com o texto reescrito, sem introduções, explicações ou meta-comentários.`
+
+  async function handleRewrite() {
+    setRewriting(true)
+    try {
+      const { data: cfg } = await supabase
+        .from('freshdesk_config')
+        .select('data')
+        .eq('key', 'email_rewrite_prompt')
+        .maybeSingle()
+
+      const systemPrompt = cfg?.data?.prompt?.trim() || DEFAULT_EMAIL_PROMPT
+      const { data: { session } } = await supabase.auth.getSession()
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `Reescreva o texto abaixo mantendo o tom profissional e o mesmo conteúdo:\n\n${body}` },
+          ],
+          max_tokens: 2000,
+        }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Erro ao reescrever')
+
+      const rewritten = json.choices?.[0]?.message?.content
+      if (rewritten) {
+        setBody(rewritten)
+        toast.success('E-mail reescrito!')
+      }
+    } catch (err) {
+      toast.error(err.message || 'Erro ao reescrever e-mail')
+    } finally {
+      setRewriting(false)
+    }
+  }
 
   function handleFileSelect(e) {
     const files = Array.from(e.target.files || [])
@@ -477,7 +529,7 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
             {/* Mensagem */}
             <div>
               <label className="block text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1">Mensagem</label>
-              <EmailEditor value={body} onChange={setBody} />
+              <EmailEditor value={body} onChange={setBody} onRewrite={handleRewrite} rewriting={rewriting} />
             </div>
 
             {/* Anexos */}

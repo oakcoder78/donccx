@@ -32,7 +32,7 @@ function Divider() {
   return <div style={{ width: 1, height: 18, background: '#e2e8f0', flexShrink: 0 }} />
 }
 
-export default function EmailEditor({ value, onChange, placeholder = 'Escreva aqui o conteúdo do e-mail...' }) {
+export default function EmailEditor({ value, onChange, placeholder = 'Escreva aqui o conteúdo do e-mail...', onRewrite, rewriting }) {
   const [linkUrl, setLinkUrl] = useState('')
   const [showLinkInput, setShowLinkInput] = useState(false)
 
@@ -119,6 +119,25 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
         <ToolbarBtn icon={Icons.Link} active={editor.isActive('link')} onClick={toggleLink} title="Inserir link" />
 
         <div style={{ flex: 1 }} />
+
+        {onRewrite && (
+          <button
+            type="button"
+            title="Reescrever com IA"
+            onClick={onRewrite}
+            disabled={rewriting || !value?.trim()}
+            className="flex items-center gap-1 px-2 h-7 rounded text-xs font-medium transition-colors disabled:opacity-40"
+            style={{
+              color: rewriting ? '#0a6a96' : '#64748b',
+              background: rewriting ? `${SKY}18` : 'transparent',
+            }}
+            onMouseEnter={e => { if (!rewriting) e.currentTarget.style.background = '#f1f5f9' }}
+            onMouseLeave={e => { if (!rewriting) e.currentTarget.style.background = 'transparent' }}
+          >
+            <Icons.Sparkles size={13} />
+            {rewriting ? 'Reescrevendo...' : 'Reescrever'}
+          </button>
+        )}
 
         <ToolbarBtn icon={Icons.RemoveFormatting} active={false} onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()} title="Remover formatação" />
       </div>

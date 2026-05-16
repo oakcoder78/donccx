@@ -81,16 +81,21 @@ export function SettingsAI() {
   const [prompt, setPrompt] = useState('')
   const [savingPrompt, setSavingPrompt] = useState(false)
 
+  // ── Email Prompt ──────────────────────────────────────────────────────────────
+  const [emailPrompt, setEmailPrompt] = useState('')
+  const [savingEmailPrompt, setSavingEmailPrompt] = useState(false)
+
   // ── Debug ────────────────────────────────────────────────────────────────────
   const [debugEnabled, setDebugEnabled] = useState(false)
   const [savingDebug, setSavingDebug] = useState(false)
 
   useEffect(() => {
     async function load() {
-      const [{ data: mRow }, { data: pRow }, { data: dRow }] = await Promise.all([
+      const [{ data: mRow }, { data: pRow }, { data: dRow }, { data: eRow }] = await Promise.all([
         supabase.from('freshdesk_config').select('data').eq('key', 'ai_models').maybeSingle(),
         supabase.from('freshdesk_config').select('data').eq('key', 'ai_prompt').maybeSingle(),
         supabase.from('freshdesk_config').select('data').eq('key', 'debug_config').maybeSingle(),
+        supabase.from('freshdesk_config').select('data').eq('key', 'email_rewrite_prompt').maybeSingle(),
       ])
 
       // Modelos
@@ -102,6 +107,9 @@ export function SettingsAI() {
       // Prompt — suporta formato { prompt: string } e string legada
       if (typeof pRow?.data?.prompt === 'string') setPrompt(pRow.data.prompt)
       else if (typeof pRow?.data === 'string')    setPrompt(pRow.data)
+
+      // Email Rewrite Prompt
+      if (typeof eRow?.data?.prompt === 'string') setEmailPrompt(eRow.data.prompt)
 
       // Debug
       setDebugEnabled(dRow?.data?.debug_enabled === true)
@@ -137,6 +145,19 @@ export function SettingsAI() {
     if (error) toast.error(error.message)
     else { setDebugEnabled(value); toast.success(value ? 'Debug ativado' : 'Debug desativado') }
     setSavingDebug(false)
+  }
+
+  async function handleSaveEmailPrompt() {
+    setSavingEmailPrompt(true)
+    const { error } = await supabase
+      .from('freshdesk_config')
+      .upsert(
+        { key: 'email_rewrite_prompt', data: { prompt: emailPrompt.trim() }, updated_at: new Date().toISOString() },
+        { onConflict: 'key' },
+      )
+    if (error) toast.error(error.message)
+    else toast.success('Prompt de e-mail salvo')
+    setSavingEmailPrompt(false)
   }
 
   async function handleSavePrompt() {
@@ -289,6 +310,51 @@ export function SettingsAI() {
           </span>
           {savingDebug && <span style={{ fontSize: 11, color: '#888780' }}>Salvando...</span>}
         </label>
+      </div>
+
+      {/* ── Seção de Prompt de Reescrita de E-mail ── */}
+      <div style={S.section}>
+        <p style={S.sectionTitle}>Prompt do Assistente de E-mail</p>
+        <p style={S.sectionDesc}>
+          Define como a IA reescreve os e-mails. Se vazio, usa o prompt padrão da DONC.
+        </p>
+
+        <div style={S.fieldBox}>
+          <label style={S.label}>Prompt personalizado</label>
+          <textarea
+            value={emailPrompt}
+            onChange={e => setEmailPrompt(e.target.value)}
+            placeholder={
+              'Deixe vazio para usar o prompt padrão da DONC.\n\n' +
+              'Você é um assistente de redação profissional da DONC...'
+            }
+            rows={10}
+            style={{
+              ...S.input,
+              fontFamily: 'monospace',
+              resize: 'vertical',
+              lineHeight: 1.6,
+              minHeight: 220,
+            }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+            <span style={{ fontSize: 11, color: '#b0afab' }}>
+              {emailPrompt.trim().length} caracteres
+            </span>
+            {emailPrompt.trim() && (
+              <button
+                onClick={() => setEmailPrompt('')}
+                style={{ fontSize: 11, color: '#888780', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+              >
+                Limpar (usar prompt padrão)
+              </button>
+            )}
+          </div>
+        </div>
+
+        <button onClick={handleSaveEmailPrompt} disabled={savingEmailPrompt} style={S.btn(savingEmailPrompt)}>
+          {savingEmailPrompt ? 'Salvando...' : 'Salvar Prompt'}
+        </button>
       </div>
     </div>
   )
