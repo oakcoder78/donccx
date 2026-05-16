@@ -138,7 +138,7 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
         {onRewrite && (
           <button
             type="button"
-            title="Reescrever com IA"
+            title="Reescrever com Donkie AI"
             onClick={onRewrite}
             disabled={rewriting || !value?.trim()}
             className="flex items-center gap-1 px-2 h-7 rounded text-xs font-medium transition-colors disabled:opacity-40"
