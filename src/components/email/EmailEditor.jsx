@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -35,6 +35,7 @@ function Divider() {
 export default function EmailEditor({ value, onChange, placeholder = 'Escreva aqui o conteúdo do e-mail...', onRewrite, rewriting }) {
   const [linkUrl, setLinkUrl] = useState('')
   const [showLinkInput, setShowLinkInput] = useState(false)
+  const skipNextOnUpdate = useRef(false)
 
   const editor = useEditor({
     extensions: [
@@ -50,6 +51,10 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
     ],
     content: value || '',
     onUpdate: ({ editor }) => {
+      if (skipNextOnUpdate.current) {
+        skipNextOnUpdate.current = false
+        return
+      }
       onChange(editor.getHTML())
     },
     editorProps: {
@@ -79,6 +84,16 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
     setShowLinkInput(false)
     setLinkUrl('')
   }, [editor, linkUrl])
+
+  useEffect(() => {
+    if (!editor) return
+    const html = editor.getHTML()
+    const incoming = value || ''
+    const normalizedHtml = html === '<p></p>' ? '' : html
+    if (normalizedHtml === incoming) return
+    skipNextOnUpdate.current = true
+    editor.commands.setContent(incoming)
+  }, [editor, value])
 
   if (!editor) return null
 
