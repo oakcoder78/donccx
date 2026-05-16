@@ -31,8 +31,7 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsFaseTypes.jsx** | UI for managing onboarding phase types. |
 | **SettingsActivityTypes.jsx** | UI for managing onboarding activity types. |
 | **SettingsProjectTemplates.jsx** | UI for managing project templates with phases and activities. |
-| **SettingsDonkie.jsx** | UI for configuring Donkie‑specific integration parameters. |
-| **SettingsAI.jsx** | UI for AI‑related configuration (model selection, API keys, etc.). |
+| **SettingsAI.jsx** | UI for AI + Donkie configuration, consolidated into 4 sections: Models+Debug, WhatsApp Prompt, Donkie config, Email Prompt. Accessed via "Donkie IA" menu entry. |
 | **SettingsDoncAPI.jsx** | UI for configuring the DONC API integration (manager‑only). |
 | **SettingsFeatureFlags.jsx** | UI for toggling feature flags across the system. |
 | **UserEditModal.jsx** | UI for personal profile editing (name, gender, birth_date, phone, avatar). |
@@ -93,8 +92,7 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 - Reduced UI depth
 - Improved consistency with other Settings pages
 - **DONC API** – configuration handled in `SettingsDoncAPI` (manager‑only).
-- **Donkie** – specific integration toggles in `SettingsDonkie`.
-- **AI** – model / endpoint configuration in `SettingsAI`.
+- **Donkie + AI** – consolidated into `SettingsAI` with 4 sections: Models+Debug, WhatsApp Prompt, Donkie config, Email Prompt. Menu entry "Donkie IA" gated by `ai` feature flag. `SettingsDonkie.jsx` deleted.
 - **Health Score** – weights, thresholds and dimension rules persisted to Supabase tables.
 - **Feature Flags** – toggles that affect runtime feature availability.
 
@@ -134,8 +132,7 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 - `src/components/settings/SettingsUsers.jsx` – user‑management UI. Note: The "Invite User" action is now placed in the header actions area, aligning with global Settings UI standards.
 - `src/components/settings/SettingsLogs.jsx` – audit‑log viewer UI.
 - `src/components/settings/SettingsFreshdesk.jsx` – Freshdesk integration UI with unified card-based layout.
-- `src/components/settings/SettingsDonkie.jsx` – Donkie integration UI.
-- `src/components/settings/SettingsAI.jsx` – AI configuration UI.
+- `src/components/settings/SettingsAI.jsx` – AI + Donkie configuration UI (4 sections: Models+Debug, WhatsApp Prompt, Donkie, Email). `SettingsDonkie.jsx` deleted (merged here).
 - `src/components/settings/SettingsDoncAPI.jsx` – DONC API configuration UI.
 - `src/components/settings/SettingsFeatureFlags.jsx` – feature‑flag toggles UI.
 - `src/components/settings/SettingsFaseTypes.jsx` – onboarding phase types UI. Table columns: Nome, Descrição, Marco, Req. Evidência, Permite Anexos, Ordem, Ativo, Ações.

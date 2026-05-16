@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-16
+
+### Email Module
+- **Feature:** WYSIWYG editor (`EmailEditor`) replaces textarea — TipTap v2 with Bold, Italic, Underline, H1-H3, lists, alignment, link, remove formatting toolbar
+- **Feature:** ✨ Reescrever button in editor toolbar — calls `openrouter-proxy` with configurable prompt (`email_rewrite_prompt` in `freshdesk_config`)
+- **Fix:** Email templates `<p>{{corpo_mensagem}}</p>` → `<div>` to avoid nested `<p>`
+- **Fix:** `supabase/config.toml` — `[functions.openrouter-proxy] verify_jwt = false` (fixes error 546)
+- **Dependency:** Added `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, `@tiptap/extension-text-align`
+
+### Settings
+- **Refactor:** `SettingsDonkie.jsx` deleted — Donkie configuration consolidated into `SettingsAI.jsx` (4 sections: Models+Debug, WhatsApp Prompt, Donkie, Email)
+- **Refactor:** Menu "Donkie" + "IA" merged into single "Donkie IA" entry gated by `ai` feature flag
+
 ## 2026-05-15
 
 ### Email Module

@@ -93,7 +93,7 @@ No stepper. All fields visible on one screen. Modal width adapts to preview stat
    - `preselectedContactId` pre-fills the chip
 3. **Template** — select from active templates
 4. **Assunto** — text input
-5. **Mensagem** — textarea
+5. **Mensagem** — WYSIWYG editor (EmailEditor)
 6. **Anexos** — file picker (PDF/DOC/XLS/IMG, max 5 files, 5 MB each), uploaded on send
 7. **Domain warning** — amber banner if profile email is not `@donc.com.br`
 8. **Remetente** — radio group (admin/manager only):
@@ -157,6 +157,7 @@ Edge function:
 - `@tanstack/react-query` — template list caching (`useTemplates`, `useSaveTemplate`)
 - `react-hot-toast` — success/error feedback
 - `SettingsSectionHeader` — consistent settings header
+- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, `@tiptap/extension-text-align` — WYSIWYG editor (`EmailEditor`)
 
 ## Main User Flows
 
@@ -202,6 +203,7 @@ No changes needed — the existing `activity_attachments` infrastructure renders
 
 ## Recent Changes
 
+- **2026-05-16 (commits `167804e`, `797b6cd`, `8a529a4`, `84c39f2`, `2f15cd0`):** WYSIWYG editor (`EmailEditor` via TipTap v2) replaces textarea with formatting toolbar (Bold, Italic, Underline, H1-H3, lists, alignment, link, remove formatting). ✨ Reescrever button in toolbar calls `openrouter-proxy` edge function with configurable rewrite prompt (`email_rewrite_prompt` in `freshdesk_config`). `supabase/config.toml` — added `[functions.openrouter-proxy] verify_jwt = false`. Email templates: `<p>{{corpo_mensagem}}</p>` changed to `<div>` to avoid nested `<p>`.
 - **2026-05-15 (multiple commits):** Email attachments — upload to storage, download+base64 in edge, send via Resend, persist as `activity_attachments`. Composer redesigned: single-screen with chips "Para:", company swap icon, preview modal (not a step). Domain validation: CSM sender requires `@donc.com.br`. Email button added to ClientTabContatos.
 - **2026-05-13 (commit `0f8e363`):** `reply_to: suporte@donc.com.br` added to all outgoing emails via Resend API `reply_to` parameter
 - **2026-05-13 (commit `1e7b9b9`):** `from_mode` field added to request body (`csm` | `noreply`); `reply_to` field added to email template schema; admin/manager can override sender; `csm_email` variable added to template variables
@@ -213,7 +215,7 @@ All templates support these variables via `{{variable}}` merge syntax:
 | Variable | Source | Example |
 |----------|--------|---------|
 | `assunto` | User input (subject field) | "Lembrete de reunião" |
-| `corpo_mensagem` | User input (body field, line breaks converted to `<br>`) | HTML paragraph |
+| `corpo_mensagem` | User input (body field, HTML from EmailEditor) | HTML content |
 | `csm_nome` | `profiles.name` of sender | "João Silva" |
 | `csm_cargo` | `profiles.cargo` of sender | "Customer Success Manager" |
 | `csm_telefone` | `profiles.phone` of sender | "(11) 99999-9999" |
@@ -236,6 +238,7 @@ Layout was revised in migration `20260511120000_fix_email_template_signature.sql
 ## File Reference Map
 
 - `src/components/email/EmailComposerModal.jsx` — composer modal entry point (single-screen)
+- `src/components/email/EmailEditor.jsx` — TipTap WYSIWYG editor with toolbar and rewrite button
 - `src/components/email/EmailTemplatesManager.jsx` — template CRUD manager
 - `src/components/clients/tabs/ClientTabContatos.jsx` — email button per contact
 - `src/components/settings/SettingsPage.jsx` — menu integration (EmailTemplatesManager under "Comunicação")
