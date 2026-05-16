@@ -6,7 +6,6 @@ import { SettingsStages } from './SettingsStages'
 import { SettingsUsers } from './SettingsUsers'
 import { SettingsLogs } from './SettingsLogs'
 import { SettingsFreshdesk } from './SettingsFreshdesk'
-import { SettingsDonkie } from './SettingsDonkie'
 import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
 
@@ -26,7 +25,6 @@ const SETTINGS_MENU_ICONS = {
   logs: Icons.ClipboardList,
   freshdesk: Icons.Headphones,
   donkie: Icons.Bot,
-  ai: Icons.Sparkles,
   'donc-api': Icons.Plug,
   features: Icons.Flag,
   'fase-types': Icons.FolderKanban,
@@ -61,8 +59,7 @@ const MENU_GROUPS = [
     { key: 'health', label: 'Health Score', featureFlag: 'health' },
   ]},
   { label: 'IA & Automação', items: [
-    { key: 'donkie', label: 'Donkie', featureFlag: 'donkie' },
-    { key: 'ai',     label: 'IA', featureFlag: 'ai' },
+    { key: 'donkie', label: 'Donkie IA', featureFlag: 'ai' },
   ]},
   { label: 'Integrações', items: [
     { key: 'freshdesk', label: 'Freshdesk', featureFlag: 'freshdesk' },
@@ -107,8 +104,7 @@ export default function SettingsPage() {
       case 'users':    return isEnabled('users', profile?.role) && <SettingsUsers />
       case 'logs':     return isEnabled('logs', profile?.role) && <SettingsLogs />
       case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
-      case 'donkie':   return isEnabled('donkie', profile?.role) && <SettingsDonkie />
-      case 'ai':       return isEnabled('ai', profile?.role) && <SettingsAI />
+      case 'donkie':   return isEnabled('ai', profile?.role) && <SettingsAI />
       case 'donc-api': return isManager && <SettingsDoncAPI />
       case 'features': return isEnabled('features', profile?.role) && <SettingsFeatureFlags />
       case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
