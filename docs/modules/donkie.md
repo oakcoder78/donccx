@@ -2,6 +2,7 @@
 
 ### Purpose
 Donkie is an in‑app conversational assistant focused on Customer Success (CS) for the Donc platform.
+Donkie configuration is managed via `SettingsAI.jsx` (Settings > IA & Automação > Donkie IA).
 - Appears as a floating circular button (`DonkieButton`) in the lower‑right corner of every screen.
 - When clicked, it slides a side panel (`DonkiePanel`) onto the viewport.
 - Provides a chat‑style interface where users can ask questions about customers, CS strategies, or request help drafting communications.
@@ -110,3 +111,5 @@ In May 2026, Donkie migrated from direct Anthropic Claude API to OpenRouter with
 ### File Reference Map
 - `src/components/donkie/DonkieButton.jsx`
 - `src/components/donkie/DonkiePanel.jsx`
+- `src/components/settings/SettingsAI.jsx` — Donkie configuration (4 sections: Models+Debug, WhatsApp Prompt, Donkie, Email)
+- SettingsDonkie.jsx — **deleted** (merged into SettingsAI)
