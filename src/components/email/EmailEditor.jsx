@@ -157,27 +157,25 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
       )}
 
       {/* Editor */}
-      <EditorContent editor={editor} />
+      <div style={{ maxHeight: 400, overflowY: 'auto', position: 'relative' }}>
+        <EditorContent editor={editor} />
 
-      {/* Placeholder fallback for empty */}
-      {!value && (
-        <div
-          className="pointer-events-none select-none absolute"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            padding: '14px 16px',
-            fontSize: 14,
-            color: '#94a3b8',
-            fontFamily: 'inherit',
-            lineHeight: 1.7,
-          }}
-        >
-          {placeholder}
-        </div>
-      )}
+        {!value && (
+          <div
+            className="pointer-events-none select-none"
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0,
+              padding: '14px 16px',
+              fontSize: 14,
+              color: '#94a3b8',
+              fontFamily: 'inherit',
+              lineHeight: 1.7,
+            }}
+          >
+            {placeholder}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
