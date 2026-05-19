@@ -44,12 +44,17 @@ interface GoogleTokenResponse {
   error_description?: string
 }
 
+interface DateTimeField {
+  dateTime: string
+  timeZone: string
+}
+
 interface CalendarEventInput {
   summary?: string
   description?: string
   location?: string
-  start?: string
-  end?: string
+  start?: DateTimeField
+  end?: DateTimeField
   attendees?: { email: string }[]
   reminders?: { useDefault: boolean; overrides: { method: string; minutes: number }[] }
   timeZone?: string
@@ -245,8 +250,8 @@ serve(async (req) => {
       summary: (body.summary as string) || 'doncCX Hub Event',
       description: body.description as string,
       location: body.location as string,
-      start: { dateTime: body.start as string, timeZone: tz } as unknown as string,
-      end: { dateTime: body.end as string, timeZone: tz } as unknown as string,
+      start: { dateTime: body.start as string, timeZone: tz },
+      end: { dateTime: body.end as string, timeZone: tz },
       attendees: body.attendees as { email: string }[],
       reminders: body.reminders ?? {
         useDefault: false,
@@ -278,7 +283,8 @@ serve(async (req) => {
     return json(result)
 
   } catch (err) {
-    console.error('google-calendar-event:', err)
-    return json({ error: String(err) }, 500)
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('google-calendar-event:', msg)
+    return json({ error: msg }, 500)
   }
 })
