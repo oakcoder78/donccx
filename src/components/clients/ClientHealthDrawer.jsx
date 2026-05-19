@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabaseClient'
@@ -22,6 +22,15 @@ const C = {
 
 const todayStr = new Date().toISOString().slice(0, 10)
 const ago30Str = (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10) })()
+
+function MetricRow({ label, value }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+      <span style={{ fontSize: 11.5, color: C.ink3, fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: C.ink, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+    </div>
+  )
+}
 
 const DIMS = [
   { key: 'health_uso',            label: 'Uso',            color: C.dimUso,    cls: 'uso' },
@@ -235,6 +244,136 @@ export function ClientHealthDrawer({ client, onClose }) {
     return [...new Set([...crmOverdue, ...obActOverdue])]
   }, [myTasksRaw, overdueOnboardingActivities])
 
+  const { data: supportData } = useQuery({
+    queryKey: ['client_support_drawer', client.id],
+    staleTime: 2 * 60 * 1000,
+    enabled: !!client.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('client_support')
+        .select('tickets_opened, tickets_resolved, sla_first_response')
+        .eq('client_id', client.id)
+        .order('ref_month', { ascending: false })
+        .limit(1)
+      return data?.[0] ?? null
+    },
+  })
+
+  const { data: usageData = [] } = useQuery({
+    queryKey: ['client_usage_drawer', client.id],
+    staleTime: 2 * 60 * 1000,
+    enabled: !!client.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('client_usage')
+        .select('ref_month, os_created, active_users')
+        .eq('client_id', client.id)
+        .order('ref_month', { ascending: false })
+        .limit(2)
+      return data ?? []
+    },
+  })
+
+  const { data: contactData = [] } = useQuery({
+    queryKey: ['contact_links_drawer', client.id],
+    staleTime: 2 * 60 * 1000,
+    enabled: !!client.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('contact_links')
+        .select('papel, champion, engajamento')
+        .eq('client_id', client.id)
+      return data ?? []
+    },
+  })
+
+  const { data: onboardingData } = useQuery({
+    queryKey: ['client_onboarding_drawer', client.id],
+    staleTime: 2 * 60 * 1000,
+    enabled: !!client.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('onboardings')
+        .select('situacao_geral, onboarding_fases(id, planned_end, status)')
+        .eq('client_id', client.id)
+        .eq('status', 'ativo')
+        .maybeSingle()
+      return data ?? null
+    },
+  })
+
+  const [expandedDim, setExpandedDim] = useState(null)
+
+  const dimMetrics = useMemo(() => {
+    const lu = usageData[0]
+    const pu = usageData[1]
+    const osChg = lu && pu && pu.os_created > 0
+      ? Math.round((lu.os_created - pu.os_created) / pu.os_created * 100) : null
+    const usrChg = lu && pu && pu.active_users > 0
+      ? Math.round((lu.active_users - pu.active_users) / pu.active_users * 100) : null
+    const resolucaoPct = supportData?.tickets_opened > 0
+      ? Math.round((supportData.tickets_resolved ?? 0) / supportData.tickets_opened * 100) : null
+    const decisor = contactData.find(c => c.papel === 'Decisor')
+    const champion = contactData.find(c => c.champion)
+    const lowEng = contactData.some(c => c.engajamento === 'Baixo')
+    const midEng = contactData.some(c => c.engajamento === 'Médio')
+    const lateFases = onboardingData?.onboarding_fases?.filter(
+      f => f.planned_end && f.planned_end < todayStr && f.status !== 'concluida'
+    ) ?? []
+    return { osChg, usrChg, resolucaoPct, decisor, champion, lowEng, midEng, lateFases }
+  }, [usageData, supportData, contactData, onboardingData])
+
+  function enrichDimLabel(rule, dimCls) {
+    switch (rule.rule_key) {
+      case 'sla_nok':
+        return `SLA: ${supportData?.sla_first_response ?? '?'} min (meta ≤15 min)`
+      case 't15_nok': case 'thi_nok': {
+        const pct = dimMetrics.resolucaoPct
+        const op = supportData?.tickets_opened ?? 0
+        const rs = supportData?.tickets_resolved ?? 0
+        return `Resolução: ${pct ?? '?'}%${op > 0 ? ` (${rs}/${op})` : ''}`
+      }
+      case 'os_down': case 'os_up': {
+        const curr = usageData[0]?.os_created ?? 0
+        const prev = usageData[1]?.os_created ?? 0
+        const chg = dimMetrics.osChg
+        return `OS: ${curr}${prev > 0 ? ` (vs ${prev}, ${chg > 0 ? '+' : ''}${chg}%)` : ''}`
+      }
+      case 'usr_down': case 'usr_up': {
+        const curr = usageData[0]?.active_users ?? 0
+        const prev = usageData[1]?.active_users ?? 0
+        const chg = dimMetrics.usrChg
+        return `Usuários: ${curr}${prev > 0 ? ` (vs ${prev}, ${chg > 0 ? '+' : ''}${chg}%)` : ''}`
+      }
+      case 'nd_m1': case 'nd_m2': case 'nd_m3': {
+        const months = client.golive ? Math.floor(daysSince(client.golive) / 30) : 0
+        return `Sem decisor (${months > 0 ? `${months} meses` : 'desde o início'})`
+      }
+      case 'no_champ':
+        return dimMetrics.champion ? `Champion: ${dimMetrics.champion}` : 'Sem champion identificado'
+      case 'eng_low': case 'eng_mid': case 'eng_high': {
+        const nivel = { eng_low: 'Baixo', eng_mid: 'Médio', eng_high: 'Alto' }[rule.rule_key]
+        const last = lastActivityMap[client.id]
+        const ds = last ? daysSince(last) : null
+        return `Engajamento: ${nivel}${ds !== null ? ` (${ds}d sem interação)` : ''}`
+      }
+      case 'onb_travado':
+        return `Onboarding: travado`
+      case 'onb_atencao':
+        return `Onboarding: atenção`
+      case 'mp_late':
+        return dimMetrics.lateFases.length > 0
+          ? `Milestones atrasadas: ${dimMetrics.lateFases.length}`
+          : rule.label
+      case 'ob_late': {
+        const ds = client.golive ? daysSince(client.golive) : null
+        return ds ? `Onboarding incompleto (${ds}d de go-live)` : rule.label
+      }
+      default:
+        return rule.label
+    }
+  }
+
   useEffect(() => {
     const onKey = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
@@ -371,43 +510,125 @@ export function ClientHealthDrawer({ client, onClose }) {
               Todas as dimensões saudáveis ✓
             </div>
           ) : (
-            DIMS.map(d => {
-              const dimScore = client[d.key] ?? 0
-              const pct = Math.min(100, Math.round((dimScore / 20) * 100))
-              const { violated, toImprove } = getDimensionInsights(client, d.key, d.cls, healthRules)
-              return (
-                <div key={d.key} style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{d.label}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: d.color, fontVariantNumeric: 'tabular-nums' }}>{dimScore}/20</span>
+            <>
+              {DIMS.filter(d => (client[d.key] ?? 0) < 20).map(d => {
+                const dimScore = client[d.key] ?? 0
+                const pct = Math.min(100, Math.round((dimScore / 20) * 100))
+                const { violated, toImprove } = getDimensionInsights(client, d.key, d.cls, healthRules)
+                const isExpanded = expandedDim === d.key
+
+                const enrichedViolated = violated.map(r => ({
+                  ...r,
+                  enrichedLabel: enrichDimLabel(r, d.cls),
+                }))
+                const enrichedToImprove = toImprove.map(r => ({
+                  ...r,
+                  enrichedLabel: enrichDimLabel(r, d.cls),
+                }))
+
+                return (
+                  <div key={d.key} style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', marginBottom: 10 }}>
+                    <button
+                      onClick={() => setExpandedDim(prev => prev === d.key ? null : d.key)}
+                      style={{
+                        width: '100%', border: 0, background: 'transparent', cursor: 'pointer',
+                        padding: '14px 14px 12px', display: 'flex', alignItems: 'center', gap: 8,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span style={{ color: C.ink4, flexShrink: 0, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>
+                        <Icons.ChevronRight size={14} />
+                      </span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: C.ink }}>{d.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: d.color, fontVariantNumeric: 'tabular-nums' }}>{dimScore}/20</span>
+                    </button>
+                    <div style={{ padding: '0 14px 4px 36px' }}>
+                      <div style={{ height: 6, borderRadius: 4, background: C.bg, overflow: 'hidden' }}>
+                        <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: 4 }} />
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ padding: '0 14px 16px 36px' }}>
+                        {d.cls === 'suporte' && supportData && (
+                          <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <MetricRow label="Tickets abertos" value={String(supportData.tickets_opened ?? 0)} />
+                            <MetricRow label="Resolvidos" value={supportData.tickets_opened > 0
+                              ? `${supportData.tickets_resolved ?? 0} (${dimMetrics.resolucaoPct ?? 0}%)`
+                              : '0 (0%)'} />
+                            <MetricRow label="SLA 1ª resposta" value={supportData.sla_first_response != null
+                              ? `${supportData.sla_first_response} min`
+                              : '—'} />
+                          </div>
+                        )}
+
+                        {d.cls === 'uso' && usageData[0] && (
+                          <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <MetricRow label="OS criadas (mês)" value={String(usageData[0].os_created ?? 0)} />
+                            {usageData[1] && (
+                              <MetricRow label="OS mês anterior" value={`${usageData[1].os_created ?? 0}${dimMetrics.osChg != null ? ` (${dimMetrics.osChg > 0 ? '+' : ''}${dimMetrics.osChg}%)` : ''}`} />
+                            )}
+                            <MetricRow label="Usuários ativos" value={String(usageData[0].active_users ?? 0)} />
+                            {usageData[1] && (
+                              <MetricRow label="Usuários mês ant." value={`${usageData[1].active_users ?? 0}${dimMetrics.usrChg != null ? ` (${dimMetrics.usrChg > 0 ? '+' : ''}${dimMetrics.usrChg}%)` : ''}`} />
+                            )}
+                          </div>
+                        )}
+
+                        {d.cls === 'rel' && (
+                          <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <MetricRow label="Decisor" value={dimMetrics.decisor ? 'Sim' : 'Não'} />
+                            <MetricRow label="Champion" value={dimMetrics.champion ? 'Sim' : 'Não'} />
+                            <MetricRow label="Engajamento" value={dimMetrics.lowEng ? 'Baixo' : dimMetrics.midEng ? 'Médio' : contactData.length > 0 ? 'Alto' : '—'} />
+                            {lastActivityMap[client.id] && (
+                              <MetricRow label="Última interação" value={`${daysSince(lastActivityMap[client.id])} dias`} />
+                            )}
+                          </div>
+                        )}
+
+                        {d.cls === 'fin' && (
+                          <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <MetricRow label="Atraso" value={(client.delay_days ?? 0) > 0 ? `${client.delay_days} dias` : 'Em dia'} />
+                          </div>
+                        )}
+
+                        {d.cls === 'proj' && (
+                          <div style={{ margin: '10px 0', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <MetricRow label="Situação" value={onboardingData?.situacao_geral ?? 'Sem onboarding ativo'} />
+                            {dimMetrics.lateFases.length > 0 && (
+                              <MetricRow label="Fases atrasadas" value={String(dimMetrics.lateFases.length)} />
+                            )}
+                          </div>
+                        )}
+
+                        {enrichedViolated.length > 0 && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.ink4, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Penalizando</div>
+                            {enrichedViolated.map((r, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '5px 0', borderBottom: i < enrichedViolated.length - 1 ? `0.5px solid ${C.line}` : 0 }}>
+                                <span style={{ fontSize: 11.5, color: C.ink2, fontWeight: 500, flex: 1, minWidth: 0 }}>{r.enrichedLabel}</span>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: C.red, background: C.redSoft, padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}>−{Math.abs(r.points)} pts</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {enrichedToImprove.length > 0 && (
+                          <div style={{ marginTop: 10, padding: '10px 12px', background: C.amberSoft, borderRadius: 8 }}>
+                            <div style={{ fontSize: 10.5, fontWeight: 700, color: C.amber, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Como melhorar</div>
+                            {enrichedToImprove.map((r, i) => (
+                              <div key={i} style={{ fontSize: 11.5, color: C.ink2, fontWeight: 500, marginBottom: i < enrichedToImprove.length - 1 ? 4 : 0 }}>
+                                Resolver <b>{r.enrichedLabel}</b> → +{Math.abs(r.points)} pts
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ height: 6, borderRadius: 4, background: C.bg, overflow: 'hidden', marginBottom: violated.length > 0 ? 10 : 0 }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: 4 }} />
-                  </div>
-                  {violated.length > 0 && (
-                    <>
-                      <div style={{ fontSize: 10.5, fontWeight: 700, color: C.ink4, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Penalizando</div>
-                      {violated.map((r, i) => (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '5px 0', borderBottom: i < violated.length - 1 ? `0.5px solid ${C.line}` : 0 }}>
-                          <span style={{ fontSize: 11.5, color: C.ink2, fontWeight: 500 }}>{r.label}</span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: C.red, background: C.redSoft, padding: '2px 6px', borderRadius: 6, flexShrink: 0 }}>−{Math.abs(r.points)} pts</span>
-                        </div>
-                      ))}
-                      {toImprove.length > 0 && (
-                        <div style={{ marginTop: 10, padding: '10px 12px', background: C.amberSoft, borderRadius: 8 }}>
-                          <div style={{ fontSize: 10.5, fontWeight: 700, color: C.amber, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Como melhorar</div>
-                          {toImprove.map((r, i) => (
-                            <div key={i} style={{ fontSize: 11.5, color: C.ink2, fontWeight: 500, marginBottom: i < toImprove.length - 1 ? 4 : 0 }}>
-                              Resolver <b>{r.label}</b> → +{Math.abs(r.points)} pts
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )
-            })
+                )
+              })}
+            </>
           )}
         </div>
       </div>

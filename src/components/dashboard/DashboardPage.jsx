@@ -1462,7 +1462,7 @@ export default function DashboardPage() {
                   )
                 })}
               </div>
-              <SeeAll onClick={() => navigate('/empresas')}>ver todos os {clients.length} →</SeeAll>
+              <SeeAll onClick={() => navigate('/health')}>ver todos os {clients.length} →</SeeAll>
             </Panel>
 
             {/* Coluna direita */}
