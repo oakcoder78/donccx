@@ -55,7 +55,7 @@ export function useGoogleCalendarStatus() {
     url.searchParams.set('scope', SCOPES)
     url.searchParams.set('access_type', 'offline')
     url.searchParams.set('prompt', 'consent')
-    url.searchParams.set('state', user.id)
+    url.searchParams.set('state', `${user.id}|${window.location.origin}`)
     window.location.href = url.toString()
   }
 

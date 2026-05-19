@@ -70,19 +70,21 @@ serve(async (req) => {
   try {
     const url = new URL(req.url)
     const code = url.searchParams.get('code')
-    const state = url.searchParams.get('state')
+    const rawState = url.searchParams.get('state') || ''
+    const [userId, frontendOrigin] = rawState.split('|')
     const error = url.searchParams.get('error')
     const errorDescription = url.searchParams.get('error_description')
+    const redirectBase = frontendOrigin || FRONTEND_BASE
 
     if (error) {
       const msg = encodeURIComponent(errorDescription ?? error)
       return new Response(null, {
         status: 302,
-        headers: { Location: `${FRONTEND_BASE}/?google=error=${msg}` },
+        headers: { Location: `${redirectBase}/?google=error=${msg}` },
       })
     }
 
-    if (!code || !state) {
+    if (!code || !userId) {
       return new Response(JSON.stringify({ error: 'Missing code or state' }), {
         status: 400,
         headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -94,7 +96,7 @@ serve(async (req) => {
     if (!clientId || !clientSecret) {
       return new Response(null, {
         status: 302,
-        headers: { Location: `${FRONTEND_BASE}/?google=error=server_not_configured` },
+        headers: { Location: `${redirectBase}/?google=error=server_not_configured` },
       })
     }
 
@@ -110,7 +112,7 @@ serve(async (req) => {
     const { error: upsertErr } = await admin
       .from('user_google_configs')
       .upsert({
-        user_id: state,
+        user_id: userId,
         access_token: tokens.accessToken,
         refresh_token: tokens.refreshToken,
         tokenexpiry: new Date(tokens.expiryDate).toISOString(),
@@ -121,20 +123,20 @@ serve(async (req) => {
       console.error('google-calendar-callback: upsert failed', upsertErr)
       return new Response(null, {
         status: 302,
-        headers: { Location: `${FRONTEND_BASE}/?google=error=db_save_failed` },
+        headers: { Location: `${redirectBase}/?google=error=db_save_failed` },
       })
     }
 
     return new Response(null, {
       status: 302,
-        headers: { Location: `${FRONTEND_BASE}/?google=success` },
-      })
+      headers: { Location: `${redirectBase}/?google=success` },
+    })
 
   } catch (err) {
     console.error('google-calendar-callback:', err)
     return new Response(null, {
       status: 302,
-        headers: { Location: `${FRONTEND_BASE}/?google=error=unknown` },
+      headers: { Location: `${redirectBase || FRONTEND_BASE}/?google=error=unknown` },
     })
   }
 })
