@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** None — all phases complete (incl. lifecycle_stage filter fix)
+- **Active phase:** Phase 2 — Client Drawer (not started)
 
 **What exists related to `/health`:**
 - `src/pages/HealthDashboardPage.jsx` — main page, scorecard + ranking table ✅
@@ -527,11 +527,223 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 
 ---
 
+### Phase 2 — Client Drawer
+
+**Status:** Not started — this is the active phase.
+
+**Rationale:** A lista rankeada é útil para priorização, mas passiva — o decisor vê o score 42 e ainda precisa navegar para outra página para entender o que está acontecendo. O drawer resolve isso: clique na linha abre um preview completo do cliente sem sair da `/health`. O conteúdo já existe em `DashboardPage.jsx` (`DrawerClientContent`) — o trabalho é extrair, tornar independente e reutilizar.
+
+**Scope:**
+- Extrair `DrawerClientContent` de `DashboardPage.jsx` para `src/components/clients/ClientHealthDrawer.jsx`
+- O novo componente carrega seus próprios dados (não recebe como prop)
+- Integrar o drawer em `HealthDashboardPage.jsx` — clique na linha abre o drawer em vez de navegar direto
+- Botão "Abrir cliente completo →" navega para `/empresas/{id}` (Overview, não `?tab=health`)
+
+#### Source reference — DrawerClientContent (DashboardPage.jsx)
+
+O drawer a extrair está em `DashboardPage.jsx` na função `DrawerClientContent`. Ele renderiza:
+
+| Block | Content | Data source |
+|---|---|---|
+| Header | Nome, score badge, score + tendência + temperatura em grid 3 colunas | `client` prop |
+| Motivo do alerta | Reasons passadas pelo chamador (urgency multi-criteria) | `reasons` prop — recriar localmente |
+| Sinais ativos | `getSignals(client, lastActivityMap)` — 7 sinais com título, sub e ação sugerida | `lastActivityMap` query |
+| Ações rápidas | Até 5 ações contextuais com ícone e navegação | `myTasksRaw`, `overdueOnboardingFases` queries |
+| Saúde por dimensão | Barra por dimensão + regras violadas + "Como melhorar" | `healthRules` via `useHealthConfig` |
+| Footer | Botão "Abrir cliente completo →" + "Fechar" | — |
+
+> **Não copiar os SVG inline (`Ic.*`) de `DashboardPage.jsx`.** Usar `Icons.*` de `src/lib/icons.js` conforme o padrão do projeto.
+
+#### Data dependencies to internalize
+
+Estas queries estão atualmente no escopo de `DashboardPage.jsx` e precisam ser movidas para dentro de `ClientHealthDrawer.jsx`:
+
+```js
+// 1. Last activity date per client (para getSignals)
+useQuery(['last_activity_map'], async () => {
+  const { data } = await supabase
+    .from('activities')
+    .select('client_id, activity_date')
+    .order('activity_date', { ascending: false })
+  const map = {}
+  ;(data || []).forEach(a => { if (a.client_id && !map[a.client_id]) map[a.client_id] = a.activity_date })
+  return map
+})
+
+// 2. Health rules (para dimensões + "como melhorar")
+const { data: healthConfigData } = useHealthConfig()
+const healthRules = healthConfigData?.rules ?? []
+
+// 3. My overdue tasks (para ações rápidas)
+useActivities({ excludeStatuses: ['concluida', 'cancelada'] })
+
+// 4. Overdue onboarding fases (para ações rápidas + reasons)
+// query existente em DashboardPage — replicar no drawer
+```
+
+#### Reasons logic — recriar no drawer
+
+`DashboardPage.jsx` calcula `alertaClients` com `urgencyScore` e `reasons[]` antes de abrir o drawer. No `ClientHealthDrawer`, como o drawer recebe apenas `clientId`, os reasons precisam ser calculados internamente:
+
+```js
+// No ClientHealthDrawer, derivar reasons a partir do client carregado:
+function buildReasons(client, lastActivityMap, overdueOnboardingFases, overdueActivityClientIds) {
+  const reasons = []
+  if (overdueOnboardingFases.some(f => f.clientId === client.id))
+    reasons.push({ kind: 'red', label: 'Onboarding vencido' })
+  if (overdueActivityClientIds.includes(client.id))
+    reasons.push({ kind: 'red', label: 'Atividade atrasada' })
+  if (client.csm_temperature === -7)
+    reasons.push({ kind: 'red', label: 'Temperatura muito fria' })
+  const last = lastActivityMap[client.id]
+  if (!last || last < ago30Str)
+    reasons.push({ kind: 'amber', label: last ? `Sem interação há ${daysSince(last)}d` : 'Sem interação registrada' })
+  if (!client.temperature_updated_at || daysSince(client.temperature_updated_at.slice(0, 10)) > 30)
+    reasons.push({ kind: 'amber', label: 'Temperatura desatualizada' })
+  if (client.csm_temperature === -3)
+    reasons.push({ kind: 'amber', label: 'Temperatura fria' })
+  return reasons
+}
+```
+
+#### Row click behavior change in HealthDashboardPage.jsx
+
+```jsx
+// BEFORE (Phase 0/1):
+onClick={() => navigate(`/empresas/${c.id}?tab=health`, { state: { from: ... } })}
+
+// AFTER (Phase 2):
+onClick={() => setDrawerClientId(c.id)}
+```
+
+O drawer abre sobre a lista. O botão "Abrir cliente completo →" dentro do drawer navega para `/empresas/${clientId}` (sem query param — vai para Overview).
+
+#### Drawer mechanics (same pattern as DashboardPage.jsx)
+
+```jsx
+// In HealthDashboardPage.jsx:
+const [drawerClientId, setDrawerClientId] = useState(null)
+const drawerOpen = !!drawerClientId
+
+// Page layout adjusts:
+<div style={{ paddingRight: drawerOpen ? 380 : 0, transition: 'padding-right 0.3s ease' }}>
+
+// Overlay + aside (copy pattern from DashboardPage.jsx lines ~1580-1600)
+```
+
+#### Files to be touched (Phase 2)
+
+| File | Change type |
+|---|---|
+| `src/components/clients/ClientHealthDrawer.jsx` | **Create** — extracted + adapted from `DrawerClientContent` |
+| `src/pages/HealthDashboardPage.jsx` | Modify — add drawer state, overlay, aside; change row onClick |
+
+#### Checklist — Phase 2
+
+- [x] **Create `src/components/clients/ClientHealthDrawer.jsx`**
+  - [x] Props: `clientId` (integer), `onClose` (function)
+  - [x] Loads its own data: `lastActivityMap`, `healthRules` via `useHealthConfig`, overdue activities, overdue onboarding fases
+  - [x] `buildReasons(client, ...)` defined locally — does not receive reasons as prop
+  - [x] `getSignals(client, lastActivityMap)` defined locally (copy from `DashboardPage.jsx`)
+  - [x] `evaluateClientRules(client, rules)` defined locally (copy from `DashboardPage.jsx`)
+  - [x] All icons use `Icons.*` from `src/lib/icons.js` — no inline SVG `Ic.*` objects
+  - [x] Color constants `C.*` defined locally (copy relevant tokens from `DashboardPage.jsx`)
+  - [x] Loading state: skeleton while client data loads
+  - [x] Footer: "Abrir cliente completo →" navigates to `/empresas/${clientId}` (no query param)
+  - [x] Footer: "Fechar" calls `onClose`
+  - [x] ESC key closes drawer (via `useEffect` on `keydown`)
+- [x] **Update `HealthDashboardPage.jsx`**
+  - [x] Add `drawerClientId` state (`useState(null)`)
+  - [x] Row `onClick` sets `drawerClientId` instead of navigating
+  - [x] Page wrapper adjusts `paddingRight` when drawer is open (380px, transition 0.3s)
+  - [x] Overlay div (fixed, semi-transparent) closes drawer on click
+  - [x] `<aside>` fixed right panel renders `<ClientHealthDrawer>` when `drawerClientId` is set
+  - [x] ESC key handler in `HealthDashboardPage` (or delegate to drawer component)
+- [x] **Build:** `npm run build` with no errors
+
+#### UI Spec — Drawer (Phase 2)
+
+```
+┌─────────────────────────────┐
+│  Cliente          [✕]        │
+│  Nome do Cliente             │
+│  [Em Risco]                  │
+│  ┌────────┬────────┬───────┐ │
+│  │ Score  │Tendênc.│ Temp. │ │
+│  │  42    │▼ 8 pts │ Fria  │ │
+│  └────────┴────────┴───────┘ │
+├─────────────────────────────┤
+│  MOTIVO DO ALERTA · 2        │
+│  ● Onboarding vencido        │
+│  ● Sem interação há 45d      │
+├─────────────────────────────┤
+│  SINAIS ATIVOS · 3           │
+│  ⚡ Sem interação recente    │
+│     Última atividade há 45d  │
+│     → registrar contato hoje │
+│  ...                         │
+├─────────────────────────────┤
+│  AÇÕES RÁPIDAS               │
+│  [📞 Registrar contato]      │
+│  [🌡 Atualizar temperatura]  │
+│  [+ Registrar atividade]     │
+├─────────────────────────────┤
+│  SAÚDE POR DIMENSÃO          │
+│  Uso      ████░░  8/20       │
+│    Penalizando:              │
+│    OS abaixo do esperado -4  │
+│    Como melhorar: ...        │
+│  ...                         │
+├─────────────────────────────┤
+│  [Abrir cliente completo →]  │
+│        Fechar                │
+└─────────────────────────────┘
+```
+
+#### Implementation Log (Phase 2)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| 2026-05-19 | `1137891` | `src/components/clients/ClientHealthDrawer.jsx` (created), `src/pages/HealthDashboardPage.jsx`, `src/lib/icons.js` | Client drawer extraído do DashboardPage; self-contained queries (lastActivityMap, healthRules, overdue fases); buildReasons + getSignals locais; Ic.* substituído por Icons.*; drawer state + overlay + aside + paddingRight na dashboard |
+
+---
+
+### Phase 3 — Enrich ClientTabOverview
+
+**Status:** Planned — start after Phase 2 is complete and logged.
+
+**Rationale:** O drawer mostra o preview situacional do cliente. Quando o decisor clica "Abrir cliente completo →", cai no Overview. Para que essa navegação entregue valor, o Overview precisa ter tudo que o drawer tem — e mais. O objetivo é que o Overview seja a visão definitiva do cliente para qualquer stakeholder.
+
+**Pre-requisites:**
+- Phase 2 complete — `ClientHealthDrawer.jsx` exists and is stable
+- Audit of what `ClientTabOverview.jsx` already has vs. what the drawer adds
+
+**Known gaps to fill (preliminary — verify before implementing):**
+
+| Data | In drawer? | In Overview? | Action |
+|---|---|---|---|
+| Reasons / urgency signals | ✅ | ❌ | Add to Overview alerts row |
+| `getSignals` active signals | ✅ | ❌ | Add as dedicated section |
+| Regras violadas por dimensão | ✅ | ❌ | Add to health card or new section |
+| "Como melhorar" por dimensão | ✅ | ❌ | Add below violated rules |
+| Ações rápidas contextuais | ✅ | ❌ | Add as quick action row |
+| Score + tendência + temperatura | ✅ | ✅ (partial) | Verify completeness |
+
+> **Antes de implementar:** abrir `ClientTabOverview.jsx` e o drawer lado a lado e mapear exatamente o que falta. Não assumir — verificar o código. O audit determina o escopo real da fase.
+
+#### Implementation Log (Phase 3)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| — | — | — | — |
+
+---
+
 ## 8. Current Checkpoint
 
 ### Production state
 
-- `/health` rota existe, página existe (`src/pages/HealthDashboardPage.jsx`) com 343 linhas
+- `/health` rota existe, página existe (`src/pages/HealthDashboardPage.jsx`) com ~365 linhas
 - **`lifecycle_stage: 'cliente'` filter** ativo na query — leads/prospects/parceiros excluídos do dashboard
 - Input de busca e dropdowns com altura uniforme (`input-base h-9`)
 - Scorecard + ranking table + 3 advanced filters (band chips, dim dropdown, CSM dropdown)
@@ -543,6 +755,8 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 - `clients.health_trend integer DEFAULT 0` — migration aplicada no banco remoto
 - `calculate_health_trends()` SQL function existe — chamada pelo monthly-sync (deployed)
 - Coluna Δ em `/health` exibe `—` enquanto `health_trend = 0`
+- **Drawer implementado** — clique na linha abre `ClientHealthDrawer` com overlay + paddingRight shift
+- `ClientHealthDrawer.jsx` — componente independente com queries próprias (lastActivityMap, healthRules, overdue fases, overdue activities), buildReasons + getSignals inline, Icons.* barrel, ESC fecha
 
 ### Architectural decisions
 
@@ -558,6 +772,9 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 | Navbar: `featureFlag: 'health'` in `mainNavLinks` | Consistent with existing `whatsapp_atendimento` pattern; `availableLinks()` handles filtering |
 | `health_trend` via Opção A (migration + monthly-sync) | pg_cron e `health_score_history` já existiam; SQL function `calculate_health_trends()` chamada pelo monthly-sync após health-recalc |
 | `clients.id` is integer | Confirmed by health-recalc source — direct join with `health_score_history.client_id integer` |
+| Drawer extraído de DashboardPage.jsx | `DrawerClientContent` já existe e é completo — reutilizar em vez de recriar; extrair para componente independente com queries próprias |
+| Row click → drawer, não navegação direta | O decisor permanece na lista rankeada; navega para o cliente completo apenas se quiser aprofundar |
+| "Abrir cliente completo" vai para Overview | O Overview é a visão definitiva do cliente; `?tab=health` seria redundante com o que o drawer já mostra |
 
 ---
 
@@ -567,7 +784,7 @@ When resuming this document for implementation:
 
 1. Read **Section 0 (Current System State)** — understand what exists and what will be created.
 2. Read the **Design System Reference (Section 2)** and open the reference files before writing any code.
-3. Identify the **active phase** via its checklist. If Phase 0 is incomplete, start there.
+3. Identify the **active phase** via its checklist status. Currently **Phase 2 — Client Drawer**.
 4. Implement item by item. Mark ✅ when done and verified.
 5. After each significant item, run `npm run build` to ensure nothing broke.
 6. At the end of the phase, fill in the **Implementation Log**.
