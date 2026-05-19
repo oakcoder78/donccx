@@ -32,6 +32,17 @@ export function useGoogleCalendarStatus() {
 
   const isConnected = !!(query.data?.refresh_token)
 
+  function disconnectGoogleCalendar() {
+    return supabase
+      .from('user_google_configs')
+      .delete()
+      .eq('user_id', user.id)
+      .then(({ error }) => {
+        if (error) throw error
+        invalidate()
+      })
+  }
+
   function connectGoogleCalendar() {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
     if (!clientId) {
@@ -57,6 +68,7 @@ export function useGoogleCalendarStatus() {
     isConnected,
     error: query.error,
     connectGoogleCalendar,
+    disconnectGoogleCalendar,
     invalidate,
   }
 }

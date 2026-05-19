@@ -117,7 +117,7 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
     }
   }
 
-  const { isLoading, isConnected, connectGoogleCalendar } = useGoogleCalendarStatus()
+  const { isLoading, isConnected, connectGoogleCalendar, disconnectGoogleCalendar } = useGoogleCalendarStatus()
   const wasConnectedRef = useRef(false)
 
   useEffect(() => {
@@ -126,6 +126,16 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
       toast.success('Google Calendar conectado!')
     }
   }, [isConnected])
+
+  async function handleDisconnectGoogleCalendar() {
+    if (!confirm('Desconectar Google Calendar?')) return
+    try {
+      await disconnectGoogleCalendar()
+      toast.success('Google Calendar desconectado')
+    } catch {
+      toast.error('Erro ao desconectar Google Calendar')
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -227,6 +237,16 @@ export function UserEditModal({ profile, email, title = 'Editar Perfil', onClose
               <span className="text-xs text-text-secondary">Não conectado</span>
             )}
           </div>
+          {isConnected && !isLoading && (
+            <button
+              type="button"
+              onClick={handleDisconnectGoogleCalendar}
+              className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors"
+            >
+              <Icons.X className="w-3.5 h-3.5" />
+              Desconectar Google Calendar
+            </button>
+          )}
           {!isConnected && !isLoading && (
             <button
               type="button"
