@@ -155,7 +155,11 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
 
         if (res && !res.ok) {
           const err = await res.json().catch(() => ({}))
-          toast.error(err.error || 'Erro ao sincronizar com Google Calendar')
+          if (err.code === 'TOKEN_EXPIRED') {
+            toast.error('Google Calendar desconectado. Reconecte em Minha Conta.')
+          } else {
+            toast.error(err.error || 'Erro ao sincronizar com Google Calendar')
+          }
         }
       } catch {
         toast.error('Erro ao sincronizar com Google Calendar')
