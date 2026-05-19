@@ -67,6 +67,7 @@ import {
   Star,
   Tag,
   Target,
+  Thermometer,
   Trash2,
   Underline,
   Unlink,
@@ -75,6 +76,7 @@ import {
   Wallet,
   X,
   XCircle,
+  Zap,
 } from "lucide-react"
 
 export const Icons = {
@@ -143,6 +145,7 @@ export const Icons = {
   Star,
   Tag,
   Target,
+  Thermometer,
   Trash2,
   Underline,
   Unlink,
@@ -151,4 +154,5 @@ export const Icons = {
   Wallet,
   X,
   XCircle,
+  Zap,
 }
