@@ -66,23 +66,15 @@ function scoreBandLabel(s) {
   return 'saudável'
 }
 
-function evaluateClientRules(client, rules) {
-  return rules.filter(rule => {
-    const cv = client[rule.condition_field]
-    const val = rule.condition_value
-    const op = rule.condition_operator
-    if (op === 'is_null') return cv == null
-    if (op === 'is_not_null') return cv != null
-    const n = Number(cv)
-    const nv = Number(val)
-    if (op === '<') return n < nv
-    if (op === '>') return n > nv
-    if (op === '<=') return n <= nv
-    if (op === '>=') return n >= nv
-    if (op === '=' || op === '==') return String(cv) === String(val)
-    if (op === '!=') return String(cv) !== String(val)
-    return false
-  })
+function getDimensionInsights(client, dimKey, dimCls, rules) {
+  const dimScore = client[dimKey] ?? 20
+  const dimRules = rules.filter(r => r.dimension === dimCls || r.dimension === dimKey)
+
+  if (dimScore >= 20) return { violated: [], toImprove: [] }
+
+  const violated = dimRules.filter(r => r.points < 0)
+  const toImprove = dimRules.filter(r => r.points > 0)
+  return { violated, toImprove }
 }
 
 function tempVencida(client) {
@@ -382,9 +374,7 @@ export function ClientHealthDrawer({ client, onClose }) {
             DIMS.map(d => {
               const dimScore = client[d.key] ?? 0
               const pct = Math.min(100, Math.round((dimScore / 20) * 100))
-              const dimRules = healthRules.filter(r => r.dimension === d.cls || r.dimension === d.key)
-              const violated = evaluateClientRules(client, dimRules)
-              const toImprove = [...violated].sort((a, b) => Math.abs(b.points) - Math.abs(a.points))
+              const { violated, toImprove } = getDimensionInsights(client, d.key, d.cls, healthRules)
               return (
                 <div key={d.key} style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
