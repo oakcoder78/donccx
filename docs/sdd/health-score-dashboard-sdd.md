@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 2 — pending (Phase 0 and Phase 1 complete)
+- **Active phase:** None — all phases complete
 
 **What exists related to `/health`:**
 - `src/pages/HealthDashboardPage.jsx` — main page, scorecard + ranking table ✅
@@ -417,7 +417,7 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 
 ### Phase 1 — Trend + Advanced Filters
 
-**Status:** ✅ Trend complete — commit `009ec14` (2026-05-19). Advanced filters pending.
+**Status:** ✅ Complete
 
 #### Trend — Delivered
 
@@ -451,10 +451,21 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 - Called via `supabase.rpc()` inside monthly-sync after health-recalc completes
 - `clients.id` confirmed integer (not UUID) — direct join with `health_score_history.client_id`
 
-**Pending items (Advanced Filters — Phase 1 remainder):**
-- Filter by band (Saudável / Atenção / Alerta) — chip row below search input
-- Filter by critical dimension (dropdown)
-- Filter by CSM (admin/manager only, dropdown)
+**Advanced Filters — Delivered:**
+- Filter by band: chip row (Todos/Saudáveis/Atenção/Alerta) com cores e contagens. Chip ativo vai para `/health?tab=health` com estado filtrado. Botão "Limpar filtros" quando ativo.
+- Filter by critical dimension: dropdown com 5 dimensões — filtra clientes com score < 10 na dimensão selecionada.
+- Filter by CSM: dropdown de CSMs (admin/manager only), filtra por `csm_id`.
+
+**Back Button Context — Fixed:**
+- `HealthDashboardPage.jsx` passa `{ state: { from: location.pathname + location.search } }` ao navegar para `/empresas/{id}?tab=health`
+- `ClientDetail.jsx` lê `location.state?.from` — fallback `/empresas`
+- Botão "← Health Score" aparece quando origem é `/health`
+
+#### Implementation Log (Phase 1 — Advanced Filters + Back Button)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| 2026-05-19 | *current* | `src/pages/HealthDashboardPage.jsx`, `src/components/clients/ClientDetail.jsx` | 3 advanced filters (band chips, dim dropdown, CSM dropdown) + back button context via `from` state |
 
 ---
 
@@ -462,13 +473,15 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 
 ### Production state
 
-- `/health` rota existe, página existe (`src/pages/HealthDashboardPage.jsx`)
-- Scorecard + ranking table funcionando com shimmer, debounce, feature flag guard
+- `/health` rota existe, página existe (`src/pages/HealthDashboardPage.jsx`) com 337 linhas
+- Scorecard + ranking table + 3 advanced filters (band chips, dim dropdown, CSM dropdown)
+- Debounced search + shimmer skeleton + error/empty states
+- Feature flag guard + filter chips + "Limpar filtros"
 - `DashboardPage.jsx` "ver todos →" aponta para `/health`
 - Navbar item "Health Score" visível para admin/manager
-- `clients.health_trend integer DEFAULT 0` existe — **migration aplicada, deploy pendente**
-- `calculate_health_trends()` SQL function existe — chamada pelo monthly-sync
-- `health_trend` será populado no próximo monthly-sync (dia 1 do mês seguinte) ou trigger manual
+- Back button no ClientDetail respeita contexto de origem (`from` state)
+- `clients.health_trend integer DEFAULT 0` — migration aplicada no banco remoto
+- `calculate_health_trends()` SQL function existe — chamada pelo monthly-sync (deployed)
 - Coluna Δ em `/health` exibe `—` enquanto `health_trend = 0`
 
 ### Architectural decisions
