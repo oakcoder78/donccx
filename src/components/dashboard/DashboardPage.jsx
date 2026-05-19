@@ -1393,7 +1393,7 @@ export default function DashboardPage() {
                   )
                 })}
               </div>
-              <SeeAll onClick={() => navigate('/empresas?health=alerta')}>ver todos →</SeeAll>
+              <SeeAll onClick={() => navigate('/health')}>ver todos →</SeeAll>
             </Panel>
 
             {/* Próximas atividades */}

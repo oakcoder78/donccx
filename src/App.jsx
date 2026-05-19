@@ -29,6 +29,7 @@ import BriefPublicPage from './pages/BriefPublicPage'
 import SettingsBriefTemplates from './pages/SettingsBriefTemplates'
 import AtendimentoPage from './pages/AtendimentoPage'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
+import HealthDashboardPage from './pages/HealthDashboardPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -169,6 +170,7 @@ function AppRoutes() {
         <Route element={<AppLayout googleOAuthSignal={googleOAuthSignal} />}>
           <Route path="/atendimento" element={<AtendimentoPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/health" element={<HealthDashboardPage />} />
           <Route path="/empresas" element={<ClientsPage />} />
           <Route path="/empresas/:id" element={<ClientDetail />} />
           <Route path="/empresas/:clientId/relatorios/:reportId/editar" element={<ReportEditorPage />} />
