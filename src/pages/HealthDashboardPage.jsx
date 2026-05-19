@@ -47,7 +47,7 @@ function scoreBandColor(s) {
   return C.green
 }
 
-const GRID = '32px 1fr 64px 48px 48px 48px 48px 48px'
+const GRID = '32px 1fr 64px 48px 48px 48px 48px 48px 56px'
 
 function ScoreCard({ label, value, color, large }) {
   return (
@@ -188,6 +188,7 @@ export default function HealthDashboardPage() {
           {DIMS.map(d => (
             <div key={d.key} style={{ fontSize: 11, color: DIM_COLORS[d.key], fontWeight: 600 }}>{d.label}</div>
           ))}
+          <div style={{ fontSize: 11, color: C.ink4 }}>Δ</div>
         </div>
 
         {/* Loading rows */}
@@ -201,6 +202,7 @@ export default function HealthDashboardPage() {
             <div style={{ height: 13, background: '#e8ecf0', borderRadius: 4, width: '65%' }} />
             <div style={{ height: 22, background: '#e8ecf0', borderRadius: 4 }} />
             {DIMS.map(d => <div key={d.key} style={{ height: 13, background: '#e8ecf0', borderRadius: 4 }} />)}
+            <div style={{ height: 13, background: '#e8ecf0', borderRadius: 4 }} />
           </div>
         ))}
 
@@ -240,6 +242,18 @@ export default function HealthDashboardPage() {
                 {c[d.key] ?? '—'}
               </div>
             ))}
+            <div style={{
+              fontSize: 12,
+              fontWeight: 600,
+              fontVariantNumeric: 'tabular-nums',
+              color: c.health_trend > 0 ? C.green : c.health_trend < 0 ? C.red : C.ink4,
+            }}>
+              {c.health_trend == null || c.health_trend === 0
+                ? '—'
+                : c.health_trend > 0
+                  ? `+${c.health_trend}`
+                  : `${c.health_trend}`}
+            </div>
           </div>
         ))}
       </div>

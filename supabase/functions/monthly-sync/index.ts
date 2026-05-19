@@ -328,7 +328,19 @@ serve(async (req) => {
       healthResult = { error: String(err) }
     }
 
-    return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult })
+    // 4. Update health_trend (current health_total - prev month snapshot)
+    let trendResult: any = null
+    try {
+      const { data: trendCount, error: trendErr } = await admin.rpc('calculate_health_trends')
+      if (trendErr) throw new Error(trendErr.message)
+      trendResult = { updated: trendCount }
+      console.log('monthly-sync: health-trend done', trendCount)
+    } catch (err) {
+      console.error('monthly-sync: health-trend error', err)
+      trendResult = { error: String(err) }
+    }
+
+    return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult })
   } catch (err) {
     console.error('monthly-sync:', err)
     return json({ error: String(err) }, 500)
