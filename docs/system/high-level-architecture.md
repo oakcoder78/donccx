@@ -25,3 +25,25 @@ Contexts provide cross‑cutting global state
 ```
 
 The architecture therefore promotes modularity, testability, and a clean mapping between the physical folder layout and the logical layers of the application.
+
+---
+
+## Path Alias
+
+Since 2026-05-18, all imports use the `@/` alias for `src/`:
+
+```
+@/  →  src/
+```
+
+This eliminates deep relative imports (`../../../../`) and makes import paths predictable regardless of file depth. Configured in `vite.config.js` with IDE support via `jsconfig.json`.
+
+## Greeting Engine
+
+Located at `src/lib/greeting-engine/`, the Greeting Engine is a deterministic contextual composition system that generates personalized dashboard greetings. It operates entirely client-side with three content layers:
+
+- **Temporal** — time-of-day and day-of-week greetings
+- **Identity** — role-based and personal milestone greetings (birthday, anniversary)
+- **Operational** — system-state-aware messaging (critical clients, alerts)
+
+The engine follows a composer pattern: `compose.ts` orchestrates content providers from `content/*`, merges fragments deterministically via a seed, and outputs a structured greeting result. Debug/observability output is gated behind `import.meta.env.DEV`.

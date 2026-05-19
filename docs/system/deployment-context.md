@@ -69,6 +69,14 @@ Description of the environment where the application runs and how the infrastruc
 
 ---
 
+## Path Alias Infrastructure
+
+- **`jsconfig.json`** — IDE support for `@/` path resolution
+- **`vite.config.js`** — `resolve.alias` mapping `@/` → `src/`
+- Added 2026-05-18; eliminates deep relative imports across the codebase
+
+---
+
 ## Summary
 
 The architecture follows the flow:

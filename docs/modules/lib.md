@@ -21,6 +21,7 @@ Utility library. Centralizes pure functions, API wrappers, constants, and helper
 | `freshdeskConfig.js` | Load Freshdesk ticket config (groups, agents, custom fields). |
 | `freshdeskSync.js` | Push/update tickets, fetch status from Freshdesk edge function. |
 | `gravidade.js` | Compute gravidade score from activity metrics. |
+| `greeting-engine/` | Deterministic greeting composition system (see below). |
 | `healthScore.js` | Aggregate client health dimensions into total score. |
 | `icons.js` | Export SVG path data map for UI icons. |
 | `onboardingLabels.js` | Map onboarding step IDs to human‑readable labels. |
@@ -28,6 +29,20 @@ Utility library. Centralizes pure functions, API wrappers, constants, and helper
 | `reportGenerator.js` | Assemble PDF/HTML report from data payloads. |
 | `supabaseClient.js` | Initialise Supabase JS client, expose `supabase` object. |
 | `supportUtils.js` | Misc helpers (error formatting, date utils). |
+
+### Greeting Engine (`greeting-engine/`)
+
+| File | Role |
+|------|------|
+| `compose.ts` | Main orchestrator — assembles fragments from all layers |
+| `content/temporal.ts` | Time-of-day and day-of-week phrase provider |
+| `content/identity.ts` | Role-based and milestone phrase provider |
+| `content/operational.ts` | System-state-aware phrase provider |
+| `seed.ts` | Deterministic seed generation from user ID + timestamp |
+| `types.ts` | TypeScript interfaces for fragments, context, results |
+| `debug.ts` | Debug flag configuration |
+| `observability.ts` | DEV-only structured debug output |
+| `hooks/useGreeting.ts` | React hook for consuming the engine in components |
 
 ## Data Flow
 - **Supabase**: `supabaseClient.js` creates client; other lib files import it for CRUD or RPC calls.
@@ -47,10 +62,10 @@ Utility library. Centralizes pure functions, API wrappers, constants, and helper
 
 ## Main Usage Patterns
 ```js
-import { supabase } from '../lib/supabaseClient';
-import { formatPhone } from '../lib/formatPhone';
-import { getFreshdeskConfig } from '../lib/freshdeskConfig';
-import { calculateGravidade } from '../lib/gravidade';
+import { supabase } from '@/lib/supabaseClient';
+import { formatPhone } from '@/lib/formatPhone';
+import { getFreshdeskConfig } from '@/lib/freshdeskConfig';
+import { calculateGravidade } from '@/lib/gravidade';
 
 // Example: fetch client, format phone, compute gravidade
 const { data } = await supabase.from('clients').select().eq('id', id).single();
@@ -81,6 +96,15 @@ Stateless pure functions; no internal React state. Some modules maintain in‑me
 - `src/lib/freshdeskConfig.js`
 - `src/lib/freshdeskSync.js`
 - `src/lib/gravidade.js`
+- `src/lib/greeting-engine/compose.ts`
+- `src/lib/greeting-engine/content/temporal.ts`
+- `src/lib/greeting-engine/content/identity.ts`
+- `src/lib/greeting-engine/content/operational.ts`
+- `src/lib/greeting-engine/seed.ts`
+- `src/lib/greeting-engine/types.ts`
+- `src/lib/greeting-engine/debug.ts`
+- `src/lib/greeting-engine/observability.ts`
+- `src/lib/greeting-engine/hooks/useGreeting.ts`
 - `src/lib/healthScore.js`
 - `src/lib/icons.js`
 - `src/lib/onboardingLabels.js`

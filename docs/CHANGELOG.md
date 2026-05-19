@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-18
+
+### Refactoring — Fase 1 (Cleanup & Quick Wins)
+- **Path Alias:** Added `@/` alias in `vite.config.js` + `jsconfig.json` — migrated 55 files from deep relative imports (`../../../../lib/icons`) to absolute (`@/lib/icons`)
+- **Dead files:** Deleted empty migration `20260503032657_test_post_baseline.sql`
+- **Dead files:** Deleted greeting-engine wrapper files (`identity.ts`, `temporal.ts`, `operational.ts`) — `compose.ts` now imports directly from `content/*`
+- **Console.logs:** Removed 12 debug `console.log` statements from production code (`compose.ts`, `ActivityDetailModal.jsx`, `SettingsFreshdesk.jsx`, `SettingsDoncAPI.jsx`)
+- **Build:** Verified clean build after all changes
+
 ## 2026-05-16
 
 ### Email Module
