@@ -12,6 +12,7 @@ const mainNavLinks = [
   { to: '/contatos',     label: 'Contatos'    },
   { to: '/atividades',   label: 'Atividades'  },
   { to: '/projetos',     label: 'Projetos'    },
+  { to: '/health',       label: 'Health Score', featureFlag: 'health' },
   { to: '/atendimento',  label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
 ]
 
