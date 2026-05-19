@@ -174,7 +174,10 @@ useEffect(() => {
       })
 
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Erro desconhecido')
+      if (!res.ok) {
+        if (data.code === 'TOKEN_EXPIRED') throw new Error('Google Calendar desconectado. Reconecte em Minha Conta.')
+        throw new Error(data.error ?? 'Erro desconhecido')
+      }
       toast.success('Evento criado no Google Calendar!')
       onUpdated?.()
     } catch (err) {

@@ -203,15 +203,24 @@ serve(async (req) => {
       new Date(googleConfig.tokenexpiry).getTime() < Date.now()
 
     if (needsRefresh) {
-      const refreshed = await refreshAccessToken(clientId, clientSecret, googleConfig.refresh_token)
-      accessToken = refreshed.accessToken
-      const updates: Record<string, unknown> = {
-        access_token: refreshed.accessToken,
-        tokenExpiry: new Date(refreshed.expiryDate).toISOString(),
-        updated_at: new Date().toISOString(),
+      try {
+        const refreshed = await refreshAccessToken(clientId, clientSecret, googleConfig.refresh_token)
+        accessToken = refreshed.accessToken
+        const updates: Record<string, unknown> = {
+          access_token: refreshed.accessToken,
+          tokenexpiry: new Date(refreshed.expiryDate).toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        if (refreshed.newRefreshToken) updates.refresh_token = refreshed.newRefreshToken
+        await admin.from('user_google_configs').update(updates).eq('user_id', user.id)
+      } catch (refreshErr) {
+        const msg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr)
+        console.error('Token refresh failed:', msg)
+        if (msg.includes('expired') || msg.includes('revoked') || msg.includes('invalid_grant')) {
+          return json({ error: 'Google Calendar token expired. Please disconnect and reconnect your Google account.', code: 'TOKEN_EXPIRED' }, 401)
+        }
+        return json({ error: `Token refresh failed: ${msg}` }, 500)
       }
-      if (refreshed.newRefreshToken) updates.refresh_token = refreshed.newRefreshToken
-      await admin.from('user_google_configs').update(updates).eq('user_id', user.id)
     } else {
       const { data: config } = await admin
         .from('user_google_configs')
@@ -219,6 +228,9 @@ serve(async (req) => {
         .eq('user_id', user.id)
         .maybeSingle()
       accessToken = config?.access_token ?? ''
+      if (!accessToken) {
+        return json({ error: 'No valid access token. Please re-authorize Google Calendar.', code: 'TOKEN_EXPIRED' }, 401)
+      }
     }
 
     const tz = (body.timeZone as string) ?? 'America/Sao_Paulo'
@@ -285,6 +297,12 @@ serve(async (req) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('google-calendar-event:', msg)
+    if (msg.includes('401') || msg.includes('invalid_grant') || msg.includes('expired') || msg.includes('revoked')) {
+      return json({ error: 'Google Calendar token expired. Please disconnect and reconnect your Google account.', code: 'TOKEN_EXPIRED' }, 401)
+    }
+    if (msg.includes('403')) {
+      return json({ error: 'Google Calendar access denied. Please re-authorize.', code: 'TOKEN_EXPIRED' }, 403)
+    }
     return json({ error: msg }, 500)
   }
 })
