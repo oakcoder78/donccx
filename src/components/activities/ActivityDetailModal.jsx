@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useActivityMutations } from '@/hooks/useActivities'
 import { ActivityModal } from './ActivityModal'
 import { Button } from '../ui/Button'
@@ -57,7 +58,7 @@ export function ActivityDetailModal({ activity: a, onClose, onUpdated }) {
   const [profiles, setProfiles] = useState([])
   const [showTimeConfirm, setShowTimeConfirm] = useState(false)
   const [syncing, setSyncing] = useState(false)
-  // Removed currentUser state – using profile from useProfiles
+  const qc = useQueryClient()
   const { update, remove } = useActivityMutations()
 
   const { data: userProfiles } = useProfiles()
@@ -179,6 +180,7 @@ useEffect(() => {
         throw new Error(data.error ?? 'Erro desconhecido')
       }
       toast.success('Evento criado no Google Calendar!')
+      qc.invalidateQueries({ queryKey: ['activities'] })
       onUpdated?.()
     } catch (err) {
       toast.error(`Erro: ${err.message}`)
