@@ -93,7 +93,9 @@ export default function HealthDashboardPage() {
   }, [profile])
 
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
-  const baseFilters = isAdminOrManager ? {} : { csm_id: profile?.id }
+  const baseFilters = isAdminOrManager
+    ? { lifecycle_stage: 'cliente' }
+    : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
   const { data: clients = [], isLoading, error } = useClients(baseFilters, { enabled: !!profile })
   const { data: profiles = [] } = useProfiles()
@@ -198,14 +200,15 @@ export default function HealthDashboardPage() {
           value={search}
           onChange={handleSearchChange}
           placeholder="Buscar empresa..."
-          className="input-base"
+          className="input-base h-9"
           style={{ width: 240 }}
         />
         {isAdminOrManager && (
           <select
             value={csmFilter}
             onChange={e => setCsmFilter(e.target.value)}
-            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontFamily: 'inherit' }}
+            className="input-base h-9"
+            style={{ minWidth: 140 }}
           >
             <option value="">Todos CSMs</option>
             {csmList.map(p => (
@@ -216,7 +219,8 @@ export default function HealthDashboardPage() {
         <select
           value={dimFilter}
           onChange={e => setDimFilter(e.target.value)}
-          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontFamily: 'inherit' }}
+          className="input-base h-9"
+          style={{ minWidth: 140 }}
         >
           <option value="">Dimensão crítica</option>
           {DIMS.map(d => (
