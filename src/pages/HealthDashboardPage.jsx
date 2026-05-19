@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useClients } from '@/hooks/useClients'
 import { useProfiles } from '@/hooks/useProfiles'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { ClientHealthDrawer } from '@/components/clients/ClientHealthDrawer'
 
 const C = {
   ink: '#0e223a', ink2: '#3b4a5e', ink3: '#6b7889', ink4: '#9aa5b5',
@@ -76,7 +77,7 @@ function ScoreCard({ label, value, color, large }) {
 
 export default function HealthDashboardPage() {
   const navigate = useNavigate()
-  const location = useLocation()
+
   const { profile } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const [search, setSearch] = useState('')
@@ -84,13 +85,26 @@ export default function HealthDashboardPage() {
   const [bandFilter, setBandFilter] = useState('all')
   const [dimFilter, setDimFilter] = useState('')
   const [csmFilter, setCsmFilter] = useState('')
+  const [drawerClientId, setDrawerClientId] = useState(null)
   const debounceRef = useRef(null)
+  const drawerOpen = !!drawerClientId
+
+  const drawerClient = useMemo(
+    () => sorted.find(c => c.id === drawerClientId) || null,
+    [sorted, drawerClientId]
+  )
 
   useEffect(() => {
     if (profile && !isEnabled('health', profile.role)) {
       navigate('/dashboard', { replace: true })
     }
   }, [profile])
+
+  useEffect(() => {
+    const onKey = e => { if (e.key === 'Escape') setDrawerClientId(null) }
+    if (drawerOpen) window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [drawerOpen])
 
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
   const baseFilters = isAdminOrManager
@@ -168,6 +182,10 @@ export default function HealthDashboardPage() {
   )
 
   return (
+    <div style={{
+      paddingRight: drawerOpen ? 380 : 0,
+      transition: 'padding-right 0.3s ease',
+    }}>
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader
         title="Health Score · Carteira"
@@ -298,7 +316,7 @@ export default function HealthDashboardPage() {
         {!isLoading && sorted.map((c, i) => (
           <div
             key={c.id}
-            onClick={() => navigate(`/empresas/${c.id}?tab=health`, { state: { from: location.pathname + location.search } })}
+            onClick={() => setDrawerClientId(c.id)}
             style={{
               display: 'grid',
               gridTemplateColumns: GRID,
@@ -338,6 +356,32 @@ export default function HealthDashboardPage() {
           </div>
         ))}
       </div>
+    </div>
+
+      {/* OVERLAY */}
+      <div onClick={() => setDrawerClientId(null)} style={{
+        position: 'fixed', inset: 0, background: 'rgba(14,34,58,0.18)',
+        opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? 'auto' : 'none',
+        transition: 'opacity 0.25s ease', zIndex: 40,
+      }} />
+
+      {/* DRAWER */}
+      <aside style={{
+        position: 'fixed', top: 0, right: 0, height: '100vh', width: 380,
+        background: C.surface, borderLeft: `0.5px solid ${C.line}`,
+        zIndex: 50, display: 'flex', flexDirection: 'column',
+        transform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
+        transition: 'transform 0.3s cubic-bezier(.3,.7,.3,1)',
+        boxShadow: '-1px 0 0 rgba(15,34,58,0.04), -24px 0 48px -24px rgba(15,34,58,0.16)',
+        fontFamily: "'Montserrat', system-ui, sans-serif",
+      }}>
+        {drawerOpen && drawerClient && (
+          <ClientHealthDrawer
+            client={drawerClient}
+            onClose={() => setDrawerClientId(null)}
+          />
+        )}
+      </aside>
     </div>
   )
 }
