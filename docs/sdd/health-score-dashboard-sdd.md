@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** None — all phases complete
+- **Active phase:** None — all phases complete (incl. lifecycle_stage filter fix)
 
 **What exists related to `/health`:**
 - `src/pages/HealthDashboardPage.jsx` — main page, scorecard + ranking table ✅
@@ -134,32 +134,55 @@ Open and read these files before writing any code. They are the two closest temp
 
 > **Warning:** `scoreBand()`, `scoreBandColor()`, `scoreBandLabel()` and the `C` object **are not exported** from `DashboardPage.jsx`. When creating `HealthDashboardPage.jsx`, redefine them locally — copy the functions and relevant color constants. Do not attempt to import from `DashboardPage`.
 
-### 2.3 Table Row Pattern (from DashboardPage.jsx)
+### 2.3 Table Row Pattern (from HealthDashboardPage.jsx)
 
 ```jsx
+const GRID = '32px 1fr 64px 48px 48px 48px 48px 48px 56px'
+
+// Header
+<div style={{
+  display: 'grid', gridTemplateColumns: GRID, gap: 14,
+  padding: '10px 8px', borderBottom: `1px solid ${C.line}`,
+  background: C.bg, alignItems: 'center',
+}}>
+  <div style={{ fontSize: 11, color: C.ink4 }}>#</div>
+  <div style={{ fontSize: 11, color: C.ink4 }}>Empresa</div>
+  <div style={{ fontSize: 11, color: C.ink4 }}>Total</div>
+  {DIMS.map(d => (
+    <div key={d.key} style={{ fontSize: 11, color: DIM_COLORS[d.key], fontWeight: 600 }}>{d.label}</div>
+  ))}
+  <div style={{ fontSize: 11, color: C.ink4 }}>Δ</div>
+</div>
+
+// Body row — onClick passa from state para back button context
 <div
   key={c.id}
-  onClick={() => navigate(`/empresas/${c.id}?tab=health`)}
+  onClick={() => navigate(`/empresas/${c.id}?tab=health`, { state: { from: location.pathname + location.search } })}
   style={{
-    display: 'grid',
-    gridTemplateColumns: '32px 1fr 64px 48px 48px 48px 48px 48px',
-    gap: 14,
-    padding: '12px 8px',
-    borderBottom: `0.5px solid ${C.line}`,
-    cursor: 'pointer',
-    borderRadius: 6,
+    display: 'grid', gridTemplateColumns: GRID, gap: 14,
+    padding: '12px 8px', borderBottom: `0.5px solid ${C.line}`,
+    cursor: 'pointer', alignItems: 'center',
   }}
   onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fb')}
   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
 >
-  <div style={{ fontSize: 12, color: C.ink3 }}>{index + 1}</div>
+  <div style={{ fontSize: 12, color: C.ink3 }}>{i + 1}</div>
   <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
     {c.fantasy_name || c.name}
   </div>
-  <div style={{ fontSize: 22, fontWeight: 700, color: scoreBandColor(c.health_total) }}>
+  <div style={{ fontSize: 22, fontWeight: 700, color: scoreBandColor(c.health_total), fontVariantNumeric: 'tabular-nums' }}>
     {c.health_total ?? '—'}
   </div>
-  {/* dimension columns: health_uso, health_suporte, etc. */}
+  {DIMS.map(d => (
+    <div key={d.key} style={{ fontSize: 13, color: DIM_COLORS[d.key], fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+      {c[d.key] ?? '—'}
+    </div>
+  ))}
+  <div style={{ fontSize: 12, fontWeight: 600, fontVariantNumeric: 'tabular-nums',
+    color: c.health_trend > 0 ? C.green : c.health_trend < 0 ? C.red : C.ink4,
+  }}>
+    {c.health_trend == null || c.health_trend === 0 ? '—' : c.health_trend > 0 ? `+${c.health_trend}` : `${c.health_trend}`}
+  </div>
 </div>
 ```
 
@@ -188,12 +211,21 @@ HealthDashboardPage (src/pages/HealthDashboardPage.jsx)
 │   ├── div (Saudáveis — green)
 │   ├── div (Atenção — amber)
 │   └── div (Alerta — red)
-├── input (inline search with 300ms debounce — no dedicated SearchBar component)
+├── Filter bar
+│   ├── input (inline search with 300ms debounce, className="input-base h-9")
+│   ├── select (CSM dropdown — admin/manager only, from useProfiles)
+│   └── select (Critical dimension — filters score < 10)
+├── Band chips row
+│   ├── button Todos ({count})
+│   ├── button Saudáveis ({count})
+│   ├── button Atenção ({count})
+│   ├── button Alerta ({count})
+│   └── button "Limpar filtros" (visible when any filter active)
 ├── RankingTable  ← inline div
-│   ├── div header (grid columns: #, Empresa, Total, Uso, Sup, Rel, Fin, Proj)
+│   ├── div header (grid columns: #, Empresa, Total, Uso, Sup, Rel, Fin, Proj, Δ)
 │   └── div[] per client  ← see pattern in section 2.3
-│       └── onClick → navigate(/empresas/{id}?tab=health)
-└── [future phases: advanced filters, history chart, heatmap]
+│       ├── Δ column (signed integer, green/red/gray)
+│       └── onClick → navigate(/empresas/{id}?tab=health, { state: { from } })
 ```
 
 > **Project pattern:** `DashboardPage.jsx` does not encapsulate KPI cards or search inputs into reusable components — it builds divs directly with inline `style`. Follow the same pattern here. Do not create new components for the scorecard, search bar, or table.
@@ -216,11 +248,14 @@ HealthDashboardPage (src/pages/HealthDashboardPage.jsx)
 Reuse the existing `useClients` hook from `src/hooks/useClients.js`.
 
 ```js
-// Pass empty filter for admin/manager to see the full portfolio
-// (same pattern used in DashboardPage.jsx)
+// Admin/manager sees all active clients; CSM sees only their portfolio.
+// lifecycle_stage: 'cliente' ensures leads/prospects/partners are excluded
+// (same pattern as DashboardPage.jsx and health-recalc Edge Function).
 const { profile } = useAuth()
 const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
-const baseFilters = isAdminOrManager ? {} : { csm_id: profile?.id }
+const baseFilters = isAdminOrManager
+  ? { lifecycle_stage: 'cliente' }
+  : { csm_id: profile?.id, lifecycle_stage: 'cliente' }
 
 const { data: clients = [], isLoading, error } = useClients(baseFilters, { enabled: !!profile })
 ```
@@ -239,33 +274,55 @@ Fields used (all exist in the `clients` table):
 | `health_financeiro` | integer | Financeiro dimension 0–20 |
 | `health_projeto` | integer | Projeto dimension 0–20 |
 
-> **`health_trend` does NOT exist in the database.** The column was referenced in `DashboardPage.jsx:708` but was never created in the schema. Do not include it in the query and do not render a trend column in Phase 0. See section 4.3.
+> **`health_trend` EXISTS in the database** since migration `20260519000001_add_health_trend.sql`. Rendered as Δ column in the ranking table. See section 4.3.
 
 ### 4.2 Scorecard Calculation (client-side)
 
-```js
-const filtered = clients.filter(c =>
-  !search ||
-  (c.fantasy_name || c.name || '').toLowerCase().includes(search.toLowerCase())
-)
+The scorecard reflects the **post-filter** data (not the full unfiltered portfolio). Filter pipeline:
 
-const avgScore = filtered.length
-  ? Math.round(filtered.reduce((s, c) => s + (c.health_total || 0), 0) / filtered.length)
+```js
+// 1. Search filter (debounced 300ms)
+let result = clients
+const q = debouncedSearch.toLowerCase()
+if (q) result = result.filter(c => (c.fantasy_name || c.name || '').toLowerCase().includes(q))
+
+// 2. Band filter
+if (bandFilter === 'saudavel') result = result.filter(c => (c.health_total ?? 0) >= 75)
+else if (bandFilter === 'atencao') result = result.filter(c => { const s = c.health_total ?? 0; return s >= 50 && s < 75 })
+else if (bandFilter === 'alerta') result = result.filter(c => (c.health_total ?? 0) < 50)
+
+// 3. Critical dimension filter (score < 10)
+if (dimFilter) result = result.filter(c => (c[dimFilter] ?? 0) < 10)
+
+// 4. CSM filter (admin/manager only)
+if (csmFilter) result = result.filter(c => c.csm_id === csmFilter)
+
+// Scorecard from filtered result
+const avgScore = result.length
+  ? Math.round(result.reduce((s, c) => s + (c.health_total || 0), 0) / result.length)
   : 0
-const saudaveis = filtered.filter(c => (c.health_total || 0) >= 75).length
-const atencao   = filtered.filter(c => { const s = c.health_total || 0; return s >= 50 && s < 75 }).length
-const alerta    = filtered.filter(c => (c.health_total || 0) < 50).length
+const saudaveis = result.filter(c => (c.health_total || 0) >= 75).length
+const atencao   = result.filter(c => { const s = c.health_total || 0; return s >= 50 && s < 75 }).length
+const alerta    = result.filter(c => (c.health_total || 0) < 50).length
 ```
 
-> O scorecard sempre reflete os dados filtrados pela busca ativa.
+> O scorecard sempre reflete os dados filtrados (busca + banda + dimensão crítica + CSM), não a carteira inteira.
 
-### 4.3 Trend — Phase 0: do not implement
+### 4.3 Trend — Implemented (Phase 1)
 
-O campo `health_trend` não existe no banco. Remover coluna "tendência" da tabela na Fase 0.
+Campo `health_trend integer DEFAULT 0` existe no banco desde a migration `20260519000001_add_health_trend.sql`.
 
-**Decisão registrada:** implementar trend na Fase 1, com duas opções a decidir:
-- **Opção A (recomendada):** migration `ALTER TABLE clients ADD COLUMN health_trend integer DEFAULT 0` + pg_cron semanal calculando variação vs. mês anterior via `health_score_history`.
-- **Opção B:** calcular no frontend comparando `health_total` atual com o registro mais antigo de `health_score_history` por cliente. Sem migration, mas gera problema de N+1 na listagem.
+**Fórmula** (SQL function `calculate_health_trends()`):
+```
+health_trend = health_total - last_month_health_total
+```
+- Usa `health_score_history` para buscar o mês anterior mais recente por cliente
+- Se não há histórico anterior: `COALESCE(..., health_total)` → trend = 0
+- Chamada via `rpc('calculate_health_trends')` no step 4 do `monthly-sync`
+
+**Na tabela:** coluna Δ exibe formato `+N` (verde), `-N` (vermelho), ou `—` (cinza) quando trend é 0.
+
+**Deploy:** migration aplicada, function deployada, monthly-sync step 4 ativo em produção. Valores ficam 0 até o primeiro monthly-sync rodar.
 
 ### 4.4 Sort order
 
@@ -466,6 +523,7 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | 2026-05-19 | *current* | `src/pages/HealthDashboardPage.jsx`, `src/components/clients/ClientDetail.jsx` | 3 advanced filters (band chips, dim dropdown, CSM dropdown) + back button context via `from` state |
+| 2026-05-19 | `1d270c9` | `src/pages/HealthDashboardPage.jsx` | lifecycle_stage: 'cliente' filter + uniform input heights (`input-base h-9`) |
 
 ---
 
@@ -473,7 +531,9 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 
 ### Production state
 
-- `/health` rota existe, página existe (`src/pages/HealthDashboardPage.jsx`) com 337 linhas
+- `/health` rota existe, página existe (`src/pages/HealthDashboardPage.jsx`) com 343 linhas
+- **`lifecycle_stage: 'cliente'` filter** ativo na query — leads/prospects/parceiros excluídos do dashboard
+- Input de busca e dropdowns com altura uniforme (`input-base h-9`)
 - Scorecard + ranking table + 3 advanced filters (band chips, dim dropdown, CSM dropdown)
 - Debounced search + shimmer skeleton + error/empty states
 - Feature flag guard + filter chips + "Limpar filtros"
