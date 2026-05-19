@@ -5,13 +5,13 @@ import {
   Chart, CategoryScale, LinearScale, PointElement, LineElement,
   Tooltip, Legend, Filler
 } from 'chart.js'
-import { Card } from '../../ui/Card'
-import { Button } from '../../ui/Button'
-import { useHealthConfig } from '../../../hooks/useHealthConfig'
-import { useRecalculateHealth } from '../../../hooks/useHealthScore'
-import { calculateHealthScore } from '../../../lib/healthScore'
-import { Icons } from '../../../lib/icons'
-import { supabase } from '../../../lib/supabaseClient'
+import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { useHealthConfig } from '@/hooks/useHealthConfig'
+import { useRecalculateHealth } from '@/hooks/useHealthScore'
+import { calculateHealthScore } from '@/lib/healthScore'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
 import { TemperaturaCSM } from '../TemperaturaCSM'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)

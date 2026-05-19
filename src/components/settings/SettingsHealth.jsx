@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { Icons } from '../../lib/icons'
-import { useHealthConfig, useHealthConfigMutations } from '../../hooks/useHealthConfig'
-import { recalculateAllHealthScores } from '../../hooks/useHealthScore'
-import { useAuth } from '../../contexts/AuthContext'
+import { Icons } from '@/lib/icons'
+import { useHealthConfig, useHealthConfigMutations } from '@/hooks/useHealthConfig'
+import { recalculateAllHealthScores } from '@/hooks/useHealthScore'
+import { useAuth } from '@/contexts/AuthContext'
 import { PageSpinner } from '../ui/Spinner'
 import { Button } from '../ui/Button'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 const DIMS = ['uso','suporte','relacionamento','financeiro','projeto']

@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
-import { useContactMutations } from '../../hooks/useContacts'
-import { useClients } from '../../hooks/useClients'
-import { maskPhoneInput, stripPhone, formatPhone } from '../../lib/formatPhone'
+import { useContactMutations } from '@/hooks/useContacts'
+import { useClients } from '@/hooks/useClients'
+import { maskPhoneInput, stripPhone, formatPhone } from '@/lib/formatPhone'
 
 const EMPTY = { name: '', cargo: '', email: '', linkedin: '', notes: '' }
 

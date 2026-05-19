@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { formatPhone } from '../../lib/formatPhone'
-import { Icons } from '../../lib/icons'
+import { formatPhone } from '@/lib/formatPhone'
+import { Icons } from '@/lib/icons'
 import { EmailComposerModal } from '../email/EmailComposerModal'
 
 const STATUS_INFO = {

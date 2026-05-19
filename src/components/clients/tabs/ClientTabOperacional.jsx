@@ -6,7 +6,7 @@ import { ClientSubProjetos } from './operacional/ClientSubProjetos'
 import { ClientSubSuporte } from './operacional/ClientSubSuporte'
 import { ClientSubRelatorios } from './operacional/ClientSubRelatorios'
 import { RegistrarDadosModal } from './operacional/RegistrarDadosModal'
-import { Button } from '../../ui/Button'
+import { Button } from '@/components/ui/Button'
 
 const SUBS = [
   { key: 'dados',      label: 'Dados'      },

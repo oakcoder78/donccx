@@ -1,14 +1,14 @@
 import { useState, useMemo } from 'react'
-import { useActivities } from '../../hooks/useActivities'
-import { useClients } from '../../hooks/useClients'
-import { useProfiles } from '../../hooks/useProfiles'
+import { useActivities } from '@/hooks/useActivities'
+import { useClients } from '@/hooks/useClients'
+import { useProfiles } from '@/hooks/useProfiles'
 import { PageHeader } from '../ui/PageHeader'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { PageSpinner } from '../ui/Spinner'
 import { ActivityModal } from './ActivityModal'
 import { ActivityDetailModal } from './ActivityDetailModal'
-import { Icons } from "../../lib/icons"
+import { Icons } from "@/lib/icons"
 
 const ACTIVITY_ICONS = {
   reuniao: Icons.Calendar,

@@ -3,9 +3,9 @@ import {
   Chart, CategoryScale, LinearScale, PointElement, LineElement,
   Tooltip, Legend, Filler
 } from 'chart.js'
-import { useClientSupport, useClientSupportMutations } from '../../../../hooks/useClient'
-import { Icons } from "../../../../lib/icons"
-import { calcSupportPercentages } from '../../../../lib/supportUtils'
+import { useClientSupport, useClientSupportMutations } from '@/hooks/useClient'
+import { Icons } from "@/lib/icons"
+import { calcSupportPercentages } from '@/lib/supportUtils'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 

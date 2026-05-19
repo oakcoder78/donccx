@@ -1,12 +1,12 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../../../lib/supabaseClient'
-import { Card } from '../../ui/Card'
-import { Badge } from '../../ui/Badge'
-import { Avatar } from '../../ui/Avatar'
-import { Button } from '../../ui/Button'
-import { Icons } from '../../../lib/icons'
+import { supabase } from '@/lib/supabaseClient'
+import { Card } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { Avatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
+import { Icons } from '@/lib/icons'
 
 const ACTIVITY_ICONS = {
   reuniao: Icons.Calendar,
@@ -17,9 +17,9 @@ const ACTIVITY_ICONS = {
   nota: Icons.FileText,
   relatorio: Icons.FileText,
 }
-import { syncClient } from '../../../lib/clientSync'
+import { syncClient } from '@/lib/clientSync'
 import { TemperaturaCSM } from '../TemperaturaCSM'
-import { useCatalog } from '../../../hooks/useCatalog'
+import { useCatalog } from '@/hooks/useCatalog'
 import { Bar, Line } from 'react-chartjs-2'
 import { Chart, CategoryScale, LinearScale, BarElement, Tooltip, PointElement, LineElement, Filler, LineController } from 'chart.js'
 import toast from 'react-hot-toast'

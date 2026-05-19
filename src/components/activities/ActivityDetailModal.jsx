@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useActivityMutations } from '../../hooks/useActivities'
+import { useActivityMutations } from '@/hooks/useActivities'
 import { ActivityModal } from './ActivityModal'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
-import { getActivityAttachments } from '../../services/activityAttachments/getActivityAttachments'
-import { softDeleteActivityAttachment } from '../../services/activityAttachments/softDeleteActivityAttachment'
-import { supabase } from '../../lib/supabaseClient'
+import { getActivityAttachments } from '@/services/activityAttachments/getActivityAttachments'
+import { softDeleteActivityAttachment } from '@/services/activityAttachments/softDeleteActivityAttachment'
+import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
-import { Icons } from "../../lib/icons"
+import { Icons } from "@/lib/icons"
 
 const ACTIVITY_ICONS = {
   reuniao: Icons.Calendar,
@@ -27,9 +27,9 @@ const ACTIVITY_BG = {
   nota: '#F5F5F3',
   relatorio: '#E8EEF7',
 }
-import { useProfiles } from '../../hooks/useProfiles'
-import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
-import { useSessionToken } from '../../hooks/useSessionToken'
+import { useProfiles } from '@/hooks/useProfiles'
+import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
+import { useSessionToken } from '@/hooks/useSessionToken'
 import { GoogleSyncModal } from './GoogleSyncModal'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://etfeqblaeuhaobefxilp.supabase.co'
@@ -310,23 +310,13 @@ useEffect(() => {
                       <button
                         type="button"
                         onClick={async () => {
-                          // Debug logs for permission
-                          console.log('DEBUG DELETE PERMISSION');
-                          console.log('profile object:', profile);
-                          console.log('profile.id:', profile?.id);
-                          console.log('file.uploaded_by:', file.uploaded_by);
-
-                          // Ensure profile loaded
                           if (!profile) {
                             toast.error('Usuário ainda não carregado. Tente novamente.')
                             return
                           }
-                          // Check permissions
                           const hasPermission =
                             file.uploaded_by === profile.id ||
                             profile.role === 'admin'
-
-                          console.log('hasPermission result:', hasPermission);
 
                           if (!hasPermission) {
                             toast.error('Você não tem permissão para remover este arquivo.')

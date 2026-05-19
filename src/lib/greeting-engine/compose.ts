@@ -1,8 +1,8 @@
 import type { GreetingFragment, GreetingResult, GreetingContextInput } from './types'
 import { generateSeed, deterministicIndex } from './seed'
-import { provideTemporalLayer } from './temporal'
-import { provideIdentityLayer } from './identity'
-import { provideOperationalLayer } from './operational'
+import { getTemporalFragments } from './content/temporal'
+import { getIdentityFragments } from './content/identity'
+import { getOperationalFragments } from './content/operational'
 import { observeGreeting } from './observability'
 
 function isBirthday(birthDate?: string): boolean {
@@ -43,9 +43,9 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
 
   const { hour, dayOfWeek } = temporal
   
-  const temporalFragments = provideTemporalLayer(hour, dayOfWeek)
+  const temporalFragments = getTemporalFragments(hour, dayOfWeek)
   
-  const identityFragments = provideIdentityLayer(
+  const identityFragments = getIdentityFragments(
     profile.role,
     profile.gender,
     isBirthday(profile.birth_date),
@@ -54,16 +54,13 @@ export function composeGreeting(input: GreetingContextInput): GreetingResult {
   )
 
   const criticalClients = operational?.criticalClients
-  const operationalFragments = provideOperationalLayer(criticalClients, seed)
+  const operationalFragments = getOperationalFragments(criticalClients, seed)
   
   const allFragments = [...temporalFragments, ...identityFragments, ...operationalFragments]
   
   if (allFragments.length === 0) {
-    console.log('[DEBUG] composeGreeting: returning fallback (allFragments is empty)')
     return buildFallback(temporal, profile.name.split(' ')[0])
   }
-
-  console.log('[DEBUG] composeGreeting: using normal path, fragments count:', allFragments.length)
   
   const finalFragments = mergeFragments(allFragments)
   const activeLayers = [...new Set(finalFragments.map(f => f.layer))]

@@ -1,4 +1,4 @@
-import { useDonkie } from '../../hooks/useDonkie'
+import { useDonkie } from '@/hooks/useDonkie'
 
 export function DonkieButton() {
   const { isOpen, toggle, messages } = useDonkie()

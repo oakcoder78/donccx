@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useContacts } from '../../hooks/useContacts'
-import { useClients } from '../../hooks/useClients'
+import { useContacts } from '@/hooks/useContacts'
+import { useClients } from '@/hooks/useClients'
 import { PageHeader } from '../ui/PageHeader'
 import { Button } from '../ui/Button'
 import { Avatar } from '../ui/Avatar'
@@ -9,8 +9,8 @@ import { PageSpinner } from '../ui/Spinner'
 import { ContactModal } from './ContactModal'
 import { ContactPanel } from './ContactPanel'
 import { EmailComposerModal } from '../email/EmailComposerModal'
-import { Icons } from '../../lib/icons'
-import { formatPhone } from '../../lib/formatPhone'
+import { Icons } from '@/lib/icons'
+import { formatPhone } from '@/lib/formatPhone'
 
 const PAPEL_VARIANT = { Decisor: 'navy', Influenciador: 'purple', Técnico: 'sky', Usuário: 'slate' }
 

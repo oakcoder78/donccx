@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Icons } from "../../../../lib/icons"
+import { Icons } from "@/lib/icons"
 import { Line } from 'react-chartjs-2'
 import {
   Chart, CategoryScale, LinearScale, PointElement, LineElement,
   Tooltip, Legend, Filler
 } from 'chart.js'
-import { useClientUsageMutations } from '../../../../hooks/useClient'
+import { useClientUsageMutations } from '@/hooks/useClient'
 
 Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, Filler)
 

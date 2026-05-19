@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { usePermissions } from '../../hooks/usePermissions'
-import { useFeatureFlags } from '../../hooks/useFeatureFlags'
+import { useAuth } from '@/contexts/AuthContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { UserEditModal } from '../ui/UserEditModal'
 import toast from 'react-hot-toast'
 

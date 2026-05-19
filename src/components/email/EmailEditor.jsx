@@ -4,7 +4,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
-import { Icons } from '../../lib/icons'
+import { Icons } from '@/lib/icons'
 
 const NAVY = '#173557'
 const SKY = '#59c2ed'
