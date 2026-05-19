@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Card } from '../../../ui/Card'
-import { usePermissions } from '../../../../hooks/usePermissions'
-import { useCatalog } from '../../../../hooks/useCatalog'
-import { supabase } from '../../../../lib/supabaseClient'
+import { Card } from '@/components/ui/Card'
+import { usePermissions } from '@/hooks/usePermissions'
+import { useCatalog } from '@/hooks/useCatalog'
+import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 function InfoRow({ label, value }) {

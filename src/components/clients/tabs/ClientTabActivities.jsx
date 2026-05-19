@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Icons } from "../../../lib/icons"
+import { Icons } from "@/lib/icons"
 
 const ACTIVITY_ICONS = {
   reuniao: Icons.Calendar,
@@ -20,13 +20,13 @@ const ACTIVITY_BG = {
   relatorio: '#E8EEF7',
 }
 
-import { useActivities } from '../../../hooks/useActivities'
-import { useAuth } from '../../../contexts/AuthContext'
-import { Badge } from '../../ui/Badge'
-import { Button } from '../../ui/Button'
-import { ActivityModal } from '../../activities/ActivityModal'
-import { ActivityDetailModal } from '../../activities/ActivityDetailModal'
-import { PageSpinner } from '../../ui/Spinner'
+import { useActivities } from '@/hooks/useActivities'
+import { useAuth } from '@/contexts/AuthContext'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { ActivityModal } from '@/components/activities/ActivityModal'
+import { ActivityDetailModal } from '@/components/activities/ActivityDetailModal'
+import { PageSpinner } from '@/components/ui/Spinner'
 
 
 function formatDate(d) {

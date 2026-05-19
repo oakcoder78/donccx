@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Icons } from '../../lib/icons'
-import { supabase } from '../../lib/supabaseClient'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 

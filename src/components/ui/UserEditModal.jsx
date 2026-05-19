@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
-import { maskPhoneInput, stripPhone } from '../../lib/formatPhone'
-import { Icons } from '../../lib/icons'
-import { useGoogleCalendarStatus } from '../../hooks/useGoogleCalendarStatus'
+import { maskPhoneInput, stripPhone } from '@/lib/formatPhone'
+import { Icons } from '@/lib/icons'
+import { useGoogleCalendarStatus } from '@/hooks/useGoogleCalendarStatus'
 
 const GENDER_OPTIONS = [
   { value: '',          label: '— Prefiro não informar —' },

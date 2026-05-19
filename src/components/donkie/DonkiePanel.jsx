@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useDonkie } from '../../hooks/useDonkie'
-import { useActivityMutations } from '../../hooks/useActivities'
+import { useDonkie } from '@/hooks/useDonkie'
+import { useActivityMutations } from '@/hooks/useActivities'
 import toast from 'react-hot-toast'
 
 // ─── Markdown simples ────────────────────────────────────────

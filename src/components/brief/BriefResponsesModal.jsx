@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useBriefResponses, useBriefCsmNotes } from '../../hooks/useBrief'
-import { Icons } from '../../lib/icons'
-import { supabase } from '../../lib/supabaseClient'
+import { useBriefResponses, useBriefCsmNotes } from '@/hooks/useBrief'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 const NAVY = '#173557'

@@ -6,9 +6,9 @@ import {
   SortableContext, verticalListSortingStrategy, arrayMove, useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Icons } from '../../lib/icons'
+import { Icons } from '@/lib/icons'
 import { Button } from '../ui/Button'
-import { useCatalog } from '../../hooks/useCatalog'
+import { useCatalog } from '@/hooks/useCatalog'
 import toast from 'react-hot-toast'
 
 const NAVY = '#173557'

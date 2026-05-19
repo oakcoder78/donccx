@@ -10,10 +10,10 @@ import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
 
 import { SettingsFeatureFlags } from './SettingsFeatureFlags'
-import { usePermissions } from '../../hooks/usePermissions'
-import { useAuth } from '../../contexts/AuthContext'
-import { useFeatureFlags } from '../../hooks/useFeatureFlags'
-import { Icons } from '../../lib/icons'
+import { usePermissions } from '@/hooks/usePermissions'
+import { useAuth } from '@/contexts/AuthContext'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
+import { Icons } from '@/lib/icons'
 
 const SETTINGS_MENU_ICONS = {
   'minha-conta': Icons.User,
@@ -37,7 +37,7 @@ const SETTINGS_MENU_ICONS = {
 import { SettingsFaseTypes } from './SettingsFaseTypes'
 import { SettingsActivityTypes } from './SettingsActivityTypes'
 import { SettingsProjectTemplates } from './SettingsProjectTemplates'
-import SettingsBriefTemplates from '../../pages/SettingsBriefTemplates'
+import SettingsBriefTemplates from '@/pages/SettingsBriefTemplates'
 import { EmailTemplatesManager } from '../email/EmailTemplatesManager'
 
 const MENU_GROUPS = [

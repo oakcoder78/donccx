@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react'
-import { Icons } from '../../../lib/icons'
-import { Avatar } from '../../ui/Avatar'
-import { Badge } from '../../ui/Badge'
-import { Button } from '../../ui/Button'
-import { ContactModal } from '../../contacts/ContactModal'
-import { ContactPanel } from '../../contacts/ContactPanel'
-import { EmailComposerModal } from '../../email/EmailComposerModal'
-import { useUnlinkContact } from '../../../hooks/useContacts'
-import { formatPhone } from '../../../lib/formatPhone'
+import { Icons } from '@/lib/icons'
+import { Avatar } from '@/components/ui/Avatar'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { ContactModal } from '@/components/contacts/ContactModal'
+import { ContactPanel } from '@/components/contacts/ContactPanel'
+import { EmailComposerModal } from '@/components/email/EmailComposerModal'
+import { useUnlinkContact } from '@/hooks/useContacts'
+import { formatPhone } from '@/lib/formatPhone'
 
 // ─── helpers ────────────────────────────────────────────────────────────────────
 function getRelevanceScore(cl) {

@@ -1,15 +1,15 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase } from '../../lib/supabaseClient'
-import { useClients } from '../../hooks/useClients'
-import { useHealthConfig } from '../../hooks/useHealthConfig'
-import { useActivities } from '../../hooks/useActivities'
-import { useProfiles } from '../../hooks/useProfiles'
-import { useAuth } from '../../contexts/AuthContext'
-import { useGreeting, GREETING_DEBUG } from '../../lib/greeting-engine'
+import { supabase } from '@/lib/supabaseClient'
+import { useClients } from '@/hooks/useClients'
+import { useHealthConfig } from '@/hooks/useHealthConfig'
+import { useActivities } from '@/hooks/useActivities'
+import { useProfiles } from '@/hooks/useProfiles'
+import { useAuth } from '@/contexts/AuthContext'
+import { useGreeting, GREETING_DEBUG } from '@/lib/greeting-engine'
 import { ActivityDetailModal } from '../activities/ActivityDetailModal'
-import { Icons } from '../../lib/icons'
+import { Icons } from '@/lib/icons'
 
 const HEALTH_ICONS = {
   health_uso: Icons.BarChart3,

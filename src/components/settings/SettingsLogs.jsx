@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Icons } from '../../lib/icons'
-import { supabase } from '../../lib/supabaseClient'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 

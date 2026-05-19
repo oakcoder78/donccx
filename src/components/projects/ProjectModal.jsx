@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useProfiles } from '../../hooks/useProfiles'
-import { useClients } from '../../hooks/useClients'
+import { useProfiles } from '@/hooks/useProfiles'
+import { useClients } from '@/hooks/useClients'
 import {
   useCatalogItems,
   useOnboarding,
@@ -10,8 +10,8 @@ import {
   useCreateInternalProject,
   useOnboardingConfig,
   useProjectTemplates,
-} from '../../hooks/useOnboardings'
-import { useUpdateProject } from '../../hooks/useProjects'
+} from '@/hooks/useOnboardings'
+import { useUpdateProject } from '@/hooks/useProjects'
 
 // ── CSS injetado: pseudo-classes que não podem ser inline ──────────────────
 const MODAL_CSS = `

@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useProjects, useProjectMutations } from '../../../../hooks/useProjects'
-import { useProfiles } from '../../../../hooks/useProfiles'
-import { Button } from '../../../ui/Button'
-import { Badge } from '../../../ui/Badge'
-import { Modal } from '../../../ui/Modal'
-import { ProjectModal } from '../../../projects/ProjectModal'
-import { BriefPanel } from '../../../brief'
-import { useBrief, useBriefUnansweredCount } from '../../../../hooks/useBrief'
-import { Icons } from '../../../../lib/icons'
+import { useProjects, useProjectMutations } from '@/hooks/useProjects'
+import { useProfiles } from '@/hooks/useProfiles'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Modal } from '@/components/ui/Modal'
+import { ProjectModal } from '@/components/projects/ProjectModal'
+import { BriefPanel } from '@/components/brief'
+import { useBrief, useBriefUnansweredCount } from '@/hooks/useBrief'
+import { Icons } from '@/lib/icons'
 
 const PROJ_STATUS = {
   planejado:    { label: 'Planejado',    variant: 'slate'  },

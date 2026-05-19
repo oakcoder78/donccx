@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Icons } from '../../../../lib/icons'
-import { supabase } from '../../../../lib/supabaseClient'
-import { getClientAttachments } from '../../../../services/activityAttachments/getClientAttachments'
-import { softDeleteActivityAttachment } from '../../../../services/activityAttachments/softDeleteActivityAttachment'
-import { useProfiles } from '../../../../hooks/useProfiles'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
+import { getClientAttachments } from '@/services/activityAttachments/getClientAttachments'
+import { softDeleteActivityAttachment } from '@/services/activityAttachments/softDeleteActivityAttachment'
+import { useProfiles } from '@/hooks/useProfiles'
 import toast from 'react-hot-toast'
 
 const ACTIVITY_TYPE_LABEL = {

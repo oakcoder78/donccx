@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Modal } from '../../../ui/Modal'
-import { Button } from '../../../ui/Button'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
 import {
   useClientUsageMutations,
   useClientSupport,
   useClientSupportMutations,
-} from '../../../../hooks/useClient'
-import { supabase } from '../../../../lib/supabaseClient'
+} from '@/hooks/useClient'
+import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
 
 function currentMonth() {

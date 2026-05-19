@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { supabase } from '../../lib/supabaseClient'
-import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '../ui/Button'
-import { Icons } from '../../lib/icons'
+import { Icons } from '@/lib/icons'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 
 const TYPE_OPTIONS = [

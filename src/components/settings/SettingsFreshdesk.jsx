@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Icons } from '../../lib/icons'
-import { supabase } from '../../lib/supabaseClient'
-import { fetchCompaniesFreshdesk, syncAllCompanies } from '../../lib/freshdeskSync'
-import { fetchAndSaveFreshdeskConfig, getFreshdeskConfig } from '../../lib/freshdeskConfig'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
+import { fetchCompaniesFreshdesk, syncAllCompanies } from '@/lib/freshdeskSync'
+import { fetchAndSaveFreshdeskConfig, getFreshdeskConfig } from '@/lib/freshdeskConfig'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
@@ -277,11 +277,9 @@ function SyncSection() {
     setLastResult(null)
     try {
       const result = await syncAllCompanies(month)
-      console.log('Sync finished, saving last_data_sync timestamp...')
       setLastResult(result)
       try {
         const timestamp = new Date().toISOString()
-        console.log('Saving last_data_sync:', timestamp)
         const { error } = await supabase
           .from('freshdesk_config')
           .upsert({
@@ -294,7 +292,6 @@ function SyncSection() {
         if (error) {
           console.error('Error saving last_data_sync:', error)
         } else {
-          console.log('last_data_sync saved successfully')
           setLastDataSync(timestamp)
         }
       } catch (err) {

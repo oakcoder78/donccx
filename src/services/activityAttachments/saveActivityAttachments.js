@@ -1,6 +1,6 @@
 import { uploadActivityAttachments } from './uploadActivityAttachments'
 import { insertActivityAttachments } from './insertActivityAttachments'
-import { supabase } from '../../lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 
 /**
  * Orchestrates upload + database insert

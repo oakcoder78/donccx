@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabaseClient'
+import { supabase } from '@/lib/supabaseClient'
 
 export async function getClientAttachments(clientId) {
   if (!clientId) return { success: false, error: 'clientId obrigatório' }

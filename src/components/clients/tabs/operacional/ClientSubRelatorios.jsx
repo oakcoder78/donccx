@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Icons } from '../../../../lib/icons'
-import { useClientReports, useReportMutations, useReportViews } from '../../../../hooks/useClientReports'
-import { useAuth } from '../../../../contexts/AuthContext'
-import { Button } from '../../../ui/Button'
-import { Badge } from '../../../ui/Badge'
-import { Modal } from '../../../ui/Modal'
+import { Icons } from '@/lib/icons'
+import { useClientReports, useReportMutations, useReportViews } from '@/hooks/useClientReports'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { Modal } from '@/components/ui/Modal'
 import toast from 'react-hot-toast'
 
 const MONTH_NAMES = [

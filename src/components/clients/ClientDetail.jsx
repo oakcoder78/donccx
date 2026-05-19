@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
-import { useClient } from '../../hooks/useClient'
+import { useClient } from '@/hooks/useClient'
 import { PageSpinner } from '../ui/Spinner'
 import { StagePill } from '../ui/StagePill'
 import { Badge } from '../ui/Badge'
@@ -14,7 +14,7 @@ import { ClientTabHealth } from './tabs/ClientTabHealth'
 import { ClientTabContatos } from './tabs/ClientTabContatos'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { EmailComposerModal } from '../email/EmailComposerModal'
-import { Icons } from '../../lib/icons'
+import { Icons } from '@/lib/icons'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },

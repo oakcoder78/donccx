@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Icons } from '../../lib/icons'
-import { supabase } from '../../lib/supabaseClient'
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
@@ -267,7 +267,6 @@ export function SettingsDoncAPI() {
       if (!session) throw new Error('Sessão expirada')
       const body = { trigger: 'manual', month: syncMonth }
       if (syncClientId) body.client_id = Number(syncClientId)
-      console.log('🔄 [DONC API Sync] Request body:', body)
 
       const authHeaders = {
         Authorization: `Bearer ${session.access_token}`,
@@ -280,7 +279,6 @@ export function SettingsDoncAPI() {
         { method: 'POST', headers: authHeaders, body: JSON.stringify(body) },
       )
       const result = await res.json()
-      console.log('🔄 [DONC API Sync] Response completo:', result)
       if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
       setSyncResult(result)
       toast.success(`Sincronizado: ${result.synced} instância(s)`)
