@@ -50,3 +50,17 @@ Describes reusable technical modules that support the main system modules, facil
 - **Functionality:** Components like `DonkieButton` and `DonkiePanel` enabling opening and interacting with the assistant within the UI.
 - **Dependencies:** Used by pages and components that integrate assisted or automated features.
 - **Contribution:** Adds an interactive layer for operational support and internal automation.
+
+## Greeting Engine
+
+- **Technical role:** Deterministic contextual greeting composition system.
+- **Functionality:** Generates personalized dashboard greetings by composing fragments from temporal, identity, and operational layers. Located at `src/lib/greeting-engine/`.
+- **Structure:**
+  - `compose.ts` — orchestrator; assembles fragments, applies deterministic selection via seed
+  - `content/*` — phrase providers (temporal, identity, operational)
+  - `seed.ts` — deterministic seed generation from user ID + timestamp
+  - `types.ts` — TypeScript interfaces for fragments, context, and results
+  - `observability.ts` — debug output (DEV-only)
+  - `hooks/useGreeting.ts` — React hook for consuming the engine
+- **Dependencies:** Pure client-side; no external API calls. Used by `DashboardPage.jsx`.
+- **Contribution:** Establishes the first layer of contextual narrative infrastructure — a subtle, deterministic personalization system that prepares the architecture for future operational intelligence.

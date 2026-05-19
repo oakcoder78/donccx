@@ -68,3 +68,23 @@ Frontend (React) → Supabase (BaaS) → External APIs (Freshdesk, Donc, OpenRou
 ```
 
 This chain reflects the current architecture; the documents above elaborate each link.
+
+---
+
+## Path Alias Convention
+
+Since 2026-05-18, the project uses `@/` as a path alias for `src/`:
+
+```js
+// Before
+import { Icons } from '../../lib/icons'
+import { supabase } from '../../../lib/supabaseClient'
+
+// After
+import { Icons } from '@/lib/icons'
+import { supabase } from '@/lib/supabaseClient'
+```
+
+- Configured in `vite.config.js` (`resolve.alias`)
+- IDE support via `jsconfig.json`
+- All 55+ files with deep relative imports have been migrated
