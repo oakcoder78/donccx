@@ -116,11 +116,6 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
         return
       }
 
-      if (!isEdit && !shouldSyncWithCalendar({ type: form.type, title: form.title, activity_date: form.activity_date, activity_time: form.activity_time }, form)) {
-        onClose()
-        return
-      }
-
       const [h, m] = form.activity_time.split(':')
       const startDate = new Date(`${form.activity_date}T${h}:${m}:00`)
       const startISO = startDate.toISOString()
@@ -144,7 +139,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
             body: JSON.stringify({ method: 'PATCH', ...syncPayload, google_event_id: activity.google_event_id }),
           })
           if (res.ok) toast.success('Evento atualizado no Google Calendar!')
-        } else if (!isEdit && syncToGoogle) {
+        } else if (syncToGoogle) {
           res = await fetch(EDGE_FUNCTION_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
