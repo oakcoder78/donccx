@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useClients } from '@/hooks/useClients'
+import { useProfiles } from '@/hooks/useProfiles'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 
@@ -75,10 +76,14 @@ function ScoreCard({ label, value, color, large }) {
 
 export default function HealthDashboardPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { profile } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [bandFilter, setBandFilter] = useState('all')
+  const [dimFilter, setDimFilter] = useState('')
+  const [csmFilter, setCsmFilter] = useState('')
   const debounceRef = useRef(null)
 
   useEffect(() => {
@@ -91,6 +96,11 @@ export default function HealthDashboardPage() {
   const baseFilters = isAdminOrManager ? {} : { csm_id: profile?.id }
 
   const { data: clients = [], isLoading, error } = useClients(baseFilters, { enabled: !!profile })
+  const { data: profiles = [] } = useProfiles()
+  const csmList = useMemo(
+    () => profiles.filter(p => p.role === 'csm').sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    [profiles]
+  )
 
   function handleSearchChange(e) {
     const val = e.target.value
@@ -100,22 +110,45 @@ export default function HealthDashboardPage() {
   }
 
   const filtered = useMemo(() => {
+    let result = clients
     const q = debouncedSearch.toLowerCase()
-    if (!q) return clients
-    return clients.filter(c => (c.fantasy_name || c.name || '').toLowerCase().includes(q))
+    if (q) result = result.filter(c => (c.fantasy_name || c.name || '').toLowerCase().includes(q))
+    return result
   }, [clients, debouncedSearch])
 
+  const bandFiltered = useMemo(() => {
+    let result = filtered
+    if (bandFilter === 'saudavel') result = result.filter(c => (c.health_total ?? 0) >= 75)
+    else if (bandFilter === 'atencao') result = result.filter(c => { const s = c.health_total ?? 0; return s >= 50 && s < 75 })
+    else if (bandFilter === 'alerta') result = result.filter(c => (c.health_total ?? 0) < 50)
+    if (dimFilter) result = result.filter(c => (c[dimFilter] ?? 0) < 10)
+    if (csmFilter) result = result.filter(c => c.csm_id === csmFilter)
+    return result
+  }, [filtered, bandFilter, dimFilter, csmFilter])
+
   const sorted = useMemo(
-    () => [...filtered].sort((a, b) => (a.health_total ?? 0) - (b.health_total ?? 0)),
-    [filtered]
+    () => [...bandFiltered].sort((a, b) => (a.health_total ?? 0) - (b.health_total ?? 0)),
+    [bandFiltered]
   )
 
-  const avgScore = filtered.length
-    ? Math.round(filtered.reduce((s, c) => s + (c.health_total || 0), 0) / filtered.length)
+  const avgScore = bandFiltered.length
+    ? Math.round(bandFiltered.reduce((s, c) => s + (c.health_total || 0), 0) / bandFiltered.length)
     : 0
   const saudaveis = filtered.filter(c => (c.health_total || 0) >= 75).length
   const atencao   = filtered.filter(c => { const s = c.health_total || 0; return s >= 50 && s < 75 }).length
   const alerta    = filtered.filter(c => (c.health_total || 0) < 50).length
+
+  const chipStyle = (active) => ({
+    fontSize: 12,
+    fontWeight: 500,
+    padding: '5px 12px',
+    borderRadius: 20,
+    border: active ? 'none' : `1px solid ${C.line}`,
+    background: active ? '#173557' : 'transparent',
+    color: active ? '#fff' : C.ink3,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+  })
 
   if (error) return (
     <div className="max-w-5xl mx-auto px-6 py-8">
@@ -158,16 +191,60 @@ export default function HealthDashboardPage() {
         )}
       </div>
 
-      {/* Search */}
-      <div style={{ marginBottom: 16 }}>
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
         <input
           type="text"
           value={search}
           onChange={handleSearchChange}
           placeholder="Buscar empresa..."
           className="input-base"
-          style={{ width: 280 }}
+          style={{ width: 240 }}
         />
+        {isAdminOrManager && (
+          <select
+            value={csmFilter}
+            onChange={e => setCsmFilter(e.target.value)}
+            style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontFamily: 'inherit' }}
+          >
+            <option value="">Todos CSMs</option>
+            {csmList.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
+        <select
+          value={dimFilter}
+          onChange={e => setDimFilter(e.target.value)}
+          style={{ fontSize: 12, padding: '5px 10px', borderRadius: 6, border: `1px solid ${C.line}`, background: '#fff', color: C.ink, fontFamily: 'inherit' }}
+        >
+          <option value="">Dimensão crítica</option>
+          {DIMS.map(d => (
+            <option key={d.key} value={d.key}>{d.label} {'<'} 10</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Band chips */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        {[
+          { key: 'all', label: `Todos (${filtered.length})` },
+          { key: 'saudavel', label: `Saudáveis (${saudaveis})` },
+          { key: 'atencao', label: `Atenção (${atencao})` },
+          { key: 'alerta', label: `Alerta (${alerta})` },
+        ].map(chip => (
+          <button key={chip.key} onClick={() => setBandFilter(chip.key)} style={chipStyle(bandFilter === chip.key)}>
+            {chip.label}
+          </button>
+        ))}
+        {(bandFilter !== 'all' || dimFilter || csmFilter) && (
+          <button
+            onClick={() => { setBandFilter('all'); setDimFilter(''); setCsmFilter('') }}
+            style={{ fontSize: 11, color: C.ink3, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}
+          >
+            Limpar filtros
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -217,7 +294,7 @@ export default function HealthDashboardPage() {
         {!isLoading && sorted.map((c, i) => (
           <div
             key={c.id}
-            onClick={() => navigate(`/empresas/${c.id}?tab=health`)}
+            onClick={() => navigate(`/empresas/${c.id}?tab=health`, { state: { from: location.pathname + location.search } })}
             style={{
               display: 'grid',
               gridTemplateColumns: GRID,

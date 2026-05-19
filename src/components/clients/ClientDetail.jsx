@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
+import { useParams, useSearchParams, useNavigate, useLocation } from 'react-router-dom'
 import { useClient } from '@/hooks/useClient'
 import { PageSpinner } from '../ui/Spinner'
 import { StagePill } from '../ui/StagePill'
@@ -29,7 +29,9 @@ export default function ClientDetail() {
   const { id } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const tab = searchParams.get('tab') || 'overview'
+  const backTo = location.state?.from || '/empresas'
   const [showEdit, setShowEdit]   = useState(false)
   const [showEmail, setShowEmail] = useState(false)
 
@@ -51,8 +53,8 @@ export default function ClientDetail() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-1">
         <div>
-          <button onClick={() => navigate('/empresas')} className="text-xs text-text-tertiary hover:text-text-secondary mb-1 flex items-center gap-1">
-            ← Empresas
+          <button onClick={() => navigate(backTo)} className="text-xs text-text-tertiary hover:text-text-secondary mb-1 flex items-center gap-1">
+            ← {backTo === '/empresas' ? 'Empresas' : 'Health Score'}
           </button>
           <div className="flex items-center gap-3 flex-wrap">
             {client.logo_url && (

@@ -1,5 +1,28 @@
 # Greeting Engine Implementation Roadmap
 
+> [!IMPORTANT]
+> Historical roadmap.
+>
+> The Greeting Engine evolved significantly after runtime maturation and narrative governance phases.
+>
+> The original roadmap below documents the foundational vision and early architectural assumptions of the subsystem.
+>
+> For the current strategic direction, contextual maturity model, and long-term evolution strategy, see:
+>
+> ```text
+> docs/modules/greeting-engine-roadmap-v2.md
+> ```
+>
+> The v2 roadmap reflects the current understanding of the Greeting Engine as:
+>
+> ```text
+> contextual narrative infrastructure
+> ```
+>
+> rather than a simple greeting feature.
+
+---
+
 ## Purpose
 
 This document defines the incremental implementation roadmap for the Greeting Engine inside doncCX Hub.
