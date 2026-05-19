@@ -139,6 +139,20 @@ useEffect(() => {
 
   async function handleDelete() {
     if (!confirm('Excluir esta atividade?')) return
+    if (a.google_event_id && isConnected && sessionToken) {
+      try {
+        await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-event`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${sessionToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ method: 'DELETE', google_event_id: a.google_event_id }),
+        })
+      } catch {
+        toast.error('Erro ao remover evento do Google Calendar, mas a atividade será excluída.')
+      }
+    }
     await remove.mutateAsync(a.id)
     onClose()
   }
