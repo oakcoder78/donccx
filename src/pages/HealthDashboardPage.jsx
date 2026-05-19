@@ -89,11 +89,6 @@ export default function HealthDashboardPage() {
   const debounceRef = useRef(null)
   const drawerOpen = !!drawerClientId
 
-  const drawerClient = useMemo(
-    () => sorted.find(c => c.id === drawerClientId) || null,
-    [sorted, drawerClientId]
-  )
-
   useEffect(() => {
     if (profile && !isEnabled('health', profile.role)) {
       navigate('/dashboard', { replace: true })
@@ -145,6 +140,11 @@ export default function HealthDashboardPage() {
   const sorted = useMemo(
     () => [...bandFiltered].sort((a, b) => (a.health_total ?? 0) - (b.health_total ?? 0)),
     [bandFiltered]
+  )
+
+  const drawerClient = useMemo(
+    () => sorted.find(c => c.id === drawerClientId) || null,
+    [sorted, drawerClientId]
   )
 
   const avgScore = bandFiltered.length
