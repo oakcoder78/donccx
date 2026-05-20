@@ -20,7 +20,7 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 3 — Not started
+- **Active phase:** Phase 5 — Not started
 
 **What already exists related to this work:**
 - `src/pages/CockpitsPage.jsx` — gateway `/cockpits` com cards para Health Score e CS Radar ✅
@@ -561,7 +561,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 4 (new) — All filters
 
-**Status:** Not started
+**Status:** Complete
 
 **Rationale:** Os filtros de período já estão funcionais (dropdown). Faltam os demais filtros da FilterBar para completar a experiência: seleção de responsável (apenas admin/manager), multiselect de clientes, tipo de atividade e segmento.
 
@@ -584,7 +584,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-05-19 | — | `src/pages/CsRadarPage.jsx` | Add ResponsibleSelect, ClientMultiSelect, ActivityTypeSelect, SegmentSelect + MultiSelect component + "Limpar filtros" + error retry |
 
 ---
 

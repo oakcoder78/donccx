@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useCsRadar } from '@/hooks/useCsRadar'
+import { useProfiles } from '@/hooks/useProfiles'
 import { useAuth } from '@/contexts/AuthContext'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -22,6 +23,21 @@ const PERIOD_OPTIONS = [
   { value: 'custom',     label: 'Personalizado' },
 ]
 
+const ACTIVITY_TYPE_OPTIONS = [
+  { value: 'reuniao',  label: 'Reunião' },
+  { value: 'ligacao',  label: 'Ligação' },
+  { value: 'email',    label: 'E-mail' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'tarefa',   label: 'Tarefa' },
+  { value: 'nota',     label: 'Nota' },
+]
+
+const SEGMENT_OPTIONS = [
+  { value: 'A', label: 'A' },
+  { value: 'B', label: 'B' },
+  { value: 'C', label: 'C' },
+]
+
 function computeDateRange(period, customFrom, customTo) {
   const now = new Date()
   if (period === 'this-month') return { dateFrom: firstOfMonth(now), dateTo: now }
@@ -39,6 +55,61 @@ function computeDateRange(period, customFrom, customTo) {
   }
   if (period === 'all') return { dateFrom: null, dateTo: null }
   return { dateFrom: customFrom || null, dateTo: customTo || null }
+}
+
+function MultiSelect({ label, options, selected, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    function handleClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const displayText = selected.length === 0
+    ? label
+    : selected.length === 1
+      ? options.find(o => o.value === selected[0])?.label || selected[0]
+      : `${selected.length} selecionados`
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary text-text-primary outline-none hover:border-border-secondary/80 focus:border-donc-sky whitespace-nowrap"
+      >
+        <span className="truncate max-w-[120px]">{displayText}</span>
+        <Icons.ChevronDown className={`w-3.5 h-3.5 text-text-tertiary transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-1 min-w-[180px] max-h-[260px] overflow-y-auto">
+          {options.map(opt => (
+            <label
+              key={opt.value}
+              className="flex items-center gap-2 px-3 py-1.5 hover:bg-bg-secondary cursor-pointer text-sm text-text-primary"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(opt.value)}
+                onChange={() => {
+                  const next = selected.includes(opt.value)
+                    ? selected.filter(v => v !== opt.value)
+                    : [...selected, opt.value]
+                  onChange(next)
+                }}
+                className="accent-donc-sky"
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function KpiCard({ icon: Icon, label, value, color }) {
@@ -80,6 +151,18 @@ export default function CsRadarPage() {
   const [period, setPeriod] = useState('30d')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
+  const [responsibleId, setResponsibleId] = useState('')
+  const [clientIds, setClientIds] = useState([])
+  const [activityTypes, setActivityTypes] = useState([])
+  const [segmentIds, setSegmentIds] = useState([])
+
+  const { data: profiles = [] } = useProfiles()
+  const csmList = useMemo(
+    () => profiles.filter(p => p.role === 'csm').sort((a, b) => (a.name || '').localeCompare(b.name || '')),
+    [profiles]
+  )
+
+  const activeFilterCount = [responsibleId, clientIds.length, activityTypes.length, segmentIds.length].filter(Boolean).length
 
   const handlePeriodChange = useCallback((e) => {
     setPeriod(e.target.value)
@@ -89,20 +172,40 @@ export default function CsRadarPage() {
     }
   }, [])
 
+  const clearFilters = useCallback(() => {
+    setResponsibleId('')
+    setClientIds([])
+    setActivityTypes([])
+    setSegmentIds([])
+  }, [])
+
   const filters = useMemo(() => {
     const range = computeDateRange(period, customFrom ? new Date(customFrom + 'T00:00:00') : null, customTo ? new Date(customTo + 'T00:00:00') : null)
-    return { ...range, responsibleId: null, clientIds: [], activityTypes: [], segmentIds: [] }
-  }, [period, customFrom, customTo])
+    return {
+      ...range,
+      responsibleId: responsibleId || null,
+      clientIds,
+      activityTypes,
+      segmentIds,
+    }
+  }, [period, customFrom, customTo, responsibleId, clientIds, activityTypes, segmentIds])
 
   const { data, isLoading, error } = useCsRadar(filters)
+
+  const clientOptions = useMemo(
+    () => (data?.clients || []).map(c => ({ value: String(c.id), label: c.fantasy_name })),
+    [data?.clients]
+  )
+
+  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <PageHeader title="CS Radar" description="Atividades, RMCs e avanço de projetos do time de CS" />
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3 mt-5 mb-6 flex-wrap">
-        <span className="text-sm text-text-tertiary font-medium">Período:</span>
+      <div className="flex items-center gap-2 mt-5 mb-6 flex-wrap">
+        <span className="text-sm text-text-tertiary font-medium mr-1">Período:</span>
         <select
           value={period}
           onChange={handlePeriodChange}
@@ -130,6 +233,50 @@ export default function CsRadarPage() {
             />
           </div>
         )}
+
+        {isAdminOrManager && (
+          <select
+            value={responsibleId}
+            onChange={e => setResponsibleId(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
+          >
+            <option value="">Responsável</option>
+            {csmList.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        )}
+
+        <MultiSelect
+          label="Cliente"
+          options={clientOptions}
+          selected={clientIds}
+          onChange={setClientIds}
+        />
+
+        <MultiSelect
+          label="Tipo"
+          options={ACTIVITY_TYPE_OPTIONS}
+          selected={activityTypes}
+          onChange={setActivityTypes}
+        />
+
+        <MultiSelect
+          label="Segmento"
+          options={SEGMENT_OPTIONS}
+          selected={segmentIds}
+          onChange={setSegmentIds}
+        />
+
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearFilters}
+            className="px-3 py-1.5 text-sm text-text-tertiary hover:text-text-secondary transition-colors flex items-center gap-1"
+          >
+            <Icons.X className="w-3.5 h-3.5" />
+            Limpar
+          </button>
+        )}
       </div>
 
       {/* Loading state */}
@@ -144,6 +291,9 @@ export default function CsRadarPage() {
         <div className="flex flex-col items-center justify-center py-20 text-text-tertiary">
           <Icons.XCircle className="w-12 h-12 mb-3 text-status-red" />
           <p className="text-sm">Erro ao carregar dados do CS Radar</p>
+          <button onClick={() => window.location.reload()} className="mt-3 text-sm text-donc-sky hover:underline">
+            Tentar novamente
+          </button>
         </div>
       )}
 
@@ -207,7 +357,7 @@ export default function CsRadarPage() {
               )}
             </div>
 
-            {profile?.role === 'admin' || profile?.role === 'manager' ? (
+            {isAdminOrManager ? (
               <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
                 <h3 className="text-sm font-semibold text-text-primary mb-4">Por responsável</h3>
                 {data.byResponsible.length === 0 ? (
@@ -382,13 +532,11 @@ function HeatmapGrid({ data }) {
     if (!lastDate || d.date > lastDate) lastDate = d.date
   }
 
-  // generate complete day grid from firstDate to lastDate
   const start = new Date(firstDate + 'T00:00:00')
   const end = new Date(lastDate + 'T00:00:00')
   const weeks = []
   let week = []
 
-  // pad start of first week
   const startDow = start.getDay()
   for (let i = 0; i < startDow; i++) week.push(null)
 
