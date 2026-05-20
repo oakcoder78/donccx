@@ -45,8 +45,10 @@ export function useCsRadar(filters) {
           client:clients!activities_client_id_fkey(fantasy_name, health_total, abc_class),
           responsible:profiles!activities_responsible_id_fkey(name)
         `)
-        .gte('activity_date', df)
-        .lte('activity_date', dt)
+        .order('activity_date', { ascending: false })
+
+      if (df) actQuery = actQuery.gte('activity_date', df)
+      if (dt) actQuery = actQuery.lte('activity_date', dt)
 
       if (responsibleId) actQuery = actQuery.eq('responsible_id', responsibleId)
       if (clientIds?.length) actQuery = actQuery.in('client_id', clientIds)
@@ -93,23 +95,27 @@ export function useCsRadar(filters) {
         .sort((a, b) => a.date.localeCompare(b.date))
 
       // ── 8. RMCs published ──
-      const { data: rmcs } = await supabase
+      let rmcQuery = supabase
         .from('client_reports')
         .select('client_id, period, published_at')
         .eq('status', 'published')
-        .gte('published_at', `${df}T00:00:00Z`)
-        .lte('published_at', `${dt}T23:59:59Z`)
+
+      if (df) rmcQuery = rmcQuery.gte('published_at', `${df}T00:00:00Z`)
+      if (dt) rmcQuery = rmcQuery.lte('published_at', `${dt}T23:59:59Z`)
+      const { data: rmcs } = await rmcQuery
 
       const rmcPublished = (rmcs || []).length
       const rmcExpected = (clients || []).length
 
       // ── 9. Projects with milestone progress ──
-      const { data: progMilestones } = await supabase
+      let msQuery = supabase
         .from('milestones')
         .select('project_id')
-        .gte('updated_at', `${df}T00:00:00Z`)
-        .lte('updated_at', `${dt}T23:59:59Z`)
         .in('status', ['em_andamento', 'done'])
+
+      if (df) msQuery = msQuery.gte('updated_at', `${df}T00:00:00Z`)
+      if (dt) msQuery = msQuery.lte('updated_at', `${dt}T23:59:59Z`)
+      const { data: progMilestones } = await msQuery
 
       const progProjectIds = new Set((progMilestones || []).map(m => m.project_id))
       const projectsWithProgress = progProjectIds.size
@@ -216,6 +222,6 @@ export function useCsRadar(filters) {
         clients: clientRows,
       }
     },
-    enabled: !!dateFrom,
+    enabled: true,
   })
 }
