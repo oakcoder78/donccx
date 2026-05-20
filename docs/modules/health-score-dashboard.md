@@ -109,6 +109,89 @@ When navigating from `/health` to a client detail (`/empresas/{id}?tab=health`),
 - Shows **"← Health Score"** button when origin is `/health`
 - Shows **"← Empresas"** (fallback) for direct access
 
+## ClientHealthDrawer — Dimension Accordion
+
+The client drawer (`src/components/clients/ClientHealthDrawer.jsx`) shows the "Saúde por dimensão" section as **5 cards, always visible**:
+
+| Score | Behavior |
+|---|---|
+| **≥ 20** | Static card — name + score + full progress bar. No interaction. |
+| **< 20** | Accordion — click header to expand/collapse. Only one open at a time. |
+
+### Data sources per dimension
+
+Each expanded dimension runs a **dedicated Supabase query** for the current client:
+
+| Dimension | Query | Table | Fields |
+|---|---|---|---|
+| **Suporte** | `client_support_drawer` | `client_support` | `tickets_opened`, `tickets_resolved`, `sla_first_response` |
+| **Uso** | `client_usage_drawer` | `client_usage` (2 months) | `os_created`, `active_users` — também calcula variação % |
+| **Relacionamento** | `contact_links_drawer` | `contact_links` | `papel`, `champion`, `engajamento` |
+| **Financeiro** | — | `clients.delay_days` | Usa campo já presente no objeto `client` |
+| **Projeto** | `client_onboarding_drawer` | `onboardings` + `onboarding_fases` | `situacao_geral`, `planned_end`, `status` |
+
+All 4 queries use:
+- `staleTime: 2 * 60 * 1000` (2 min)
+- `enabled: !!client.id`
+
+### Enriched rule labels (`enrichDimLabel`)
+
+Instead of showing generic labels from the `health_rules` table, the drawer replaces them with **actual measured values**:
+
+| rule_key | Old label | New label |
+|---|---|---|
+| `sla_nok` | "SLA primeira resposta >15 min" | "SLA: 23 min (meta ≤15 min)" |
+| `t15_nok` / `thi_nok` | "1-15 tickets, resolução <90%" | "Resolução: 67% (4/6)" |
+| `os_down` / `os_up` | "OS caindo >35%" | "OS: 18 (vs 42, −57%)" |
+| `usr_down` / `usr_up` | "Usuários caindo >35%" | "Usuários: 5 (vs 12, −58%)" |
+| `nd_m1/2/3` | "Sem decisor — mês 3+" | "Sem decisor (8 meses)" |
+| `no_champ` | "Sem champion" | "Sem champion identificado" |
+| `eng_low/mid/high` | "Engajamento baixo" | "Engajamento: Baixo (45d sem interação)" |
+| `fin_30/60/90` | "Atraso até 30 dias" | "Fatura atrasada 15 dias" |
+| `mp_late` | "Milestone atrasado" | "Milestones atrasadas: 2" |
+| `ob_late` | "Onboarding não concluído 90d" | "Onboarding incompleto (120d de go-live)" |
+
+The `MetricRow` component renders each metric as `<label> <value>` row.
+
+### Accordion UX
+
+```
+┌─────────────────────────────────────┐
+│ ▶ Suporte                  12/20   │  ← <20 clickable, chevron rotates
+│ ██████████████░░░░░░░░░░░░░░░░░░   │
+└─────────────────────────────────────┘
+↓ expanded (one at a time):
+┌─────────────────────────────────────┐
+│ ▼ Suporte                  12/20   │  ← click collapses
+│ ██████████████░░░░░░░░░░░░░░░░░░   │
+│                                      │
+│ Tickets abertos              6      │
+│ Resolvidos            4 (67%)       │
+│ SLA 1ª resposta          23 min     │
+│                                      │
+│ Penalizando                         │
+│ SLA: 23 min (meta ≤15 min)    −5   │
+│ Resolução: 67% (4/6)          −5   │
+│                                      │
+│ Como melhorar                        │
+│ SLA ≤15 min                    +5   │
+│ Resolução ≥90%                 +3   │
+└─────────────────────────────────────┘
+┌─────────────────────────────────────┐
+│ Uso                         20/20   │  ← ≥20 static, no chevron
+│ ████████████████████████████████   │
+└─────────────────────────────────────┘
+```
+
+### Key functions
+
+| Function | Purpose |
+|---|---|
+| `getDimensionInsights(client, dimKey, dimCls, rules)` | Filters rules by dimension. Returns `{ violated[], toImprove[] }` — all negative-points rules as violated, positive as toImprove when score < 20. |
+| `enrichDimLabel(rule, dimCls)` | Maps `rule_key` + raw data (closure over `dimMetrics`, `supportData`, `usageData`, `contactData`, `onboardingData`, `lastActivityMap`, `client.delay_days`) → human-readable label with actual values. |
+| `MetricRow({ label, value })` | Renders a single `<label> <value>` pair. |
+| `dimMetrics` (useMemo) | Computes derived metrics: `osChg`, `usrChg`, `resolucaoPct`, `decisor`, `champion`, `lowEng`, `midEng`, `lateFases`. |
+
 ## Known Divergences
 
 - Colors between `DashboardPage.jsx` (canonical), `ClientTabHealth.jsx` (status-based), and `reportGenerator.js` differ. Only `health_uso` (`#59c2ed`) is consistent across all three. Future fix: centralize tokens in `src/lib/constants.js`.
@@ -117,14 +200,16 @@ When navigating from `/health` to a client detail (`/empresas/{id}?tab=health`),
 ## Key Files
 
 | File | Purpose |
-|---|---|
+|---|---|---|
 | `src/pages/HealthDashboardPage.jsx` | Main dashboard page (343 lines) |
+| `src/components/clients/ClientHealthDrawer.jsx` | Client drawer with accordion + real metrics per dimension |
 | `src/components/clients/ClientDetail.jsx` | Client detail page with back button context |
-| `src/components/dashboard/DashboardPage.jsx` | Main dashboard with health block + "ver todos →" |
+| `src/components/dashboard/DashboardPage.jsx` | Main dashboard with health block + "ver todos →" → `/health` |
 | `src/components/ui/PageHeader.jsx` | Page header component |
 | `src/hooks/useClients.js` | Hook for loading clients with filters |
 | `src/hooks/useProfiles.js` | Hook for loading profiles (CSM dropdown) |
 | `src/hooks/useFeatureFlags.js` | Feature flag hook |
+| `src/hooks/useHealthConfig.js` | Hook for loading `health_rules` (used by drawer) |
 | `src/lib/icons.js` | Icon barrel (never import from lucide-react directly) |
 | `supabase/migrations/20260519000001_add_health_trend.sql` | Trend column + SQL function |
 | `supabase/functions/monthly-sync/index.ts` | Step 4 triggers trend calculation |

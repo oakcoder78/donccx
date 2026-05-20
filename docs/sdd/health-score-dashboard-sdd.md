@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 2 — Client Drawer (not started)
+- **Active phase:** Phase 3 — Enrich ClientTabOverview (Planned)
 
 **What exists related to `/health`:**
 - `src/pages/HealthDashboardPage.jsx` — main page, scorecard + ranking table ✅
@@ -527,9 +527,11 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 
 ---
 
-### Phase 2 — Client Drawer
+### Phase 2 — Client Drawer & Dimension Metrics
 
-**Status:** Not started — this is the active phase.
+**Status:** Complete.
+
+**Sub-phase 2a — Drawer extraction** (initial scope)
 
 **Rationale:** A lista rankeada é útil para priorização, mas passiva — o decisor vê o score 42 e ainda precisa navegar para outra página para entender o que está acontecendo. O drawer resolve isso: clique na linha abre um preview completo do cliente sem sair da `/health`. O conteúdo já existe em `DashboardPage.jsx` (`DrawerClientContent`) — o trabalho é extrair, tornar independente e reutilizar.
 
@@ -661,7 +663,34 @@ const drawerOpen = !!drawerClientId
   - [x] ESC key handler in `HealthDashboardPage` (or delegate to drawer component)
 - [x] **Build:** `npm run build` with no errors
 
-#### UI Spec — Drawer (Phase 2)
+**Sub-phase 2b — Dimension accordion with real metrics** (extension)
+
+**Rationale:** The drawer's "Saúde por dimensão" initially showed generic rule labels ("SLA >15 min"). User wanted actual data ("6 tickets", "SLA 23 min") and accordion expansion. Also fixed "ver todos →" on Dashboard going to `/empresas` instead of `/health`.
+
+**Changes:**
+- All 5 dims always visible; score ≥ 20 → static card, < 20 → accordion (one at a time)
+- Replaced `evaluateClientRules` (broken — DB has no condition columns) with `getDimensionInsights` (score proxy)
+- 4 per-client queries: `client_support`, `client_usage`, `contact_links`, `onboardings` + `onboarding_fases`
+- `enrichDimLabel` maps `rule_key` → label with real values (e.g. "SLA: 23 min (meta ≤15 min)")
+- `MetricRow` component for consistent `<label> <value>` display
+- Dashboard "ver todos →" → `/health`
+
+#### Checklist — Sub-phase 2b (Dimension Accordion)
+
+- [x] **Replace `evaluateClientRules`** — DB has no `condition_field`/`condition_value`/`condition_operator` columns. New `getDimensionInsights` uses dimScore as proxy: score < 20 → show all negative/positive rules.
+- [x] **Add 4 per-client queries** — `client_support` (latest month), `client_usage` (2 months), `contact_links`, `onboardings`+`onboarding_fases`. Each with `staleTime: 2min`, `enabled: !!client.id`.
+- [x] **Accordion state** — `expandedDim` via `useState(null)`. Click toggles. One at a time.
+- [x] **Static cards** for score ≥ 20 — no chevron, no interaction, just name + score + full bar.
+- [x] **Accordion cards** for score < 20 — chevron ▶/▼, expanded shows:
+  - Real metrics (tickets, OS, decisor, atraso, fases)
+  - Penalizando list with enriched labels
+  - Como melhorar list
+- [x] **`enrichDimLabel` function** — maps `rule_key` + raw data → human-readable label with actual values (e.g. "SLA: 23 min (meta ≤15 min)", "OS: 18 (vs 42, −57%)").
+- [x] **`MetricRow` component** — `<label> <value>` pair for metric display.
+- [x] **Fix "ver todos →"** — `DashboardPage.jsx` `navigate('/empresas')` → `navigate('/health')`.
+- [x] **Build:** `npm run build` with no errors.
+
+#### UI Spec — Drawer (Phase 2 + 2b)
 
 ```
 ┌─────────────────────────────┐
@@ -688,11 +717,25 @@ const drawerOpen = !!drawerClientId
 │  [🌡 Atualizar temperatura]  │
 │  [+ Registrar atividade]     │
 ├─────────────────────────────┤
-│  SAÚDE POR DIMENSÃO          │
-│  Uso      ████░░  8/20       │
-│    Penalizando:              │
-│    OS abaixo do esperado -4  │
-│    Como melhorar: ...        │
+│  SAÚDE POR DIMENSÃO          │       ← always 5 cards
+│                              │
+│  ▶ Suporte          12/20    │   ← < 20, clickable accordion
+│  ████████████░░░░░░░░░░      │
+│  ─────────────────────────   │   ← when expanded:
+│  Tickets abertos       6     │
+│  Resolvidos      4 (67%)    │
+│  SLA 1ª resposta   23 min   │
+│  Penalizando:               │
+│    SLA: 23 min (≤15)   −5   │
+│    Resolução: 67%      −5   │
+│  Como melhorar:              │
+│    SLA ≤15 min         +5   │
+│                              │
+│  Uso                 20/20   │   ← ≥ 20, static
+│  █████████████████████████   │
+│                              │
+│  Relacionamento      18/20   │   ← < 20, collapsed by default
+│  ████████████████████░░      │
 │  ...                         │
 ├─────────────────────────────┤
 │  [Abrir cliente completo →]  │
@@ -705,6 +748,9 @@ const drawerOpen = !!drawerClientId
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | 2026-05-19 | `1137891` | `src/components/clients/ClientHealthDrawer.jsx` (created), `src/pages/HealthDashboardPage.jsx`, `src/lib/icons.js` | Client drawer extraído do DashboardPage; self-contained queries (lastActivityMap, healthRules, overdue fases); buildReasons + getSignals locais; Ic.* substituído por Icons.*; drawer state + overlay + aside + paddingRight na dashboard |
+| 2026-05-19 | `df7c420` | `src/components/clients/ClientHealthDrawer.jsx` | Replace broken `evaluateClientRules` with `getDimensionInsights` (score-based proxy) |
+| 2026-05-19 | `c0cbb29` | `src/components/dashboard/DashboardPage.jsx`, `src/components/clients/ClientHealthDrawer.jsx` | Accordion UX + 4 dimension queries + `enrichDimLabel` + `MetricRow`. Fix "ver todos →" → `/health`. |
+| 2026-05-19 | `06fc914` | `src/components/clients/ClientHealthDrawer.jsx` | Show all 5 dims always; static cards for score ≥ 20, accordion for < 20 |
 
 ---
 
@@ -756,7 +802,11 @@ const drawerOpen = !!drawerClientId
 - `calculate_health_trends()` SQL function existe — chamada pelo monthly-sync (deployed)
 - Coluna Δ em `/health` exibe `—` enquanto `health_trend = 0`
 - **Drawer implementado** — clique na linha abre `ClientHealthDrawer` com overlay + paddingRight shift
-- `ClientHealthDrawer.jsx` — componente independente com queries próprias (lastActivityMap, healthRules, overdue fases, overdue activities), buildReasons + getSignals inline, Icons.* barrel, ESC fecha
+- `ClientHealthDrawer.jsx` — componente independente com queries próprias (lastActivityMap, healthRules, overdue fases, overdue activities, client_support, client_usage, contact_links, onboardings), buildReasons + getSignals inline, Icons.* barrel, ESC fecha
+- **Dimensões com accordion + métricas reais** — 5 cards sempre visíveis; score ≥ 20 estático, < 20 expansível (um por vez)
+- **`enrichDimLabel`** substitui labels genéricos por valores reais (ex: "SLA: 23 min (meta ≤15 min)")
+- **`getDimensionInsights`** substitui `evaluateClientRules` (tabela `health_rules` não tem colunas de condição)
+- **DashboardPage "ver todos →"** agora aponta para `/health` (corrigido de `/empresas`)
 
 ### Architectural decisions
 
@@ -773,6 +823,9 @@ const drawerOpen = !!drawerClientId
 | `health_trend` via Opção A (migration + monthly-sync) | pg_cron e `health_score_history` já existiam; SQL function `calculate_health_trends()` chamada pelo monthly-sync após health-recalc |
 | `clients.id` is integer | Confirmed by health-recalc source — direct join with `health_score_history.client_id integer` |
 | Drawer extraído de DashboardPage.jsx | `DrawerClientContent` já existe e é completo — reutilizar em vez de recriar; extrair para componente independente com queries próprias |
+| `evaluateClientRules` removido | DB `health_rules` não tem `condition_field`/`condition_value`/`condition_operator` — seria necessária uma migration. `getDimensionInsights` usa score como proxy: < 20 mostra todas as regras negativas |
+| 4 queries por cliente no drawer | Cada dimensão precisa de dados reais — melhor 4 queries independentes que uma query monstro com joins |
+| Accordion um por vez | Menos poluição visual; foco na dimensão que o CSM quer investigar |
 | Row click → drawer, não navegação direta | O decisor permanece na lista rankeada; navega para o cliente completo apenas se quiser aprofundar |
 | "Abrir cliente completo" vai para Overview | O Overview é a visão definitiva do cliente; `?tab=health` seria redundante com o que o drawer já mostra |
 
@@ -784,7 +837,7 @@ When resuming this document for implementation:
 
 1. Read **Section 0 (Current System State)** — understand what exists and what will be created.
 2. Read the **Design System Reference (Section 2)** and open the reference files before writing any code.
-3. Identify the **active phase** via its checklist status. Currently **Phase 2 — Client Drawer**.
+3. Identify the **active phase** via its checklist status. Currently **Phase 3 — Enrich ClientTabOverview (Planned)**.
 4. Implement item by item. Mark ✅ when done and verified.
 5. After each significant item, run `npm run build` to ensure nothing broke.
 6. At the end of the phase, fill in the **Implementation Log**.
