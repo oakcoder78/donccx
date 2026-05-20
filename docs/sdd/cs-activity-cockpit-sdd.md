@@ -590,7 +590,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 5 (new) — Empty & search states
 
-**Status:** Not started
+**Status:** Complete
 
 **Rationale:** Refinamentos de UX: busca textual com debounce, estados de shimmer/loading mais refinados, empty states específicos, e tratamento de erros mais amigável.
 
@@ -612,7 +612,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-05-19 | — | `src/pages/CsRadarPage.jsx` | Add search input with 300ms debounce, shimmer skeleton, empty search state, refetch-based retry |
 
 ---
 
