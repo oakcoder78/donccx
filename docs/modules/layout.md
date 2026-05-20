@@ -11,6 +11,7 @@ Provides the base visual structure and global navigation for the application. `N
 - Offer dropdown with "Minha conta" (opens `UserEditModal`) and "Sair" (sign‑out, redirect to `/login`).
 - Expose commit hash in dropdown for version reference.
 - Clean up dropdown overlay on outside click.
+- Nav includes Cockpits (`/cockpits`) which acts as a gateway page linking to Health Score and CS Radar — replaces the previous direct "Health Score" link.
 
 ### Profile Editing Location
 All personal profile editing is now centralized in the Navbar profile modal (`UserEditModal`). This includes:

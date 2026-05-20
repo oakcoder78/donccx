@@ -8,6 +8,7 @@ The Health Score Dashboard (`/health`) provides a centralized view of the client
 | Property | Value |
 |---|---|
 | Route | `/health` |
+| Navbar | Acessado via "Cockpits" → `/cockpits` (gateway page com cards para Health Score e CS Radar) |
 | Feature flag | `health` (table `feature_flags`) |
 | Roles | `admin`, `manager` (analyst blocked via redirect in component) |
 | Guard | Internal `useEffect` redirects to `/dashboard` if `isEnabled('health', role)` is false |
@@ -201,6 +202,7 @@ The `MetricRow` component renders each metric as `<label> <value>` row.
 
 | File | Purpose |
 |---|---|---|
+| `src/pages/CockpitsPage.jsx` | Gateway page `/cockpits` — links to Health Score and CS Radar |
 | `src/pages/HealthDashboardPage.jsx` | Main dashboard page (343 lines) |
 | `src/components/clients/ClientHealthDrawer.jsx` | Client drawer with accordion + real metrics per dimension |
 | `src/components/clients/ClientDetail.jsx` | Client detail page with back button context |
@@ -220,4 +222,6 @@ The `MetricRow` component renders each metric as `<label> <value>` row.
 
 - `docs/modules/health-score.md` — Health score calculation engine (`src/lib/healthScore.js`)
 - `docs/modules/clients.md` — Client entity module
+- `docs/sdd/health-score-dashboard-sdd.md` — SDD (single source of truth for feature spec)
+- `docs/sdd/cs-activity-cockpit-sdd.md` — SDD for CS Radar (companion cockpit)
 - `docs/sdd/refactoring-sdd.md` — Refactoring plan (Phase 1 health-dashboard-adjacent cleanup)
