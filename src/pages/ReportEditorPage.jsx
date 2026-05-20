@@ -106,7 +106,7 @@ export default function ReportEditorPage() {
   const [extraDraft,    setExtraDraft]    = useState(blankExtra())
 
   function blankExtra() {
-    return { label: '', value: '', sublabel: '', delta: '', deltaType: 'neutral', accentColor: 'sky', highlighted: false }
+    return { label: '', value: '', sublabel: '', delta: '', deltaType: 'neutral', deltaColor: 'auto', accentColor: 'sky', highlighted: false }
   }
 
   // ── Effect: load sections ────────────────────────────────
@@ -931,7 +931,10 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
     { v: 'navy', l: 'Navy' }, { v: 'green', l: 'Green' },
   ]
   const deltaOpts = [
-    { v: 'neutral', l: '≈ Neutro' }, { v: 'up', l: '▲ Alta' }, { v: 'down', l: '▼ Baixa' },
+    { v: 'neutral', l: '≈ Neutro' }, { v: 'up', l: '▲ Alta' }, { v: 'down', l: '▼ Baixa' }, { v: 'none', l: '— Sem seta' },
+  ]
+  const deltaColorOpts = [
+    { v: 'auto', l: 'Auto' }, { v: 'green', l: 'Verde' }, { v: 'red', l: 'Vermelho' }, { v: 'gray', l: 'Cinza' },
   ]
 
   function startEdit(e) {
@@ -978,6 +981,11 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
                   onChange={ev => setEditDraft(d => ({ ...d, deltaType: ev.target.value }))}
                   className="input-base text-xs">
                   {deltaOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+                <select value={editDraft.deltaColor ?? 'auto'}
+                  onChange={ev => setEditDraft(d => ({ ...d, deltaColor: ev.target.value }))}
+                  className="input-base text-xs">
+                  {deltaColorOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                 </select>
                 <select value={editDraft.accentColor ?? 'sky'}
                   onChange={ev => setEditDraft(d => ({ ...d, accentColor: ev.target.value }))}
@@ -1036,6 +1044,11 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
               onChange={e => onDraftChange({ ...draft, deltaType: e.target.value })}
               className="input-base text-xs">
               {deltaOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+            </select>
+            <select value={draft.deltaColor}
+              onChange={e => onDraftChange({ ...draft, deltaColor: e.target.value })}
+              className="input-base text-xs">
+              {deltaColorOpts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
             </select>
             <select value={draft.accentColor}
               onChange={e => onDraftChange({ ...draft, accentColor: e.target.value })}
