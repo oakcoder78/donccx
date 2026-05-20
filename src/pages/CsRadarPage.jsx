@@ -356,27 +356,41 @@ function formatDate(dateStr) {
 }
 
 function HeatmapGrid({ data }) {
-  const maxCount = Math.max(...data.map(d => d.count), 1)
-  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+  if (!data.length) return null
 
+  const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+  const countMap = {}
+  let maxCount = 0
+  let firstDate = null
+  let lastDate = null
+  for (const d of data) {
+    countMap[d.date] = d.count
+    if (d.count > maxCount) maxCount = d.count
+    if (!firstDate || d.date < firstDate) firstDate = d.date
+    if (!lastDate || d.date > lastDate) lastDate = d.date
+  }
+
+  // generate complete day grid from firstDate to lastDate
+  const start = new Date(firstDate + 'T00:00:00')
+  const end = new Date(lastDate + 'T00:00:00')
   const weeks = []
   let week = []
-  for (const d of data) {
-    const date = new Date(d.date + 'T00:00:00')
-    const dayOfWeek = date.getDay()
-    // fill empty days at start of first week
-    if (weeks.length === 0 && week.length === 0) {
-      for (let i = 0; i < dayOfWeek; i++) week.push(null)
-    }
-    week.push(d)
-    if (dayOfWeek === 6) {
+
+  // pad start of first week
+  const startDow = start.getDay()
+  for (let i = 0; i < startDow; i++) week.push(null)
+
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().split('T')[0]
+    week.push({ date: dateStr, count: countMap[dateStr] || 0 })
+    if (d.getDay() === 6) {
       weeks.push(week)
       week = []
     }
   }
-  if (week.length > 0) weeks.push(week)
+  if (week.length) weeks.push(week)
 
-  function intensity(count) {
+  function cellClass(count) {
     if (!count) return 'bg-bg-secondary'
     const pct = count / maxCount
     if (pct > 0.75) return 'bg-donc-sky'
@@ -387,21 +401,19 @@ function HeatmapGrid({ data }) {
 
   return (
     <div>
-      <div className="flex gap-1.5 mb-1">
+      <div className="flex gap-1 mb-1">
         {dayNames.map(d => (
-          <div key={d} className="w-7 text-center text-[10px] text-text-tertiary">{d}</div>
+          <div key={d} className="w-8 text-center text-[11px] text-text-tertiary font-medium">{d}</div>
         ))}
       </div>
       {weeks.map((week, wi) => (
-        <div key={wi} className="flex gap-1.5 mb-1">
-          {week.map((d, di) => (
+        <div key={wi} className="flex gap-1 mb-1">
+          {week.map((cell, ci) => (
             <div
-              key={di}
-              className={`w-7 h-7 rounded ${d ? intensity(d.count) : ''} flex items-center justify-center text-[10px] font-medium ${d ? 'text-text-primary' : 'text-text-tertiary/30'}`}
-              title={d ? `${d.date}: ${d.count} atividades` : ''}
-            >
-              {d ? d.count : ''}
-            </div>
+              key={ci}
+              className={`w-8 h-8 rounded-[4px] ${cell ? cellClass(cell.count) : ''}`}
+              title={cell ? `${cell.date} · ${cell.count} ${cell.count === 1 ? 'atividade' : 'atividades'}` : ''}
+            />
           ))}
         </div>
       ))}
