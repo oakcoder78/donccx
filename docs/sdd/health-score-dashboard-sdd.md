@@ -782,6 +782,7 @@ const drawerOpen = !!drawerClientId
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | 2026-05-19 | `0d2c8ac` | `src/components/clients/tabs/ClientTabOverview.jsx` | Enrich Overview: trend Δ, extended alerts (onboarding, interação, temperatura), sinais ativos cards, quick actions, dimension accordion (5 dims, static ≥20, accordion <20) using embedded client data |
+| 2026-05-19 | `4f4fd1f` | `src/components/clients/tabs/ClientTabOverview.jsx` | Fix TDZ crash: move `lastActDays`/`lastActDate` before alerts section |
 
 ---
 
