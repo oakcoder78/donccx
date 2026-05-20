@@ -4,7 +4,6 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { useCsRadar } from '@/hooks/useCsRadar'
 import { useProfiles } from '@/hooks/useProfiles'
 import { useAuth } from '@/contexts/AuthContext'
-import { Spinner } from '@/components/ui/Spinner'
 
 function firstOfMonth(d) {
   return new Date(d.getFullYear(), d.getMonth(), 1)
@@ -155,6 +154,13 @@ export default function CsRadarPage() {
   const [clientIds, setClientIds] = useState([])
   const [activityTypes, setActivityTypes] = useState([])
   const [segmentIds, setSegmentIds] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   const { data: profiles = [] } = useProfiles()
   const csmList = useMemo(
@@ -177,7 +183,17 @@ export default function CsRadarPage() {
     setClientIds([])
     setActivityTypes([])
     setSegmentIds([])
+    setSearchTerm('')
   }, [])
+
+  const filteredClients = useMemo(() => {
+    if (!data?.clients) return []
+    const term = debouncedSearch.toLowerCase().trim()
+    if (!term) return data.clients
+    return data.clients.filter(c =>
+      c.fantasy_name?.toLowerCase().includes(term)
+    )
+  }, [data?.clients, debouncedSearch])
 
   const filters = useMemo(() => {
     const range = computeDateRange(period, customFrom ? new Date(customFrom + 'T00:00:00') : null, customTo ? new Date(customTo + 'T00:00:00') : null)
@@ -190,7 +206,7 @@ export default function CsRadarPage() {
     }
   }, [period, customFrom, customTo, responsibleId, clientIds, activityTypes, segmentIds])
 
-  const { data, isLoading, error } = useCsRadar(filters)
+  const { data, isLoading, error, refetch } = useCsRadar(filters)
 
   const clientOptions = useMemo(
     () => (data?.clients || []).map(c => ({ value: String(c.id), label: c.fantasy_name })),
@@ -268,6 +284,17 @@ export default function CsRadarPage() {
           onChange={setSegmentIds}
         />
 
+        <div className="relative flex-1 min-w-[160px] max-w-[240px]">
+          <Icons.Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Buscar cliente…"
+            className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary text-text-primary outline-none focus:border-donc-sky placeholder:text-text-tertiary"
+          />
+        </div>
+
         {activeFilterCount > 0 && (
           <button
             onClick={clearFilters}
@@ -279,10 +306,81 @@ export default function CsRadarPage() {
         )}
       </div>
 
-      {/* Loading state */}
+      {/* Loading skeleton */}
       {isLoading && (
-        <div className="flex items-center justify-center py-20">
-          <Spinner size="lg" />
+        <div className="animate-pulse space-y-6">
+          <div className="grid grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-bg-secondary" />
+                  <div className="space-y-2 flex-1">
+                    <div className="h-6 w-12 bg-bg-secondary rounded" />
+                    <div className="h-3 w-20 bg-bg-secondary rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
+              <div className="h-4 w-32 bg-bg-secondary rounded mb-4" />
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-3 w-20 bg-bg-secondary rounded" />
+                    <div className="flex-1 h-5 bg-bg-secondary rounded-full" />
+                    <div className="h-4 w-8 bg-bg-secondary rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
+              <div className="h-4 w-32 bg-bg-secondary rounded mb-4" />
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-3 w-28 bg-bg-secondary rounded" />
+                    <div className="flex-1 h-5 bg-bg-secondary rounded-full" />
+                    <div className="h-4 w-8 bg-bg-secondary rounded" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
+            <div className="h-4 w-36 bg-bg-secondary rounded mb-4" />
+            <div className="flex gap-1 mb-1">
+              {[...Array(7)].map((_, i) => (
+                <div key={i} className="h-3 w-8 bg-bg-secondary rounded" />
+              ))}
+            </div>
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex gap-1 mb-1">
+                {[...Array(7)].map((_, j) => (
+                  <div key={j} className="w-8 h-8 rounded-[4px] bg-bg-secondary" />
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="bg-bg-primary border border-border-tertiary rounded-xl overflow-hidden">
+            <div className="px-5 py-3 border-b border-border-tertiary">
+              <div className="h-4 w-20 bg-bg-secondary rounded" />
+            </div>
+            <div className="p-4 space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className="h-4 w-32 bg-bg-secondary rounded" />
+                  <div className="h-4 w-10 bg-bg-secondary rounded" />
+                  <div className="h-4 w-24 bg-bg-secondary rounded" />
+                  <div className="h-4 w-10 bg-bg-secondary rounded" />
+                  <div className="h-4 w-16 bg-bg-secondary rounded" />
+                  <div className="h-4 w-36 bg-bg-secondary rounded flex-1" />
+                  <div className="h-4 w-4 bg-bg-secondary rounded-full" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -291,7 +389,7 @@ export default function CsRadarPage() {
         <div className="flex flex-col items-center justify-center py-20 text-text-tertiary">
           <Icons.XCircle className="w-12 h-12 mb-3 text-status-red" />
           <p className="text-sm">Erro ao carregar dados do CS Radar</p>
-          <button onClick={() => window.location.reload()} className="mt-3 text-sm text-donc-sky hover:underline">
+          <button onClick={() => refetch()} className="mt-3 text-sm text-donc-sky hover:underline">
             Tentar novamente
           </button>
         </div>
@@ -415,14 +513,16 @@ export default function CsRadarPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.clients.length === 0 ? (
+                  {filteredClients.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="text-center py-10 text-text-tertiary text-sm">
-                        Nenhum cliente encontrado
+                        {debouncedSearch
+                          ? `Nenhum cliente encontrado para "${debouncedSearch}"`
+                          : 'Nenhum cliente encontrado'}
                       </td>
                     </tr>
                   ) : (
-                    data.clients
+                    filteredClients
                       .sort((a, b) => {
                         const order = { red: 0, yellow: 1, green: 2 }
                         return order[a.semaphore] - order[b.semaphore]
