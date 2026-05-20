@@ -16,12 +16,13 @@ The **CS Radar** (`/cs-radar`) dashboard aggregates activities, RMC reports, and
 ## Current State (Phase 2 — Complete)
 
 Full radar page with:
-- Period filter (7/30/90 days)
+- Period filter (dropdown: Este mês, Último mês, Últimos 30/90 dias, Todo período, Personalizado com date picker)
 - 4 KPI cards (atividades, clientes com toque, RMCs, projetos com avanço)
 - Activity type bar chart + by-responsible chart
-- Heatmap grid with intensity scale
+- Heatmap grid (grade completa, alinhamento semanal, escala de opacidade sky `#59c2ed`, tooltip no hover)
 - Client table with semaphore sorting (🔴 → 🟡 → 🟢)
 - Activity exclusion: `type='nota' + title='RMC visualizado'`
+- Client list filtered by `lifecycle_stage = 'cliente'`
 - RMC denominator excludes Onboarding, Em espera, Churned
 
 ## Data Flow
@@ -40,7 +41,7 @@ Output: { kpis, byType[], byResponsible[], heatmap[], clients[] }
 
 ```
 CsRadarPage
-├── FilterBar (PeriodSelect: 7d / 30d / 90d)
+├── FilterBar (Period dropdown + custom date range)
 ├── KpiRow (4 cards)
 │   ├── Total de atividades
 │   ├── Clientes com toque / total
