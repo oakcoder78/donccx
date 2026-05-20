@@ -1,14 +1,44 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useCsRadar } from '@/hooks/useCsRadar'
 import { Spinner } from '@/components/ui/Spinner'
 
+function firstOfMonth(d) {
+  return new Date(d.getFullYear(), d.getMonth(), 1)
+}
+
+function lastOfMonth(d) {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0)
+}
+
 const PERIOD_OPTIONS = [
-  { label: 'Últimos 7 dias',  days: 7 },
-  { label: 'Últimos 30 dias', days: 30 },
-  { label: 'Últimos 90 dias', days: 90 },
+  { value: 'this-month', label: 'Este mês' },
+  { value: 'last-month', label: 'Último mês' },
+  { value: '30d',        label: 'Últimos 30 dias' },
+  { value: '90d',        label: 'Últimos 90 dias' },
+  { value: 'all',        label: 'Todo período' },
+  { value: 'custom',     label: 'Personalizado' },
 ]
+
+function computeDateRange(period, customFrom, customTo) {
+  const now = new Date()
+  if (period === 'this-month') return { dateFrom: firstOfMonth(now), dateTo: now }
+  if (period === 'last-month') {
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    return { dateFrom: prev, dateTo: lastOfMonth(prev) }
+  }
+  if (period === '30d') {
+    const from = new Date(now); from.setDate(from.getDate() - 30)
+    return { dateFrom: from, dateTo: now }
+  }
+  if (period === '90d') {
+    const from = new Date(now); from.setDate(from.getDate() - 90)
+    return { dateFrom: from, dateTo: now }
+  }
+  if (period === 'all') return { dateFrom: null, dateTo: null }
+  return { dateFrom: customFrom || null, dateTo: customTo || null }
+}
 
 function KpiCard({ icon: Icon, label, value, color }) {
   return (
@@ -36,14 +66,22 @@ const KPI_COLORS = {
 }
 
 export default function CsRadarPage() {
-  const [periodDays, setPeriodDays] = useState(30)
+  const [period, setPeriod] = useState('30d')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  const handlePeriodChange = useCallback((e) => {
+    setPeriod(e.target.value)
+    if (e.target.value !== 'custom') {
+      setCustomFrom('')
+      setCustomTo('')
+    }
+  }, [])
 
   const filters = useMemo(() => {
-    const now = new Date()
-    const from = new Date(now)
-    from.setDate(from.getDate() - periodDays)
-    return { dateFrom: from, dateTo: now, responsibleId: null, clientIds: [], activityTypes: [], segmentIds: [] }
-  }, [periodDays])
+    const range = computeDateRange(period, customFrom ? new Date(customFrom + 'T00:00:00') : null, customTo ? new Date(customTo + 'T00:00:00') : null)
+    return { ...range, responsibleId: null, clientIds: [], activityTypes: [], segmentIds: [] }
+  }, [period, customFrom, customTo])
 
   const { data, isLoading, error } = useCsRadar(filters)
 
@@ -52,23 +90,35 @@ export default function CsRadarPage() {
       <PageHeader title="CS Radar" description="Atividades, RMCs e avanço de projetos do time de CS" />
 
       {/* Filter bar */}
-      <div className="flex items-center gap-3 mt-5 mb-6">
+      <div className="flex items-center gap-3 mt-5 mb-6 flex-wrap">
         <span className="text-sm text-text-tertiary font-medium">Período:</span>
-        <div className="flex gap-1">
+        <select
+          value={period}
+          onChange={handlePeriodChange}
+          className="px-3 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
+        >
           {PERIOD_OPTIONS.map(opt => (
-            <button
-              key={opt.days}
-              onClick={() => setPeriodDays(opt.days)}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                periodDays === opt.days
-                  ? 'bg-donc-sky text-white'
-                  : 'bg-bg-secondary text-text-secondary hover:bg-bg-tertiary'
-              }`}
-            >
-              {opt.label}
-            </button>
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
-        </div>
+        </select>
+
+        {period === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="px-2 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
+            />
+            <span className="text-text-tertiary text-sm">até</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              className="px-2 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary text-text-primary outline-none focus:border-donc-sky"
+            />
+          </div>
+        )}
       </div>
 
       {/* Loading state */}
