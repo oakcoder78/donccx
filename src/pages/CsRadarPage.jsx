@@ -186,15 +186,6 @@ export default function CsRadarPage() {
     setSearchTerm('')
   }, [])
 
-  const filteredClients = useMemo(() => {
-    if (!data?.clients) return []
-    const term = debouncedSearch.toLowerCase().trim()
-    if (!term) return data.clients
-    return data.clients.filter(c =>
-      c.fantasy_name?.toLowerCase().includes(term)
-    )
-  }, [data?.clients, debouncedSearch])
-
   const filters = useMemo(() => {
     const range = computeDateRange(period, customFrom ? new Date(customFrom + 'T00:00:00') : null, customTo ? new Date(customTo + 'T00:00:00') : null)
     return {
@@ -207,6 +198,15 @@ export default function CsRadarPage() {
   }, [period, customFrom, customTo, responsibleId, clientIds, activityTypes, segmentIds])
 
   const { data, isLoading, error, refetch } = useCsRadar(filters)
+
+  const filteredClients = useMemo(() => {
+    if (!data?.clients) return []
+    const term = debouncedSearch.toLowerCase().trim()
+    if (!term) return data.clients
+    return data.clients.filter(c =>
+      c.fantasy_name?.toLowerCase().includes(term)
+    )
+  }, [data?.clients, debouncedSearch])
 
   const clientOptions = useMemo(
     () => (data?.clients || []).map(c => ({ value: String(c.id), label: c.fantasy_name })),
