@@ -13,6 +13,8 @@ The **Pages** module groups the top‑level UI screens of the application. Each 
 
 ## Module Structure
 - **AtendimentoPage.jsx** – multi‑step wizard for creating Freshdesk tickets from WhatsApp conversations.
+- **CockpitsPage.jsx** – gateway page at `/cockpits` with cards linking to Health Score and CS Radar.
+- **CsRadarPage.jsx** – CS Radar dashboard (activities, RMCs, project progress) — skeleton.
 - **Dashboard.jsx** – main overview screen showing health scores, client signals, and recent activities.
 - **DoncAPIPendentes.jsx** – list of pending items specific to the internal "Donc API" integration.
 - **FreshdeskPendingPage.jsx** – view of pending Freshdesk tickets awaiting action.
@@ -82,6 +84,8 @@ Pages are plain React components that import shared UI primitives (`Spinner`, `A
 
 ## File Reference Map
 - `src/pages/AtendimentoPage.jsx`
+- `src/pages/CockpitsPage.jsx`
+- `src/pages/CsRadarPage.jsx`
 - `src/pages/Dashboard.jsx`
 - `src/pages/DoncAPIPendentes.jsx`
 - `src/pages/FreshdeskPendingPage.jsx`
