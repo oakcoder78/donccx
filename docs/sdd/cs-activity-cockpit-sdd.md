@@ -27,6 +27,10 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 - `src/pages/CsRadarPage.jsx` — página completa com KPI cards, gráficos, heatmap e tabela de clientes ✅
 - `src/hooks/useCsRadar.js` — hook de dados com queries de atividades, RMCs, projetos e milestones ✅
 - `src/pages/HealthDashboardPage.jsx` — referência de design e estrutura para cockpits; seguir como template visual
+- **Phase 3 (original)** — Charts: implementado na Phase 2 ✅
+- **Phase 4 (original)** — Heatmap: implementado na Phase 2 ✅
+- **Phase 5 (original)** — Client Table: implementado na Phase 2 ✅
+- **Pending:** cores por tipo no gráfico, role gate no ResponsibleTable, filtros avançados, search/empty states
 - `src/hooks/useClients.js` — hook com dados de carteira de clientes
 - `activities` table — campos: `id`, `type`, `title`, `description`, `client_id`, `responsible_id`, `activity_date`, `status`, `created_at`
 - `client_reports` table — campos: `id`, `client_id`, `period`, `status`, `published_at`, `created_by`
@@ -39,12 +43,15 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 - Rota `/health-dashboard` já existe como referência de rota de cockpit
 
 **What does NOT exist and needs to be created:**
-- (none — Phase 1-2 complete. Next: Phase 3 — Charts refinement + ResponsibleTable role gate)
+- (Phase 1-2 complete. Remaining: Phase 3 — chart colors + role gate; Phase 4 — all filters; Phase 5 — search/empty states)
 
 ### Files to be touched (Phase 3+)
 
 | File | Change type |
 |---|---|
+| `src/pages/CsRadarPage.jsx` | Modify — chart colors, role gate, additional filters, search |
+| `src/hooks/useCsRadar.js` | Modify — add filter params (responsibleId, clientIds, activityTypes, segmentIds) |
+| `src/hooks/useProfiles.js` | (already exists) — CSM list for ResponsibleSelect |
 | `src/lib/icons.js` | Modify — registrar ícones novos se necessário |
 
 > **Note:** Migration `20260523000000_cs_radar_flag.sql` criada com feature flag `cs_radar` (disabled, allowed: admin/manager/csm).
@@ -451,9 +458,28 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ---
 
-### Phase 3 — Charts: by type + by responsible
+### Phase 3 — Charts refinement + role gate
 
-**Status:** Planned (após Phase 2 completa)
+**Status:** Not started
+
+**Rationale:** Os gráficos de barras por tipo e por responsável já foram implementados na Phase 2, mas faltam: (a) cores específicas por tipo de atividade conforme a paleta do projeto; (b) tabela de responsáveis oculta para CSMs e analysts.
+
+**Scope:**
+- Aplicar cores do design system às barras de tipo (reuniao → navy `#173557`, ligacao → sky `#59c2ed`, email → lime `#d3da47`, whatsapp → navy/60, tarefa → sky/60, nota → slate `#94a3b8`)
+- `ResponsibleTable` (seção "Por responsável") oculto para role `csm` e `analyst`
+- Ambos usam dados já existentes no hook — sem novas queries
+
+#### Checklist
+
+- [ ] **ActivityTypeChart:** cores corretas por tipo na barra e no label
+- [ ] **ResponsibleTable:** oculto para `csm` e `analyst`
+- [ ] **Build:** `npm run build` sem erros
+
+#### Implementation Log (Phase 3)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| — | — | — | — |
 
 **Rationale:** Adicionar as visualizações de distribuição. São independentes entre si e podem ser implementadas em sequência no mesmo session.
 
@@ -478,7 +504,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 4 — Heatmap
 
-**Status:** Planned (após Phase 3 completa)
+**Status:** Superseded — merged into Phase 2 (heatmap already implemented: complete grid, week alignment, opacity scale, tooltip)
 
 **Rationale:** O heatmap de calendário é a feature visualmente mais diferenciada do cockpit. Separado em fase própria por complexidade de implementação (geração da grade de dias, intensidade por volume, responsividade).
 
@@ -504,7 +530,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 5 — Client Table
 
-**Status:** Planned (após Phase 4 completa)
+**Status:** Superseded — merged into Phase 2 (client table already implemented: all columns, semaphore, sorting, +N indicator. Pending: remaining filters moved to new Phase 4)
 
 **Rationale:** A tabela de clientes é o entregável de maior valor operacional do cockpit. Fase final porque depende de todas as queries do hook estarem estáveis.
 
@@ -523,6 +549,63 @@ function getClientSignal(client, activitiesInPeriod) {
 - [ ] **Filtros:** todos os seletores da FilterBar funcionais e integrados ao hook
 - [ ] **EmptyState:** exibido quando nenhum cliente corresponde ao filtro
 - [ ] **Projeto +N:** indicador exibido quando cliente tem >1 projeto ativo
+- [ ] **Build:** `npm run build` sem erros
+
+#### Implementation Log (Phase 5)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| — | — | — | — |
+
+---
+
+### Phase 4 (new) — All filters
+
+**Status:** Not started
+
+**Rationale:** Os filtros de período já estão funcionais (dropdown). Faltam os demais filtros da FilterBar para completar a experiência: seleção de responsável (apenas admin/manager), multiselect de clientes, tipo de atividade e segmento.
+
+**Scope:**
+- `ResponsibleSelect` — dropdown de CSMs, visível apenas para admin/manager (usar `useProfiles`)
+- `ClientMultiSelect` — multiselect de clientes (busca + checkboxes ou combobox)
+- `ActivityTypeSelect` — multiselect de tipos de atividade
+- `SegmentSelect` — dropdown/multiselect de segmentos
+- Todos conectados ao hook via `filters`
+
+#### Checklist
+
+- [ ] **ResponsibleSelect:** dropdown de CSMs, admin/manager only
+- [ ] **ClientMultiSelect:** funcional, conectado ao hook
+- [ ] **ActivityTypeSelect:** funcional
+- [ ] **SegmentSelect:** funcional
+- [ ] **Build:** `npm run build` sem erros
+
+#### Implementation Log (Phase 4)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| — | — | — | — |
+
+---
+
+### Phase 5 (new) — Empty & search states
+
+**Status:** Not started
+
+**Rationale:** Refinamentos de UX: busca textual com debounce, estados de shimmer/loading mais refinados, empty states específicos, e tratamento de erros mais amigável.
+
+**Scope:**
+- Campo de busca textual (debounce 300ms, por nome do cliente)
+- Shimmer skeleton para loading inicial
+- Empty states específicos (sem atividades, sem clientes, sem RMCs)
+- Tratamento de erro com botão de retry
+
+#### Checklist
+
+- [ ] **Search:** campo de busca com debounce, filtra clientes na tabela
+- [ ] **Shimmer:** skeleton durante loading inicial
+- [ ] **Empty states:** mensagens específicas por seção
+- [ ] **Error:** mensagem amigável + botão retry
 - [ ] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Phase 5)
