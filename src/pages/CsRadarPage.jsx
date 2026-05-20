@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useCsRadar } from '@/hooks/useCsRadar'
+import { useAuth } from '@/contexts/AuthContext'
 import { Spinner } from '@/components/ui/Spinner'
 
 function firstOfMonth(d) {
@@ -65,7 +66,17 @@ const KPI_COLORS = {
   proj:   { bg: 'bg-donc-amber/10', text: 'text-donc-amber' },
 }
 
+const TYPE_COLORS = {
+  reuniao:  '#173557',
+  ligacao:  '#59c2ed',
+  email:    '#d3da47',
+  whatsapp: 'rgba(23,53,87,0.6)',
+  tarefa:   'rgba(89,194,237,0.6)',
+  nota:     '#94a3b8',
+}
+
 export default function CsRadarPage() {
+  const { profile } = useAuth()
   const [period, setPeriod] = useState('30d')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -185,7 +196,7 @@ export default function CsRadarPage() {
                         <div className="flex-1 h-5 bg-bg-secondary rounded-full overflow-hidden">
                           <div
                             className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: '#59c2ed' }}
+                            style={{ width: `${pct}%`, backgroundColor: TYPE_COLORS[type] || '#59c2ed' }}
                           />
                         </div>
                         <span className="text-sm font-medium text-text-primary w-8 text-right tabular-nums">{count}</span>
@@ -196,32 +207,33 @@ export default function CsRadarPage() {
               )}
             </div>
 
-            {/* By responsible */}
-            <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-4">Por responsável</h3>
-              {data.byResponsible.length === 0 ? (
-                <p className="text-sm text-text-tertiary">Nenhuma atividade no período</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {data.byResponsible.map(({ name, count }) => {
-                    const maxCount = data.byResponsible[0]?.count || 1
-                    const pct = (count / maxCount) * 100
-                    return (
-                      <div key={name} className="flex items-center gap-3">
-                        <span className="text-xs text-text-secondary w-28 truncate flex-shrink-0">{name}</span>
-                        <div className="flex-1 h-5 bg-bg-secondary rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${pct}%`, backgroundColor: '#d3da47' }}
-                          />
+            {profile?.role === 'admin' || profile?.role === 'manager' ? (
+              <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
+                <h3 className="text-sm font-semibold text-text-primary mb-4">Por responsável</h3>
+                {data.byResponsible.length === 0 ? (
+                  <p className="text-sm text-text-tertiary">Nenhuma atividade no período</p>
+                ) : (
+                  <div className="space-y-2.5">
+                    {data.byResponsible.map(({ name, count }) => {
+                      const maxCount = data.byResponsible[0]?.count || 1
+                      const pct = (count / maxCount) * 100
+                      return (
+                        <div key={name} className="flex items-center gap-3">
+                          <span className="text-xs text-text-secondary w-28 truncate flex-shrink-0">{name}</span>
+                          <div className="flex-1 h-5 bg-bg-secondary rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{ width: `${pct}%`, backgroundColor: '#d3da47' }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium text-text-primary w-8 text-right tabular-nums">{count}</span>
                         </div>
-                        <span className="text-sm font-medium text-text-primary w-8 text-right tabular-nums">{count}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {/* Heatmap */}
