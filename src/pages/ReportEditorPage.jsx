@@ -6,6 +6,7 @@ import { useProfiles } from '../hooks/useProfiles'
 import { useProjects } from '../hooks/useProjects'
 import { generateReportHTML, periodLabel, normalizeSections, defaultSections } from '../lib/reportGenerator'
 import { supabase } from '../lib/supabaseClient'
+import { useDonkie } from '../hooks/useDonkie'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { PageSpinner } from '../components/ui/Spinner'
@@ -78,6 +79,7 @@ export default function ReportEditorPage() {
   const { data: client,   isLoading: loadingClient } = useClient(clientId)
   const { data: profiles = [] }                       = useProfiles()
   const { data: projects = [] }                       = useProjects(parseInt(clientId, 10))
+  const { setReportExtra }                            = useDonkie()
   const { updateReport, publishReport }               = useReportMutations(parseInt(clientId, 10))
 
   // ── Sections (array) ────────────────────────────────────
@@ -152,6 +154,13 @@ export default function ReportEditorPage() {
       setPopulated(true)
     }
   }, [dataLoaded, report?.id, projects.length, populated])
+
+  // ── Push report data to Donkie ──────────────────────────
+  useEffect(() => {
+    if (!report) return
+    setReportExtra({ sections, title: report.title, period: report.period, status: report.status })
+    return () => setReportExtra(null)
+  }, [sections, report?.title, report?.period, report?.status])
 
   // ── CSM ─────────────────────────────────────────────────
   const csm = useMemo(() => {
