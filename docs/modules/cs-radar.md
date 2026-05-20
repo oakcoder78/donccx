@@ -13,17 +13,26 @@ The **CS Radar** (`/cs-radar`) dashboard aggregates activities, RMC reports, and
 | Roles | `admin`, `manager`, `csm` |
 | Guard | Feature flag check + authentication |
 
-## Current State (Phase 2 — Complete)
+## Current State (All phases complete)
 
 Full radar page with:
 - Period filter (dropdown: Este mês, Último mês, Últimos 30/90 dias, Todo período, Personalizado com date picker)
+- ResponsibleSelect (dropdown de CSMs, admin/manager only)
+- ClientMultiSelect (multiselect com checkboxes)
+- ActivityTypeSelect (multiselect por tipo)
+- SegmentSelect (multiselect ABC)
+- Search input (debounce 300ms, filtra clientes na tabela)
+- Limpar filtros (botão aparece quando há filtros ativos)
 - 4 KPI cards (atividades, clientes com toque, RMCs, projetos com avanço)
-- Activity type bar chart + by-responsible chart
+- Activity type bar chart (cores por tipo: reuniao navy, ligacao sky, email lime, whatsapp navy/60, tarefa sky/60, nota slate) + by-responsible chart (admin/manager only)
 - Heatmap grid (grade completa, alinhamento semanal, escala de opacidade sky `#59c2ed`, tooltip no hover)
 - Client table with semaphore sorting (🔴 → 🟡 → 🟢)
 - Activity exclusion: `type='nota' + title='RMC visualizado'`
 - Client list filtered by `lifecycle_stage = 'cliente'`
 - RMC denominator excludes Onboarding, Em espera, Churned
+- Shimmer skeleton on initial load
+- Empty states específicos (sem atividades, sem clientes, sem busca)
+- Error state with refetch retry
 
 ## Data Flow
 
@@ -65,19 +74,22 @@ CsRadarPage
 | Phase | Status | Scope |
 |---|---|---|
 | Phase 1 — Foundation | **Complete** | Migration, CockpitsPage gateway, route, skeleton |
-| Phase 2 — Hook + KPI Row | **Complete** | useCsRadar hook, KPI cards, PeriodSelect, charts, heatmap, client table |
-| Phase 3 — Charts refinement | Planned | ActivityTypeChart colors per type, ResponsibleTable gated by role |
-| Phase 4 — All filters | Planned | ClientMultiSelect, ActivityTypeSelect, SegmentSelect, ResponsibleSelect |
-| Phase 5 — Empty/search states | Planned | Debounced search, empty/shimmer/error refinement |
+| Phase 2 — Hook + Full Page | **Complete** | useCsRadar hook, KPI cards, PeriodSelect, charts, heatmap, client table |
+| Phase 3 — Charts refinement | **Complete** | ActivityTypeChart colors per type, ResponsibleTable gated by role |
+| Phase 4 — All filters | **Complete** | ResponsibleSelect, ClientMultiSelect, ActivityTypeSelect, SegmentSelect |
+| Phase 5 — Empty/search states | **Complete** | Debounced search, shimmer skeleton, empty states, refetch retry |
+| **All phases** | **Complete** | — |
 
 ## Key Files
 
 | File | Purpose |
-|---|---|
+|---|---|---|
 | `src/pages/CockpitsPage.jsx` | Gateway page `/cockpits` |
 | `src/pages/CsRadarPage.jsx` | Main CS Radar page (complete) |
 | `src/hooks/useCsRadar.js` | Data aggregation hook |
-| `supabase/migrations/20260523000000_cs_radar_flag.sql` | Feature flag migration |
+| `supabase/migrations/20260523000000_cs_radar_flag.sql` | Feature flag migration (disabled) |
+| `supabase/migrations/20260524000000_enable_cs_radar_flag.sql` | Enable flag in production |
+| `supabase/migrations/20260526000000_create_milestones_table.sql` | Create milestones table |
 | `docs/sdd/cs-activity-cockpit-sdd.md` | SDD (single source of truth) |
 
 ## Related Modules
