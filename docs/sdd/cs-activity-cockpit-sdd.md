@@ -20,11 +20,12 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 2 — Not started
+- **Active phase:** Phase 3 — Not started
 
 **What already exists related to this work:**
 - `src/pages/CockpitsPage.jsx` — gateway `/cockpits` com cards para Health Score e CS Radar ✅
-- `src/pages/CsRadarPage.jsx` — página esqueleto do CS Radar ✅
+- `src/pages/CsRadarPage.jsx` — página completa com KPI cards, gráficos, heatmap e tabela de clientes ✅
+- `src/hooks/useCsRadar.js` — hook de dados com queries de atividades, RMCs, projetos e milestones ✅
 - `src/pages/HealthDashboardPage.jsx` — referência de design e estrutura para cockpits; seguir como template visual
 - `src/hooks/useClients.js` — hook com dados de carteira de clientes
 - `activities` table — campos: `id`, `type`, `title`, `description`, `client_id`, `responsible_id`, `activity_date`, `status`, `created_at`
@@ -38,13 +39,12 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 - Rota `/health-dashboard` já existe como referência de rota de cockpit
 
 **What does NOT exist and needs to be created:**
-- `src/hooks/useCsRadar.js` — hook de dados agregados
+- (none — Phase 1-2 complete. Next: Phase 3 — Charts refinement + ResponsibleTable role gate)
 
-### Files to be touched (Phase 2+)
+### Files to be touched (Phase 3+)
 
 | File | Change type |
-|---|---|---|
-| `src/hooks/useCsRadar.js` | **Create** |
+|---|---|
 | `src/lib/icons.js` | Modify — registrar ícones novos se necessário |
 
 > **Note:** Migration `20260523000000_cs_radar_flag.sql` criada com feature flag `cs_radar` (disabled, allowed: admin/manager/csm).
@@ -421,7 +421,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 2 — Hook + KPI Row
 
-**Status:** Planned (após Phase 1 completa)
+**Status:** Complete
 
 **Rationale:** Construir o hook de dados com as queries validadas e os 4 KPI cards. É o núcleo do cockpit — tudo mais depende desse hook estar funcional e tipado corretamente.
 
@@ -444,7 +444,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-05-19 | — | `src/hooks/useCsRadar.js`, `src/pages/CsRadarPage.jsx` | useCsRadar hook with 4 queries (activities, RMCs, eligible clients, projects+milestones); CsRadarPage with KPI row, activity type chart, responsible chart, heatmap grid, client table with semaphore sorting |
 
 ---
 

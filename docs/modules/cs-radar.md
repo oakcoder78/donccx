@@ -13,27 +13,69 @@ The **CS Radar** (`/cs-radar`) dashboard aggregates activities, RMC reports, and
 | Roles | `admin`, `manager`, `csm` |
 | Guard | Feature flag check + authentication |
 
-## Current State (Phase 1 — Complete)
+## Current State (Phase 2 — Complete)
 
-Page skeleton at `src/pages/CsRadarPage.jsx` with placeholder "Em construção".
+Full radar page with:
+- Period filter (7/30/90 days)
+- 4 KPI cards (atividades, clientes com toque, RMCs, projetos com avanço)
+- Activity type bar chart + by-responsible chart
+- Heatmap grid with intensity scale
+- Client table with semaphore sorting (🔴 → 🟡 → 🟢)
+- Activity exclusion: `type='nota' + title='RMC visualizado'`
+- RMC denominator excludes Onboarding, Em espera, Churned
+
+## Data Flow
+
+```
+useCsRadar({ dateFrom, dateTo, responsibleId, clientIds, activityTypes, segmentIds })
+  ├── stages → filter excluded → eligible clients
+  ├── activities (period, filtered, automated exclusions)
+  ├── client_reports (published in period)
+  └── milestones (updated in period) → projects with progress
+
+Output: { kpis, byType[], byResponsible[], heatmap[], clients[] }
+```
+
+## Page Structure
+
+```
+CsRadarPage
+├── FilterBar (PeriodSelect: 7d / 30d / 90d)
+├── KpiRow (4 cards)
+│   ├── Total de atividades
+│   ├── Clientes com toque / total
+│   ├── RMCs publicados / esperados
+│   └── Projetos com avanço
+├── MiddleRow (2 cols)
+│   ├── Activity type bars (horizontal, sorted desc)
+│   └── Responsible bars
+├── Heatmap grid (day columns, week rows, intensity)
+└── Client table
+    ├── Col: Nome + HS badge
+    ├── Col: Última atividade (date + type icon)
+    ├── Col: Qtd atividades
+    ├── Col: RMC
+    ├── Col: Projeto + milestone + % + "N outros"
+    └── Col: Semáforo (🔴 >30d sem toque / 🟡 sem RMC / 🟢 ok)
+```
 
 ## Planned Phases
 
 | Phase | Status | Scope |
 |---|---|---|
-| Phase 1 — Foundation | **Complete** | Migration, CockpitsPage gateway, route, skeleton page |
-| Phase 2 — Hook + KPI Row | Planned | `useCsRadar` hook, 4 KPI cards, PeriodSelect |
-| Phase 3 — Charts | Planned | ActivityTypeChart (horizontal bars), ResponsibleTable |
-| Phase 4 — Heatmap | Planned | Calendar heatmap with intensity by activity volume |
-| Phase 5 — Client Table | Planned | Client table with semaphore, sorting, all filters functional |
+| Phase 1 — Foundation | **Complete** | Migration, CockpitsPage gateway, route, skeleton |
+| Phase 2 — Hook + KPI Row | **Complete** | useCsRadar hook, KPI cards, PeriodSelect, charts, heatmap, client table |
+| Phase 3 — Charts refinement | Planned | ActivityTypeChart colors per type, ResponsibleTable gated by role |
+| Phase 4 — All filters | Planned | ClientMultiSelect, ActivityTypeSelect, SegmentSelect, ResponsibleSelect |
+| Phase 5 — Empty/search states | Planned | Debounced search, empty/shimmer/error refinement |
 
 ## Key Files
 
 | File | Purpose |
 |---|---|
-| `src/pages/CockpitsPage.jsx` | Gateway page `/cockpits` — links to both cockpits |
-| `src/pages/CsRadarPage.jsx` | Main CS Radar page (skeleton) |
-| `src/hooks/useCsRadar.js` | Planned — data aggregation hook |
+| `src/pages/CockpitsPage.jsx` | Gateway page `/cockpits` |
+| `src/pages/CsRadarPage.jsx` | Main CS Radar page (complete) |
+| `src/hooks/useCsRadar.js` | Data aggregation hook |
 | `supabase/migrations/20260523000000_cs_radar_flag.sql` | Feature flag migration |
 | `docs/sdd/cs-activity-cockpit-sdd.md` | SDD (single source of truth) |
 
