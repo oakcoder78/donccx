@@ -460,7 +460,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 3 — Charts refinement + role gate
 
-**Status:** Not started
+**Status:** Complete
 
 **Rationale:** Os gráficos de barras por tipo e por responsável já foram implementados na Phase 2, mas faltam: (a) cores específicas por tipo de atividade conforme a paleta do projeto; (b) tabela de responsáveis oculta para CSMs e analysts.
 
@@ -555,7 +555,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-05-19 | — | `src/pages/CsRadarPage.jsx` | Activity type colors (navy/sky/lime/slate per SDD section 2); ResponsibleTable hidden for csm/analyst |
 
 ---
 
