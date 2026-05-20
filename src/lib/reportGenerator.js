@@ -27,6 +27,12 @@ const ACCENT = {
   green: C.green,
 }
 
+const DELTA_COLORS = {
+  green: { bg: '#f0fff4', text: '#276749' },
+  red:   { bg: '#fff5f5', text: '#9b2c2c' },
+  gray:  { bg: '#f3f4f6', text: '#6b7280' },
+}
+
 const MONTH_NAMES = [
   '', 'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro',
@@ -114,11 +120,24 @@ function richText(text) {
 
 // ── Componentes HTML reutilizáveis ────────────────────────────
 
-function kpiCard({ label, value, sublabel, delta, deltaType, accentColor, highlighted }) {
+function kpiCard({ label, value, sublabel, delta, deltaType, accentColor, highlighted, deltaColor }) {
   const accent = ACCENT[accentColor] ?? C.sky
-  const dBg    = deltaType === 'up'   ? '#f0fff4' : deltaType === 'down' ? '#fff5f5' : '#ebf8ff'
-  const dColor = deltaType === 'up'   ? '#276749' : deltaType === 'down' ? '#9b2c2c' : '#2b6cb0'
-  const dIcon  = deltaType === 'up'   ? '▲' : deltaType === 'down' ? '▼' : '≈'
+
+  // Arrow icon (always from deltaType)
+  const dIcon  = deltaType === 'up'   ? '▲'
+               : deltaType === 'down' ? '▼'
+               : deltaType === 'none' ? ''
+               : '≈'
+
+  // Badge colors: deltaColor overrides, 'auto' or undefined derives from deltaType
+  const dPalette = (deltaColor && deltaColor !== 'auto')
+    ? (DELTA_COLORS[deltaColor] ?? DELTA_COLORS.gray)
+    : deltaType === 'up'   ? DELTA_COLORS.green
+    : deltaType === 'down' ? DELTA_COLORS.red
+    : DELTA_COLORS.gray
+
+  const dBg    = dPalette.bg
+  const dColor = dPalette.text
 
   if (highlighted) {
     const sublabelH = sublabel
@@ -280,6 +299,7 @@ function extrasRow(extras) {
     label: e.label, value: e.value, sublabel: e.sublabel,
     delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky',
     highlighted: e.highlighted ?? false,
+    deltaColor: e.deltaColor,
   })), cols)
 }
 
@@ -388,7 +408,7 @@ function slideEscala(sec, usageHistory, period, clientName, p) {
     autoCards.push(kpiCard({ label: 'Usuários Ativos', value: cur.active_users, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
 
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
-    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false }))]
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
 
   const body = `
     ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 2), 4)) : ''}
@@ -417,7 +437,7 @@ function slideSuporte(sec, supportRaw, clientName, period, p) {
       sublabel: 'mês atual', accentColor: resRate != null && resRate >= 90 ? 'green' : 'lime' }),
   ]
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
-    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false }))]
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
 
   const n1n2n3 = [
     n1 != null ? { label: 'N1', value: n1, color: C.green  } : null,

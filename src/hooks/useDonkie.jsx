@@ -327,7 +327,11 @@ function formatSectionForContext(sec) {
     const kpis = extras.map(e => {
       let s = `${e.label}: ${e.value}`
       if (e.sublabel) s += ` (${e.sublabel})`
-      if (e.delta) s += ` [${e.deltaType === 'up' ? '▲' : e.deltaType === 'down' ? '▼' : '≈'}${e.delta}]`
+      if (e.delta) {
+        const arrow = e.deltaType === 'up' ? '▲' : e.deltaType === 'down' ? '▼' : e.deltaType === 'none' ? '' : '≈'
+        const color = e.deltaColor && e.deltaColor !== 'auto' ? ` (${e.deltaColor})` : ''
+        s += ` [${arrow}${e.delta}${color}]`
+      }
       return s
     })
     lines.push(`   KPIs: ${kpis.join(' | ')}`)
