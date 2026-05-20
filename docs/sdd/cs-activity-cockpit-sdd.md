@@ -20,7 +20,7 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 5 — Not started
+- **Active phase:** All phases complete
 
 **What already exists related to this work:**
 - `src/pages/CockpitsPage.jsx` — gateway `/cockpits` com cards para Health Score e CS Radar ✅
@@ -30,7 +30,7 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 - **Phase 3 (original)** — Charts: implementado na Phase 2 ✅
 - **Phase 4 (original)** — Heatmap: implementado na Phase 2 ✅
 - **Phase 5 (original)** — Client Table: implementado na Phase 2 ✅
-- **Pending:** cores por tipo no gráfico, role gate no ResponsibleTable, filtros avançados, search/empty states
+- **All phases complete:** cores por tipo, role gate, filtros avançados, search, shimmer, empty states ✅
 - `src/hooks/useClients.js` — hook com dados de carteira de clientes
 - `activities` table — campos: `id`, `type`, `title`, `description`, `client_id`, `responsible_id`, `activity_date`, `status`, `created_at`
 - `client_reports` table — campos: `id`, `client_id`, `period`, `status`, `published_at`, `created_by`
@@ -43,7 +43,7 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 - Rota `/health-dashboard` já existe como referência de rota de cockpit
 
 **What does NOT exist and needs to be created:**
-- (Phase 1-2 complete. Remaining: Phase 3 — chart colors + role gate; Phase 4 — all filters; Phase 5 — search/empty states)
+- All phases complete ✅
 
 ### Files to be touched (Phase 3+)
 
@@ -613,6 +613,7 @@ function getClientSignal(client, activitiesInPeriod) {
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | 2026-05-19 | — | `src/pages/CsRadarPage.jsx` | Add search input with 300ms debounce, shimmer skeleton, empty search state, refetch-based retry |
+| 2026-05-19 | `9fde0f5` | `supabase/migrations/20260526000000_create_milestones_table.sql` | Create milestones table (did not exist in this Supabase project — 404 fix) |
 
 ---
 
