@@ -272,8 +272,73 @@ function useRouteClientData(pathname) {
   })
 }
 
+// ─── Formata uma seção de relatório para contexto ────────────
+function formatSectionForContext(sec) {
+  const status = sec.enabled ? '[✓]' : '[✗]'
+  const header = `${status} ${sec.title}${sec.subtitle ? ` — ${sec.subtitle}` : ''}`
+  const lines = [header]
+
+  // Text-based content
+  if (sec.content?.callout?.trim()) {
+    lines.push(`   Callout: "${sec.content.callout.replace(/\n/g, ' ').slice(0, 150)}"`)
+  }
+
+  if (sec.type === 'capa') {
+    const team = sec.content?.clientTeam ?? []
+    if (team.length > 0) {
+      lines.push(`   Equipe: ${team.map(t => `${t.name}${t.email ? ` (${t.email})` : ''}`).join(', ')}`)
+    }
+  }
+
+  if (sec.type === 'destaques' && sec.content?.items?.length > 0) {
+    for (const item of sec.content.items) {
+      const desc = item.description ? `: ${item.description.replace(/\n/g, ' ').slice(0, 120)}` : ''
+      lines.push(`   ${item.emoji || '•'} ${item.title}${desc}`)
+    }
+  }
+
+  if (sec.type === 'proximos_passos' && sec.content?.items?.length > 0) {
+    for (const item of sec.content.items) {
+      const tag = item.tag ? ` [${item.tag}]` : ''
+      const desc = item.description ? ` — ${item.description.replace(/\n/g, ' ').slice(0, 120)}` : ''
+      lines.push(`   • ${item.title}${desc}${tag}`)
+    }
+  }
+
+  if ((sec.type === 'contexto' || sec.type === 'custom-text') && sec.content?.text?.trim()) {
+    lines.push(`   Texto: "${sec.content.text.replace(/\n/g, ' ').slice(0, 200)}..."`)
+  }
+
+  if (sec.type === 'custom-image' && sec.content?.caption?.trim()) {
+    lines.push(`   Legenda: "${sec.content.caption}"`)
+  }
+
+  if (sec.type === 'custom-bars' && sec.content?.items?.length > 0) {
+    lines.push(`   Itens: ${sec.content.items.map(i => `${i.label}: ${i.value}`).join(' | ')}`)
+  }
+
+  if (sec.type === 'health_score') {
+    lines.push('   (gerado automaticamente com dados do cliente)')
+  }
+
+  // Extras (KPIs)
+  const extras = sec.extras ?? []
+  if (extras.length > 0) {
+    const kpis = extras.map(e => {
+      let s = `${e.label}: ${e.value}`
+      if (e.sublabel) s += ` (${e.sublabel})`
+      if (e.delta) s += ` [${e.deltaType === 'up' ? '▲' : e.deltaType === 'down' ? '▼' : '≈'}${e.delta}]`
+      return s
+    })
+    lines.push(`   KPIs: ${kpis.join(' | ')}`)
+  }
+
+  if (!sec.enabled) lines.push('   (desabilitada)')
+  return lines.join('\n')
+}
+
 // ─── Monta contexto de rota ──────────────────────────────────
-function buildRouteContext(pathname, clientData) {
+function buildRouteContext(pathname, clientData, reportExtra) {
   // 1. Se tem clientData com id → monta contexto de cliente
   if (clientData?.id) {
     const cn        = clientData.fantasy_name || clientData.name
@@ -353,7 +418,20 @@ function buildRouteContext(pathname, clientData) {
   // 2. Rota de RMC
   if (/^\/empresas\/\d+\/relatorios\/.+\/editar/.test(pathname)) {
     const cn = clientData?.fantasy_name || clientData?.name || 'cliente'
-    return `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
+    let ctx = `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
+
+    if (reportExtra) {
+      ctx += `\n\n---\nRELATÓRIO SENDO EDITADO\nTítulo: ${reportExtra.title}`
+      ctx += `\nPeríodo: ${reportExtra.period}`
+      ctx += `\nStatus: ${reportExtra.status}`
+      ctx += `\n\nSEÇÕES:`
+      for (const sec of reportExtra.sections) {
+        ctx += `\n${formatSectionForContext(sec)}`
+      }
+      ctx += '\n---'
+    }
+
+    return ctx
   }
 
   // 3. Dashboard (sem clientData)
@@ -408,6 +486,7 @@ export function DonkieProvider({ children }) {
   const [convId,     setConvId]    = useState(null)
   const [pendingClientSearch, setPendingClientSearch] = useState(null)
   const [lastModel,  setLastModel]  = useState(null)
+  const [reportExtra, setReportExtra] = useState(null)
 
   useEffect(() => {
     if (config?.default_mode) setMode(config.default_mode)
@@ -494,7 +573,7 @@ export function DonkieProvider({ children }) {
             const dossie = await fetchClientDossie(results[0].id)
             if (dossie) {
               setClientData(dossie)
-              const routeCtx   = buildRouteContext(location.pathname, dossie)
+              const routeCtx   = buildRouteContext(location.pathname, dossie, reportExtra)
               const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
               const apiMessages = [
                 { role: 'system', content: systemText },
@@ -539,7 +618,7 @@ export function DonkieProvider({ children }) {
       }
 
       // ── Fluxo normal ─────────────────────────────────────────────────────────
-      const routeCtx   = buildRouteContext(location.pathname, activeClient)
+      const routeCtx   = buildRouteContext(location.pathname, activeClient, reportExtra)
       const systemText = buildSystemPrompt(config, profile, routeCtx, mode)
       const apiMessages = [
         { role: 'system', content: systemText },
@@ -606,6 +685,7 @@ export function DonkieProvider({ children }) {
       setClientData,
       config,
       lastModel,
+      reportExtra, setReportExtra,
     }}>
       {children}
     </DonkieContext.Provider>
