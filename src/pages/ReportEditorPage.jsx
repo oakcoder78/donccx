@@ -718,6 +718,61 @@ function SectionEditor({
           />
         )}
 
+        {/* ── Override de métricas automáticas ── */}
+        {sec.type === 'escala' && (
+          <div className="border-t border-border-tertiary pt-4">
+            <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
+            <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">O.S. Criadas</label>
+                <input type="number" value={sec.content?.overrideOs ?? ''}
+                  onChange={e => onContent('overrideOs', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Usuários Ativos</label>
+                <input type="number" value={sec.content?.overrideUsers ?? ''}
+                  onChange={e => onContent('overrideUsers', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {sec.type === 'suporte' && (
+          <div className="border-t border-border-tertiary pt-4">
+            <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
+            <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Tickets Abertos</label>
+                <input type="number" value={sec.content?.overrideTicketsAbertos ?? ''}
+                  onChange={e => onContent('overrideTicketsAbertos', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Tickets Resolvidos</label>
+                <input type="number" value={sec.content?.overrideTicketsResolvidos ?? ''}
+                  onChange={e => onContent('overrideTicketsResolvidos', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">SLA 1ª Resposta (min)</label>
+                <input type="number" value={sec.content?.overrideSla ?? ''}
+                  onChange={e => onContent('overrideSla', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Taxa de Resolução (%)</label>
+                <input type="number" value={sec.content?.overrideTaxaResolucao ?? ''}
+                  onChange={e => onContent('overrideTaxaResolucao', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" min="0" max="100" className="input-base w-full text-sm" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Callout analítico */}
         {showCallout && sec.type !== 'custom-image' && sec.type !== 'capa' && (
           <div>
