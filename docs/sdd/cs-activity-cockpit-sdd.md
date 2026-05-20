@@ -444,7 +444,10 @@ function getClientSignal(client, activitiesInPeriod) {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-05-19 | — | `src/hooks/useCsRadar.js`, `src/pages/CsRadarPage.jsx` | useCsRadar hook with 4 queries (activities, RMCs, eligible clients, projects+milestones); CsRadarPage with KPI row, activity type chart, responsible chart, heatmap grid, client table with semaphore sorting |
+| 2026-05-19 | `31451e9` | `src/pages/CsRadarPage.jsx`, `src/hooks/useCsRadar.js` | useCsRadar hook with 4 queries (activities, RMCs, eligible clients, projects+milestones); CsRadarPage with KPI row, activity type chart, responsible chart, heatmap grid, client table with semaphore sorting |
+| 2026-05-19 | `c64e3a6` | `src/hooks/useCsRadar.js` | Add `lifecycle_stage = 'cliente'` filter to client query |
+| 2026-05-19 | `31451e9` | `src/pages/CsRadarPage.jsx` | Replace period buttons with dropdown (Este mês, Último mês, Últimos 30/90d, Todo período, Personalizado) |
+| 2026-05-19 | `3a228e9` | `src/pages/CsRadarPage.jsx` | Fix heatmap: complete day grid, proper week breaks, opacity-only cells, tooltip |
 
 ---
 
