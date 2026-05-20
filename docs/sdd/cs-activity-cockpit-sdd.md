@@ -20,9 +20,11 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 1 — Not started
+- **Active phase:** Phase 2 — Not started
 
 **What already exists related to this work:**
+- `src/pages/CockpitsPage.jsx` — gateway `/cockpits` com cards para Health Score e CS Radar ✅
+- `src/pages/CsRadarPage.jsx` — página esqueleto do CS Radar ✅
 - `src/pages/HealthDashboardPage.jsx` — referência de design e estrutura para cockpits; seguir como template visual
 - `src/hooks/useClients.js` — hook com dados de carteira de clientes
 - `activities` table — campos: `id`, `type`, `title`, `description`, `client_id`, `responsible_id`, `activity_date`, `status`, `created_at`
@@ -36,26 +38,16 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 - Rota `/health-dashboard` já existe como referência de rota de cockpit
 
 **What does NOT exist and needs to be created:**
-- `src/pages/CockpitsPage.jsx` — página gateway `/cockpits` com cards para Health Score e CS Radar
-- `src/pages/CsRadarPage.jsx` — página principal do CS Radar
 - `src/hooks/useCsRadar.js` — hook de dados agregados
-- Rota `/cockpits` e `/cs-radar` no router
-- Navbar: link "Health Score" substituído por "Cockpits" → `/cockpits`
-- Feature flag `cs_radar` na tabela `feature_flags`
 
-### Files to be touched
+### Files to be touched (Phase 2+)
 
 | File | Change type |
 |---|---|---|
-| `src/pages/CockpitsPage.jsx` | **Create** — gateway `/cockpits` |
-| `src/pages/CsRadarPage.jsx` | **Create** |
 | `src/hooks/useCsRadar.js` | **Create** |
-| `src/App.jsx` | Modify — adicionar rotas `/cockpits` e `/cs-radar` |
-| `src/components/layout/Navbar.jsx` | Modify — substituir "Health Score" por "Cockpits → /cockpits" |
 | `src/lib/icons.js` | Modify — registrar ícones novos se necessário |
-| `supabase/migrations/030_cs_radar_flag.sql` | **Create** — feature flag `cs_radar` |
 
-> **Note:** A última migration existente é `20260522000000_brief_views.sql`. A próxima migration será `030_cs_radar_flag.sql`.
+> **Note:** Migration `20260523000000_cs_radar_flag.sql` criada com feature flag `cs_radar` (disabled, allowed: admin/manager/csm).
 
 ---
 
@@ -395,7 +387,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 ### Phase 1 — Foundation: CockpitsPage gateway, CS Radar skeleton, migration
 
-**Status:** Not started
+**Status:** Complete
 
 **Rationale:** Substituir o link direto "Health Score" na Navbar por um gateway "Cockpits" que dá acesso tanto ao Health Score quanto ao novo CS Radar. Criar a estrutura mínima do CS Radar — migration com feature flag, rota protegida e página esqueleto.
 
@@ -423,7 +415,7 @@ function getClientSignal(client, activitiesInPeriod) {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-05-19 | — | `supabase/migrations/20260523000000_cs_radar_flag.sql`, `src/pages/CockpitsPage.jsx`, `src/pages/CsRadarPage.jsx`, `src/App.jsx`, `src/components/layout/Navbar.jsx` | Migration cs_radar flag; CockpitsPage gateway (/cockpits) with Health + CS Radar cards; CsRadarPage skeleton; updated Navbar and routes |
 
 ---
 
