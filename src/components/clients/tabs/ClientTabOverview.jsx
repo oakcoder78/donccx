@@ -456,6 +456,8 @@ export function ClientTabOverview({ client }) {
   const contractedIds = new Set(Object.keys(catalogMap).map(Number))
   const expansao     = allSolucoes.filter(sol => !contractedIds.has(sol.id))
 
+  const lastActDate = lastActivity?.activity_date ?? null
+  const lastActDays = lastActDate ? daysSince(lastActDate) : null
   const tempDs = client.temperature_updated_at ? daysSince(client.temperature_updated_at.slice(0, 10)) : null
   const alerts = []
   if (renewalDays !== null && renewalDays < 0)
@@ -487,9 +489,6 @@ export function ClientTabOverview({ client }) {
   const hasSync = !!(client.client_donc_instances?.length || client.freshdesk_company_id)
 
   // ── Sinais ativos (mesmo padrão do drawer) ──────────────────────────────────
-
-  const lastActDate = lastActivity?.activity_date ?? null
-  const lastActDays = lastActDate ? daysSince(lastActDate) : null
 
   const signals = []
   if ((lastActDays === null || lastActDays > 60) && (score < 75))
