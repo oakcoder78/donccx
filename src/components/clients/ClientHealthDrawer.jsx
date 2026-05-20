@@ -505,13 +505,7 @@ export function ClientHealthDrawer({ client, onClose }) {
 
         <div>
           <h4 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink3, margin: '0 0 12px' }}>Saúde por dimensão</h4>
-          {DIMS.every(d => (client[d.key] ?? 0) >= 20) ? (
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.green, padding: '14px 16px', border: `0.5px solid ${C.greenSoft}`, borderRadius: 10, background: C.greenSoft, textAlign: 'center' }}>
-              Todas as dimensões saudáveis ✓
-            </div>
-          ) : (
-            <>
-              {DIMS.filter(d => (client[d.key] ?? 0) < 20).map(d => {
+          {DIMS.map(d => {
                 const dimScore = client[d.key] ?? 0
                 const pct = Math.min(100, Math.round((dimScore / 20) * 100))
                 const { violated, toImprove } = getDimensionInsights(client, d.key, d.cls, healthRules)
@@ -525,6 +519,20 @@ export function ClientHealthDrawer({ client, onClose }) {
                   ...r,
                   enrichedLabel: enrichDimLabel(r, d.cls),
                 }))
+
+                if (dimScore >= 20) {
+                  return (
+                    <div key={d.key} style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>{d.label}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: d.color, fontVariantNumeric: 'tabular-nums' }}>{dimScore}/20</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 4, background: C.bg, overflow: 'hidden', marginTop: 8 }}>
+                        <div style={{ width: '100%', height: '100%', background: d.color, borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  )
+                }
 
                 return (
                   <div key={d.key} style={{ border: `0.5px solid ${C.line}`, borderRadius: 12, overflow: 'hidden', marginBottom: 10 }}>
@@ -628,8 +636,6 @@ export function ClientHealthDrawer({ client, onClose }) {
                   </div>
                 )
               })}
-            </>
-          )}
         </div>
       </div>
 
