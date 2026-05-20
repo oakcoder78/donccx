@@ -29,6 +29,7 @@ export function useCsRadar(filters) {
       let clientQuery = supabase
         .from('clients')
         .select('id, fantasy_name, health_total, abc_class, stage_id, csm_id')
+        .eq('lifecycle_stage', 'cliente')
         .not('stage_id', 'in', `(${excludedStageIds.join(',')})`)
 
       if (segmentIds?.length) {
