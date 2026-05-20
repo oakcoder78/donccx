@@ -195,17 +195,16 @@ function barH(items) {
       <div style="flex:1;background:${C.border};border-radius:999px;height:8px;overflow:hidden;">
         <div style="background:${d.color ?? C.sky};width:${Math.round((d.value / max) * 100)}%;height:100%;border-radius:999px;"></div>
       </div>
-      <span style="width:36px;text-align:right;font-size:12px;font-weight:600;color:${C.text};flex-shrink:0;">${d.value}%</span>
+      <span style="width:36px;text-align:right;font-size:12px;font-weight:600;color:${C.text};flex-shrink:0;">${d.value} tickets</span>
     </div>`).join('')}</div>`
 }
 
 function resolBar(pct) {
   const color = pct >= 90 ? C.green : pct >= 70 ? C.yellow : C.red
-  const label = pct >= 90 ? 'Excelente' : pct >= 70 ? 'Atenção' : 'Crítico'
   return `<div style="margin:16px 0;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
       <span style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.5px;">Taxa de Resolução</span>
-      <span style="font-size:14px;font-weight:800;color:${color};">${pct}% · ${label}</span>
+      <span style="font-size:14px;font-weight:800;color:${color};">${pct}%</span>
     </div>
     <div style="background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
       <div style="background:${color};width:${Math.min(pct, 100)}%;height:100%;border-radius:999px;"></div>
@@ -392,20 +391,24 @@ function slideEscala(sec, usageHistory, period, clientName, p) {
   const cur  = usageHistory.find(u => u.ref_month === period)
   const prev = usageHistory.find(u => u.ref_month === prevMonthStr(period))
 
+  // Support user overrides from sec.content
+  const curOs    = sec.content?.overrideOs ?? cur?.os_created
+  const curUsers = sec.content?.overrideUsers ?? cur?.active_users
+
   function delta(cur, prev) {
     if (cur == null || prev == null || prev === 0) return { d: null, t: 'neutral' }
     const pct = Math.round(((cur - prev) / prev) * 100)
     return { d: `${pct >= 0 ? '+' : ''}${pct}% vs anterior`, t: pct >= 0 ? 'up' : 'down' }
   }
-  const du = delta(cur?.active_users, prev?.active_users)
-  const dos = delta(cur?.os_created, prev?.os_created)
+  const du = delta(curUsers, prev?.active_users)
+  const dos = delta(curOs, prev?.os_created)
 
   // OS Criadas primeiro, Usuários Ativos segundo
   const autoCards = []
-  if (cur?.os_created != null)
-    autoCards.push(kpiCard({ label: 'O.S. Criadas', value: cur.os_created, sublabel: 'mês atual', delta: dos.d, deltaType: dos.t, accentColor: 'lime' }))
-  if (cur?.active_users != null)
-    autoCards.push(kpiCard({ label: 'Usuários Ativos', value: cur.active_users, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
+  if (curOs != null)
+    autoCards.push(kpiCard({ label: 'O.S. Criadas', value: curOs, sublabel: 'mês atual', delta: dos.d, deltaType: dos.t, accentColor: 'lime' }))
+  if (curUsers != null)
+    autoCards.push(kpiCard({ label: 'Usuários Ativos', value: curUsers, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
 
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
@@ -420,14 +423,15 @@ function slideEscala(sec, usageHistory, period, clientName, p) {
 
 function slideSuporte(sec, supportRaw, clientName, period, p) {
   const raw = supportRaw ?? {}
-  const opened   = raw.tickets_opened    ?? null
-  const resolved = raw.tickets_resolved  ?? null
-  const sla      = raw.sla_first_response ?? null
+  const opened     = sec.content?.overrideTicketsAbertos ?? raw.tickets_opened    ?? null
+  const resolved   = sec.content?.overrideTicketsResolvidos ?? raw.tickets_resolved  ?? null
+  const sla        = sec.content?.overrideSla ?? raw.sla_first_response ?? null
   const n1 = raw.n1_pct ?? null
   const n2 = raw.n2_pct ?? null
   const n3 = raw.n3_pct ?? null
-  const resRate = opened != null && resolved != null && opened > 0
+  const computedRate = opened != null && resolved != null && opened > 0
     ? Math.round((resolved / opened) * 100) : null
+  const resRate = sec.content?.overrideTaxaResolucao ?? computedRate
 
   const autoCards = [
     kpiCard({ label: 'Tickets Abertos',    value: opened,   sublabel: 'mês atual', accentColor: 'navy' }),
