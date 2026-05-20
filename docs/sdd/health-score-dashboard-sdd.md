@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 3 — Enrich ClientTabOverview (Planned)
+- **Active phase:** (none — all phases complete)
 
 **What exists related to `/health`:**
 - `src/pages/HealthDashboardPage.jsx` — main page, scorecard + ranking table ✅
@@ -756,7 +756,7 @@ const drawerOpen = !!drawerClientId
 
 ### Phase 3 — Enrich ClientTabOverview
 
-**Status:** Planned — start after Phase 2 is complete and logged.
+**Status:** Complete.
 
 **Rationale:** O drawer mostra o preview situacional do cliente. Quando o decisor clica "Abrir cliente completo →", cai no Overview. Para que essa navegação entregue valor, o Overview precisa ter tudo que o drawer tem — e mais. O objetivo é que o Overview seja a visão definitiva do cliente para qualquer stakeholder.
 
@@ -781,7 +781,7 @@ const drawerOpen = !!drawerClientId
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-05-19 | `0d2c8ac` | `src/components/clients/tabs/ClientTabOverview.jsx` | Enrich Overview: trend Δ, extended alerts (onboarding, interação, temperatura), sinais ativos cards, quick actions, dimension accordion (5 dims, static ≥20, accordion <20) using embedded client data |
 
 ---
 
@@ -807,6 +807,9 @@ const drawerOpen = !!drawerClientId
 - **`enrichDimLabel`** substitui labels genéricos por valores reais (ex: "SLA: 23 min (meta ≤15 min)")
 - **`getDimensionInsights`** substitui `evaluateClientRules` (tabela `health_rules` não tem colunas de condição)
 - **DashboardPage "ver todos →"** agora aponta para `/health` (corrigido de `/empresas`)
+- **Phase 3 complete:** `ClientTabOverview.jsx` enriquecido com tendência, alertas extendidos, sinais ativos, ações rápidas, accordion de dimensões
+- **Overview usa dados embutidos do `useClient`** — nenhuma query extra; `useHealthConfig` adicionado para regras
+- **Dimensões no Overview** seguem mesmo padrão do drawer: estáticas ≥20, accordion <20, labels enriquecidos com valores reais
 
 ### Architectural decisions
 
@@ -837,7 +840,7 @@ When resuming this document for implementation:
 
 1. Read **Section 0 (Current System State)** — understand what exists and what will be created.
 2. Read the **Design System Reference (Section 2)** and open the reference files before writing any code.
-3. Identify the **active phase** via its checklist status. Currently **Phase 3 — Enrich ClientTabOverview (Planned)**.
+3. Identify the **active phase** via its checklist status. Currently **all phases complete** — no active phase.
 4. Implement item by item. Mark ✅ when done and verified.
 5. After each significant item, run `npm run build` to ensure nothing broke.
 6. At the end of the phase, fill in the **Implementation Log**.
