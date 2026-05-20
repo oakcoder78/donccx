@@ -105,10 +105,11 @@ Values are `0` (rendered as `—`) until the first monthly-sync runs.
 
 ## Back Button Context
 
-When navigating from `/health` to a client detail (`/empresas/{id}?tab=health`), the dashboard passes `{ state: { from: location.pathname + location.search } }`. `ClientDetail.jsx` reads `location.state?.from` and:
+The back button on the client detail page (`/empresas/{id}`) uses `navigate(-1)` to return to the previous page in browser history. This preserves context regardless of origin:
 
-- Shows **"← Health Score"** button when origin is `/health`
-- Shows **"← Empresas"** (fallback) for direct access
+- From `/health` → goes back to `/health`
+- From `/empresas` → goes back to `/empresas`
+- Direct access → behaves like browser back (leaves SPA if no prior history)
 
 ## ClientHealthDrawer — Dimension Accordion
 

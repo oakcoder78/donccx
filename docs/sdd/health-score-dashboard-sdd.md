@@ -154,7 +154,7 @@ const GRID = '32px 1fr 64px 48px 48px 48px 48px 48px 56px'
   <div style={{ fontSize: 11, color: C.ink4 }}>Δ</div>
 </div>
 
-// Body row — onClick passa from state para back button context
+// Body row — onClick (state.from ainda enviado, mas não mais lido pelo ClientDetail)
 <div
   key={c.id}
   onClick={() => navigate(`/empresas/${c.id}?tab=health`, { state: { from: location.pathname + location.search } })}
@@ -514,15 +514,16 @@ In `App.jsx`, add the route inside the `PrivateRoute` block, alongside the other
 - Filter by CSM: dropdown de CSMs (admin/manager only), filtra por `csm_id`.
 
 **Back Button Context — Fixed:**
-- `HealthDashboardPage.jsx` passa `{ state: { from: location.pathname + location.search } }` ao navegar para `/empresas/{id}?tab=health`
-- `ClientDetail.jsx` lê `location.state?.from` — fallback `/empresas`
-- Botão "← Health Score" aparece quando origem é `/health`
+- `ClientDetail.jsx` usa `navigate(-1)` no back button — sempre volta à página anterior no histórico
+- `HealthDashboardPage.jsx` ainda envia `state.from` (ignorado pelo ClientDetail, mantido para compatibilidade)
+- Botão exibe **"← Voltar"** independente da origem
 
 #### Implementation Log (Phase 1 — Advanced Filters + Back Button)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | 2026-05-19 | *current* | `src/pages/HealthDashboardPage.jsx`, `src/components/clients/ClientDetail.jsx` | 3 advanced filters (band chips, dim dropdown, CSM dropdown) + back button context via `from` state |
+| 2026-05-20 | `206c833` | `src/components/clients/ClientDetail.jsx` | Replace back button: `navigate(backTo)` → `navigate(-1)`, remove `from` state dependency |
 | 2026-05-19 | `1d270c9` | `src/pages/HealthDashboardPage.jsx` | lifecycle_stage: 'cliente' filter + uniform input heights (`input-base h-9`) |
 
 ---
@@ -798,7 +799,7 @@ const drawerOpen = !!drawerClientId
 - Feature flag guard + filter chips + "Limpar filtros"
 - `DashboardPage.jsx` "ver todos →" aponta para `/health`
 - Navbar item "Health Score" visível para admin/manager
-- Back button no ClientDetail respeita contexto de origem (`from` state)
+- Back button no ClientDetail usa `navigate(-1)` — volta à página anterior no histórico
 - `clients.health_trend integer DEFAULT 0` — migration aplicada no banco remoto
 - `calculate_health_trends()` SQL function existe — chamada pelo monthly-sync (deployed)
 - Coluna Δ em `/health` exibe `—` enquanto `health_trend = 0`
