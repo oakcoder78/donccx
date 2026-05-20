@@ -20,6 +20,7 @@ const ACTIVITY_ICONS = {
 import { syncClient } from '@/lib/clientSync'
 import { TemperaturaCSM } from '../TemperaturaCSM'
 import { useCatalog } from '@/hooks/useCatalog'
+import { useHealthConfig } from '@/hooks/useHealthConfig'
 import { Bar, Line } from 'react-chartjs-2'
 import { Chart, CategoryScale, LinearScale, BarElement, Tooltip, PointElement, LineElement, Filler, LineController } from 'chart.js'
 import toast from 'react-hot-toast'
@@ -133,6 +134,101 @@ function AlertPill({ text, color, bg }) {
     }}>
       <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
       {text}
+    </div>
+  )
+}
+
+// ── Health dimension helpers ───────────────────────────────────────────────────
+
+const C_DIMS = {
+  uso:        '#59c2ed',
+  suporte:    '#b46cd1',
+  rel:        '#d98b28',
+  fin:        '#2f9e70',
+  proj:       '#d3da47',
+}
+
+const DIM_KEYS = [
+  { key: 'health_uso',            label: 'Uso',        color: C_DIMS.uso,    cls: 'uso' },
+  { key: 'health_suporte',        label: 'Suporte',    color: C_DIMS.suporte, cls: 'suporte' },
+  { key: 'health_relacionamento', label: 'Relac.',     color: C_DIMS.rel,    cls: 'rel' },
+  { key: 'health_financeiro',     label: 'Financeiro', color: C_DIMS.fin,    cls: 'fin' },
+  { key: 'health_projeto',        label: 'Projeto',    color: C_DIMS.proj,   cls: 'proj' },
+]
+
+function daysSince(dateStr) {
+  if (!dateStr) return null
+  return Math.floor((new Date() - new Date(dateStr + 'T00:00:00')) / 86400000)
+}
+
+function getDimensionInsights(client, dimKey, dimCls, rules) {
+  const dimScore = client[dimKey] ?? 20
+  const dimRules = rules.filter(r => r.dimension === dimCls || r.dimension === dimKey)
+  if (dimScore >= 20) return { violated: [], toImprove: [] }
+  const violated = dimRules.filter(r => r.points < 0)
+  const toImprove = dimRules.filter(r => r.points > 0)
+  return { violated, toImprove }
+}
+
+function enrichDimLabel(rule, dimCls, usageCurr, usagePrev, supportCurr, contactLinks, onboardings, delayDays, lastActivityDate) {
+  switch (rule.rule_key) {
+    case 'sla_nok':
+      return `SLA: ${supportCurr?.sla_first_response ?? '?'} min (meta ≤15 min)`
+    case 't15_nok': case 'thi_nok': {
+      const op = supportCurr?.tickets_opened ?? 0
+      const rs = supportCurr?.tickets_resolved ?? 0
+      const pct = op > 0 ? Math.round(rs / op * 100) : null
+      return `Resolução: ${pct ?? '?'}%${op > 0 ? ` (${rs}/${op})` : ''}`
+    }
+    case 'os_down': case 'os_up': {
+      const curr = usageCurr?.os_created ?? 0
+      const prev = usagePrev?.os_created
+      const chg = usageCurr && usagePrev && usagePrev.os_created > 0
+        ? Math.round((usageCurr.os_created - usagePrev.os_created) / usagePrev.os_created * 100) : null
+      return `OS: ${curr}${prev != null ? ` (vs ${prev}${chg != null ? `, ${chg > 0 ? '+' : ''}${chg}%` : ''})` : ''}`
+    }
+    case 'usr_down': case 'usr_up': {
+      const curr = usageCurr?.active_users ?? 0
+      const prev = usagePrev?.active_users
+      const chg = usageCurr && usagePrev && usagePrev.active_users > 0
+        ? Math.round((usageCurr.active_users - usagePrev.active_users) / usagePrev.active_users * 100) : null
+      return `Usuários: ${curr}${prev != null ? ` (vs ${prev}${chg != null ? `, ${chg > 0 ? '+' : ''}${chg}%` : ''})` : ''}`
+    }
+    case 'mod_abandoned': case 'mod_new': return rule.label
+    case 'nd_m1': case 'nd_m2': case 'nd_m3': {
+      const months = client.golive ? Math.floor(daysSince(client.golive) / 30) : 0
+      return `Sem decisor (${months > 0 ? `${months} meses` : 'desde o início'})`
+    }
+    case 'no_champ': return 'Sem champion identificado'
+    case 'eng_low': case 'eng_mid': case 'eng_high': {
+      const nivel = { eng_low: 'Baixo', eng_mid: 'Médio', eng_high: 'Alto' }[rule.rule_key]
+      const ds = lastActivityDate ? daysSince(lastActivityDate) : null
+      return `Engajamento: ${nivel}${ds !== null ? ` (${ds}d sem interação)` : ''}`
+    }
+    case 'fin_30': case 'fin_60': case 'fin_90':
+      return `Fatura atrasada ${delayDays ?? 0} dias`
+    case 'onb_travado': return 'Onboarding: travado'
+    case 'onb_atencao': return 'Onboarding: atenção'
+    case 'mp_late': {
+      const lateFases = (onboardings || []).flatMap(o =>
+        (o.onboarding_fases || []).filter(f => f.planned_end && f.planned_end < todayStr && f.status !== 'concluida')
+      )
+      return lateFases.length > 0 ? `Milestones atrasadas: ${lateFases.length}` : rule.label
+    }
+    case 'ob_late': {
+      const ds = client.golive ? daysSince(client.golive) : null
+      return ds ? `Onboarding incompleto (${ds}d de go-live)` : rule.label
+    }
+    default:
+      return rule.label
+  }
+}
+
+function MetricRow({ label, value }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 0' }}>
+      <span style={{ fontSize: 11.5, color: '#888780', fontWeight: 500 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
     </div>
   )
 }
@@ -287,6 +383,9 @@ export function ClientTabOverview({ client }) {
   const navigate   = useNavigate()
   const qc         = useQueryClient()
   const { data: catalog = [] } = useCatalog()
+  const { data: healthConfigData } = useHealthConfig()
+  const healthRules = healthConfigData?.rules ?? []
+  const [expandedDim, setExpandedDim] = useState(null)
   const [syncing, setSyncing]  = useState(false)
   const [syncStep, setSyncStep]     = useState(null)
   const [syncResult, setSyncResult] = useState(null)
@@ -357,6 +456,7 @@ export function ClientTabOverview({ client }) {
   const contractedIds = new Set(Object.keys(catalogMap).map(Number))
   const expansao     = allSolucoes.filter(sol => !contractedIds.has(sol.id))
 
+  const tempDs = client.temperature_updated_at ? daysSince(client.temperature_updated_at.slice(0, 10)) : null
   const alerts = []
   if (renewalDays !== null && renewalDays < 0)
     alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `Renovação vencida há ${Math.abs(renewalDays)} dias` })
@@ -368,12 +468,60 @@ export function ClientTabOverview({ client }) {
     alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `${openTickets} ticket${openTickets > 1 ? 's' : ''} sem resolução` })
   if (delayDays > 0)
     alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `Atraso financeiro: ${delayDays} dias` })
+  const onboardingFasesVencidas = (client.onboardings || []).flatMap(o =>
+    (o.onboarding_fases || []).filter(f => f.planned_end && f.planned_end < todayStr && f.status !== 'concluida')
+  )
+  if (onboardingFasesVencidas.length > 0)
+    alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: `${onboardingFasesVencidas.length} fase${onboardingFasesVencidas.length > 1 ? 's' : ''} de onboarding vencida${onboardingFasesVencidas.length > 1 ? 's' : ''}` })
+  if (lastActDays !== null && lastActDays > 30)
+    alerts.push({ color: '#BA7517', bg: '#FFFBEB', text: `Sem interação há ${lastActDays} dias` })
+  if (client.csm_temperature === -7)
+    alerts.push({ color: '#E24B4A', bg: '#FEF2F2', text: 'Temperatura muito fria' })
+  if (tempDs !== null && tempDs > 30)
+    alerts.push({ color: '#BA7517', bg: '#FFFBEB', text: 'Temperatura desatualizada' })
 
   const score      = client.health_total ?? 0
   const scoreColor = score >= 75 ? '#1D9E75' : score >= 50 ? '#BA7517' : '#E24B4A'
   const scoreLabel = score >= 75 ? 'Saudável' : score >= 50 ? 'Atenção' : 'Em Risco'
 
   const hasSync = !!(client.client_donc_instances?.length || client.freshdesk_company_id)
+
+  // ── Sinais ativos (mesmo padrão do drawer) ──────────────────────────────────
+
+  const lastActDate = lastActivity?.activity_date ?? null
+  const lastActDays = lastActDate ? daysSince(lastActDate) : null
+
+  const signals = []
+  if ((lastActDays === null || lastActDays > 60) && (score < 75))
+    signals.push({ kind: 'urgent', title: 'Sem interação recente', sub: lastActDays ? `Última atividade há ${lastActDays} dias` : 'Sem interação registrada', action: '→ registrar contato hoje' })
+  else if (lastActDays !== null && lastActDays > 30)
+    signals.push({ kind: 'warn', title: `Sem interação há ${lastActDays} dias`, sub: `Última atividade: ${lastActivity ? formatDate(lastActivity.activity_date) : '—'}`, action: '→ agendar contato' })
+  if (delayDays > 0)
+    signals.push({ kind: 'urgent', title: 'Fatura em atraso', sub: `${delayDays} dias em atraso`, action: '→ verificar financeiro' })
+  if ((client.health_uso || 0) < 10)
+    signals.push({ kind: 'warn', title: 'Uso em queda', sub: `Score de uso: ${client.health_uso || 0}/10`, action: '→ investigar uso operacional' })
+  if ((client.health_suporte || 0) < 10)
+    signals.push({ kind: 'warn', title: 'Suporte com problemas', sub: `Score de suporte: ${client.health_suporte || 0}/10`, action: '→ revisar tickets abertos' })
+  if ((client.health_relacionamento || 0) < 10)
+    signals.push({ kind: 'warn', title: 'Relacionamento fraco', sub: `Score de relacionamento: ${client.health_relacionamento || 0}/10`, action: '→ agendar reunião' })
+  if ((client.health_financeiro || 0) < 10)
+    signals.push({ kind: 'warn', title: 'Saúde financeira em alerta', sub: `Score financeiro: ${client.health_financeiro || 0}/10`, action: '→ verificar pagamentos' })
+  if ((client.health_projeto || 0) < 10)
+    signals.push({ kind: 'warn', title: 'Projeto em risco', sub: `Score de projeto: ${client.health_projeto || 0}/10`, action: '→ revisar milestones' })
+  if (!client.temperature_updated_at || tempDs > 30)
+    signals.push({ kind: 'warn', title: 'Temperatura vencida', sub: 'Avaliação de temperatura desatualizada', action: '→ avaliar temperatura' })
+  if (signals.length === 0)
+    signals.push({ kind: 'gray', title: 'Sem sinais críticos', sub: 'Cliente saudável no momento', action: '→ ver perfil completo' })
+
+  // ── Ações rápidas ───────────────────────────────────────────────────────────
+
+  const overdueAct = (client.activities || []).find(a => a.due_date && a.due_date < todayStr && a.status !== 'concluida' && a.status !== 'cancelada')
+  const qaItems = []
+  if (overdueAct) qaItems.push({ tone: 'red', label: 'Concluir atividade atrasada', onClick: () => navigate(`/empresas/${client.id}?tab=atividades`) })
+  if (signals.some(s => /milestone|onboarding/i.test(s.title))) qaItems.push({ tone: 'red', label: 'Ver onboarding atrasado', onClick: () => navigate(`/empresas/${client.id}?tab=onboarding`) })
+  if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', label: 'Registrar contato agora', onClick: () => navigate(`/empresas/${client.id}?tab=atividades`) })
+  qaItems.push({ tone: 'amber', label: 'Atualizar temperatura', onClick: () => navigate(`/empresas/${client.id}?tab=health`) })
+  qaItems.push({ tone: 'navy', label: 'Registrar atividade', onClick: () => navigate(`/empresas/${client.id}?tab=atividades`) })
 
   // Gráfico de barras — OS últimos 6 meses
   const barChart = useMemo(() => ({
@@ -493,7 +641,14 @@ export function ClientTabOverview({ client }) {
           <div style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Health Score</div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
             <div style={{ fontSize: 36, fontWeight: 800, color: scoreColor, lineHeight: 1 }}>{score}</div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: scoreColor, marginBottom: 3 }}>{scoreLabel}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: scoreColor }}>{scoreLabel}</div>
+              {client.health_trend != null && client.health_trend !== 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, color: client.health_trend > 0 ? '#1D9E75' : '#E24B4A' }}>
+                  {client.health_trend > 0 ? '▲' : '▼'} {Math.abs(client.health_trend)} pts
+                </span>
+              )}
+            </div>
           </div>
           <div style={{ display: 'flex', gap: 3, marginTop: 4 }}>
             {DIMS.map(d => {
@@ -562,6 +717,37 @@ export function ClientTabOverview({ client }) {
             sub="resolvidos/abertos"
           />
         )}
+      </div>
+
+      {/* ── Linha 1.5: Sinais ativos ── */}
+      <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18' }}>Sinais ativos</span>
+          {signals.length > 0 && (
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#888780', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              {signals.filter(s => s.kind !== 'gray').length} ativos
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+          {signals.map((s, i) => {
+            const colors = s.kind === 'urgent' ? ['#FEF2F2', '#E24B4A'] : s.kind === 'warn' ? ['#FFFBEB', '#BA7517'] : ['#f7f7f5', '#888780']
+            return (
+              <div key={i} style={{ flexShrink: 0, width: 240, border: `1px solid ${s.kind === 'gray' ? '#e8e7e3' : colors[0]}`, borderRadius: 8, padding: 12, display: 'flex', gap: 10, background: colors[0] }}>
+                <div style={{ width: 24, height: 24, borderRadius: 6, display: 'grid', placeItems: 'center', background: colors[1] + '20', color: colors[1], flexShrink: 0 }}>
+                  {s.kind === 'urgent' ? <Icons.Zap size={13} /> : s.kind === 'warn' ? <Icons.Clock size={13} /> : <Icons.Thermometer size={13} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 600, color: '#1a1a18', lineHeight: 1.3 }}>{s.title}</div>
+                  <div style={{ fontSize: 11, color: '#888780', marginTop: 1, fontWeight: 500 }}>{s.sub}</div>
+                  <span style={{ fontSize: 11, color: '#173557', fontWeight: 600, marginTop: 6, display: 'inline-block', cursor: 'pointer' }}
+                    onClick={() => { if (s.action.includes('contato') || s.action.includes('agendar')) navigate(`/empresas/${client.id}?tab=atividades`); else if (s.action.includes('financeiro')) navigate(`/empresas/${client.id}?tab=operacional`); else navigate(`/empresas/${client.id}?tab=health`) }}
+                  >{s.action}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── Linha 2: Gráfico de OS + Health Score histórico ── */}
@@ -655,6 +841,23 @@ export function ClientTabOverview({ client }) {
               )}
             </div>
           </div>
+          {qaItems.length > 0 && (
+            <div style={{ borderTop: '1px solid #f0efed', paddingTop: 12, marginTop: 12 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Atalhos</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {qaItems.map((qa, i) => {
+                  const qaColors = { red: ['#FEF2F2', '#E24B4A'], amber: ['#FFFBEB', '#BA7517'], navy: ['#f0efed', '#173557'] }
+                  const [bg, clr] = qaColors[qa.tone] || qaColors.navy
+                  return (
+                    <button key={i} onClick={qa.onClick} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', border: '1px solid #e8e7e3', borderRadius: 8, background: 'transparent', cursor: 'pointer', textAlign: 'left', width: '100%', fontSize: 12, fontWeight: 500, color: '#1a1a18' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: clr, flexShrink: 0 }} />
+                      {qa.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Power Map */}
@@ -703,6 +906,120 @@ export function ClientTabOverview({ client }) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Linha 4: Saúde por dimensão ── */}
+      <div style={{ background: '#fff', border: '1px solid #e8e7e3', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a18', marginBottom: 12 }}>Saúde por dimensão</div>
+        {DIM_KEYS.map(d => {
+          const dimScore = client[d.key] ?? 0
+          const pct = Math.min(100, Math.round((dimScore / 20) * 100))
+          const isHealthy = dimScore >= 20
+          const { violated, toImprove } = getDimensionInsights(client, d.key, d.cls, healthRules)
+          const isExpanded = expandedDim === d.key
+          const usageArr = (client.client_usage || []).sort((a, b) => b.ref_month?.localeCompare(a.ref_month))
+          const supportArr = (client.client_support || []).sort((a, b) => b.ref_month?.localeCompare(a.ref_month))
+
+          if (isHealthy) {
+            return (
+              <div key={d.key} style={{ borderBottom: '1px solid #f0efed', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{d.label}</span>
+                <div style={{ width: 80, height: 5, borderRadius: 3, background: '#f0efed', overflow: 'hidden' }}>
+                  <div style={{ width: '100%', height: '100%', background: d.color, borderRadius: 3 }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: d.color, fontVariantNumeric: 'tabular-nums', width: 36, textAlign: 'right' }}>{dimScore}/20</span>
+              </div>
+            )
+          }
+
+          const enrichedViolated = violated.map(r => ({
+            ...r,
+            enrichedLabel: enrichDimLabel(r, d.cls, usageArr[0], usageArr[1], supportArr[0], client.contact_links, client.onboardings, delayDays, lastActDate),
+          }))
+          const enrichedToImprove = toImprove.map(r => ({
+            ...r,
+            enrichedLabel: enrichDimLabel(r, d.cls, usageArr[0], usageArr[1], supportArr[0], client.contact_links, client.onboardings, delayDays, lastActDate),
+          }))
+
+          return (
+            <div key={d.key} style={{ borderBottom: '1px solid #f0efed' }}>
+              <button onClick={() => setExpandedDim(prev => prev === d.key ? null : d.key)}
+                style={{ width: '100%', border: 0, background: 'transparent', cursor: 'pointer', padding: '12px 0', display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left' }}>
+                <span style={{ color: '#888780', flexShrink: 0, transition: 'transform 0.2s', transform: isExpanded ? 'rotate(90deg)' : 'none' }}>
+                  <Icons.ChevronRight size={14} />
+                </span>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{d.label}</span>
+                <div style={{ width: 80, height: 5, borderRadius: 3, background: '#f0efed', overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: d.color, borderRadius: 3 }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: d.color, fontVariantNumeric: 'tabular-nums', width: 36, textAlign: 'right' }}>{dimScore}/20</span>
+              </button>
+
+              {isExpanded && (
+                <div style={{ padding: '0 0 14px 22px' }}>
+                  {d.cls === 'suporte' && supportArr[0] && (
+                    <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <MetricRow label="Tickets abertos" value={String(supportArr[0].tickets_opened ?? 0)} />
+                      <MetricRow label="Resolvidos" value={supportArr[0].tickets_opened > 0
+                        ? `${supportArr[0].tickets_resolved ?? 0} (${Math.round((supportArr[0].tickets_resolved ?? 0) / supportArr[0].tickets_opened * 100)}%)` : '0 (0%)'} />
+                      <MetricRow label="SLA 1ª resposta" value={supportArr[0].sla_first_response != null ? `${supportArr[0].sla_first_response} min` : '—'} />
+                    </div>
+                  )}
+                  {d.cls === 'uso' && usageArr[0] && (
+                    <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <MetricRow label="OS criadas (mês)" value={String(usageArr[0].os_created ?? 0)} />
+                      {usageArr[1] && <MetricRow label="OS mês anterior" value={String(usageArr[1].os_created ?? 0)} />}
+                      <MetricRow label="Usuários ativos" value={String(usageArr[0].active_users ?? 0)} />
+                      {usageArr[1] && <MetricRow label="Usuários mês ant." value={String(usageArr[1].active_users ?? 0)} />}
+                    </div>
+                  )}
+                  {d.cls === 'rel' && (
+                    <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <MetricRow label="Decisor" value={(client.contact_links || []).some(l => l.papel === 'Decisor') ? 'Sim' : 'Não'} />
+                      <MetricRow label="Champion" value={(client.contact_links || []).some(l => l.champion) ? 'Sim' : 'Não'} />
+                      <MetricRow label="Última interação" value={lastActDays != null ? `${lastActDays} dias` : '—'} />
+                    </div>
+                  )}
+                  {d.cls === 'fin' && (
+                    <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <MetricRow label="Atraso" value={delayDays > 0 ? `${delayDays} dias` : 'Em dia'} />
+                    </div>
+                  )}
+                  {d.cls === 'proj' && (
+                    <div style={{ marginBottom: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <MetricRow label="Situação" value={(client.onboardings || []).find(o => o.status === 'ativo')?.situacao_geral ?? 'Sem onboarding ativo'} />
+                      {onboardingFasesVencidas.length > 0 && (
+                        <MetricRow label="Fases atrasadas" value={String(onboardingFasesVencidas.length)} />
+                      )}
+                    </div>
+                  )}
+
+                  {enrichedViolated.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#888780', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Penalizando</div>
+                      {enrichedViolated.map((r, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 0', gap: 8 }}>
+                          <span style={{ fontSize: 11.5, color: '#4a4a46', fontWeight: 500, flex: 1, minWidth: 0 }}>{r.enrichedLabel}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: '#E24B4A', background: '#FEF2F2', padding: '2px 5px', borderRadius: 5, flexShrink: 0 }}>−{Math.abs(r.points)} pts</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {enrichedToImprove.length > 0 && (
+                    <div style={{ marginTop: 8, padding: '8px 10px', background: '#FFFBEB', borderRadius: 6 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#BA7517', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Como melhorar</div>
+                      {enrichedToImprove.map((r, i) => (
+                        <div key={i} style={{ fontSize: 11.5, color: '#4a4a46', fontWeight: 500, marginBottom: i < enrichedToImprove.length - 1 ? 2 : 0 }}>
+                          Resolver <b>{r.enrichedLabel}</b> → +{Math.abs(r.points)} pts
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       {syncStep !== null && (
