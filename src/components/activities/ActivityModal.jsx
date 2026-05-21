@@ -94,6 +94,39 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       activityResult = await create.mutateAsync(payload)
     }
 
+    if (attachmentFiles.length > 0) {
+      let activityId
+
+      if (isEdit) {
+        activityId = activity.id
+      } else {
+        if (Array.isArray(activityResult)) {
+          activityId = activityResult[0]?.id
+        } else if (activityResult?.data?.id) {
+          activityId = activityResult.data.id
+        } else if (activityResult?.id) {
+          activityId = activityResult.id
+        }
+      }
+
+      if (!activityId) {
+        console.error('Erro: activityId não encontrado após criação', activityResult)
+        return
+      }
+
+      const result = await saveActivityAttachments({
+        activityId,
+        clientId: payload.client_id,
+        userId: payload.responsible_id || activity?.responsible_id || null,
+        files: attachmentFiles,
+      })
+
+      if (!result.success) {
+        toast.error(result.error || 'Erro ao enviar anexos')
+        return
+      }
+    }
+
     if (token && form.activity_time && syncToGoogle) {
       if (!isGoogleConnected) {
         onClose()
@@ -161,34 +194,6 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       } finally {
         setSyncing(false)
       }
-    }
-
-    if (attachmentFiles.length > 0) {
-      let activityId
-
-      if (isEdit) {
-        activityId = activity.id
-      } else {
-        if (Array.isArray(activityResult)) {
-          activityId = activityResult[0]?.id
-        } else if (activityResult?.data?.id) {
-          activityId = activityResult.data.id
-        } else if (activityResult?.id) {
-          activityId = activityResult.id
-        }
-      }
-
-      if (!activityId) {
-        console.error('Erro: activityId não encontrado após criação', activityResult)
-        return
-      }
-
-      await saveActivityAttachments({
-        activityId,
-        clientId: payload.client_id,
-        userId: payload.responsible_id || activity?.responsible_id || null,
-        files: attachmentFiles,
-      })
     }
 
     onClose()
