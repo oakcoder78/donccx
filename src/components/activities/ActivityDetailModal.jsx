@@ -267,7 +267,7 @@ useEffect(() => {
 
               <div className="space-y-1">
                 {attachments.map((file) => (
-                  <div className="flex items-center justify-between gap-2 p-2 border border-border-tertiary rounded-md bg-bg-secondary">
+                  <div key={file.id} className="flex items-center justify-between gap-2 p-2 border border-border-tertiary rounded-md bg-bg-secondary">
                     {/* File name */}
                     <span
                       className="text-sm text-text-primary truncate flex-1"
