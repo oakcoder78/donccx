@@ -110,3 +110,18 @@ These rules must be preserved when modifying the modal:
 - `AttachmentInput` — Used in the drawer for file uploads
 - `Modal` — Base modal container
 - `Button` — Action buttons in footer
+
+## Error Handling
+
+### Attachment Upload
+
+The attachment upload runs **before** the Google Calendar sync block. This ordering is critical — the Calendar block has early returns (e.g., when `shouldSyncWithCalendar` returns `false`) that would skip upload if placed after it.
+
+On failure:
+- `toast.error` shows the real Supabase storage error message
+- The modal stays open — user can retry or cancel
+- The activity itself is already saved (mutations run first); only attachment upload failed
+
+### Google Calendar Sync
+
+Early returns in `syncToGoogle` block (`!isGoogleConnected`, missing `activityId`, `!shouldSyncWithCalendar`) close the modal normally. Attachments are already uploaded at this point so the early return is safe.
