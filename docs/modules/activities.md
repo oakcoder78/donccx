@@ -33,7 +33,7 @@ The Activities module provides a task‑oriented workspace where users can creat
 1. **Fetching** – `useActivities()` loads all activities; `useClients()` and `useProfiles()` load supporting data for filters and selects.
 2. **Filtering** – `useMemo` derives a filtered list based on selected tab, search term, status, client, and responsible filters.
 3. **Grouping** – Pending activities are displayed directly; completed activities are grouped by month using `groupByMonth` and formatted with `formatMonth`.
-4. **Create/Edit** – `ActivityModal` builds a payload from local form state and calls `create.mutateAsync` or `update.mutateAsync` from `useActivityMutations`. After the mutation, any selected attachment files are uploaded via `saveActivityAttachments`. The modal then closes and the parent page refetches the activities (handled by the mutation hook’s query invalidation).
+4. **Create/Edit** – `ActivityModal` builds a payload from local form state and calls `create.mutateAsync` or `update.mutateAsync` from `useActivityMutations`. After the mutation, any selected attachment files are uploaded via `saveActivityAttachments` — this runs **before** the Google Calendar sync block to avoid early-return skipping. On upload failure, a toast shows the real error and the modal stays open.
 5. **View** – `ActivityDetailModal` receives the selected activity as a prop, loads its attachments with `getActivityAttachments`, and displays full details.
 6. **Status toggle** – Clicking the *Concluir/Reabrir* button calls `update.mutateAsync` to flip `status` and closes the modal.
 7. **Delete** – Clicking *Excluir* invokes `remove.mutateAsync` from the mutation hook and closes the modal.
@@ -92,7 +92,7 @@ The Activities module provides a task‑oriented workspace where users can creat
 ## Error Handling
 - Form fields marked `required` (date, description, client) enforce client‑side validation.
 - Mutation hooks expose `isPending` and error states; UI disables buttons while pending.
-- Attachment upload errors are logged to console; no explicit UI error shown.
+- Attachment upload errors are shown via `toast.error` with the real Supabase error message; modal stays open on failure.
 - Permission errors for attachment deletion are shown via `toast.error`.
 - Supabase auth loading errors are logged; UI does not block.
 

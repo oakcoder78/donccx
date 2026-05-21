@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-05-21
+
+### Reports — Enviar por E-mail
+- **Feature:** "Enviar por E-mail" button in `ReportEditorPage` (visible only when published) + `ClientSubRelatorios` action with `<Icons.Send />`
+- **Feature:** `EmailComposerModal` gains `preselectedTemplateName`, `initialSubject`, `initialBody` props — pre-fills composer with template `relatorio_mensal`
+- **Feature:** Migration `relatorio_mensal` email template (Comunicado Geral shell → corrected HTML with logo, corpo, social bar, signature)
+- **Fix:** Back button in `ReportEditorPage` uses `navigate(-1)` matching cockpit page convention
+- **Fix:** `ReportPublicPage` removed `contact_emails` filter from `registerView()` — RPC called for all authorized viewers (fixes `.maybeSingle()` crash on duplicate emails)
+- **Migration:** `20260521000003` — UNIQUE `(report_id, email)` on `report_views`, updated RPC with explicit conflict target + activity insert in BEGIN/EXCEPTION
+- **Migration:** `20260521000004` — corrected `relatorio_mensal` template HTML
+
+### Activities — Bug Fixes
+- **Fix:** Attachment upload in `ActivityModal` now runs **before** Google Calendar sync block — activities with `google_event_id` could skip upload due to early `return` in `shouldSyncWithCalendar`
+- **Fix:** Upload failure now shows `toast.error` with the real error from Supabase + modal stays open (was silent close)
+- **Fix:** `AttachmentInput` accumulates files on multi-select (append instead of replace) + validates total ≤ 5
+- **Fix:** `ActivityDetailModal` — added `key={file.id}` to attachments map (React key warning)
+
+### Icon System
+- **Fix:** `ClientSubRelatorios` — consistent action icons (`Pencil`, `Mail`, `Trash2`, `Send`) instead of text-only buttons
+
 ## 2026-05-18
 
 ### Refactoring — Fase 1 (Cleanup & Quick Wins)
@@ -77,6 +97,10 @@
 
 | Migration | Description |
 |-----------|-------------|
+| `20260521000004_correct_relatorio_mensal_template.sql` | Corrected `relatorio_mensal` email template HTML |
+| `20260521000003_fix_report_views.sql` | UNIQUE `(report_id, email)` on `report_views` + updated RPC |
+| `20260521000002_fix_relatorio_mensal_template.sql` | Replaced `relatorio_mensal` template with Comunicado Geral shell |
+| `20260521000000_relatorio_mensal_template.sql` | Initial `relatorio_mensal` email template (superseded) |
 | `20260522000000_brief_views.sql` | Creates `brief_views` table for tracking who viewed each brief |
 | `20260521000000_brief_csm_notes_allow_reply_to_client_questions.sql` | Broadens RLS to allow CSM reply on client questions |
 | `20260520000000_brief_csm_notes_client_questions.sql` | Adds `origin`, `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by` to `brief_csm_notes` |
