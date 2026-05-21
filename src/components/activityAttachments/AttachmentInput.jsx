@@ -6,20 +6,18 @@ export default function AttachmentInput({ onFilesChange, existingFiles = [] }) {
   const fileInputRef = useRef(null)
 
   function handleFileChange(event) {
+    const newFiles = Array.from(event.target.files)
+    event.target.value = ''
 
-    const files = Array.from(event.target.files)
-
-    if (files.length > 5) {
+    const total = selectedFiles.length + newFiles.length
+    if (total > 5) {
       alert('Máximo de 5 arquivos permitido')
       return
     }
 
-    setSelectedFiles(files)
-
-    if (onFilesChange) {
-      onFilesChange(files)
-    }
-
+    const updated = [...selectedFiles, ...newFiles]
+    setSelectedFiles(updated)
+    onFilesChange?.(updated)
   }
 
   function openFileDialog() {
