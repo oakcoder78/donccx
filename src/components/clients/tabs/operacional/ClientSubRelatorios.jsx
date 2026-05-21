@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Icons } from '@/lib/icons'
 import { useClientReports, useReportMutations, useReportViews } from '@/hooks/useClientReports'
 import { useAuth } from '@/contexts/AuthContext'
+import { EmailComposerModal } from '@/components/email/EmailComposerModal'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
@@ -127,6 +128,10 @@ export function ClientSubRelatorios({ client }) {
   // Allow email modal
   const [allowEmailReport, setAllowEmailReport] = useState(null)
 
+  // Send email modal
+  const [emailReport, setEmailReport] = useState(null)
+  const [showEmailModal, setShowEmailModal] = useState(false)
+
   function handlePeriodChange(period) {
     if (!period) { setForm({ period: '', title: '' }); return }
     const [y, m] = period.split('-')
@@ -214,9 +219,10 @@ export function ClientSubRelatorios({ client }) {
               <div className="flex items-center gap-3 flex-shrink-0 text-xs">
                 <button
                   onClick={() => navigate(`/empresas/${client.id}/relatorios/${r.id}/editar`)}
-                  className="text-donc-sky hover:underline font-medium"
+                  className="text-donc-sky hover:underline font-medium flex items-center gap-1"
+                  title="Editar relatório"
                 >
-                  Editar
+                  <Icons.Pencil className="w-3 h-3" /> Editar
                 </button>
 
                 {r.status === 'published' && (
@@ -236,20 +242,28 @@ export function ClientSubRelatorios({ client }) {
                       <Icons.Eye className="w-3 h-3" /> Views
                     </button>
                     <button
+                      onClick={() => { setEmailReport(r); setShowEmailModal(true) }}
+                      className="text-text-tertiary hover:text-text-primary flex items-center gap-1"
+                      title="Enviar por e-mail"
+                    >
+                      <Icons.Send className="w-3 h-3" /> Enviar
+                    </button>
+                    <button
                       onClick={() => setAllowEmailReport(r)}
-                      className="text-text-tertiary hover:text-text-primary"
+                      className="text-text-tertiary hover:text-text-primary flex items-center gap-1"
                       title="Autorizar e-mail"
                     >
-                      + E-mail
+                      <Icons.Mail className="w-3 h-3" /> Autorizar
                     </button>
                   </>
                 )}
 
                 <button
                   onClick={() => handleDelete(r.id)}
-                  className="text-donc-red hover:underline"
+                  className="text-donc-red hover:underline flex items-center gap-1"
+                  title="Excluir relatório"
                 >
-                  Excluir
+                  <Icons.Trash2 className="w-3 h-3" /> Excluir
                 </button>
               </div>
             </div>
@@ -318,6 +332,27 @@ export function ClientSubRelatorios({ client }) {
           report={allowEmailReport}
           onClose={() => setAllowEmailReport(null)}
           allowEmail={allowEmail}
+        />
+      )}
+
+      {/* ── Modal: Enviar por E-mail ── */}
+      {emailReport && (
+        <EmailComposerModal
+          isOpen={showEmailModal}
+          onClose={() => { setShowEmailModal(false); setEmailReport(null) }}
+          mode="individual"
+          preselectedClientId={client.id}
+          preselectedTemplateName="relatorio_mensal"
+          initialSubject={`Relatório Operacional Mensal — ${periodLabel(emailReport.period)} — ${client.fantasy_name || client.name}`}
+          initialBody={
+            `<p>Prezados,</p>
+<p>O Relatório Operacional Mensal — Projeto DONC já está disponível para consulta.</p>
+<p>Para acessar o relatório, utilize o link abaixo e informe o seu e-mail no momento do acesso:</p>
+<p><a href="${window.location.origin}/r/${emailReport.public_token}">${window.location.origin}/r/${emailReport.public_token}</a></p>
+<p>Em caso de dúvidas ou necessidade de suporte, nossa equipe permanece à disposição através do portal de atendimento:</p>
+<p><a href="https://donc.freshdesk.com/">https://donc.freshdesk.com/</a></p>
+<p>Atenciosamente,<br>Donc</p>`.trim()
+          }
         />
       )}
     </div>
