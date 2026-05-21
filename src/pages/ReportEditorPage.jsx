@@ -389,9 +389,9 @@ export default function ReportEditorPage() {
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-border-tertiary bg-bg-primary flex-shrink-0">
         <button
-          onClick={() => navigate(`/empresas/${clientId}?tab=operacional&sub=relatorios`)}
+          onClick={() => navigate(-1)}
           className="text-xs text-text-tertiary hover:text-text-primary transition-colors flex-shrink-0"
-        >← {clientName}</button>
+        >← Voltar</button>
         <div className="w-px h-4 bg-border-tertiary flex-shrink-0" />
         <div className="flex-1 flex items-center gap-2 min-w-0">
           <span className="text-sm font-semibold text-text-primary truncate">{report.title}</span>
