@@ -7,6 +7,7 @@ import { useProjects } from '../hooks/useProjects'
 import { generateReportHTML, periodLabel, normalizeSections, defaultSections } from '../lib/reportGenerator'
 import { supabase } from '../lib/supabaseClient'
 import { useDonkie } from '../hooks/useDonkie'
+import { EmailComposerModal } from '../components/email/EmailComposerModal'
 import { Button } from '../components/ui/Button'
 import { Badge } from '../components/ui/Badge'
 import { PageSpinner } from '../components/ui/Spinner'
@@ -100,6 +101,7 @@ export default function ReportEditorPage() {
   const [publishing,    setPublishing]    = useState(false)
   const [publishBanner, setPublishBanner] = useState(false)
   const [populated,     setPopulated]     = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   // ── Extra inline add form ────────────────────────────────
   const [addingExtra,   setAddingExtra]   = useState(null) // section id
@@ -398,6 +400,11 @@ export default function ReportEditorPage() {
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {isPublished && <Button variant="secondary" size="sm" onClick={copyLink} className="flex items-center gap-1.5"><Icons.Link className="w-3 h-3" /> Copiar Link</Button>}
+          {isPublished && (
+            <Button variant="secondary" size="sm" onClick={() => setShowEmailModal(true)} className="flex items-center gap-1.5">
+              <Icons.Send className="w-3 h-3" /> Enviar por E-mail
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={handleSave} disabled={saving}>
             {saving ? 'Salvando…' : 'Salvar'}
           </Button>
@@ -408,6 +415,24 @@ export default function ReportEditorPage() {
           )}
         </div>
       </div>
+
+      <EmailComposerModal
+        isOpen={showEmailModal}
+        onClose={() => setShowEmailModal(false)}
+        mode="individual"
+        preselectedClientId={Number(clientId)}
+        preselectedTemplateName="relatorio_mensal"
+        initialSubject={`Relatório Operacional Mensal — ${formatPeriodPT(report.period)} — ${clientName}`}
+        initialBody={
+          `<p>Prezados,</p>
+<p>O Relatório Operacional Mensal — Projeto DONC já está disponível para consulta.</p>
+<p>Para acessar o relatório, utilize o link abaixo e informe o seu e-mail no momento do acesso:</p>
+<p><a href="${window.location.origin}/r/${report.public_token}">${window.location.origin}/r/${report.public_token}</a></p>
+<p>Em caso de dúvidas ou necessidade de suporte, nossa equipe permanece à disposição através do portal de atendimento:</p>
+<p><a href="https://donc.freshdesk.com/">https://donc.freshdesk.com/</a></p>
+<p>Atenciosamente,<br>${csm?.name || 'Equipe Donc'}<br>Donc</p>`.trim()
+        }
+      />
 
       {/* Corpo */}
       <div className="flex-1 flex overflow-hidden">

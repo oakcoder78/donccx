@@ -35,7 +35,7 @@ function sanitizeFileName(name) {
     .replace(/[^a-zA-Z0-9._-]/g, '_')
 }
 
-export function EmailComposerModal({ isOpen, onClose, mode = 'individual', preselectedClientId, preselectedContactId }) {
+export function EmailComposerModal({ isOpen, onClose, mode = 'individual', preselectedClientId, preselectedContactId, preselectedTemplateName, initialSubject, initialBody }) {
   const { user } = useAuth()
   const [profile, setProfile]           = useState(null)
 
@@ -90,6 +90,18 @@ export function EmailComposerModal({ isOpen, onClose, mode = 'individual', prese
       .eq('active', true)
       .then(({ data }) => setTemplates(data || []))
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isOpen || !templates.length || !preselectedTemplateName) return
+    const found = templates.find(t => t.name === preselectedTemplateName)
+    if (found) setTemplateId(found.id)
+  }, [isOpen, templates, preselectedTemplateName])
+
+  useEffect(() => {
+    if (!isOpen) return
+    if (initialSubject) setSubject(initialSubject)
+    if (initialBody) setBody(initialBody)
+  }, [isOpen, initialSubject, initialBody])
 
   useEffect(() => {
     if (!isOpen || !preselectedContactId) return
