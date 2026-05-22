@@ -83,6 +83,92 @@ function useDonkieConfig() {
   })
 }
 
+function formatDuration(ms) {
+  if (ms == null) return '—'
+  if (ms < 1000) return `${ms}ms`
+  return `${(ms / 1000).toFixed(1)}s`
+}
+
+function formatLogTime(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
+
+function ModelLogsTable() {
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('ai_model_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (error) console.error('[ModelLogsTable]', error)
+        else setLogs(data ?? [])
+        setLoading(false)
+      })
+  }, [])
+
+  if (loading) {
+    return <div style={{ fontSize: 13, color: '#888780', padding: '8px 0' }}>Carregando histórico...</div>
+  }
+
+  if (logs.length === 0) {
+    return (
+      <div style={{ fontSize: 13, color: '#888780', padding: '12px 0', textAlign: 'center' }}>
+        Nenhuma chamada registrada ainda.
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid #e8e7e3' }}>
+            <th style={{ textAlign: 'left', padding: '8px 10px', color: '#888780', fontWeight: 600, whiteSpace: 'nowrap' }}>Data</th>
+            <th style={{ textAlign: 'left', padding: '8px 10px', color: '#888780', fontWeight: 600, whiteSpace: 'nowrap' }}>Modelo</th>
+            <th style={{ textAlign: 'left', padding: '8px 10px', color: '#888780', fontWeight: 600, whiteSpace: 'nowrap' }}>Status</th>
+            <th style={{ textAlign: 'left', padding: '8px 10px', color: '#888780', fontWeight: 600, whiteSpace: 'nowrap' }}>Latência</th>
+            <th style={{ textAlign: 'left', padding: '8px 10px', color: '#888780', fontWeight: 600, whiteSpace: 'nowrap' }}>Erro</th>
+          </tr>
+        </thead>
+        <tbody>
+          {logs.map(log => (
+            <tr key={log.id} style={{ borderBottom: '1px solid #f0f0ee' }}>
+              <td style={{ padding: '8px 10px', color: '#888780', whiteSpace: 'nowrap' }}>{formatLogTime(log.created_at)}</td>
+              <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: 11, color: '#1a1a18', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.model}</td>
+              <td style={{ padding: '8px 10px' }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                  backgroundColor: log.status === 'success' ? '#e6f7e6' : '#fde8e8',
+                  color: log.status === 'success' ? '#166534' : '#991b1b',
+                }}>
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    backgroundColor: log.status === 'success' ? '#22c55e' : '#ef4444',
+                    display: 'inline-block',
+                  }} />
+                  {log.status === 'success' ? 'OK' : 'Falha'}
+                </span>
+              </td>
+              <td style={{ padding: '8px 10px', color: '#888780', fontFamily: 'monospace', fontSize: 11 }}>{formatDuration(log.latency_ms)}</td>
+              <td style={{ padding: '8px 10px', color: '#991b1b', maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}>{log.error || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ fontSize: 11, color: '#b0afab', marginTop: 8, textAlign: 'right' }}>
+        Últimos {logs.length} registros
+      </div>
+    </div>
+  )
+}
+
 export function SettingsAI() {
   const qc = useQueryClient()
   const AIIcon = Icons.Bot
@@ -294,6 +380,15 @@ export function SettingsAI() {
             {savingDebug && <span style={{ fontSize: 11, color: '#888780' }}>Salvando...</span>}
           </label>
         </div>
+      </div>
+
+      {/* ── Sessão 5: Histórico de Falhas ── */}
+      <div style={S.section}>
+        <p style={S.sectionTitle}>Histórico de Falhas</p>
+        <p style={S.sectionDesc}>
+          Registro das últimas chamadas aos modelos OpenRouter. Úteis para diagnosticar modelos fora do ar ou lentos.
+        </p>
+        <ModelLogsTable />
       </div>
 
       {/* ── Sessão 2: Prompt do Assistente de Atendimento ── */}

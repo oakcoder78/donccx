@@ -18,6 +18,7 @@ const ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/html',
 ]
 const MAX_FILE_SIZE = 5 * 1024 * 1024
 const MAX_FILES = 5
@@ -550,8 +551,8 @@ Responda APENAS com o texto reescrito, sem introduções, explicações ou meta-
                 <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
                   Anexos {attachments.length > 0 && `(${attachments.length})`}
                 </p>
-                <input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,image/*"
-                  className="hidden" onChange={handleFileSelect} />
+<input ref={fileInputRef} type="file" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,image/*,.html,.htm"
+          className="hidden" onChange={handleFileSelect} />
                 <button onClick={() => fileInputRef.current?.click()}
                   disabled={attachments.length >= MAX_FILES}
                   className="text-xs text-donc-sky hover:text-donc-sky/80 font-medium disabled:opacity-40">

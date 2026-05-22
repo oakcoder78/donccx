@@ -173,11 +173,80 @@ try {
     // ── Carrega modelos do Supabase (com fallback) ──────────────────────────
     const MODELS = await loadModels()
 
+    // ── Helpers para log e notificação ───────────────────────────────────────
+    async function logModel(model: string, status: string, latencyMs: number, error?: string) {
+      try {
+        await fetch(`${sbUrl}/rest/v1/ai_model_logs`, {
+          method: 'POST',
+          headers: {
+            apikey: sbKey!,
+            Authorization: `Bearer ${sbKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({ model, status, latency_ms: latencyMs, error: error ?? null }),
+        })
+      } catch (_) { /* non-fatal */ }
+    }
+
+    async function notifyAllFailed(models: string[]) {
+      try {
+        await fetch(`${sbUrl}/rest/v1/notifications`, {
+          method: 'POST',
+          headers: {
+            apikey: sbKey!,
+            Authorization: `Bearer ${sbKey}`,
+            'Content-Type': 'application/json',
+            Prefer: 'return=minimal',
+          },
+          body: JSON.stringify({
+            type: 'model_failure',
+            title: 'Nenhum modelo OpenRouter respondeu',
+            message: `Modelos tentados: ${models.join(', ')}`,
+          }),
+        })
+      } catch (_) { /* non-fatal */ }
+    }
+
+    async function sendAlertEmail(models: string[]) {
+      try {
+        const resendKey = Deno.env.get('RESEND_API_KEY')
+        if (!resendKey) { console.warn('RESEND_API_KEY ausente, e-mail não enviado'); return }
+
+        const adminRes = await fetch(
+          `${sbUrl}/rest/v1/profiles?role=eq.admin&select=email`,
+          { headers: { apikey: sbKey!, Authorization: `Bearer ${sbKey}` } },
+        )
+        const admins = await adminRes.json()
+        const adminEmails: string[] = (Array.isArray(admins) ? admins : [])
+          .map((a: any) => a.email).filter(Boolean)
+
+        if (adminEmails.length === 0) { console.warn('Nenhum admin encontrado'); return }
+
+        const modelList = models.join('\n- ')
+
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: 'doncCX <noreply@donc.com.br>',
+            to: adminEmails,
+            subject: '[doncCX] Alerta — Nenhum modelo OpenRouter respondeu',
+            text: `Todos os modelos OpenRouter configurados falharam.\n\nModelos tentados:\n- ${modelList}\n\nVerifique a página de configuração em IA & Automação > Donkie IA para mais detalhes.\n\n---\ndonCCX Hub - Monitoramento de IA`,
+          }),
+        })
+      } catch (_) { /* non-fatal */ }
+    }
+
     // ── Loop de fallback entre modelos ──────────────────────────────────────
+    let allFailed = true
     for (const model of MODELS) {
       console.log('Tentando modelo:', model)
-      console.log('openrouter-proxy: body enviado ao OpenRouter:', JSON.stringify({ model, messages: messages.length + ' mensagens' }))
 
+      const t0 = performance.now()
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
 
@@ -197,27 +266,42 @@ try {
       } catch (err) {
         clearTimeout(timer)
         const isTimeout = err instanceof Error && err.name === 'AbortError'
-        console.warn('Falha no modelo:', model, isTimeout ? 'timeout' : String(err))
+        const elapsed = Math.round(performance.now() - t0)
+        const errMsg = isTimeout ? 'timeout' : String(err)
+        console.warn('Falha no modelo:', model, errMsg)
+        await logModel(model, 'fail', elapsed, errMsg)
         continue  // próximo modelo
       }
 
       clearTimeout(timer)
+      const elapsed = Math.round(performance.now() - t0)
 
       // Ativa fallback em erros transientes
       if (!orRes.ok || [429, 500, 502, 503].includes(orRes.status)) {
         const errBody = await orRes.text()
-        console.warn('Falha no modelo:', model, orRes.status, errBody)
+        const errMsg = `${orRes.status}: ${errBody.slice(0, 200)}`
+        console.warn('Falha no modelo:', model, errMsg)
+        await logModel(model, 'fail', elapsed, errMsg)
         continue  // próximo modelo
       }
 
       // ── Sucesso ─────────────────────────────────────────────────────────
+      allFailed = false
       console.log('Modelo utilizado:', model)
+      await logModel(model, 'success', elapsed)
       const data = await orRes.json().catch(() => null)
       return json(data, orRes.status)
     }
 
     // ── Todos os modelos falharam ────────────────────────────────────────
-    console.error('Todos os modelos falharam')
+    if (allFailed) {
+      console.error('Todos os modelos falharam')
+      const attemptedModels = MODELS
+      await Promise.all([
+        notifyAllFailed(attemptedModels),
+        sendAlertEmail(attemptedModels),
+      ])
+    }
     return json({ error: 'Todos os modelos falharam' }, 500)
 
   } catch (err) {

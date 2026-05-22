@@ -158,7 +158,7 @@ serve(async (req) => {
         })
         if (!fileRes.ok) throw new Error(`Failed to read attachment: ${att.file_name}`)
         const ct = fileRes.headers.get("content-type") ?? ""
-        if (!ct.includes("/") || ct.includes("text/html")) {
+        if (!ct.includes("/")) {
           throw new Error(`Unexpected storage response for ${att.file_name}: ${ct}`)
         }
         const buffer = await fileRes.arrayBuffer()

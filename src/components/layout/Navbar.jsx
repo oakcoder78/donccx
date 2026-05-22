@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
+import { useNotifications } from '@/hooks/useNotifications'
 import { UserEditModal } from '../ui/UserEditModal'
 import toast from 'react-hot-toast'
 
@@ -55,6 +56,8 @@ export function Navbar({ googleOAuthSignal }) {
     navigate('/login')
   }
 
+  const { unreadCount } = useNotifications()
+
   const initials = (profile?.name || profile?.email || 'U')[0].toUpperCase()
 
   return (
@@ -92,11 +95,18 @@ export function Navbar({ googleOAuthSignal }) {
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2.5 hover:bg-white/10 rounded-md px-2 py-1.5 transition-colors"
           >
-            <div className="w-7 h-7 rounded-full overflow-hidden bg-donc-lime flex items-center justify-center flex-shrink-0">
-              {profile?.avatar_url
-                ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                : <span className="text-donc-navy font-bold text-xs">{initials}</span>
-              }
+            <div className="relative">
+              <div className="w-7 h-7 rounded-full overflow-hidden bg-donc-lime flex items-center justify-center flex-shrink-0">
+                {profile?.avatar_url
+                  ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                  : <span className="text-donc-navy font-bold text-xs">{initials}</span>
+                }
+              </div>
+              {profile?.role === 'admin' && unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center leading-none shadow-sm">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </div>
             <div className="text-left hidden sm:block">
               <div className="text-white text-xs font-medium leading-tight">{profile?.name || 'Usuário'}</div>
