@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-05-22
+
+### AI — Model Monitoring
+- **Feature:** `openrouter-proxy` now logs each model attempt (success/fail + latency) to `ai_model_logs` table
+- **Feature:** When all fallback models fail: notification inserted in `notifications` table + alert email sent to all admins via Resend (`noreply@donc.com.br`)
+- **Feature:** Red badge with unread count on admin avatar in Navbar (polling via `useNotifications.js` every 30s)
+- **Feature:** "Histórico de Falhas" section in Settings > Donkie IA — table with last 50 `ai_model_logs` entries
+- **Migration:** `20260527000000_ai_model_logs.sql` — new table for per-model attempt tracking
+- **Migration:** `20260527000001_notifications.sql` — new table for admin notification queue (RLS: admin select/update)
+- **New hook:** `src/hooks/useNotifications.js`
+
+### Email
+- **Feature:** `.html` and `.htm` files now allowed as email attachments (added `text/html` to `ALLOWED_TYPES`, removed server-side rejection)
+
 ## 2026-05-21
 
 ### Reports — Enviar por E-mail

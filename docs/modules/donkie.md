@@ -42,6 +42,44 @@ Donkie configuration is managed via `SettingsAI.jsx` (Settings > IA & Automaçã
 - **Libraries**: `react`, `react-hot-toast` (error toast).
 - **Components**: internal UI built with inline style objects; no external UI library imports.
 
+### Model Monitoring
+
+Since May 2026, every OpenRouter model call is logged to `ai_model_logs`. When all configured models fail, an alert is raised.
+
+#### Tables
+
+| Table | Purpose | RLS |
+|-------|---------|-----|
+| `ai_model_logs` | Per-model attempt: model name, status (success/fail), latency_ms, error message | Admins select only |
+| `notifications` | Admin notification queue: type, title, message, read flag | Admins select/update only |
+
+#### Alert Flow
+
+```
+openrouter-proxy Edge Function
+  → logs each model attempt to ai_model_logs { model, status, latency_ms, error }
+  →
+  → if all models fail:
+      ├── INSERT notification (type='model_failure')
+      ├── send email to all admins via Resend (from: noreply@donc.com.br)
+      └── return 500 "Todos os modelos falharam"
+```
+
+**Frontend polling:** `useNotifications.js` hook polls `notifications?read=false` every 30s. Admin avatar in Navbar shows red badge with unread count.
+
+**History view:** SettingsAI.jsx includes "Histórico de Falhas" section — table of last 50 `ai_model_logs` entries with timestamp, model, status badge, latency, error.
+
+#### Monitoring Files
+
+- `src/hooks/useNotifications.js` — polling hook (30s interval)
+- `src/components/layout/Navbar.jsx` — badge overlay on admin avatar
+- `src/components/settings/SettingsAI.jsx` — failure history table
+- `supabase/functions/openrouter-proxy/index.ts` — logging + notification + email logic
+- `supabase/migrations/20260527000000_ai_model_logs.sql`
+- `supabase/migrations/20260527000001_notifications.sql`
+
+---
+
 ### AI Provider
 
 #### Overview

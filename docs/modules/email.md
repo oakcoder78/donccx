@@ -14,7 +14,7 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 - **Role-based sender** — `from_mode` controls whether the email appears to come from the CSM or from `noreply@donc.com.br`.
 - **Domain validation** — CSM sender requires profile email ending in `@donc.com.br`. Invalid domain disables the radio button, auto-selects noreply, and shows a warning. Edge function returns 400 on invalid domain.
 - **Reply-to** — all emails include `reply_to: suporte@donc.com.br` set via Resend API parameter.
-- **Attachments** — files up to 5 MB each (max 5) uploaded to `activity-attachments` bucket, sent via Resend, and persisted as `activity_attachments` records linked to the auto-created activity. Reuses the existing activity attachment system — files appear in `ActivityDetailModal`, `ClientSubAnexos`, and the client timeline.
+- **Attachments** — files up to 5 MB each (max 5) uploaded to `activity-attachments` bucket, sent via Resend, and persisted as `activity_attachments` records linked to the auto-created activity. Reuses the existing activity attachment system — files appear in `ActivityDetailModal`, `ClientSubAnexos`, and the client timeline. Allowed types: PDF, DOC/DOCX, XLS/XLSX, JPEG, PNG, GIF, WebP, and HTML/HTM.
 
 ## Key Components
 
@@ -172,7 +172,7 @@ Edge function:
 |------|-------|
 | Max per file | 5 MB |
 | Max files | 5 |
-| Allowed types | PDF, DOC/DOCX, XLS/XLSX, JPEG, PNG, GIF, WebP |
+| Allowed types | PDF, DOC/DOCX, XLS/XLSX, JPEG, PNG, GIF, WebP, HTML/HTM |
 
 ### Upload flow
 

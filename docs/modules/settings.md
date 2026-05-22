@@ -31,7 +31,7 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsFaseTypes.jsx** | UI for managing onboarding phase types. |
 | **SettingsActivityTypes.jsx** | UI for managing onboarding activity types. |
 | **SettingsProjectTemplates.jsx** | UI for managing project templates with phases and activities. |
-| **SettingsAI.jsx** | UI for AI + Donkie configuration, consolidated into 4 sections: Models+Debug, WhatsApp Prompt, Donkie config, Email Prompt. Accessed via "Donkie IA" menu entry. |
+| **SettingsAI.jsx** | UI for AI + Donkie configuration, consolidated into 5 sections: Models+Debug, Histórico de Falhas, WhatsApp Prompt, Donkie config, Email Prompt. Accessed via "Donkie IA" menu entry. |
 | **SettingsDoncAPI.jsx** | UI for configuring the DONC API integration (manager‑only). |
 | **SettingsFeatureFlags.jsx** | UI for toggling feature flags across the system. |
 | **UserEditModal.jsx** | UI for personal profile editing (name, gender, birth_date, phone, avatar). |
@@ -92,7 +92,7 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 - Reduced UI depth
 - Improved consistency with other Settings pages
 - **DONC API** – configuration handled in `SettingsDoncAPI` (manager‑only).
-- **Donkie + AI** – consolidated into `SettingsAI` with 4 sections: Models+Debug, WhatsApp Prompt, Donkie config, Email Prompt. Menu entry "Donkie IA" gated by `ai` feature flag. `SettingsDonkie.jsx` deleted.
+- **Donkie + AI** – consolidated into `SettingsAI` with 5 sections: Models+Debug, Histórico de Falhas, WhatsApp Prompt, Donkie config, Email Prompt. Menu entry "Donkie IA" gated by `ai` feature flag. `SettingsDonkie.jsx` deleted.
 - **Health Score** – weights, thresholds and dimension rules persisted to Supabase tables.
 - **Feature Flags** – toggles that affect runtime feature availability.
 

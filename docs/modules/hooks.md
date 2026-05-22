@@ -23,6 +23,7 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useHealthScore.js` — compute health score, expose recalc mutation.
 - `useMilestones.js` — fetch milestones, create/update operations.
 - `useModulePricing.js` — obtain pricing data per module.
+- `useNotifications.js` — polls `notifications` table every 30s, returns `unreadCount`. Badge displayed on admin avatar in Navbar.
 - `useOnboardings.js` — list onboarding steps and status. Queries fetch fases with `onboarding_fase_types` (including `is_milestone`, `requires_evidence`, `allows_attachments`) and fase instance fields (`evidence_required`, `allows_attachments`). `createFasesFromTemplate` propagates `evidence_required` and `allows_attachments` from template fases.
 - `usePermissions.js` — load user‑permission matrix.
 - `useProfiles.js` — fetch profile list, current user profile.
@@ -89,6 +90,7 @@ UI components may hide certain blocks based on lifecycle_stage. Examples: operat
 - `src/hooks/useHealthScore.js`
 - `src/hooks/useMilestones.js`
 - `src/hooks/useModulePricing.js`
+- `src/hooks/useNotifications.js`
 - `src/hooks/useOnboardings.js`
 - `src/hooks/usePermissions.js`
 - `src/hooks/useProfiles.js`

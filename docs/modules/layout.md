@@ -8,6 +8,7 @@ Provides the base visual structure and global navigation for the application. `N
 - Determine navigation set based on user role (`analyst` vs others) and permission (`canViewSettings`).
 - Highlight active route via `NavLink` styling.
 - Show user avatar/initials, name, role.
+- Show red notification badge on admin avatar when unread model‑failure alerts exist (via `useNotifications` polling every 30s).
 - Offer dropdown with "Minha conta" (opens `UserEditModal`) and "Sair" (sign‑out, redirect to `/login`).
 - Expose commit hash in dropdown for version reference.
 - Clean up dropdown overlay on outside click.
@@ -42,6 +43,7 @@ The previous separate profile editing page in Settings (`SettingsMinhaConta`) ha
 - `react-router-dom` (`NavLink`, `useNavigate`).
 - `AuthContext` (`useAuth`).
 - `usePermissions` hook.
+- `useNotifications` hook — polls unread notification count for admin badge.
 - UI components: `UserEditModal`.
 - Tailwind CSS utilities for layout and colors.
 
