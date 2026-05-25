@@ -29,6 +29,16 @@ This document lists external integration points in the application, indicating w
 
 ---
 
+## n8n (Operational Reports)
+
+- **External system:** n8n — workflow automation platform.
+- **Purpose:** Receive monthly operational data synced from DONC webhub (OS, problemas, produtividade) and upsert into `client_operational_reports`.
+- **Dependent modules:** Edge Function `operational-report-sync` decodes the payload, resolves `client_id` via `client_donc_instances.contrato_saas_id`, and upserts into `client_operational_reports`.
+- **Communication location:** POST → `https://etfeqblaeuhaobefxilp.supabase.co/functions/v1/operational-report-sync` with `Authorization: Bearer <service_role_key>`. Body: `{ saas_id, period, data_os, data_problemas, data_produtividade }`.
+- **Migration:** `20260528000000_client_operational_reports.sql`
+
+---
+
 ## OpenRouter (Donkie)
 
 - **External system:** OpenRouter – AI service providing language models (ChatGPT, Claude, etc.).

@@ -228,6 +228,28 @@ This ensures that early-stage companies see only relevant information and the in
 
 ---
 
+## External Data Ingestion Flow
+
+This flow describes how operational data is ingested from external systems via Edge Functions.
+
+### n8n → Operational Reports
+
+1. **n8n workflow** sends monthly operational data (OS, problemas, produtividade) to the Edge Function.
+2. **`operational-report-sync`** receives the POST with `{ saas_id, period, data_os, data_problemas, data_produtividade }`.
+3. **Auth check:** validates Bearer token against `SUPABASE_SERVICE_ROLE_KEY`.
+4. **Client resolution:** queries `client_donc_instances` to find `client_id` from `contrato_saas_id`.
+5. **Upsert:** inserts or updates `client_operational_reports` with `status = 'done'` and `processed_at = now()`.
+6. **Error handling:** on upsert failure, saves record with `status = 'error'` and `error_message`.
+7. **Response:** returns `{ ok, client_id, period, action }` to n8n.
+
+```
+n8n ──POST──> operational-report-sync (Edge Function)
+                    │
+                    ├─ resolve client_id via client_donc_instances.contrato_saas_id
+                    │
+                    └─ upsert → client_operational_reports (client_id, period)
+```
+
 ## Global State Flow
 
 Global state is managed through:

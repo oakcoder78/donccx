@@ -124,6 +124,7 @@ Sinais são derivados de eventos operacionais, como:
 - Aumento de tickets
 - Ausência de interação
 - Mudanças financeiras
+- Dados operacionais mensais (OS, problemas, produtividade) ingeridos via n8n
 
 Esses sinais alimentam os modelos analíticos do sistema, permitindo que o Health Score e outros mecanismos detectem tendências antes que se tornem críticas.
 
