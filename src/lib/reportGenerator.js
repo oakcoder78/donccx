@@ -66,6 +66,7 @@ export function defaultSections() {
     { id: 'escala',         type: 'escala',         title: 'Escala da Operação',enabled: true, content: { callout: '' }, extras: [] },
     { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: true, content: { callout: '' }, extras: [] },
     { id: 'qualidade_operacao', type: 'qualidade_operacao', title: 'Qualidade da Operação', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'categorias_ocorrencia', type: 'categorias_ocorrencia', title: 'Categorias de Ocorrência', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
     { id: 'suporte',        type: 'suporte',        title: 'Suporte',           enabled: true, content: { callout: '' }, extras: [] },
     { id: 'projetos',       type: 'projetos',       title: 'Projetos',          enabled: true, content: { callout: '' }, extras: [] },
     { id: 'health_score',   type: 'health_score',   title: 'Health Score',      enabled: true, content: {},             extras: [] },
@@ -724,6 +725,49 @@ function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
   return slide('✅', 'Qualidade da Operação', body, clientName, period, p, subtitle)
 }
 
+function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) {
+  const rawMotivos = operationalData?.current?.data_os?.sumario?.motivos_ocorrencia || []
+  const motivosComTotal = rawMotivos.filter(m => m.total > 0)
+  const totalGeral = rawMotivos.reduce((s, m) => s + m.total, 0)
+  const top8 = motivosComTotal.slice(0, 8)
+
+  const truncate = (str, max = 40) =>
+    str.length > max ? str.slice(0, max) + '...' : str
+
+  const mesLabel = periodLabel(period)
+  const dynamicSubtitle = motivosComTotal.length
+    ? `${motivosComTotal.length} categorias · Total: ${totalGeral.toLocaleString('pt-BR')} ocorrências em ${mesLabel}`
+    : ''
+  const subtitle = sec.subtitle || dynamicSubtitle
+
+  const maxVal = Math.max(...top8.map(m => m.total), 1)
+
+  const barsHTML = top8.length
+    ? `<div style="margin:16px 0;">${top8.map(m => {
+        const pct = Math.round((m.total / maxVal) * 100)
+        return `
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+          <span style="min-width:200px;font-size:13px;color:${C.text};font-weight:500;" title="${m.motivo}">${truncate(m.motivo)}</span>
+          <div style="flex:1;background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
+            <div style="background:${C.sky};width:${pct}%;height:100%;border-radius:999px;"></div>
+          </div>
+          <span style="min-width:50px;text-align:right;font-size:13px;font-weight:700;color:${C.text};">${m.total.toLocaleString('pt-BR')}</span>
+        </div>`
+      }).join('')}</div>`
+    : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhuma ocorrência registrada neste período.</p>`
+
+  const footerNote = motivosComTotal.length
+    ? `<div style="font-size:11px;color:${C.textLight};font-style:italic;margin-top:8px;">Ocorrências registradas pelos profissionais através do App Donc.</div>`
+    : ''
+
+  const body = `
+    ${barsHTML}
+    ${footerNote}
+    ${calloutBlock(sec.content?.callout ?? '', C.yellow)}`
+
+  return slide('⚠️', 'Categorias de Ocorrência', body, clientName, period, p, subtitle)
+}
+
 function slideProximosPassos(sec, clientName, period, p) {
   return slide('🎯', 'Próximos Passos',
     nextStepsList(sec.content?.items ?? []),
@@ -825,6 +869,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
       if (s.type === 'proximos_passos') return slideProximosPassos(s, clientName, period, p)
       if (s.type === 'indicadores_operacionais') return slideIndicadoresOperacionais(s, operationalData, clientName, period, p)
       if (s.type === 'qualidade_operacao') return slideQualidadeOperacao(s, operationalData, clientName, period, p)
+      if (s.type === 'categorias_ocorrencia') return slideCategoriasOcorrencia(s, operationalData, clientName, period, p)
       if (s.type === 'custom-text')     return slideCustomText(s, clientName, period, p)
       if (s.type === 'custom-image')    return slideCustomImage(s, clientName, period, p)
       if (s.type === 'custom-metrics')  return slideCustomMetrics(s, clientName, period, p)

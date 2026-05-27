@@ -3,6 +3,7 @@
 
 import {
   Activity,
+  AlertTriangle,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -81,6 +82,7 @@ import {
 
 export const Icons = {
   Activity,
+  AlertTriangle,
   AlignCenter,
   AlignLeft,
   AlignRight,
