@@ -34,6 +34,7 @@ const SECTION_ICONS = {
   'custom-image': Icons.Image,
   'custom-metrics': Icons.BarChart3,
   'custom-bars': Icons.BarChart3,
+  indicadores_operacionais: Icons.Clock,
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -638,8 +639,8 @@ function SectionEditor({
   onAddBarsItem, onUpdateBarsItem, onRemoveBarsItem,
   onUpdateSection,
 }) {
-  const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics'].includes(sec.type)
-  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score'].includes(sec.type)
+  const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics','indicadores_operacionais'].includes(sec.type)
+  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais'].includes(sec.type)
   const isAdding    = addingExtra === sec.id
   const isCapa      = sec.type === 'capa'
 
@@ -815,6 +816,28 @@ function SectionEditor({
                 <input type="number" value={sec.content?.overrideTaxaResolucao ?? ''}
                   onChange={e => onContent('overrideTaxaResolucao', e.target.value === '' ? null : Number(e.target.value))}
                   placeholder="Automático" min="0" max="100" className="input-base w-full text-sm" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Override de métricas automáticas: indicadores ── */}
+        {sec.type === 'indicadores_operacionais' && (
+          <div className="border-t border-border-tertiary pt-4">
+            <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
+            <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
+            <div className="flex flex-col gap-2">
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Tempo médio de execução (min)</label>
+                <input type="number" value={sec.content?.overrideExecMin ?? ''}
+                  onChange={e => onContent('overrideExecMin', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Tempo em trânsito (min)</label>
+                <input type="number" value={sec.content?.overrideTransitoMin ?? ''}
+                  onChange={e => onContent('overrideTransitoMin', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
               </div>
             </div>
           </div>

@@ -70,6 +70,7 @@ export function defaultSections() {
     { id: 'destaques',      type: 'destaques',      title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
     { id: 'contexto',       type: 'contexto',       title: 'Contexto Externo',  enabled: true, content: { text: '' },   extras: [] },
     { id: 'proximos_passos',type: 'proximos_passos',title: 'Próximos Passos',   enabled: true, content: { items: [] },  extras: [] },
+    { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: false, content: { callout: '' }, extras: [] },
   ]
 }
 
@@ -595,6 +596,66 @@ function slideContexto(sec, clientName, period, p) {
   return slide('🌐', 'Contexto Externo', body, clientName, period, p, sec.subtitle)
 }
 
+function slideIndicadoresOperacionais(sec, operationalData, clientName, period, p) {
+  const cur = operationalData?.current
+
+  const rawExecMin     = cur?.data_produtividade?.sumario?.tempo_execucao_medio_minutos
+  const rawTransitoMin = cur?.data_produtividade?.sumario?.tempo_transito_medio_minutos
+
+  // Override support — valor é substituível, delta sempre do dado real
+  const execMin     = sec.content?.overrideExecMin ?? rawExecMin
+  const transitoMin = sec.content?.overrideTransitoMin ?? rawTransitoMin
+
+  // Delta para tempo: direção real, cor invertida
+  function deltaTempo(curVal, prevVal) {
+    if (curVal == null || prevVal == null || prevVal === 0) return { d: null, t: 'neutral', dc: 'gray' }
+    const pct = ((curVal - prevVal) / prevVal) * 100
+    const signal = pct >= 0 ? '+' : ''
+    const up = pct > 0
+    return {
+      d: `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`,
+      t: up ? 'up' : 'down',
+      dc: up ? 'red' : 'green',
+    }
+  }
+
+  const prev = operationalData?.prev
+  const dExec = deltaTempo(rawExecMin, prev?.data_produtividade?.sumario?.tempo_execucao_medio_minutos)
+  const dTrans = deltaTempo(rawTransitoMin, prev?.data_produtividade?.sumario?.tempo_transito_medio_minutos)
+
+  const autoCards = []
+  if (execMin != null)
+    autoCards.push(kpiCard({
+      label: 'Tempo médio de execução',
+      value: `${execMin} min`,
+      sublabel: 'Por ordem de serviço',
+      delta: dExec.d,
+      deltaType: dExec.t,
+      deltaColor: dExec.dc,
+      accentColor: 'sky',
+    }))
+  if (transitoMin != null)
+    autoCards.push(kpiCard({
+      label: 'Tempo em trânsito',
+      value: `${transitoMin} min`,
+      sublabel: 'Deslocamento médio até o cliente',
+      delta: dTrans.d,
+      deltaType: dTrans.t,
+      deltaColor: dTrans.dc,
+      accentColor: 'lime',
+    }))
+
+  const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor })
+  )]
+
+  const body = `
+    ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 1), 3)) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado operacional disponível para este período.</p>`}
+    ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
+
+  return slide('⏱️', 'Indicadores Operacionais', body, clientName, period, p, sec.subtitle)
+}
+
 function slideProximosPassos(sec, clientName, period, p) {
   return slide('🎯', 'Próximos Passos',
     nextStepsList(sec.content?.items ?? []),
@@ -694,6 +755,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
       if (s.type === 'destaques')       return slideDestaques(s, clientName, period, p)
       if (s.type === 'contexto')        return slideContexto(s, clientName, period, p)
       if (s.type === 'proximos_passos') return slideProximosPassos(s, clientName, period, p)
+      if (s.type === 'indicadores_operacionais') return slideIndicadoresOperacionais(s, operationalData, clientName, period, p)
       if (s.type === 'custom-text')     return slideCustomText(s, clientName, period, p)
       if (s.type === 'custom-image')    return slideCustomImage(s, clientName, period, p)
       if (s.type === 'custom-metrics')  return slideCustomMetrics(s, clientName, period, p)
