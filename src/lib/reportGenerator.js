@@ -67,6 +67,7 @@ export function defaultSections() {
     { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: true, content: { callout: '' }, extras: [] },
     { id: 'qualidade_operacao', type: 'qualidade_operacao', title: 'Qualidade da Operação', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
     { id: 'categorias_ocorrencia', type: 'categorias_ocorrencia', title: 'Categorias de Ocorrência', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'desempenho_operacional', type: 'desempenho_operacional', title: 'Desempenho Operacional', subtitle: 'Produtividade dos profissionais em campo', enabled: false, content: { callout: '' }, extras: [] },
     { id: 'suporte',        type: 'suporte',        title: 'Suporte',           enabled: true, content: { callout: '' }, extras: [] },
     { id: 'projetos',       type: 'projetos',       title: 'Projetos',          enabled: true, content: { callout: '' }, extras: [] },
     { id: 'health_score',   type: 'health_score',   title: 'Health Score',      enabled: true, content: {},             extras: [] },
@@ -255,6 +256,58 @@ function barChartV(usageHistory, period) {
   return `<div style="margin-top:24px;">
     <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">O.S. Criadas — Histórico</div>
     <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="display:block;overflow:visible;">${bars}</svg>
+  </div>`
+}
+
+function barChartTipoOS(porTipoAtual, porTipoPrev, period) {
+  if (!porTipoAtual || !Object.keys(porTipoAtual).length) return ''
+
+  const CORES = {
+    'Montagem': C.sky,
+    'Desmontagem': '#94a3b8',
+    'Assistência': C.lime,
+  }
+  const OUTRA_COR = '#cbd5e1'
+
+  function computeBars(porTipo) {
+    const tipos = Object.entries(porTipo).filter(([, v]) => v > 0)
+    const total = tipos.reduce((s, [, v]) => s + v, 0) || 1
+    let accX = 0
+    const svgW = 340, barH = 36
+    const segs = tipos.map(([label, val]) => {
+      const pct = (val / total) * 100
+      const w = Math.max(2, (val / total) * svgW)
+      const x = accX
+      accX += w
+      const color = CORES[label.split(' ')[0]] || OUTRA_COR
+      return { x, w, label, val, pct, color }
+    })
+    return { segs, total, svgW, barH }
+  }
+
+  const cur = computeBars(porTipoAtual)
+  const prev = porTipoPrev ? computeBars(porTipoPrev) : null
+
+  function renderBar(data, label) {
+    const pctLabel = data.segs.map(s => ` ${s.label}: ${s.val} (${s.pct.toFixed(0)}%)`).join(' · ')
+    return `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:${C.textLight};margin-bottom:6px;">${label}</div>
+      <svg viewBox="0 0 ${data.svgW} ${data.barH}" width="100%" style="display:block;border-radius:6px;overflow:hidden;">
+        ${data.segs.map(s => `<rect x="${s.x}" y="0" width="${s.w}" height="${data.barH}" fill="${s.color}" />`).join('')}
+      </svg>
+      <div style="font-size:10px;color:${C.textLight};margin-top:4px;">${pctLabel}</div>
+    </div>`
+  }
+
+  const periodLabelStr = periodLabel(period)
+
+  return `<div style="margin-top:24px;">
+    <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Composição das OS</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      ${prev ? renderBar(prev, 'Mês anterior') : ''}
+      ${renderBar(cur, periodLabelStr)}
+    </div>
   </div>`
 }
 
@@ -452,8 +505,13 @@ function slideEscala(sec, usageHistory, period, clientName, p, operationalData =
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
 
+  const porTipoAtual = operationalData?.current?.data_os?.sumario?.por_tipo
+  const porTipoPrev  = operationalData?.prev?.data_os?.sumario?.por_tipo
+  const tipoChart = barChartTipoOS(porTipoAtual, porTipoPrev, period)
+
   const body = `
     ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 2), 4)) : ''}
+    ${tipoChart}
     ${calloutBlock(sec.content?.callout, C.sky)}
     ${barChartV(usageHistory, period)}`
 
@@ -714,6 +772,31 @@ function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
       accentColor: 'red',
     }))
 
+  // ── Pontualidade ────────────────────────────────────────
+  const pont = operationalData?.current?.data_os?.tempos?.pontualidade
+  const pontPrev = operationalData?.prev?.data_os?.tempos?.pontualidade
+  if (pont?.percentual_pontualidade != null) {
+    let deltaPont = { d: null, t: 'neutral', dc: 'gray' }
+    if (pontPrev?.percentual_pontualidade != null) {
+      const diff = (pont.percentual_pontualidade - pontPrev.percentual_pontualidade).toFixed(1).replace('.', ',')
+      const up = diff > 0
+      deltaPont = {
+        d: `${up ? '+' : ''}${diff} pp vs mês anterior`,
+        t: up ? 'up' : 'down',
+        dc: up ? 'green' : 'red',
+      }
+    }
+    autoCards.push(kpiCard({
+      label: 'Pontualidade',
+      value: `${pont.percentual_pontualidade}%`,
+      sublabel: `${pont.no_prazo.toLocaleString('pt-BR')} OS no prazo · atraso médio ${pont.atraso_medio_dias} dias`,
+      delta: deltaPont.d,
+      deltaType: deltaPont.t,
+      deltaColor: deltaPont.dc,
+      accentColor: 'yellow',
+    }))
+  }
+
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor })
   )]
@@ -728,44 +811,129 @@ function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
 function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) {
   const rawMotivos = operationalData?.current?.data_os?.sumario?.motivos_ocorrencia || []
   const motivosComTotal = rawMotivos.filter(m => m.total > 0)
-  const totalGeral = rawMotivos.reduce((s, m) => s + m.total, 0)
-  const top8 = motivosComTotal.slice(0, 8)
+  const topOcorrencias = motivosComTotal.slice(0, 5)
+  const totalOcorrencias = rawMotivos.reduce((s, m) => s + m.total, 0)
+
+  const rawCancelamentos = operationalData?.current?.data_os?.sumario?.motivos_cancelamento || []
+  const cancelComTotal = rawCancelamentos.filter(m => m.total > 0)
+  const topCancelamentos = cancelComTotal.slice(0, 3)
+  const totalCancelamentos = rawCancelamentos.reduce((s, m) => s + m.total, 0)
 
   const truncate = (str, max = 40) =>
     str.length > max ? str.slice(0, max) + '...' : str
 
   const mesLabel = periodLabel(period)
-  const dynamicSubtitle = motivosComTotal.length
-    ? `${motivosComTotal.length} categorias · Total: ${totalGeral.toLocaleString('pt-BR')} ocorrências em ${mesLabel}`
-    : ''
+  const parts = []
+  if (motivosComTotal.length) parts.push(`${totalOcorrencias} ocorrências`)
+  if (cancelComTotal.length) parts.push(`${totalCancelamentos} cancelamentos`)
+  const dynamicSubtitle = parts.length ? parts.join(' · ') + ` em ${mesLabel}` : ''
   const subtitle = sec.subtitle || dynamicSubtitle
 
-  const maxVal = Math.max(...top8.map(m => m.total), 1)
+  function renderBarras(items, cor) {
+    if (!items.length) return ''
+    const maxVal = Math.max(...items.map(m => m.total), 1)
+    return `<div style="margin:12px 0;">${items.map(m => {
+      const pct = Math.round((m.total / maxVal) * 100)
+      return `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+        <span style="min-width:200px;font-size:13px;color:${C.text};font-weight:500;" title="${m.motivo}">${truncate(m.motivo)}</span>
+        <div style="flex:1;background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
+          <div style="background:${cor};width:${pct}%;height:100%;border-radius:999px;"></div>
+        </div>
+        <span style="min-width:50px;text-align:right;font-size:13px;font-weight:700;color:${C.text};">${m.total.toLocaleString('pt-BR')}</span>
+      </div>`
+    }).join('')}</div>`
+  }
 
-  const barsHTML = top8.length
-    ? `<div style="margin:16px 0;">${top8.map(m => {
-        const pct = Math.round((m.total / maxVal) * 100)
-        return `
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-          <span style="min-width:200px;font-size:13px;color:${C.text};font-weight:500;" title="${m.motivo}">${truncate(m.motivo)}</span>
-          <div style="flex:1;background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
-            <div style="background:${C.sky};width:${pct}%;height:100%;border-radius:999px;"></div>
-          </div>
-          <span style="min-width:50px;text-align:right;font-size:13px;font-weight:700;color:${C.text};">${m.total.toLocaleString('pt-BR')}</span>
-        </div>`
-      }).join('')}</div>`
-    : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhuma ocorrência registrada neste período.</p>`
+  const ocorrenciasHTML = topOcorrencias.length
+    ? subTitle('Ocorrências') + renderBarras(topOcorrencias, C.sky)
+    : ''
+
+  const cancelamentosHTML = topCancelamentos.length
+    ? subTitle('Cancelamentos') + renderBarras(topCancelamentos, C.red)
+    : ''
+
+  const semDados = !topOcorrencias.length && !topCancelamentos.length
 
   const footerNote = motivosComTotal.length
     ? `<div style="font-size:11px;color:${C.textLight};font-style:italic;margin-top:8px;">Ocorrências registradas pelos profissionais através do App Donc.</div>`
     : ''
 
   const body = `
-    ${barsHTML}
+    ${semDados ? `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado disponível para este período.</p>` : ''}
+    ${ocorrenciasHTML}
+    ${cancelamentosHTML}
     ${footerNote}
     ${calloutBlock(sec.content?.callout ?? '', C.yellow)}`
 
   return slide('⚠️', 'Categorias de Ocorrência', body, clientName, period, p, subtitle)
+}
+
+function slideDesempenhoOperacional(sec, operationalData, clientName, period, p) {
+  const cur = operationalData?.current
+  const ranking = cur?.data_os?.operacional?.ranking_profissionais || []
+  const top10 = ranking.slice(0, 10)
+
+  if (!top10.length) {
+    const body = `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de desempenho disponível para este período.</p>`
+    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
+  }
+
+  const normalize = (str) =>
+    (str || '').replace(/\b\w/g, c => c.toUpperCase()).replace(/\s+/g, ' ').trim()
+
+  const totalProf = cur?.data_produtividade?.sumario?.total_profissionais || ranking.length
+  const indiceMedio = cur?.data_produtividade?.sumario?.indice_produtividade_medio
+  const diasTrab = cur?.data_produtividade?.sumario?.total_dias_trabalhados
+
+  const headerCards = []
+  if (totalProf) headerCards.push(kpiCard({ label: 'Profissionais Ativos', value: totalProf, accentColor: 'sky' }))
+  if (indiceMedio != null) headerCards.push(kpiCard({ label: 'Índice Médio', value: `${indiceMedio}%`, accentColor: 'lime' }))
+  if (diasTrab) headerCards.push(kpiCard({ label: 'Dias Trabalhados', value: diasTrab, accentColor: 'navy' }))
+
+  const maxOS = Math.max(...top10.map(p => p.total_os), 1)
+  const rows = top10.map((p, i) => {
+    const sucesso = p.finalizadas_sucesso || 0
+    const indice = p.total_os > 0 ? Math.round((sucesso / p.total_os) * 100) : 0
+    const isTop3 = i < 3 && indice >= 90
+    const isBaixo = indice < 70 && indice > 0
+    return `
+    <tr style="border-bottom:1px solid ${C.border};">
+      <td style="padding:8px 6px 8px 0;font-size:13px;font-weight:600;color:${C.text};">${normalize(p.profissional || p.parceiro)}</td>
+      <td style="padding:8px 6px;text-align:center;">
+        <div style="background:${C.border};border-radius:999px;height:6px;width:80px;overflow:hidden;display:inline-block;vertical-align:middle;">
+          <div style="background:${C.sky};width:${Math.round((p.total_os / maxOS) * 100)}%;height:100%;border-radius:999px;"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:${C.text};margin-left:6px;">${p.total_os}</span>
+      </td>
+      <td style="padding:8px 6px;text-align:center;font-size:13px;font-weight:700;color:${isBaixo ? C.red : isTop3 ? C.green : C.text};">
+        ${indice}%
+        ${isTop3 ? `<span style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#f0fff4;color:#276749;font-size:9px;font-weight:700;">Destaque</span>` : ''}
+        ${isBaixo ? `<span style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#fff5f5;color:#9b2c2c;font-size:9px;font-weight:700;">Atenção</span>` : ''}
+      </td>
+      <td style="padding:8px 0 8px 6px;text-align:right;font-size:13px;color:${p.canceladas > 0 ? C.red : C.textLight};">${p.canceladas || 0}</td>
+    </tr>`
+  }).join('')
+
+  const body = `
+    ${headerCards.length ? kpiGrid(headerCards, Math.min(headerCards.length, 3)) : ''}
+    <div style="margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Top 10 Profissionais</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:2px solid ${C.border};">
+            <th style="text-align:left;padding:6px 6px 6px 0;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Profissional</th>
+            <th style="text-align:center;padding:6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">OS</th>
+            <th style="text-align:center;padding:6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Índice</th>
+            <th style="text-align:right;padding:6px 0 6px 6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Cancel.</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
+
+  return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
 }
 
 function slideProximosPassos(sec, clientName, period, p) {
@@ -870,6 +1038,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
       if (s.type === 'indicadores_operacionais') return slideIndicadoresOperacionais(s, operationalData, clientName, period, p)
       if (s.type === 'qualidade_operacao') return slideQualidadeOperacao(s, operationalData, clientName, period, p)
       if (s.type === 'categorias_ocorrencia') return slideCategoriasOcorrencia(s, operationalData, clientName, period, p)
+      if (s.type === 'desempenho_operacional') return slideDesempenhoOperacional(s, operationalData, clientName, period, p)
       if (s.type === 'custom-text')     return slideCustomText(s, clientName, period, p)
       if (s.type === 'custom-image')    return slideCustomImage(s, clientName, period, p)
       if (s.type === 'custom-metrics')  return slideCustomMetrics(s, clientName, period, p)

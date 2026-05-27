@@ -37,6 +37,7 @@ const SECTION_ICONS = {
   indicadores_operacionais: Icons.Clock,
   qualidade_operacao: Icons.CheckCircle,
   categorias_ocorrencia: Icons.AlertTriangle,
+  desempenho_operacional: Icons.TrendingUp,
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -642,7 +643,7 @@ function SectionEditor({
   onUpdateSection,
 }) {
   const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics','indicadores_operacionais','qualidade_operacao'].includes(sec.type)
-  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais','qualidade_operacao','categorias_ocorrencia'].includes(sec.type)
+  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais','qualidade_operacao','categorias_ocorrencia','desempenho_operacional'].includes(sec.type)
   const isAdding    = addingExtra === sec.id
   const isCapa      = sec.type === 'capa'
 
