@@ -387,7 +387,7 @@ function slideCapa(client, report, csm, capaContent) {
 
 // ── Slides de seções ──────────────────────────────────────────
 
-function slideEscala(sec, usageHistory, period, clientName, p) {
+function slideEscala(sec, usageHistory, period, clientName, p, operationalData = null) {
   const cur  = usageHistory.find(u => u.ref_month === period)
   const prev = usageHistory.find(u => u.ref_month === prevMonthStr(period))
 
@@ -403,12 +403,47 @@ function slideEscala(sec, usageHistory, period, clientName, p) {
   const du = delta(curUsers, prev?.active_users)
   const dos = delta(curOs, prev?.os_created)
 
-  // OS Criadas primeiro, Usuários Ativos segundo
+  // ── KPI automático: Produtos Montados ─────────────────────
+  let autoProdutosMontados = null
+  if (operationalData?.current) {
+    const curOp     = operationalData.current
+    const prevOp    = operationalData.prev
+    const totalProd = curOp.data_produtividade?.sumario?.total_produtos
+    const mediaProd = curOp.data_os?.operacional?.media_produtos_por_os
+    const jaTemManual = (sec.extras || []).some(e =>
+      e.label?.toLowerCase().includes('produto') && e.label?.toLowerCase().includes('montado')
+    )
+    if (totalProd != null && !jaTemManual) {
+      const totalAnterior = prevOp?.data_produtividade?.sumario?.total_produtos
+      let deltaStr = null
+      let deltaType = 'neutral'
+      if (totalAnterior != null && totalAnterior !== 0) {
+        const pct = ((totalProd - totalAnterior) / totalAnterior) * 100
+        const signal = pct >= 0 ? '+' : ''
+        deltaStr = `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`
+        deltaType = pct >= 0 ? 'up' : 'down'
+      }
+      const mediaStr = mediaProd != null
+        ? `Média de ${mediaProd.toFixed(2).replace('.', ',')} produtos por OS`
+        : null
+      autoProdutosMontados = kpiCard({
+        label: 'Produtos Montados',
+        value: totalProd.toLocaleString('pt-BR'),
+        sublabel: mediaStr,
+        delta: deltaStr,
+        deltaType,
+        accentColor: 'navy',
+      })
+    }
+  }
+
+  // OS Criadas, Usuários Ativos, Produtos Montados
   const autoCards = []
   if (curOs != null)
     autoCards.push(kpiCard({ label: 'O.S. Criadas', value: curOs, sublabel: 'mês atual', delta: dos.d, deltaType: dos.t, accentColor: 'lime' }))
   if (curUsers != null)
     autoCards.push(kpiCard({ label: 'Usuários Ativos', value: curUsers, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
+  if (autoProdutosMontados) autoCards.push(autoProdutosMontados)
 
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
@@ -630,11 +665,11 @@ function slideCustomBars(sec, clientName, period, p) {
  * @param {object} client
  * @param {object} report — { title, period, sections[] }
  * @param {object|null} csm
- * @param {object} extraData — { usageHistory, supportRaw, healthData, projects }
+ * @param {object} extraData — { usageHistory, supportRaw, healthData, projects, operationalData }
  */
 export function generateReportHTML(client, report, csm, extraData = {}) {
   const { sections: rawSecs = [], period = '', title = 'Relatório Mensal' } = report || {}
-  const { usageHistory = [], supportRaw = null, healthData = null, projects = [] } = extraData
+  const { usageHistory = [], supportRaw = null, healthData = null, projects = [], operationalData = null } = extraData
 
   const sections   = normalizeSections(rawSecs)
   const clientName = client?.fantasy_name || client?.name || '—'
@@ -651,7 +686,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
     .filter(s => s.type !== 'capa' && s.enabled !== false)
     .map(s => {
       const p = pageNum++
-      if (s.type === 'escala')          return slideEscala(s, usageHistory, period, clientName, p)
+      if (s.type === 'escala')          return slideEscala(s, usageHistory, period, clientName, p, operationalData)
       if (s.type === 'suporte')         return slideSuporte(s, supportRaw, clientName, period, p)
       if (s.type === 'projetos')        return slideProjetos(s, projects, clientName, period, p)
       if (s.type === 'health_score')    return slideHealthScore(s, healthData, clientName, period, p)

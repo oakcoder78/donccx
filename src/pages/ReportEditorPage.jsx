@@ -89,8 +89,9 @@ export default function ReportEditorPage() {
 
   // ── Dados externos ──────────────────────────────────────
   const [usageHistory, setUsageHistory] = useState([])
-  const [supportRaw,   setSupportRaw]   = useState(null)
-  const [dataLoaded,   setDataLoaded]   = useState(false)
+  const [supportRaw,      setSupportRaw]      = useState(null)
+  const [operationalData, setOperationalData] = useState(null)
+  const [dataLoaded,      setDataLoaded]      = useState(false)
 
   // ── Modais / UI ──────────────────────────────────────────
   const [showNewModal,  setShowNewModal]  = useState(false)
@@ -119,13 +120,17 @@ export default function ReportEditorPage() {
     setActiveId(secs[0]?.id ?? 'capa')
   }, [report?.id])
 
-  // ── Effect: fetch usage/support data ────────────────────
+  // ── Effect: fetch usage/support/operational data ────────
   useEffect(() => {
     if (!clientId || !report?.period) return
     const period = report.period
     const months = getLast12Months(period)
     ;(async () => {
-      const [{ data: hist }, { data: sup }] = await Promise.all([
+      const [y, m] = period.split('-').map(Number)
+      const prevDt = new Date(y, m - 2, 1)
+      const prevP = `${prevDt.getFullYear()}-${String(prevDt.getMonth() + 1).padStart(2, '0')}`
+
+      const [{ data: hist }, { data: sup }, { data: opCurr }, { data: opPrev }] = await Promise.all([
         supabase.from('client_usage')
           .select('ref_month,os_created,active_users')
           .eq('client_id', clientId)
@@ -135,9 +140,20 @@ export default function ReportEditorPage() {
           .eq('client_id', clientId)
           .eq('ref_month', period)
           .maybeSingle(),
+        supabase.from('client_operational_reports')
+          .select('data_os, data_produtividade')
+          .eq('client_id', clientId)
+          .eq('period', period)
+          .maybeSingle(),
+        supabase.from('client_operational_reports')
+          .select('data_produtividade')
+          .eq('client_id', clientId)
+          .eq('period', prevP)
+          .maybeSingle(),
       ])
       setUsageHistory(hist ?? [])
       setSupportRaw(sup ?? null)
+      setOperationalData({ current: opCurr, prev: opPrev })
       setDataLoaded(true)
     })()
   }, [clientId, report?.period])
@@ -187,9 +203,9 @@ export default function ReportEditorPage() {
       client,
       { ...report, sections },
       csm,
-      { usageHistory, supportRaw, healthData, projects }
+      { usageHistory, supportRaw, healthData, projects, operationalData }
     )
-  }, [client, report, sections, csm, usageHistory, supportRaw, healthData, projects])
+  }, [client, report, sections, csm, usageHistory, supportRaw, healthData, projects, operationalData])
 
   // ── Section helpers ──────────────────────────────────────
   function updateSection(id, changes) {
