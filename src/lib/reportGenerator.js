@@ -408,8 +408,9 @@ function slideEscala(sec, usageHistory, period, clientName, p, operationalData =
   if (operationalData?.current) {
     const curOp     = operationalData.current
     const prevOp    = operationalData.prev
-    const totalProd = curOp.data_produtividade?.sumario?.total_produtos
+    const rawProd   = curOp.data_produtividade?.sumario?.total_produtos
     const mediaProd = curOp.data_os?.operacional?.media_produtos_por_os
+    const totalProd = sec.content?.overrideProdutosMontados ?? rawProd
     const jaTemManual = (sec.extras || []).some(e =>
       e.label?.toLowerCase().includes('produto') && e.label?.toLowerCase().includes('montado')
     )
@@ -417,8 +418,8 @@ function slideEscala(sec, usageHistory, period, clientName, p, operationalData =
       const totalAnterior = prevOp?.data_produtividade?.sumario?.total_produtos
       let deltaStr = null
       let deltaType = 'neutral'
-      if (totalAnterior != null && totalAnterior !== 0) {
-        const pct = ((totalProd - totalAnterior) / totalAnterior) * 100
+      if (rawProd != null && totalAnterior != null && totalAnterior !== 0) {
+        const pct = ((rawProd - totalAnterior) / totalAnterior) * 100
         const signal = pct >= 0 ? '+' : ''
         deltaStr = `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`
         deltaType = pct >= 0 ? 'up' : 'down'

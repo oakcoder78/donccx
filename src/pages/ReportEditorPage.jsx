@@ -777,6 +777,12 @@ function SectionEditor({
                   onChange={e => onContent('overrideUsers', e.target.value === '' ? null : Number(e.target.value))}
                   placeholder="Automático" className="input-base w-full text-sm" />
               </div>
+              <div>
+                <label className="text-xs text-text-tertiary block mb-1">Produtos Montados</label>
+                <input type="number" value={sec.content?.overrideProdutosMontados ?? ''}
+                  onChange={e => onContent('overrideProdutosMontados', e.target.value === '' ? null : Number(e.target.value))}
+                  placeholder="Automático" className="input-base w-full text-sm" />
+              </div>
             </div>
           </div>
         )}
