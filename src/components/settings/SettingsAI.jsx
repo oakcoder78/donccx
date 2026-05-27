@@ -6,9 +6,9 @@ import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
 
 const FALLBACK_MODELS = [
-  'openai/gpt-oss-20b:free',
+  'openai/gpt-oss-120b:free',
+  'google/gemini-2.5-flash-lite',
   'openrouter/free',
-  'nvidia/nemotron-3-super-120b-a12b-20230311:free',
 ]
 
 const S = {

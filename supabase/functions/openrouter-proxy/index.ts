@@ -6,6 +6,7 @@
  * O campo `model` do body recebido é ignorado — usa sempre a lista configurada.
  *
  * Secrets necessários: OPENROUTER_API_KEY, SUPABASE_SERVICE_ROLE_KEY
+ * Auto-injetados: SUPABASE_URL, SUPABASE_ANON_KEY
  * Body: { messages: ChatMessage[] }
  */
 
@@ -47,15 +48,20 @@ function getCorsHeaders(origin: string | null) {
 
 /** Fallback hardcoded — usado quando Supabase não retornar modelos configurados. */
 const FALLBACK_MODELS = [
-  'openai/gpt-oss-20b:free',
+  'openai/gpt-oss-120b:free',
+  'google/gemini-2.5-flash-lite',
   'openrouter/free',
-  'nvidia/nemotron-3-super-120b-a12b-20230311:free',
 ]
 
-const TIMEOUT_MS = 15_000
+const TIMEOUT_MS = 30_000
+
+function getSbKey(): string | null {
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? null
+}
 
 /**
  * Busca a lista de modelos configurada no Supabase.
+ * Requer SUPABASE_SERVICE_ROLE_KEY (precisa bypassar RLS em freshdesk_config).
  * Retorna FALLBACK_MODELS se falhar ou estiver vazio.
  */
 async function loadModels(): Promise<string[]> {
@@ -121,7 +127,7 @@ if (req.method === "OPTIONS") {
     })
 
 try {
-  // ── VALIDAR TOKEN JWT (CORREÇÃO CRÍTICA)
+  // ── VALIDAR TOKEN JWT ──────────────────────────────────────────────────
 
   const authHeader = req.headers.get('Authorization') ?? ''
 
@@ -137,14 +143,13 @@ try {
     return json({ error: 'Invalid authorization token' }, 401)
   }
 
-  // Validar usuário no Supabase
   const sbUrl = Deno.env.get('SUPABASE_URL')
-  const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const anyKey = getSbKey()
 
   const authRes = await fetch(`${sbUrl}/auth/v1/user`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      apikey: sbKey!,
+      apikey: anyKey ?? '',
     },
   })
 
@@ -152,10 +157,12 @@ try {
     return json({ error: 'Unauthorized' }, 401)
   }
 
+  // ── Collect errors per model for meaningful error reporting ─────────────
+  const modelErrors: string[] = []
+
     // ── Parse body ──────────────────────────────────────────────────────────
     const body = await req.json()
     const { messages, max_tokens } = body
-    // Nota: campo `model` do body é intencionalmente ignorado — usa MODELS[]
 
     const outputMaxTokens = typeof max_tokens === 'number' && max_tokens > 0 ? max_tokens : 1000
 
@@ -176,26 +183,38 @@ try {
     // ── Helpers para log e notificação ───────────────────────────────────────
     async function logModel(model: string, status: string, latencyMs: number, error?: string) {
       try {
+        const key = getSbKey()
+        if (!key) {
+          console.error('logModel: nenhuma chave Supabase disponível')
+          return
+        }
         await fetch(`${sbUrl}/rest/v1/ai_model_logs`, {
           method: 'POST',
           headers: {
-            apikey: sbKey!,
-            Authorization: `Bearer ${sbKey}`,
+            apikey: key,
+            Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
             Prefer: 'return=minimal',
           },
           body: JSON.stringify({ model, status, latency_ms: latencyMs, error: error ?? null }),
         })
-      } catch (_) { /* non-fatal */ }
+      } catch (err) {
+        console.error('logModel: falha ao logar:', String(err))
+      }
     }
 
     async function notifyAllFailed(models: string[]) {
       try {
+        const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        if (!key) {
+          console.error('notifyAllFailed: SUPABASE_SERVICE_ROLE_KEY ausente, notificação não enviada')
+          return
+        }
         await fetch(`${sbUrl}/rest/v1/notifications`, {
           method: 'POST',
           headers: {
-            apikey: sbKey!,
-            Authorization: `Bearer ${sbKey}`,
+            apikey: key,
+            Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
             Prefer: 'return=minimal',
           },
@@ -205,7 +224,9 @@ try {
             message: `Modelos tentados: ${models.join(', ')}`,
           }),
         })
-      } catch (_) { /* non-fatal */ }
+      } catch (err) {
+        console.error('notifyAllFailed:', String(err))
+      }
     }
 
     async function sendAlertEmail(models: string[]) {
@@ -215,7 +236,7 @@ try {
 
         const adminRes = await fetch(
           `${sbUrl}/rest/v1/profiles?role=eq.admin&select=email`,
-          { headers: { apikey: sbKey!, Authorization: `Bearer ${sbKey}` } },
+          { headers: { apikey: anyKey ?? '', Authorization: `Bearer ${anyKey ?? ''}` } },
         )
         const admins = await adminRes.json()
         const adminEmails: string[] = (Array.isArray(admins) ? admins : [])
@@ -235,10 +256,12 @@ try {
             from: 'doncCX <noreply@donc.com.br>',
             to: adminEmails,
             subject: '[doncCX] Alerta — Nenhum modelo OpenRouter respondeu',
-            text: `Todos os modelos OpenRouter configurados falharam.\n\nModelos tentados:\n- ${modelList}\n\nVerifique a página de configuração em IA & Automação > Donkie IA para mais detalhes.\n\n---\ndonCCX Hub - Monitoramento de IA`,
+            text: `Todos os modelos OpenRouter configurados falharam.\n\nModelos tentados:\n- ${modelList}\n\nErros:\n${modelErrors.join('\n')}\n\nVerifique a página de configuração em IA & Automação > Donkie IA para mais detalhes.\n\n---\ndonCCX Hub - Monitoramento de IA`,
           }),
         })
-      } catch (_) { /* non-fatal */ }
+      } catch (err) {
+        console.error('sendAlertEmail:', String(err))
+      }
     }
 
     // ── Loop de fallback entre modelos ──────────────────────────────────────
@@ -269,6 +292,7 @@ try {
         const elapsed = Math.round(performance.now() - t0)
         const errMsg = isTimeout ? 'timeout' : String(err)
         console.warn('Falha no modelo:', model, errMsg)
+        modelErrors.push(`${model}: ${errMsg}`)
         await logModel(model, 'fail', elapsed, errMsg)
         continue  // próximo modelo
       }
@@ -281,6 +305,7 @@ try {
         const errBody = await orRes.text()
         const errMsg = `${orRes.status}: ${errBody.slice(0, 200)}`
         console.warn('Falha no modelo:', model, errMsg)
+        modelErrors.push(`${model}: ${errMsg}`)
         await logModel(model, 'fail', elapsed, errMsg)
         continue  // próximo modelo
       }
@@ -302,7 +327,7 @@ try {
         sendAlertEmail(attemptedModels),
       ])
     }
-    return json({ error: 'Todos os modelos falharam' }, 500)
+    return json({ error: `Todos os modelos falharam. ${modelErrors.join('; ')}` }, 500)
 
   } catch (err) {
     console.error('openrouter-proxy:', err)
