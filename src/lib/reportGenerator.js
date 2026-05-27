@@ -872,12 +872,6 @@ function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) 
 function slideDesempenhoOperacional(sec, operationalData, clientName, period, p) {
   const cur = operationalData?.current
   const ranking = cur?.data_os?.operacional?.ranking_profissionais || []
-  const top10 = ranking.slice(0, 10)
-
-  if (!top10.length) {
-    const body = `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de desempenho disponível para este período.</p>`
-    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
-  }
 
   const normalize = (str) =>
     (str || '').replace(/\b\w/g, c => c.toUpperCase()).replace(/\s+/g, ' ').trim()
@@ -889,48 +883,69 @@ function slideDesempenhoOperacional(sec, operationalData, clientName, period, p)
   const headerCards = []
   if (totalProf) headerCards.push(kpiCard({ label: 'Profissionais Ativos', value: totalProf, accentColor: 'sky' }))
   if (indiceMedio != null) headerCards.push(kpiCard({ label: 'Índice Médio', value: `${indiceMedio}%`, accentColor: 'lime' }))
-  if (diasTrab) headerCards.push(kpiCard({ label: 'Dias Trabalhados', value: diasTrab, accentColor: 'navy' }))
+  const mediaDias = diasTrab && totalProf ? Math.round(diasTrab / totalProf) : null
+  if (mediaDias) headerCards.push(kpiCard({ label: 'Média Dias/Prof', value: mediaDias, accentColor: 'navy' }))
 
-  const maxOS = Math.max(...top10.map(p => p.total_os), 1)
-  const rows = top10.map((p, i) => {
+  const ranked = (ranking || []).map(p => {
     const sucesso = p.finalizadas_sucesso || 0
     const indice = p.total_os > 0 ? Math.round((sucesso / p.total_os) * 100) : 0
-    const isTop3 = i < 3 && indice >= 90
-    const isBaixo = indice < 70 && indice > 0
-    return `
-    <tr style="border-bottom:1px solid ${C.border};">
-      <td style="padding:8px 6px 8px 0;font-size:13px;font-weight:600;color:${C.text};">${normalize(p.profissional || p.parceiro)}</td>
-      <td style="padding:8px 6px;text-align:center;">
-        <div style="background:${C.border};border-radius:999px;height:6px;width:80px;overflow:hidden;display:inline-block;vertical-align:middle;">
-          <div style="background:${C.sky};width:${Math.round((p.total_os / maxOS) * 100)}%;height:100%;border-radius:999px;"></div>
-        </div>
-        <span style="font-size:12px;font-weight:700;color:${C.text};margin-left:6px;">${p.total_os}</span>
-      </td>
-      <td style="padding:8px 6px;text-align:center;font-size:13px;font-weight:700;color:${isBaixo ? C.red : isTop3 ? C.green : C.text};">
-        ${indice}%
-        ${isTop3 ? `<span style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#f0fff4;color:#276749;font-size:9px;font-weight:700;">Destaque</span>` : ''}
-        ${isBaixo ? `<span style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#fff5f5;color:#9b2c2c;font-size:9px;font-weight:700;">Atenção</span>` : ''}
-      </td>
-      <td style="padding:8px 0 8px 6px;text-align:right;font-size:13px;color:${p.canceladas > 0 ? C.red : C.textLight};">${p.canceladas || 0}</td>
-    </tr>`
-  }).join('')
+    return { ...p, sucesso, indice }
+  })
 
-  const body = `
-    ${headerCards.length ? kpiGrid(headerCards, Math.min(headerCards.length, 3)) : ''}
+  const top5 = ranked.filter(p => p.indice > 0)
+    .sort((a, b) => b.indice - a.indice || b.total_os - a.total_os)
+    .slice(0, 5)
+
+  const worst5 = ranked.filter(p => p.total_os >= 3)
+    .sort((a, b) => a.indice - b.indice || b.total_os - a.total_os)
+    .slice(0, 5)
+
+  if (!top5.length && !worst5.length) {
+    const body = `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de desempenho disponível para este período.</p>`
+    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
+  }
+
+  const tableRow = (p, isWorst) => {
+    const baixo = isWorst && p.indice < 70 && p.indice > 0
+    const destaque = !isWorst && p.indice >= 90
+    return `
+    <tr style="border-bottom:1px solid ${C.border};${isWorst ? `background:#fef2f2;` : ''}">
+      <td style="padding:8px 6px 8px 0;font-size:13px;font-weight:600;color:${isWorst ? C.red : C.text};">${normalize(p.profissional || p.parceiro)}</td>
+      <td style="padding:8px 6px;text-align:center;font-size:12px;font-weight:700;color:${C.text};">${p.total_os}</td>
+      <td style="padding:8px 6px;text-align:center;font-size:13px;font-weight:700;color:${baixo ? C.red : destaque ? C.green : isWorst ? C.red : C.text};">
+        ${p.indice}%
+        ${destaque ? `<span style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#f0fff4;color:#276749;font-size:9px;font-weight:700;">Destaque</span>` : ''}
+        ${baixo ? `<span style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:999px;background:#fff5f5;color:#9b2c2c;font-size:9px;font-weight:700;">Atenção</span>` : ''}
+      </td>
+    </tr>`
+  }
+
+  const tableSection = (title, list, isWorst) => `
     <div style="margin-top:16px;">
-      <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Top 10 Profissionais</div>
+      <div style="font-size:12px;font-weight:700;color:${isWorst ? C.red : C.green};margin-bottom:8px;">
+        ${isWorst ? '⚠️' : '⭐'} ${title}
+      </div>
       <table style="width:100%;border-collapse:collapse;">
         <thead>
           <tr style="border-bottom:2px solid ${C.border};">
             <th style="text-align:left;padding:6px 6px 6px 0;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Profissional</th>
             <th style="text-align:center;padding:6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">OS</th>
-            <th style="text-align:center;padding:6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Índice</th>
-            <th style="text-align:right;padding:6px 0 6px 6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Cancel.</th>
+            <th style="text-align:center;padding:6px;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Sucesso</th>
           </tr>
         </thead>
-        <tbody>${rows}</tbody>
+        <tbody>${list.map(p => tableRow(p, isWorst)).join('')}</tbody>
       </table>
-    </div>
+      <div style="font-size:10px;font-style:italic;color:${C.textLight};margin-top:4px;">
+        ${isWorst
+          ? 'Classificado por menor taxa de sucesso entre profissionais com ≥3 OS realizadas.'
+          : 'Classificado por maior taxa de sucesso entre profissionais com OS no período.'}
+      </div>
+    </div>`
+
+  const body = `
+    ${headerCards.length ? kpiGrid(headerCards, Math.min(headerCards.length, 3)) : ''}
+    ${top5.length ? tableSection('Melhores Desempenhos', top5, false) : ''}
+    ${worst5.length ? tableSection('Precisam de Atenção', worst5, true) : ''}
     ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
 
   return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
