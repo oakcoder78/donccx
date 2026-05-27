@@ -35,6 +35,7 @@ const SECTION_ICONS = {
   'custom-metrics': Icons.BarChart3,
   'custom-bars': Icons.BarChart3,
   indicadores_operacionais: Icons.Clock,
+  qualidade_operacao: Icons.CheckCircle,
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -639,8 +640,8 @@ function SectionEditor({
   onAddBarsItem, onUpdateBarsItem, onRemoveBarsItem,
   onUpdateSection,
 }) {
-  const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics','indicadores_operacionais'].includes(sec.type)
-  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais'].includes(sec.type)
+  const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics','indicadores_operacionais','qualidade_operacao'].includes(sec.type)
+  const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais','qualidade_operacao'].includes(sec.type)
   const isAdding    = addingExtra === sec.id
   const isCapa      = sec.type === 'capa'
 

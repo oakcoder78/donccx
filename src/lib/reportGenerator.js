@@ -71,6 +71,7 @@ export function defaultSections() {
     { id: 'contexto',       type: 'contexto',       title: 'Contexto Externo',  enabled: true, content: { text: '' },   extras: [] },
     { id: 'proximos_passos',type: 'proximos_passos',title: 'Próximos Passos',   enabled: true, content: { items: [] },  extras: [] },
     { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: false, content: { callout: '' }, extras: [] },
+    { id: 'qualidade_operacao', type: 'qualidade_operacao', title: 'Qualidade da Operação', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
   ]
 }
 
@@ -656,6 +657,73 @@ function slideIndicadoresOperacionais(sec, operationalData, clientName, period, 
   return slide('⏱️', 'Indicadores Operacionais', body, clientName, period, p, sec.subtitle)
 }
 
+function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
+  const cur = operationalData?.current
+
+  const totalOs           = cur?.data_os?.sumario?.total_os
+  const taxaConclusao     = cur?.data_os?.sumario?.taxa_conclusao
+  const finalizadoSucesso = cur?.data_os?.sumario?.por_status?.finalizado_sucesso
+  const comOcorrencia     = cur?.data_os?.sumario?.por_status?.finalizado_com_ocorrencia
+
+  const prev = operationalData?.prev
+  const taxaConclusaoPrev = prev?.data_os?.sumario?.taxa_conclusao
+  const comOcorrenciaPrev = prev?.data_os?.sumario?.por_status?.finalizado_com_ocorrencia
+
+  const mesLabel = periodLabel(period)
+  const dynamicSubtitle = totalOs != null
+    ? `Das ${totalOs.toLocaleString('pt-BR')} OS criadas em ${mesLabel}, mapeamos as seguintes ocorrências por categoria.`
+    : ''
+  const subtitle = sec.subtitle || dynamicSubtitle
+
+  const deltaExec = taxaConclusaoPrev != null
+    ? { d: `≈ ${taxaConclusaoPrev}% em mês anterior`, t: 'neutral', dc: 'gray' }
+    : { d: null, t: 'neutral', dc: 'gray' }
+
+  let deltaOcorr = { d: null, t: 'neutral', dc: 'gray' }
+  if (comOcorrencia != null && comOcorrenciaPrev != null && comOcorrenciaPrev !== 0) {
+    const pct = ((comOcorrencia - comOcorrenciaPrev) / comOcorrenciaPrev) * 100
+    const signal = pct >= 0 ? '+' : ''
+    const up = pct > 0
+    deltaOcorr = {
+      d: `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`,
+      t: up ? 'up' : 'down',
+      dc: up ? 'red' : 'green',
+    }
+  }
+
+  const autoCards = []
+  if (finalizadoSucesso != null)
+    autoCards.push(kpiCard({
+      label: 'Execução limpa',
+      value: taxaConclusao != null ? `${taxaConclusao}%` : null,
+      sublabel: `${finalizadoSucesso.toLocaleString('pt-BR')} OS finalizadas sem ocorrência`,
+      delta: deltaExec.d,
+      deltaType: deltaExec.t,
+      deltaColor: deltaExec.dc,
+      accentColor: 'green',
+    }))
+  if (comOcorrencia != null)
+    autoCards.push(kpiCard({
+      label: 'Relatos de Imprevistos',
+      value: comOcorrencia.toLocaleString('pt-BR'),
+      sublabel: 'OS com registro de ocorrência',
+      delta: deltaOcorr.d,
+      deltaType: deltaOcorr.t,
+      deltaColor: deltaOcorr.dc,
+      accentColor: 'red',
+    }))
+
+  const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor })
+  )]
+
+  const body = `
+    ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 1), 3)) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de qualidade disponível para este período.</p>`}
+    ${calloutBlock(sec.content?.callout ?? '', C.green)}`
+
+  return slide('✅', 'Qualidade da Operação', body, clientName, period, p, subtitle)
+}
+
 function slideProximosPassos(sec, clientName, period, p) {
   return slide('🎯', 'Próximos Passos',
     nextStepsList(sec.content?.items ?? []),
@@ -756,6 +824,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
       if (s.type === 'contexto')        return slideContexto(s, clientName, period, p)
       if (s.type === 'proximos_passos') return slideProximosPassos(s, clientName, period, p)
       if (s.type === 'indicadores_operacionais') return slideIndicadoresOperacionais(s, operationalData, clientName, period, p)
+      if (s.type === 'qualidade_operacao') return slideQualidadeOperacao(s, operationalData, clientName, period, p)
       if (s.type === 'custom-text')     return slideCustomText(s, clientName, period, p)
       if (s.type === 'custom-image')    return slideCustomImage(s, clientName, period, p)
       if (s.type === 'custom-metrics')  return slideCustomMetrics(s, clientName, period, p)
