@@ -343,7 +343,44 @@ function formatSectionForContext(sec) {
 
 // ─── Monta contexto de rota ──────────────────────────────────
 function buildRouteContext(pathname, clientData, reportExtra) {
-  // 1. Se tem clientData com id → monta contexto de cliente
+  // 1. Rota de RMC — seções do relatório como fonte primária + dossiê resumido
+  if (/^\/empresas\/\d+\/relatorios\/.+\/editar/.test(pathname)) {
+    const cn = clientData?.fantasy_name || clientData?.name || 'cliente'
+    let ctx = `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
+
+    if (reportExtra) {
+      ctx += `\n\n---\nRELATÓRIO SENDO EDITADO\nTítulo: ${reportExtra.title}`
+      ctx += `\nPeríodo: ${reportExtra.period}`
+      ctx += `\nStatus: ${reportExtra.status}`
+      ctx += `\n\nSEÇÕES DO RELATÓRIO:`
+      for (const sec of reportExtra.sections) {
+        ctx += `\n${formatSectionForContext(sec)}`
+      }
+      ctx += '\n---'
+    }
+
+    // Dossiê resumido do cliente (dados de referência)
+    if (clientData?.id) {
+      const hs = clientData.health_total ?? 0
+      const cu = clientData._curUsage
+      const sup = clientData._support
+      ctx += `\n\nDADOS DO CLIENTE (referência)\nCliente: ${cn}`
+      if (clientData.abc_class) ctx += ` | ABC ${clientData.abc_class}`
+      if (clientData.segment) ctx += ` | Segmento: ${clientData.segment}`
+      ctx += ` | Health Score: ${hs}/100`
+      if (clientData.mrr != null) ctx += ` | MRR: ${fmtMrr(clientData.mrr)}`
+      if (cu) {
+        ctx += `\nOperação: ${cu.os_created ?? 'N/D'} OS | ${cu.active_users ?? 'N/D'} usuários ativos`
+      }
+      if (sup) {
+        ctx += `\nSuporte: ${sup.tickets_opened ?? 0} tickets | SLA: ${sup.sla_first_response ?? 'N/D'}min`
+      }
+    }
+
+    return ctx
+  }
+
+  // 2. Se tem clientData com id → monta contexto de cliente completo
   if (clientData?.id) {
     const cn        = clientData.fantasy_name || clientData.name
     const hs        = clientData.health_total ?? 0
@@ -414,25 +451,6 @@ function buildRouteContext(pathname, clientData, reportExtra) {
     // Linha 8 — último contato
     if (clientData._lastActivityDate) {
       ctx += `\nÚltimo contato: ${fmtDate(clientData._lastActivityDate)}`
-    }
-
-    return ctx
-  }
-
-  // 2. Rota de RMC
-  if (/^\/empresas\/\d+\/relatorios\/.+\/editar/.test(pathname)) {
-    const cn = clientData?.fantasy_name || clientData?.name || 'cliente'
-    let ctx = `Usuário está editando um Relatório Mensal (RMC) para ${cn}.`
-
-    if (reportExtra) {
-      ctx += `\n\n---\nRELATÓRIO SENDO EDITADO\nTítulo: ${reportExtra.title}`
-      ctx += `\nPeríodo: ${reportExtra.period}`
-      ctx += `\nStatus: ${reportExtra.status}`
-      ctx += `\n\nSEÇÕES:`
-      for (const sec of reportExtra.sections) {
-        ctx += `\n${formatSectionForContext(sec)}`
-      }
-      ctx += '\n---'
     }
 
     return ctx
