@@ -177,12 +177,12 @@ export default function ReportEditorPage() {
     }
   }, [dataLoaded, report?.id, projects.length, populated])
 
-  // ── Push report data to Donkie ──────────────────────────
+  // ── Push report data + operational data to Donkie ──────
   useEffect(() => {
     if (!report) return
-    setReportExtra({ sections, title: report.title, period: report.period, status: report.status })
+    setReportExtra({ sections, operationalData, title: report.title, period: report.period, status: report.status })
     return () => setReportExtra(null)
-  }, [sections, report?.title, report?.period, report?.status])
+  }, [sections, operationalData, report?.title, report?.period, report?.status])
 
   // ── CSM ─────────────────────────────────────────────────
   const csm = useMemo(() => {

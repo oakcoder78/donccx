@@ -377,6 +377,58 @@ function buildRouteContext(pathname, clientData, reportExtra) {
       }
     }
 
+    // Dados operacionais enriquecidos (dos client_operational_reports)
+    const opData = reportExtra?.operationalData
+    if (opData?.current) {
+      const cur = opData.current
+      const prod  = cur.data_produtividade?.sumario
+      const os    = cur.data_os?.sumario
+      const temps = cur.data_os?.tempos
+      const ocorrencias  = os?.motivos_ocorrencia ?? []
+      const cancelamentos = os?.motivos_cancelamento ?? []
+      const rankingLen = cur.data_os?.operacional?.ranking_profissionais?.length ?? 0
+
+      ctx += `\n\nDADOS OPERACIONAIS (detalhados)`
+      if (prod) {
+        ctx += `\nProdutividade: ${prod.total_os} OS | ${prod.total_produtos ?? 'N/D'} produtos`
+        ctx += ` | ${prod.total_profissionais ?? 'N/D'} profissionais`
+        ctx += ` | ${prod.total_dias_trabalhados ?? 'N/D'} dias trabalhados`
+        if (prod.indice_produtividade_medio != null) ctx += ` | Índice: ${prod.indice_produtividade_medio}%`
+        ctx += `\nTempos médios: ${prod.tempo_execucao_medio_minutos ?? 'N/D'}min execução`
+        ctx += ` | ${prod.tempo_transito_medio_minutos ?? 'N/D'}min trânsito`
+        if (prod.tempo_ocioso_medio_minutos != null) ctx += ` | ${prod.tempo_ocioso_medio_minutos}min ocioso`
+      }
+      if (os) {
+        ctx += `\nOS por tipo: Montagem ${os.por_tipo?.Montagem ?? 0}`
+        if (os.por_tipo?.Desmontagem) ctx += ` | Desmontagem ${os.por_tipo.Desmontagem}`
+        if (os.por_tipo?.Assistência) ctx += ` | Assistência ${os.por_tipo.Assistência}`
+        ctx += `\nStatus: ${os.por_status?.finalizado_sucesso ?? 0} sucesso`
+        ctx += ` | ${os.por_status?.finalizado_com_ocorrencia ?? 0} c/ocorrência`
+        ctx += ` | ${os.por_status?.cancelado ?? 0} canceladas`
+        ctx += ` | ${os.por_status?.em_aberto ?? 0} aberto`
+        if (os.taxa_conclusao != null) ctx += ` | Taxa conclusão: ${os.taxa_conclusao}%`
+      }
+      if (temps?.pontualidade) {
+        const p = temps.pontualidade
+        ctx += `\nPontualidade: ${p.percentual_pontualidade}% prazo`
+        ctx += ` (${p.no_prazo} no prazo | ${p.atrasadas} atrasadas | atraso médio ${p.atraso_medio_dias}dias)`
+      }
+      if (ocorrencias.length > 0) {
+        ctx += `\nOcorrências: ${ocorrencias.map(o => `${o.motivo} (${o.total})`).join(' | ')}`
+      }
+      if (cancelamentos.length > 0) {
+        ctx += `\nCancelamentos: ${cancelamentos.map(c => `${c.motivo} (${c.total})`).join(' | ')}`
+      }
+      if (rankingLen > 0) ctx += `\nRanking: ${rankingLen} profissionais no período`
+
+      const prev = opData.prev?.data_produtividade?.sumario
+      if (prev) {
+        ctx += `\nComparativo vs mês anterior: ${prev.total_os} OS`
+        if (prev.total_produtos != null) ctx += ` | ${prev.total_produtos} produtos`
+        if (prev.indice_produtividade_medio != null) ctx += ` | Índice: ${prev.indice_produtividade_medio}%`
+      }
+    }
+
     return ctx
   }
 
