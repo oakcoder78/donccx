@@ -56,7 +56,7 @@ export function Navbar({ googleOAuthSignal }) {
     navigate('/login')
   }
 
-  const { unreadCount } = useNotifications()
+  const { unreadCount, markAsRead } = useNotifications()
 
   const initials = (profile?.name || profile?.email || 'U')[0].toUpperCase()
 
@@ -103,9 +103,17 @@ export function Navbar({ googleOAuthSignal }) {
                 }
               </div>
               {profile?.role === 'admin' && unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center leading-none shadow-sm">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    markAsRead()
+                    localStorage.setItem('settings_section', 'donkie')
+                    navigate('/configuracoes')
+                  }}
+                  className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-[10px] font-bold flex items-center justify-center leading-none shadow-sm hover:bg-red-600 z-10 cursor-pointer"
+                >
                   {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
+                </button>
               )}
             </div>
             <div className="text-left hidden sm:block">

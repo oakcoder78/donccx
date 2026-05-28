@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 
@@ -27,5 +27,14 @@ export function useNotifications() {
     return () => { cancelled = true; clearInterval(interval) }
   }, [profile?.role])
 
-  return { unreadCount }
+  const markAsRead = useCallback(async () => {
+    if (profile?.role !== 'admin') return
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('read', false)
+    setUnreadCount(0)
+  }, [profile?.role])
+
+  return { unreadCount, markAsRead }
 }
