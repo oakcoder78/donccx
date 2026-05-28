@@ -269,45 +269,38 @@ function barChartTipoOS(porTipoAtual, porTipoPrev, period) {
   }
   const OUTRA_COR = '#cbd5e1'
 
-  function computeBars(porTipo) {
-    const tipos = Object.entries(porTipo).filter(([, v]) => v > 0)
-    const total = tipos.reduce((s, [, v]) => s + v, 0) || 1
-    let accX = 0
-    const svgW = 340, barH = 36
-    const segs = tipos.map(([label, val]) => {
-      const pct = (val / total) * 100
-      const w = Math.max(2, (val / total) * svgW)
-      const x = accX
-      accX += w
-      const color = CORES[label.split(' ')[0]] || OUTRA_COR
-      return { x, w, label, val, pct, color }
-    })
-    return { segs, total, svgW, barH }
-  }
+  const tipos = Object.entries(porTipoAtual).filter(([, v]) => v > 0)
+  if (!tipos.length) return ''
 
-  const cur = computeBars(porTipoAtual)
-  const prev = porTipoPrev ? computeBars(porTipoPrev) : null
+  const maxVal = Math.max(...tipos.map(([, v]) => v), 1)
+  const svgW = 340
+  const chartH = 130
+  const topP = 24
+  const botP = 30
+  const svgH = chartH + topP + botP
+  const n = tipos.length
+  const barW = Math.min(56, Math.floor((svgW - 40) / n * 0.6))
+  const gap = n > 1 ? Math.floor((svgW - 40 - n * barW) / (n + 1)) : (svgW - 40 - barW) / 2
+  const startX = 20 + gap
 
-  function renderBar(data, label) {
-    const pctLabel = data.segs.map(s => ` ${s.label}: ${s.val} (${s.pct.toFixed(0)}%)`).join(' · ')
+  const bars = tipos.map(([label, val], i) => {
+    const x = startX + i * (barW + gap)
+    const h = Math.max(2, Math.round((val / maxVal) * chartH))
+    const y = topP + chartH - h
+    const color = CORES[label.split(' ')[0]] || OUTRA_COR
     return `
-    <div style="margin-bottom:16px;">
-      <div style="font-size:11px;font-weight:700;color:${C.textLight};margin-bottom:6px;">${label}</div>
-      <svg viewBox="0 0 ${data.svgW} ${data.barH}" width="100%" style="display:block;border-radius:6px;overflow:hidden;">
-        ${data.segs.map(s => `<rect x="${s.x}" y="0" width="${s.w}" height="${data.barH}" fill="${s.color}" />`).join('')}
-      </svg>
-      <div style="font-size:10px;color:${C.textLight};margin-top:4px;">${pctLabel}</div>
-    </div>`
-  }
+      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${color}"/>
+      <text x="${x + barW / 2}" y="${y - 5}" text-anchor="middle" font-size="10" font-weight="700"
+        fill="${C.text}" font-family="sans-serif">${val.toLocaleString('pt-BR')}</text>
+      <text x="${x + barW / 2}" y="${topP + chartH + 18}" text-anchor="middle" font-size="10"
+        fill="${C.textLight}" font-family="sans-serif">${label}</text>`
+  }).join('')
 
   const periodLabelStr = periodLabel(period)
 
   return `<div style="margin-top:24px;">
-    <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Composição das OS</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      ${prev ? renderBar(prev, 'Mês anterior') : ''}
-      ${renderBar(cur, periodLabelStr)}
-    </div>
+    <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Composição das OS — ${periodLabelStr}</div>
+    <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="display:block;overflow:visible;">${bars}</svg>
   </div>`
 }
 
