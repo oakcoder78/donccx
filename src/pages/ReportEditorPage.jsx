@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Icons } from '../lib/icons'
+import { generateSectionAnalysis } from '../lib/reportAiService'
 
 const SECTION_ICONS = {
   capa: Icons.FileText,
@@ -96,6 +97,7 @@ export default function ReportEditorPage() {
   const [supportRaw,      setSupportRaw]      = useState(null)
   const [operationalData, setOperationalData] = useState(null)
   const [dataLoaded,      setDataLoaded]      = useState(false)
+  const [generatingAnalysis, setGeneratingAnalysis] = useState({})
 
   // ── Modais / UI ──────────────────────────────────────────
   const [showNewModal,  setShowNewModal]  = useState(false)
@@ -222,6 +224,124 @@ export default function ReportEditorPage() {
   }
   function toggleEnabled(id) {
     setSections(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s))
+  }
+
+  // ── AI analysis ───────────────────────────────────────────
+  function calcDelta(cur, prev) {
+    if (cur == null || prev == null || prev === 0) return null
+    return Math.round(((cur - prev) / prev) * 100)
+  }
+
+  function buildSectionData(section) {
+    const type = section.type
+    const cur = operationalData?.current
+    const period = report?.period
+    const curUsage = usageHistory.find(u => u.ref_month === period)
+    const prevUsage = usageHistory.find(u => u.ref_month === (period
+      ? (() => { const [y, m] = period.split('-').map(Number); const d = new Date(y, m - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })()
+      : null))
+
+    switch (type) {
+      case 'escala': {
+        const porTipo = cur?.data_os?.sumario?.por_tipo || {}
+        const total = Object.values(porTipo).reduce((s, v) => s + (v || 0), 0)
+        const rawProd = cur?.data_produtividade?.sumario?.total_produtos
+        const prevProd = operationalData?.prev?.data_produtividade?.sumario?.total_produtos
+        return {
+          total_os: curUsage?.os_created,
+          delta_os: calcDelta(curUsage?.os_created, prevUsage?.os_created),
+          active_users: curUsage?.active_users,
+          delta_users: calcDelta(curUsage?.active_users, prevUsage?.active_users),
+          total_produtos: rawProd,
+          delta_produtos: calcDelta(rawProd, prevProd),
+          pct_montagem: total ? Math.round(((porTipo.Montagem || 0) / total) * 100) : 0,
+          pct_assistencia: total ? Math.round(((porTipo.Assistência || 0) / total) * 100) : 0,
+        }
+      }
+      case 'qualidade_operacao': {
+        const sumario = cur?.data_os?.sumario || {}
+        const pont = cur?.data_os?.tempos?.pontualidade || {}
+        const prevSum = operationalData?.prev?.data_os?.sumario
+        const comOcorr = sumario?.por_status?.finalizado_com_ocorrencia
+        const comOcorrPrev = prevSum?.por_status?.finalizado_com_ocorrencia
+        return {
+          taxa_conclusao: sumario?.taxa_conclusao,
+          finalizado_sucesso: sumario?.por_status?.finalizado_sucesso,
+          com_ocorrencia: comOcorr,
+          delta_ocorrencia: calcDelta(comOcorr, comOcorrPrev),
+          percentual_pontualidade: pont?.percentual_pontualidade,
+          atraso_medio_dias: pont?.atraso_medio_dias,
+        }
+      }
+      case 'indicadores_operacionais': {
+        const prod = cur?.data_produtividade?.sumario || {}
+        const prevProd = operationalData?.prev?.data_produtividade?.sumario
+        return {
+          execucao_min: prod?.tempo_execucao_medio_minutos,
+          delta_exec: calcDelta(prod?.tempo_execucao_medio_minutos, prevProd?.tempo_execucao_medio_minutos),
+          transito_min: prod?.tempo_transito_medio_minutos,
+          delta_transito: calcDelta(prod?.tempo_transito_medio_minutos, prevProd?.tempo_transito_medio_minutos),
+        }
+      }
+      case 'categorias_ocorrencia': {
+        const motivos = cur?.data_os?.sumario?.motivos_ocorrencia || []
+        const cancel = cur?.data_os?.sumario?.motivos_cancelamento || []
+        const fmt = (items, n) => items.filter(m => m.total > 0).slice(0, n).map(m => `${m.motivo} (${m.total})`).join('; ') || 'N/D'
+        return {
+          top3_ocorrencias: fmt(motivos, 3),
+          top2_cancelamentos: fmt(cancel, 2),
+          total_ocorrencias: motivos.reduce((s, m) => s + m.total, 0),
+        }
+      }
+      case 'desempenho_operacional': {
+        const prod = cur?.data_produtividade?.sumario || {}
+        const ranking = cur?.data_os?.operacional?.ranking_profissionais || []
+        const countAtencao = ranking.filter(p => p.total_os > 0
+          && Math.round(((p.finalizadas_sucesso || 0) / p.total_os) * 100) < 70).length
+        return {
+          indice_medio: prod?.indice_produtividade_medio,
+          total_profissionais: prod?.total_profissionais || ranking.length,
+          count_atencao: countAtencao,
+        }
+      }
+      case 'suporte': {
+        const raw = supportRaw ?? {}
+        const opened = raw.tickets_opened
+        const resolved = raw.tickets_resolved
+        const computedRate = opened != null && resolved != null && opened > 0
+          ? Math.round((resolved / opened) * 100) : null
+        return {
+          tickets_opened: opened,
+          tickets_resolved: resolved,
+          sla: raw.sla_first_response,
+          taxa_resolucao: computedRate,
+          n1_pct: raw.n1_pct,
+          n2_pct: raw.n2_pct,
+          n3_pct: raw.n3_pct,
+        }
+      }
+      default:
+        return {}
+    }
+  }
+
+  async function handleGenerateAnalysis(section) {
+    setGeneratingAnalysis(prev => ({ ...prev, [section.id]: true }))
+    try {
+      const sectionData = buildSectionData(section)
+      const text = await generateSectionAnalysis({
+        sectionType: section.type,
+        sectionData,
+        clientName: client?.fantasy_name || client?.name,
+        period: report?.period,
+      })
+      updateContent(section.id, 'callout', text)
+      toast.success('Análise gerada com sucesso')
+    } catch (e) {
+      toast.error(e.message || 'Erro ao gerar análise')
+    } finally {
+      setGeneratingAnalysis(prev => ({ ...prev, [section.id]: false }))
+    }
   }
 
   // ── Extra helpers ────────────────────────────────────────
@@ -532,6 +652,9 @@ export default function ReportEditorPage() {
                 onUpdateBarsItem={(itemId, ch) => updateBarsItem(activeSec.id, itemId, ch)}
                 onRemoveBarsItem={itemId => removeBarsItem(activeSec.id, itemId)}
                 onUpdateSection={changes => updateSection(activeSec.id, changes)}
+                onGenerateAnalysis={handleGenerateAnalysis}
+                generatingAnalysis={generatingAnalysis[activeSec.id]}
+                operationalData={operationalData}
               />
             )}
           </div>
@@ -641,6 +764,7 @@ function SectionEditor({
   onImageUpload,
   onAddBarsItem, onUpdateBarsItem, onRemoveBarsItem,
   onUpdateSection,
+  onGenerateAnalysis, generatingAnalysis, operationalData,
 }) {
   const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics','indicadores_operacionais','qualidade_operacao'].includes(sec.type)
   const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais','qualidade_operacao','categorias_ocorrencia','desempenho_operacional'].includes(sec.type)
@@ -850,6 +974,17 @@ function SectionEditor({
         {showCallout && sec.type !== 'custom-image' && sec.type !== 'capa' && (
           <div>
             <label className="text-xs text-text-tertiary block mb-1">Análise / Nota</label>
+            {['escala','qualidade_operacao','indicadores_operacionais','categorias_ocorrencia','desempenho_operacional','suporte'].includes(sec.type) && (
+              <button
+                onClick={() => onGenerateAnalysis(sec)}
+                disabled={generatingAnalysis || !operationalData?.current}
+                title={!operationalData?.current ? 'Dados operacionais não disponíveis para este período' : ''}
+                className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-800 mb-2"
+              >
+                <Icons.Sparkles size={14} />
+                {generatingAnalysis ? 'Gerando análise...' : '✨ Gerar análise'}
+              </button>
+            )}
             <textarea
               value={sec.content?.callout ?? ''}
               onChange={e => onContent('callout', e.target.value)}
