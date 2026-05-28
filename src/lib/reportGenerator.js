@@ -269,38 +269,36 @@ function barChartTipoOS(porTipoAtual, porTipoPrev, period) {
   }
   const OUTRA_COR = '#cbd5e1'
 
-  const tipos = Object.entries(porTipoAtual).filter(([, v]) => v > 0)
+  let tipos = Object.entries(porTipoAtual).filter(([, v]) => v > 0)
   if (!tipos.length) return ''
 
+  // Top 9 + "Outros" (max 10 rows)
+  tipos.sort(([, a], [, b]) => b - a)
+  if (tipos.length > 10) {
+    const top9 = tipos.slice(0, 9)
+    const restSum = tipos.slice(9).reduce((s, [, v]) => s + v, 0)
+    tipos = [...top9, ['Outros', restSum]]
+  }
+
   const maxVal = Math.max(...tipos.map(([, v]) => v), 1)
-  const svgW = 340
-  const chartH = 130
-  const topP = 24
-  const botP = 30
-  const svgH = chartH + topP + botP
-  const n = tipos.length
-  const barW = Math.min(56, Math.floor((svgW - 40) / n * 0.6))
-  const gap = n > 1 ? Math.floor((svgW - 40 - n * barW) / (n + 1)) : (svgW - 40 - barW) / 2
-  const startX = 20 + gap
-
-  const bars = tipos.map(([label, val], i) => {
-    const x = startX + i * (barW + gap)
-    const h = Math.max(2, Math.round((val / maxVal) * chartH))
-    const y = topP + chartH - h
-    const color = CORES[label.split(' ')[0]] || OUTRA_COR
-    return `
-      <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${color}"/>
-      <text x="${x + barW / 2}" y="${y - 5}" text-anchor="middle" font-size="10" font-weight="700"
-        fill="${C.text}" font-family="sans-serif">${val.toLocaleString('pt-BR')}</text>
-      <text x="${x + barW / 2}" y="${topP + chartH + 18}" text-anchor="middle" font-size="10"
-        fill="${C.textLight}" font-family="sans-serif">${label}</text>`
-  }).join('')
-
   const periodLabelStr = periodLabel(period)
 
+  const bars = tipos.map(([label, val]) => {
+    const pct = Math.round((val / maxVal) * 100)
+    const color = CORES[label.split(' ')[0]] || OUTRA_COR
+    return `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+        <span style="min-width:140px;font-size:13px;color:${C.text};font-weight:500;">${label}</span>
+        <div style="flex:1;background:${C.border};border-radius:999px;height:12px;overflow:hidden;">
+          <div style="background:${color};width:${pct}%;height:100%;border-radius:999px;"></div>
+        </div>
+        <span style="min-width:60px;text-align:right;font-size:13px;font-weight:700;color:${C.text};">${val.toLocaleString('pt-BR')}</span>
+      </div>`
+  }).join('')
+
   return `<div style="margin-top:24px;">
-    <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">Composição das OS — ${periodLabelStr}</div>
-    <svg viewBox="0 0 ${svgW} ${svgH}" width="100%" style="display:block;overflow:visible;">${bars}</svg>
+    <div style="font-size:11px;font-weight:700;color:${C.textLight};text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px;">Composição das OS — ${periodLabelStr}</div>
+    ${bars}
   </div>`
 }
 
