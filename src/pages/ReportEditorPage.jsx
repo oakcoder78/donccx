@@ -982,13 +982,13 @@ function SectionEditor({
                 className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-800 mb-2"
               >
                 <Icons.Sparkles size={14} />
-                {generatingAnalysis ? 'Gerando análise...' : '✨ Gerar análise'}
+                {generatingAnalysis ? 'Gerando análise...' : 'Gerar análise'}
               </button>
             )}
             <textarea
               value={sec.content?.callout ?? ''}
               onChange={e => onContent('callout', e.target.value)}
-              rows={4}
+              rows={8}
               placeholder="Texto analítico que aparece em destaque no relatório…"
               className="input-base w-full resize-none text-sm leading-relaxed"
             />
