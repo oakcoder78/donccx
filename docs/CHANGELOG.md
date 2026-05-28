@@ -1,5 +1,32 @@
 # Changelog
 
+## 2026-05-27
+
+### Reports — Seções Operacionais (RMC)
+- **Feature:** 4 novas seções operacionais em `client_operational_reports`: `indicadores_operacionais` (tempo execução + trânsito, delta com cor invertida), `qualidade_operacao` (taxa conclusão + ocorrências, subtitle dinâmico), `categorias_ocorrencia` (top-8 barras de motivo, subtitle com total), `desempenho_operacional` (tabela melhores/piores com badges Destaque/Atenção)
+- **Feature:** Stacked bar chart de OS por tipo (Montagem/Desmontagem/Assistência) na seção Escala
+- **Feature:** KPI de pontualidade com delta pp na seção Qualidade
+- **Feature:** Top-3 cancelamentos na seção Categorias de Ocorrência
+- **Feature:** Campo `overrideProdutosMontados` no editor da seção Escala (delta/media mantidos do dado real)
+- **Refactor:** Reordenadas seções, `indicadores_operacionais` habilitado por padrão
+
+### Donkie — Contexto de IA
+- **Fix:** Ordem de rotas em `buildRouteContext()` — rota RMC checada antes do fallback genérico, seções do relatório agora são fonte primária de contexto
+- **Fix:** `operationalData` adicionado às dependências e payload do `setReportExtra()` — Donkie recebe dados operacionais completos (produtividade, tempos, OS por tipo/status, pontualidade, ocorrências, cancelamentos, ranking, comparativo vs mês anterior)
+- **Fix:** `openrouter-proxy` — corrigido carregamento de modelos (chave `SUPABASE_SERVICE_ROLE_KEY` faltando causava fallback para `FALLBACK_MODELS` expirados); atualizados modelos, timeout 15s→30s, coleta de erros por modelo; migration `20260527100000_ai_model_logs_insert_policy.sql`
+
+### Notifications — Badge
+- **Feature:** Badge vermelho no avatar admin agora clicável — `markAsRead()` limpa notificações, navega para Configurações > Donkie IA
+- **New hook:** `useNotifications.markAsRead` — seta `read = true` em todas as notificações
+
+### Reports — Análise com IA
+- **Feature:** Botão "Gerar análise" em 6 seções do RMC (escala, qualidade_operacao, indicadores_operacionais, categorias_ocorrencia, desempenho_operacional, suporte) — chama `openrouter-proxy` com dados operacionais da seção, resultado preenche o callout
+- **New file:** `src/lib/reportAiService.js` — `generateSectionAnalysis()` com retry 3x, system prompt fixo, `mountUserContent()` por tipo de seção
+- **UX:** Textarea do callout ampliado (`rows={4}` → `{8}`), botão sem emoji (só ícone `Sparkles`)
+
+### Reports — Composição das OS
+- **Fix:** Gráfico de composição das OS trocado de barra horizontal empilhada para barras horizontais independentes (label | barra | valor), máximo 10 linhas (top-9 + "Outros" com soma do restante), cores por tipo
+
 ## 2026-05-22
 
 ### AI — Model Monitoring
