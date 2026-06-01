@@ -185,6 +185,29 @@ export function SettingsEmailBlast() {
     toggleContact(clientId, contactId)
   }
 
+  function toggleSelectAll() {
+    const allSelected = filteredClients.every(client =>
+      client.contacts.every(c => selectedContactIds.has(c.contactId))
+    )
+    setSelectedByClient(prev => {
+      const next = new Map()
+      if (!allSelected) {
+        for (const client of filteredClients) {
+          const ids = new Set(client.contacts.map(c => c.contactId))
+          next.set(client.clientId, ids)
+        }
+      }
+      return next
+    })
+  }
+
+  const allContactsSelected = useMemo(() =>
+    filteredClients.length > 0 && filteredClients.every(client =>
+      client.contacts.every(c => selectedContactIds.has(c.contactId))
+    ),
+    [filteredClients, selectedContactIds]
+  )
+
   const selectedContactIds = useMemo(() => {
     const set = new Set()
     for (const ids of selectedByClient.values()) {
@@ -438,20 +461,28 @@ export function SettingsEmailBlast() {
         subtitle="Selecione os destinatários e componha a mensagem para envio em lote."
       />
 
-      {/* SummaryPill */}
-      <div className="flex items-center gap-2 text-sm text-text-tertiary">
-        <Icons.Users className="w-4 h-4" />
-        <span>
-          <strong className="text-text-primary">{summary.totalRecipients}</strong> destinatário{summary.totalRecipients !== 1 ? 's' : ''}
-          {summary.totalCompanies > 0 && (
-            <> em <strong className="text-text-primary">{summary.totalCompanies}</strong> empresa{summary.totalCompanies !== 1 ? 's' : ''}</>
-          )}
-        </span>
-        {summary.totalRecipients > 100 && (
-          <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
-            <Icons.HelpCircle className="w-3 h-3" />
-            Limite de 100 por envio
+      {/* SummaryPill + SelectAll */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-text-tertiary">
+          <Icons.Users className="w-4 h-4" />
+          <span>
+            <strong className="text-text-primary">{summary.totalRecipients}</strong> destinatário{summary.totalRecipients !== 1 ? 's' : ''}
+            {summary.totalCompanies > 0 && (
+              <> em <strong className="text-text-primary">{summary.totalCompanies}</strong> empresa{summary.totalCompanies !== 1 ? 's' : ''}</>
+            )}
           </span>
+          {summary.totalRecipients > 100 && (
+            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+              <Icons.HelpCircle className="w-3 h-3" />
+              Limite de 100 por envio
+            </span>
+          )}
+        </div>
+        {filteredClients.length > 0 && (
+          <button onClick={toggleSelectAll} className="flex items-center gap-1 text-xs text-donc-sky hover:text-donc-sky/80 font-medium">
+            <Icons.CheckSquare className="w-3.5 h-3.5" />
+            {allContactsSelected ? 'Desselecionar todos' : 'Selecionar todos'}
+          </button>
         )}
       </div>
 
@@ -482,7 +513,7 @@ export function SettingsEmailBlast() {
                 return (
                   <div
                     key={client.clientId}
-                    className="border border-border-tertiary rounded-md bg-bg-primary overflow-hidden"
+                    className="border border-border-tertiary rounded-md bg-bg-primary overflow-visible"
                   >
                     <button
                       onClick={() => setExpandedClient(isExpanded ? null : client.clientId)}
@@ -724,7 +755,7 @@ export function SettingsEmailBlast() {
               )}
 
               {/* Domain warning */}
-              {profile && !profile.email?.endsWith('@donc.com.br') && (
+              {profile && fromMode === 'csm' && !profile.email?.endsWith('@donc.com.br') && (
                 <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-800">
                   <Icons.HelpCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <span>
