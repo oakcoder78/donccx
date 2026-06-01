@@ -181,6 +181,14 @@ export function SettingsEmailBlast() {
     })
   }
 
+  const selectedContactIds = useMemo(() => {
+    const set = new Set()
+    for (const ids of selectedByClient.values()) {
+      for (const id of ids) set.add(id)
+    }
+    return set
+  }, [selectedByClient])
+
   function removeContact(clientId, contactId) {
     toggleContact(clientId, contactId)
   }
@@ -207,14 +215,6 @@ export function SettingsEmailBlast() {
     ),
     [filteredClients, selectedContactIds]
   )
-
-  const selectedContactIds = useMemo(() => {
-    const set = new Set()
-    for (const ids of selectedByClient.values()) {
-      for (const id of ids) set.add(id)
-    }
-    return set
-  }, [selectedByClient])
 
   const selectedTemplate = templates.find(t => t.id === templateId)
 
