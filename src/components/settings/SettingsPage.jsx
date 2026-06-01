@@ -30,6 +30,7 @@ const SETTINGS_MENU_ICONS = {
   'fase-types': Icons.FolderKanban,
   'activity-types': Icons.Activity,
   'email-templates': Icons.Mail,
+  'email-blast': Icons.Send,
   'brief-templates': Icons.FileQuestion,
   default: Icons.Settings,
 }
@@ -39,6 +40,7 @@ import { SettingsActivityTypes } from './SettingsActivityTypes'
 import { SettingsProjectTemplates } from './SettingsProjectTemplates'
 import SettingsBriefTemplates from '@/pages/SettingsBriefTemplates'
 import { EmailTemplatesManager } from '../email/EmailTemplatesManager'
+import { SettingsEmailBlast } from './SettingsEmailBlast'
 
 const MENU_GROUPS = [
   { label: 'Equipe', items: [
@@ -67,6 +69,7 @@ const MENU_GROUPS = [
   ]},
   { label: 'Comunicação', items: [
     { key: 'email-templates', label: 'Templates de E-mail', featureFlag: 'email_templates' },
+    { key: 'email-blast',     label: 'Envio em Massa',      featureFlag: 'email_templates' },
   ]},
   { label: 'Governança', items: [
     { key: 'logs', label: 'Auditoria', featureFlag: 'logs' },
@@ -112,6 +115,7 @@ export default function SettingsPage() {
       case 'project-templates': return isEnabled('project_templates', profile?.role) && <SettingsProjectTemplates />
       case 'brief-templates': return isEnabled('brief_templates', profile?.role) && <SettingsBriefTemplates />
       case 'email-templates': return isManager && isEnabled('email_templates', profile?.role) && <EmailTemplatesManager />
+      case 'email-blast': return isManager && isEnabled('email_templates', profile?.role) && <SettingsEmailBlast />
       default: return null
     }
   }

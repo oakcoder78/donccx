@@ -3,6 +3,7 @@
 
 import {
   Activity,
+  AlertCircle,
   AlertTriangle,
   AlignCenter,
   AlignLeft,
@@ -14,6 +15,7 @@ import {
   Calendar,
   Check,
   CheckCircle,
+  CheckCircle2,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -47,6 +49,7 @@ import {
   Link,
   List,
   ListOrdered,
+  Loader2,
   Mail,
   MessageCircle,
   Minus,
@@ -83,6 +86,7 @@ import {
 
 export const Icons = {
   Activity,
+  AlertCircle,
   AlertTriangle,
   AlignCenter,
   AlignLeft,
@@ -94,6 +98,7 @@ export const Icons = {
   Calendar,
   Check,
   CheckCircle,
+  CheckCircle2,
   CheckSquare,
   ChevronDown,
   ChevronRight,
@@ -127,6 +132,7 @@ export const Icons = {
   Link,
   List,
   ListOrdered,
+  Loader2,
   Mail,
   MessageCircle,
   Minus,
