@@ -551,6 +551,16 @@ serve(async (req) => {
           recorded_at:           new Date().toISOString(),
         }, { onConflict: 'client_id,ref_month' })
 
+        // Save health_snapshot in client_usage for the latest month
+        if (arrays.client_usage.length > 0) {
+          const snapRefMonth = arrays.client_usage[0].ref_month
+          await admin.from('client_usage')
+            .update({ health_snapshot: scores.total })
+            .eq('client_id', client.id)
+            .eq('ref_month', snapRefMonth)
+            .not('instance_id', 'is', null)
+        }
+
         recalculated++
       } catch (err) {
         console.error(`health-recalc: client_id=${client.id}`, err)
