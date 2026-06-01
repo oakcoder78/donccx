@@ -147,7 +147,7 @@ Settings page at Configurações > Comunicação > Envio em Massa. Two-column la
 
 **Layout (left column, top to bottom):**
 
-1. **SummaryPill** — total recipient count + company count with `Icons.Users`
+1. **SummaryPill + SelectAllToggle** — total recipient/company counts with `Icons.Users` + toggle button: "Selecionar pré-selecionados" selects only champion/técnico/has-activity contacts per client; "Limpar seleção" clears all
 2. **ClientSearchInput** — filters active clients by name (`fantasy_name`/`name`)
 3. **ClientList** — scrollable list of client rows:
    - **ClientRow header** — click to expand/collapse, shows client name + selected count badge

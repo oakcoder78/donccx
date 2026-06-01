@@ -127,7 +127,7 @@ SettingsEmailBlast
 ├── Layout (two columns: recipients left, composer right)
 │
 ├── [LEFT] RecipientSelector
-│   ├── SummaryPill ("X destinatários em Y empresas")
+│   ├── SummaryPill ("X destinatários em Y empresas") + SelectAllToggle ("Selecionar pré-selecionados" / "Limpar seleção")
 │   ├── ClientSearchInput (search active clients)
 │   ├── ClientList
 │   │   └── ClientRow (per client)
@@ -298,13 +298,17 @@ case 'email-blast': return <SettingsEmailBlast />
   - [ ] ClientRow per client: selected contact chips + add-more dropdown
   - [ ] ContactChip: shows name + small reason tags (`★` champion, `⚙` técnico, `●` atividade) + remove button (X) — removing a pre-selected contact is allowed
   - [ ] AddContactDropdown: shows contacts NOT yet in `selectedByClient` for that client, filtered by email existence
+  - [ ] SelectAllToggle: "Selecionar pré-selecionados" / "Limpar seleção" button next to SummaryPill — toggles selection for champion/técnico/has-activity contacts only
 - [ ] **Build:** `npm run build` with no errors
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-06-01 | `f8b857e` | SettingsEmailBlast.jsx, useEmailBlastRecipients.js, SettingsPage.jsx, icons.js, email-blast-sdd.md | Phase 1 recipient selector + menu integration |
+| 2026-06-01 | `4fb3b09` | CHANGELOG.md, email.md | Documentation (changelog + module doc update) |
+| 2026-06-01 | `df62a4e` | SettingsEmailBlast.jsx | Select all toggle, dropdown overflow fix, domain warning fix |
+| 2026-06-01 | `5959e5c` | SettingsEmailBlast.jsx | Fix TDZ error on selectedContactIds |
 
 ---
 
@@ -343,7 +347,7 @@ case 'email-blast': return <SettingsEmailBlast />
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-06-01 | `f8b857e` | SettingsEmailBlast.jsx | Email composer (template picker, EmailEditor, AI rewrite, attachments, from-mode, preview) |
 
 ---
 
@@ -375,7 +379,7 @@ case 'email-blast': return <SettingsEmailBlast />
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-06-01 | `f8b857e` | SettingsEmailBlast.jsx | handleSend + recipients array build + result display + reset |
 
 ---
 

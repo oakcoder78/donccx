@@ -194,25 +194,34 @@ export function SettingsEmailBlast() {
   }
 
   function toggleSelectAll() {
-    const allSelected = filteredClients.every(client =>
-      client.contacts.every(c => selectedContactIds.has(c.contactId))
+    const allPreselectedSelected = filteredClients.every(client =>
+      client.contacts
+        .filter(c => c.champion || c.papel === 'Técnico' || c.hasActivity)
+        .every(c => selectedContactIds.has(c.contactId))
     )
-    setSelectedByClient(prev => {
-      const next = new Map()
-      if (!allSelected) {
+    if (allPreselectedSelected) {
+      setSelectedByClient(new Map())
+    } else {
+      setSelectedByClient(prev => {
+        const next = new Map()
         for (const client of filteredClients) {
-          const ids = new Set(client.contacts.map(c => c.contactId))
-          next.set(client.clientId, ids)
+          const preselectedIds = new Set(
+            client.contacts
+              .filter(c => c.champion || c.papel === 'Técnico' || c.hasActivity)
+              .map(c => c.contactId)
+          )
+          if (preselectedIds.size > 0) next.set(client.clientId, preselectedIds)
         }
-      }
-      return next
-    })
+        return next
+      })
+    }
   }
 
   const allContactsSelected = useMemo(() =>
-    filteredClients.length > 0 && filteredClients.every(client =>
-      client.contacts.every(c => selectedContactIds.has(c.contactId))
-    ),
+    filteredClients.length > 0 && filteredClients.every(client => {
+      const preselected = client.contacts.filter(c => c.champion || c.papel === 'Técnico' || c.hasActivity)
+      return preselected.length > 0 && preselected.every(c => selectedContactIds.has(c.contactId))
+    }),
     [filteredClients, selectedContactIds]
   )
 
@@ -481,7 +490,7 @@ export function SettingsEmailBlast() {
         {filteredClients.length > 0 && (
           <button onClick={toggleSelectAll} className="flex items-center gap-1 text-xs text-donc-sky hover:text-donc-sky/80 font-medium">
             <Icons.CheckSquare className="w-3.5 h-3.5" />
-            {allContactsSelected ? 'Desselecionar todos' : 'Selecionar todos'}
+            {allContactsSelected ? 'Limpar seleção' : 'Selecionar pré-selecionados'}
           </button>
         )}
       </div>
