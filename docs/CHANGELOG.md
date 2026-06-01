@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-01
+
+### Email Blast — Envio em Massa
+- **Feature:** Mass email sender in Settings > Comunicação > Envio em Massa — recipient selector with 3-criteria auto-selection (champion, técnico, has activity), per-client expand/collapse, contact chips with reason tags
+- **Feature:** Full composer: template picker, EmailEditor with AI rewrite, attachment upload (`blast_temp/`), from-mode (csm/noreply), per-recipient merge tags via `send-email` edge function
+- **New file:** `src/hooks/useEmailBlastRecipients.js` — parallel queries for active clients + activity contacts
+- **New file:** `src/components/settings/SettingsEmailBlast.jsx` — two-column layout (recipient selector + composer)
+- **New file:** `docs/sdd/email-blast-sdd.md` — SDD document
+- **Settings:** Item "Envio em Massa" added to menu under "Comunicação" (same `email_templates` feature flag, manager-only)
+
 ## 2026-05-27
 
 ### Reports — Seções Operacionais (RMC)

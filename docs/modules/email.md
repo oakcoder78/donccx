@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The Email module provides transactional email delivery from within the CRM. CSMs can compose and send templated emails to client contacts directly from the client detail page, without leaving the application. Templates are managed in Settings by administrators.
+The Email module provides transactional email delivery and mass email campaigns from within the CRM. CSMs can compose and send templated emails to client contacts individually or in bulk via the mass send page. Templates are managed in Settings by administrators.
 
 ## Responsibilities
 
@@ -11,6 +11,7 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 - **Delivery** — sends via Resend API through a Supabase Edge Function.
 - **Logging** — every send attempt is recorded in `email_logs` for auditability.
 - **Activity creation** — successful sends generate a `type=email` activity on the client timeline.
+- **Mass send** — bulk email sender in Settings with recipient auto-selection (champion, técnico, has activity), per-client expand/collapse, and per-recipient merge variables (`nome_contato`, `nome_empresa`). Safety limit of 100 recipients per batch enforced in the UI.
 - **Role-based sender** — `from_mode` controls whether the email appears to come from the CSM or from `noreply@donc.com.br`.
 - **Domain validation** — CSM sender requires profile email ending in `@donc.com.br`. Invalid domain disables the radio button, auto-selects noreply, and shows a warning. Edge function returns 400 on invalid domain.
 - **Reply-to** — all emails include `reply_to: suporte@donc.com.br` set via Resend API parameter.
@@ -26,9 +27,39 @@ The Email module provides transactional email delivery from within the CRM. CSMs
 | `src/components/clients/tabs/ClientTabContatos.jsx` | Email button per contact — opens composer with preselected contact |
 | `src/components/contacts/ContactPanel.jsx` | Email button in contact side panel |
 | `src/components/contacts/ContactsPage.jsx` | Email button in contacts table |
+| `src/components/settings/SettingsEmailBlast.jsx` | Mass send page — recipient selector + composer + send (Settings menu) |
+| `src/hooks/useEmailBlastRecipients.js` | Hook — parallel queries for active clients + activity contacts |
 | `supabase/functions/send-email/index.ts` | Edge Function — Resend API, template merge, logging, activity creation, attachment download+base64 |
 
 ## Data Interaction
+
+### Mass Send Queries (`useEmailBlastRecipients`)
+
+Two parallel queries on mount:
+
+```javascript
+// Query A: all active clients with ALL their contact_links
+const { data: clientsData } = await supabase
+  .from('clients')
+  .select(`
+    id, name, fantasy_name,
+    contact_links(
+      contact_id, papel, champion,
+      contacts(
+        id, name, email,
+        contact_emails(email, is_primary)
+      )
+    )
+  `)
+  .eq('contract_active', true)
+  .order('name')
+
+// Query B: all contact IDs that appear in any activity
+const { data: activityRows } = await supabase
+  .from('activities')
+  .select('contact_id')
+  .not('contact_id', 'is', null)
+```
 
 ### Tables
 
@@ -110,14 +141,43 @@ No stepper. All fields visible on one screen. Modal width adapts to preview stat
 
 `mode` prop is `individual` (default); `preselectedClientId` / `preselectedContactId` allow direct invocation from client context.
 
-### Entry Points
+### SettingsEmailBlast — Mass Send Page
 
-| Entry Point | Source | Preselected |
-|------------|--------|-------------|
-| Client Detail | `ClientDetail.jsx` | `preselectedClientId` |
-| Contact Side Panel | `ContactPanel.jsx` | Both |
-| Contacts Page | `ContactsPage.jsx` | Both |
-| Contacts Tab | `ClientTabContatos.jsx` | Both |
+Settings page at Configurações > Comunicação > Envio em Massa. Two-column layout with recipient selector on the left and composer on the right.
+
+**Layout (left column, top to bottom):**
+
+1. **SummaryPill** — total recipient count + company count with `Icons.Users`
+2. **ClientSearchInput** — filters active clients by name (`fantasy_name`/`name`)
+3. **ClientList** — scrollable list of client rows:
+   - **ClientRow header** — click to expand/collapse, shows client name + selected count badge
+   - **ContactChips** — selected contacts shown as rounded pills with reason tags (★ champion, ⚙ técnico, ● atividade) and × remove button
+   - **AddContactDropdown** — lists remaining contacts for that client; filtered by email existence
+
+**Layout (right column, top to bottom):**
+
+1. **TemplatePicker** — `<select>` from active `email_templates`, auto-populates no fields
+2. **SubjectInput** — text input, controlled
+3. **EmailEditor** — WYSIWYG with AI Rewrite button (reuses `EmailEditor` component directly)
+4. **AttachmentSection** — file picker (PDF/DOC/XLS/IMG, max 5 files, 5 MB each), uploaded to `blast_temp/` storage path on send
+5. **FromModePicker** — radio csm/noreply (admin/manager only, same domain validation as individual composer)
+6. **Domain warning** — amber banner if profile email is not `@donc.com.br`
+7. **CSMSignaturePreview** — read-only name, cargo, phone, email
+8. **ActionBar** — recipient count badge + Preview button + Send button (disabled if no recipients / no template / no subject / no body)
+
+**Pre-selection logic (on mount):**
+- Contact is auto-selected if `champion === true` OR `papel === 'Técnico'` OR contact appears in `activities` table
+- All pre-selected contacts can be individually deselected
+- Contacts without a resolvable email are excluded from both display and selection
+
+**Safety limit:** Warning banner shown if recipient count exceeds 100. Send is blocked with a toast if > 100.
+
+**Result screen** (replaces composer after send):
+- Success: green `CheckCircle2`, sent count, failed count with per-recipient error list
+- Error: red `XCircle`, error message, "Tentar novamente" button
+- "Enviar nova campanha" button clears composer fields but preserves recipient selection
+
+### Entry Points
 
 ## Data Flow
 
@@ -150,6 +210,36 @@ Edge function:
   9. Return { sent, failed, logs }
 ```
 
+### Mass Send Data Flow
+
+```
+User opens Settings > Comunicação > Envio em Massa
+       │
+       ▼
+useEmailBlastRecipients runs Query A (clients + contact_links + contacts)
+                         + Query B (activity contact_ids) in parallel
+       │
+       ▼
+Pre-selection: champion | papel===Técnico | hasActivity
+       │
+       ▼
+User adjusts selection (search, expand, toggle chips, add contacts)
+       │
+       ▼
+User fills composer: template, subject, body, attachments (optional)
+       │
+       ├── [Preview] → Modal with iframe using mergeTags + first recipient's vars
+       │
+       ▼
+handleSend():
+  1. Validate recipient count ≤ 100
+  2. Upload attachments to blast_temp/{ts}_{file}
+  3. Build recipients[] array with per-recipient variables (nome_contato, nome_empresa, CSM vars)
+  4. POST /functions/v1/send-email (same endpoint as individual send)
+  5. Show result screen (sent/failed counts)
+  6. "Enviar nova campanha" → resetComposer() clears form, keeps recipient selection
+```
+
 ## Dependencies
 
 - `useAuth` — user identity, role check for `from_mode`
@@ -158,11 +248,13 @@ Edge function:
 - `react-hot-toast` — success/error feedback
 - `SettingsSectionHeader` — consistent settings header
 - `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, `@tiptap/extension-text-align` — WYSIWYG editor (`EmailEditor`)
+- `useEmailBlastRecipients` — parallel queries for mass send recipient data
 
 ## Main User Flows
 
 1. **CSM sends email** — clicks "Enviar e-mail" → composer opens → selects/confirms company → types contact name in "Para:" (chips) → picks template → writes subject + body → attaches files (optional) → [Preview] (optional) → [Enviar] → activity + attachments appear on client timeline
-2. **Admin manages templates** — navigates to Settings > Templates de E-mail → creates or edits template → inserts variables → uploads images → previews → saves
+2. **Manager sends mass email** — navigates to Settings > Comunicação > Envio em Massa → recipients auto-selected (champion, técnico, has activity) → adjusts selection → picks template → writes subject + body → attaches files (optional) → [Preview] (optional) → [Enviar] → sent/failed result screen → "Enviar nova campanha" to reset
+3. **Admin manages templates** — navigates to Settings > Templates de E-mail → creates or edits template → inserts variables → uploads images → previews → saves
 
 ## Attachments
 
@@ -192,6 +284,8 @@ No changes needed — the existing `activity_attachments` infrastructure renders
 
 ## Edge Cases
 
+### Individual send
+
 - Contact without email registered: shows amber warning in step 1, blocked from selecting
 - `from_mode=noreply` by non-admin/manager: edge function returns `403`
 - CSM without `@donc.com.br` email: radio "Meu e-mail" disabled, "noreply" auto-selected, amber warning shown. Edge function returns `400` if `from_mode='csm'` with invalid domain
@@ -201,8 +295,19 @@ No changes needed — the existing `activity_attachments` infrastructure renders
 - Image upload: stores in `report-images` bucket; returns `publicUrl` embedded as `<img src>`
 - Attachments: files uploaded to storage before send. Orphaned files (uploaded but send failed) cleaned up on modal close
 
+### Mass send
+
+- **100-recipient limit:** Supabase edge function timeout (~60s) limits safe throughput to ~100 recipients. UI warns with banner if count exceeds 100 and blocks send with toast error.
+- **`blast_temp/` storage path:** Mass send uses `blast_temp/{ts}_{file}` instead of `{client.id}/email_temp/{ts}_{file}` — no single client context exists in the mass send flow.
+- **Per-recipient merge:** `nome_contato` and `nome_empresa` are injected per recipient, not globally. Edge function loops recipients and performs individual `mergeTags()`.
+- **`nome_empresa` resolution:** Derived from `clients.fantasy_name || clients.name` for each recipient's client.
+- **Pre-selection is mutable:** Auto-selected contacts (champion, técnico, has activity) can all be individually deselected. No locked selections.
+- **No pagination:** Current volume (<200 active clients) fits a single query. If it scales, virtualized list needed.
+- **Reset preserves selection:** "Enviar nova campanha" clears composer fields (template, subject, body, attachments) but keeps the recipient selection intact.
+
 ## Recent Changes
 
+- **2026-06-01 (commit `f8b857e`):** Mass email blast — new Settings page `SettingsEmailBlast` with recipient selector (3-criteria pre-selection), full composer (reuses `EmailEditor`, `send-email` edge function), per-recipient merge tags, attachment upload (`blast_temp/`). New hook `useEmailBlastRecipients`. SDD document at `docs/sdd/email-blast-sdd.md`.
 - **2026-05-16 (commits `167804e`, `797b6cd`, `8a529a4`, `84c39f2`, `2f15cd0`):** WYSIWYG editor (`EmailEditor` via TipTap v2) replaces textarea with formatting toolbar (Bold, Italic, Underline, H1-H3, lists, alignment, link, remove formatting). ✨ Reescrever button in toolbar calls `openrouter-proxy` edge function with configurable rewrite prompt (`email_rewrite_prompt` in `freshdesk_config`). `supabase/config.toml` — added `[functions.openrouter-proxy] verify_jwt = false`. Email templates: `<p>{{corpo_mensagem}}</p>` changed to `<div>` to avoid nested `<p>`.
 - **2026-05-15 (multiple commits):** Email attachments — upload to storage, download+base64 in edge, send via Resend, persist as `activity_attachments`. Composer redesigned: single-screen with chips "Para:", company swap icon, preview modal (not a step). Domain validation: CSM sender requires `@donc.com.br`. Email button added to ClientTabContatos.
 - **2026-05-13 (commit `0f8e363`):** `reply_to: suporte@donc.com.br` added to all outgoing emails via Resend API `reply_to` parameter
@@ -221,6 +326,13 @@ All templates support these variables via `{{variable}}` merge syntax:
 | `csm_telefone` | `profiles.phone` of sender | "(11) 99999-9999" |
 | `csm_email` | `profiles.email` of sender | "joao.silva@donc.com.br" |
 | `reply_to` | fixed: `suporte@donc.com.br` | Set via Resend API `reply_to` param on every send |
+
+**Mass send only:** These variables are injected per recipient (not globally) by the frontend before calling the edge function:
+
+| Variable | Source |
+|----------|--------|
+| `nome_contato` | `contacts.name` |
+| `nome_empresa` | `clients.fantasy_name \|\| clients.name` |
 
 Additional variables can be defined per template in the manager (stored as JSONB array).
 
@@ -241,11 +353,14 @@ Layout was revised in migration `20260511120000_fix_email_template_signature.sql
 - `src/components/email/EmailEditor.jsx` — TipTap WYSIWYG editor with toolbar and rewrite button
 - `src/components/email/EmailTemplatesManager.jsx` — template CRUD manager
 - `src/components/clients/tabs/ClientTabContatos.jsx` — email button per contact
-- `src/components/settings/SettingsPage.jsx` — menu integration (EmailTemplatesManager under "Comunicação")
-- `src/lib/icons.js` — `Mail` icon for settings section header
-- `supabase/functions/send-email/index.ts` — edge function implementation
+- `src/components/settings/SettingsPage.jsx` — menu integration (EmailTemplatesManager + SettingsEmailBlast under "Comunicação")
+- `src/components/settings/SettingsEmailBlast.jsx` — mass send page (recipient selector + composer + send)
+- `src/hooks/useEmailBlastRecipients.js` — parallel queries for active clients + activity contacts
+- `src/lib/icons.js` — `Mail` icon for settings section header; `Send` for mass send menu icon
+- `supabase/functions/send-email/index.ts` — edge function implementation (unchanged)
 - `supabase/migrations/20260511000000_email_module.sql` — initial schema + seed
 - `supabase/migrations/20260511120000_fix_email_template_signature.sql` — signature fix + from_mode column
+- `docs/sdd/email-blast-sdd.md` — SDD document for mass send feature
 
 ---
 
