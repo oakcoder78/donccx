@@ -393,12 +393,12 @@ export function SettingsDoncAPI() {
                 ))}
               </ul>
             )}
-            {syncResult.synced > 0 && (
+            {pendingCount > 0 && (
               <button
                 style={{ marginTop: 8, fontSize: 12, color: '#173557', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontWeight: 600 }}
                 onClick={() => navigate('/config/donc-api/pendentes')}
               >
-                Ver {syncResult.synced} registro(s) pendente(s) →
+                Ver {pendingCount} registro(s) pendente(s) →
               </button>
             )}
           </div>

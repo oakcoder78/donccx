@@ -168,10 +168,12 @@ serve(async (req) => {
 
         // ── Salvar snapshot (campos calculados só escritos na aprovação CSM) ────
         const now = new Date()
-        const isCurrentMonth = refMonth === `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
-        console.log(`donc-api-sync: refMonth=${refMonth} nowUTC=${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')} isCurrentMonth=${isCurrentMonth} partial_day=${isCurrentMonth ? now.getUTCDate() : null}`)
+        const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+        const isCurrentMonth = refMonth === currentMonth
+        console.log(`donc-api-sync: refMonth=${refMonth} nowUTC=${currentMonth} isCurrentMonth=${isCurrentMonth} partial_day=${isCurrentMonth ? now.getUTCDate() : null}`)
 
-        const usageRow = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const usageRow: Record<string, any> = {
           client_id:     inst.client_id,
           ref_month:     refMonth,
           instance_id:   inst.id,
@@ -180,7 +182,18 @@ serve(async (req) => {
           partial_day:   isCurrentMonth ? now.getUTCDate() : null,
         }
 
-        const currentMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
+        // For completed months, auto-populate numeric fields from snapshot
+        // (no CSM review needed — month is closed)
+        if (!isCurrentMonth && apiData) {
+          usageRow.os_created             = apiData.totalOs ?? 0
+          usageRow.active_users           = apiData.profissionais?.ativos ?? 0
+          usageRow.profissionais_inativos = apiData.profissionais?.inativos ?? null
+          usageRow.os_finalizadas         = apiData.osPorStatus?.finalizadas ?? null
+          usageRow.os_abertas             = apiData.osPorStatus?.abertas ?? null
+          usageRow.os_canceladas          = apiData.osPorStatus?.canceladas ?? null
+          usageRow.unidades               = apiData.unidades ?? null
+          usageRow.os_por_tipo            = apiData.osPorTipo ?? null
+        }
 
         // Upsert com constraint composta client_id + ref_month
         const { error: upsertErr } = await admin
