@@ -264,8 +264,6 @@ export function ClientSubDados({ client }) {
       {/* Navy card with main info */}
       <div className="bg-donc-navy rounded-lg p-5 text-white">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <InfoRow label="App Code" value={client.app_code} />
-          <InfoRow label="URL donc" value={client.url_donc} />
           <InfoRow label="Início Contrato" value={formatDate(client.contract_start)} />
           <InfoRow label="Renovação" value={formatDate(client.contract_renewal)} />
           <InfoRow label="Início Onboarding" value={formatDate(client.onb_start)} />

@@ -21,7 +21,7 @@ const EMPTY = {
   billing_type: 'por_licenca', billing_base_value: '',
   billing_floor: '', contract_signed_date: '', contract_start: '',
   contract_renewal: '', correction_index: '',
-  stage_id: '', app_code: '', url_donc: '',
+  stage_id: '',
   onb_start: '', golive: '', description: '',
   address_cep: '', address_street: '', address_number: '',
   address_complement: '', address_neighborhood: '',
@@ -281,8 +281,6 @@ export function ClientForm({ client, onClose }) {
       correction_index: form.correction_index || null,
       mrr: mrrMinimo,
       stage_id: form.stage_id ? Number(form.stage_id) : null,
-      app_code: form.app_code || null,
-      url_donc: form.url_donc || null,
       onb_start: form.onb_start || null,
       golive: form.golive || null,
       description: form.description || null,
@@ -589,14 +587,6 @@ export function ClientForm({ client, onClose }) {
                   <option value="">Sem estágio</option>
                   {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-              </div>
-              <div>
-                <label className="label-sm">App Code</label>
-                <input name="app_code" value={form.app_code} onChange={handleChange} className="input-base w-full" />
-              </div>
-              <div className="col-span-2">
-                <label className="label-sm">URL Donc</label>
-                <input name="url_donc" value={form.url_donc} onChange={handleChange} className="input-base w-full" />
               </div>
               <div>
                 <label className="label-sm">Início Onboarding</label>
