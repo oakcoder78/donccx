@@ -3,7 +3,28 @@ import { Card } from '@/components/ui/Card'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useCatalog } from '@/hooks/useCatalog'
 import { supabase } from '@/lib/supabaseClient'
+import { Icons } from '@/lib/icons'
 import toast from 'react-hot-toast'
+
+function shortUrl(url) {
+  if (!url) return ''
+  try {
+    const u = new URL(url)
+    const path = u.pathname && u.pathname !== '/' ? u.pathname.replace(/\/$/, '') : ''
+    return u.host + path
+  } catch {
+    return url
+  }
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success('App code copiado')
+  } catch {
+    toast.error('Não foi possível copiar')
+  }
+}
 
 function InfoRow({ label, value }) {
   if (!value) return null
@@ -135,22 +156,82 @@ function DoncInstancesSection({ clientId }) {
         <p style={{ fontSize: 12, color: '#888780' }}>Nenhuma instância cadastrada.</p>
       )}
 
-      {instances.map(inst => (
-        <div key={inst.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '7px 0', borderTop: '1px solid #f0f0ec' }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a18' }}>{inst.label}</span>
-            <span style={{ fontSize: 11, color: '#888780', marginLeft: 8 }}>ID {inst.contrato_saas_id}</span>
-            {!inst.active && <span style={{ fontSize: 10, color: '#b45309', backgroundColor: '#fef3c7', padding: '1px 6px', borderRadius: 4, marginLeft: 6 }}>inativo</span>}
-          </div>
-          <span style={{ fontSize: 11, color: '#888780' }}>weight {inst.weight}</span>
-          <button
-            onClick={() => setModalInst(inst)}
-            style={{ fontSize: 11, color: '#173557', background: 'none', border: '1px solid #d4d3ce', borderRadius: 5, padding: '3px 10px', cursor: 'pointer' }}
-          >
-            Editar
-          </button>
+      {instances.length > 0 && (
+        <div style={{ overflowX: 'auto', marginTop: 4 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: '#888780', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0ec', fontWeight: 600 }}>Label</th>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0ec', fontWeight: 600 }}>SaaS ID</th>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0ec', fontWeight: 600 }}>URL Donc</th>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0ec', fontWeight: 600 }}>App Code</th>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0ec', fontWeight: 600, textAlign: 'right' }}>Weight</th>
+                <th style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0ec', fontWeight: 600, textAlign: 'right' }}>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {instances.map(inst => (
+                <tr key={inst.id} style={{ borderTop: '1px solid #f0f0ec' }}>
+                  <td style={{ padding: '8px', verticalAlign: 'middle' }}>
+                    <span style={{ fontWeight: 600, color: '#1a1a18' }}>{inst.label}</span>
+                    {!inst.active && (
+                      <span style={{ fontSize: 10, color: '#b45309', backgroundColor: '#fef3c7', padding: '1px 6px', borderRadius: 4, marginLeft: 6 }}>
+                        inativo
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px', color: '#1a1a18', whiteSpace: 'nowrap' }}>{inst.contrato_saas_id}</td>
+                  <td style={{ padding: '8px', maxWidth: 260 }}>
+                    {inst.url_donc ? (
+                      <a
+                        href={inst.url_donc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={inst.url_donc}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#173557', textDecoration: 'none', maxWidth: '100%' }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                          {shortUrl(inst.url_donc)}
+                        </span>
+                        <Icons.Globe size={12} style={{ flexShrink: 0, color: '#888780' }} />
+                      </a>
+                    ) : (
+                      <span style={{ color: '#c4c3be' }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px', maxWidth: 200 }}>
+                    {inst.app_code ? (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <code style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11, color: '#1a1a18', backgroundColor: '#f5f4f0', padding: '2px 6px', borderRadius: 4, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {inst.app_code}
+                        </code>
+                        <button
+                          onClick={() => copyText(inst.app_code)}
+                          title="Copiar app code"
+                          style={{ background: 'none', border: '1px solid #d4d3ce', borderRadius: 4, padding: '2px 4px', cursor: 'pointer', color: '#173557', display: 'inline-flex', alignItems: 'center' }}
+                        >
+                          <Icons.Copy size={11} />
+                        </button>
+                      </span>
+                    ) : (
+                      <span style={{ color: '#c4c3be' }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '8px', color: '#888780', textAlign: 'right', whiteSpace: 'nowrap' }}>{inst.weight}</td>
+                  <td style={{ padding: '8px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                    <button
+                      onClick={() => setModalInst(inst)}
+                      style={{ fontSize: 11, color: '#173557', background: 'none', border: '1px solid #d4d3ce', borderRadius: 5, padding: '3px 10px', cursor: 'pointer' }}
+                    >
+                      Editar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+      )}
 
       {modalInst !== null && (
         <InstanceModal
