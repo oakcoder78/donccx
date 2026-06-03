@@ -16,16 +16,16 @@
 
 | ID | Type | Title | Priority | Status | Linked SDD |
 |---|---|---|---|---|---|
-| TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Backlog | — |
+| TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Active | — |
 
 ## TD-001 — Drop `clients.app_code` / `clients.url_donc`
 
 **Type:** Tech Debt
 **Priority:** M
-**Status:** Backlog
+**Status:** Active
 **Origin:** 2026-06-03 — session where the instances list started reading `url_donc` / `app_code` from `client_donc_instances`; the matching columns on `clients` were soft-deprecated instead of dropped.
 **Linked SDD:** —
-**Related commits:** `4a8567b` (table added in instances list), `a9c36d2` (soft deprecation in form + display)
+**Related commits:** `4a8567b` (table added in instances list), `a9c36d2` (soft deprecation in form + display), `19fd29a` (backfill + drop migration)
 
 ### Context
 
