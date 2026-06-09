@@ -642,6 +642,22 @@ export default function DashboardPage() {
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
   }, [opsByClient, clients])
 
+  const opOSAll = useMemo(() => {
+    const rows = []
+    Object.entries(opsByClient).forEach(([clientId, months]) => {
+      const cur  = months[prevMonth]
+      const prev = months[prevMonth2]
+      if (!cur) return
+      const curVal  = cur.donc_snapshot?.totalOs ?? null
+      const prevVal = prev?.donc_snapshot?.totalOs ?? null
+      if (!curVal || !prevVal || prevVal === 0) return
+      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
+      const cl = clients.find(c => c.id === Number(clientId))
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} OS criadas`, absDelta: Math.abs(curVal - prevVal) })
+    })
+    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+  }, [opsByClient, clients])
+
   const opUsersList = useMemo(() => {
     const rows = []
     Object.entries(opsByClient).forEach(([clientId, months]) => {
@@ -1206,6 +1222,23 @@ export default function DashboardPage() {
       })
       return <DrawerListContent kind="Saúde" title="Clientes em risco" subtitle={`${riskClients.length} clientes com score < 50`} rows={rows} />
     }
+    if (mode === 'op-os-list') {
+      const rows = opOSAll.map((x) => {
+        const up = x.delta >= 0
+        return (
+          <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
+              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red, flexShrink: 0 }}>
+                {x.absDelta.toLocaleString('pt-BR')} OS {up ? '▲' : '▼'}{Math.abs(x.delta)}%
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
+          </DRow>
+        )
+      })
+      return <DrawerListContent kind="Operacional" title="OS criadas · variação mensal" subtitle={`${opOSAll.length} clientes com dados`} rows={rows} />
+    }
     if (mode === 'op-os' || mode === 'op-users' || mode === 'op-health') {
       return <DrawerOpContent mode={mode} clientId={data.clientId} clientName={data.clientName} />
     }
@@ -1566,7 +1599,7 @@ export default function DashboardPage() {
                     )
                   })}
                 </div>
-                <SeeAll onClick={() => openDrawer('op-os', opOSList[0] ? { clientId: opOSList[0].clientId, clientName: opOSList[0].name } : {})}>ver todos →</SeeAll>
+                <SeeAll onClick={() => openDrawer('op-os-list', {})}>ver todos →</SeeAll>
               </Panel>
 
               {/* Usuários ativos */}
