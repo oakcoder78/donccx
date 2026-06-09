@@ -547,7 +547,7 @@ export default function DashboardPage() {
     return map
   }, [opsRows])
 
-  const opHealthList = useMemo(() => {
+  const opHealthAll = useMemo(() => {
     const cutoff = (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d.toISOString().slice(0, 10) })()
     const crmOverdue = myTasksRaw
       .filter(a => a.due_date && a.due_date < cutoff && a.status !== 'concluida' && a.status !== 'cancelada')
@@ -568,8 +568,13 @@ export default function DashboardPage() {
       const cl = clients.find(c => c.id === Number(clientId))
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore })
     })
-    return { list: rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5), overdueActivityClientIds }
+    return { list: rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)), overdueActivityClientIds }
   }, [opsByClient, clients, myTasksRaw, overdueOnboardingActivities])
+
+  const opHealthList = useMemo(() => ({
+    ...opHealthAll,
+    list: opHealthAll.list.slice(0, 5),
+  }), [opHealthAll])
 
   // Urgency multi-criteria
   const alertaClients = useMemo(() => {
@@ -673,6 +678,23 @@ export default function DashboardPage() {
       rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} usuários ativos`, absDelta: Math.abs(curVal - prevVal) })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
+  }, [opsByClient, clients])
+
+  const opUsersAll = useMemo(() => {
+    const rows = []
+    Object.entries(opsByClient).forEach(([clientId, months]) => {
+      const cur  = months[prevMonth]
+      const prev = months[prevMonth2]
+      if (!cur) return
+      const curVal  = cur.active_users ?? null
+      const prevVal = prev?.active_users ?? null
+      if (curVal === null) return
+      if (!prevVal || prevVal === 0) return
+      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
+      const cl = clients.find(c => c.id === Number(clientId))
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} usuários ativos`, absDelta: Math.abs(curVal - prevVal) })
+    })
+    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
   }, [opsByClient, clients])
 
   // Sync action
@@ -1239,6 +1261,40 @@ export default function DashboardPage() {
       })
       return <DrawerListContent kind="Operacional" title="OS criadas · variação mensal" subtitle={`${opOSAll.length} clientes com dados`} rows={rows} />
     }
+    if (mode === 'op-users-list') {
+      const rows = opUsersAll.map((x) => {
+        const up = x.delta >= 0
+        return (
+          <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
+              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red, flexShrink: 0 }}>
+                {x.absDelta.toLocaleString('pt-BR')} usu. {up ? '▲' : '▼'}{Math.abs(x.delta)}%
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
+          </DRow>
+        )
+      })
+      return <DrawerListContent kind="Operacional" title="Usuários ativos · variação mensal" subtitle={`${opUsersAll.length} clientes com dados`} rows={rows} />
+    }
+    if (mode === 'op-health-list') {
+      const rows = opHealthAll.list.map((x) => {
+        const up = x.delta >= 0
+        return (
+          <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
+              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 3, color: up ? C.green : C.red, flexShrink: 0 }}>
+                {up ? '▲' : '▼'} {Math.abs(x.delta)} pts
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>score {x.cur}</div>
+          </DRow>
+        )
+      })
+      return <DrawerListContent kind="Operacional" title="Health score · variação mensal" subtitle={`${opHealthAll.list.length} clientes com dados`} rows={rows} />
+    }
     if (mode === 'op-os' || mode === 'op-users' || mode === 'op-health') {
       return <DrawerOpContent mode={mode} clientId={data.clientId} clientName={data.clientName} />
     }
@@ -1624,7 +1680,7 @@ export default function DashboardPage() {
                     )
                   })}
                 </div>
-                <SeeAll onClick={() => openDrawer('op-users', opUsersList[0] ? { clientId: opUsersList[0].clientId, clientName: opUsersList[0].name } : {})}>ver todos →</SeeAll>
+                <SeeAll onClick={() => openDrawer('op-users-list', {})}>ver todos →</SeeAll>
               </Panel>
 
               {/* Health score variação */}
@@ -1654,7 +1710,7 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-                <SeeAll onClick={() => openDrawer('op-health', opHealthList.list[0] ? { clientId: opHealthList.list[0].clientId, clientName: opHealthList.list[0].name } : {})}>ver todos →</SeeAll>
+                <SeeAll onClick={() => openDrawer('op-health-list', {})}>ver todos →</SeeAll>
               </Panel>
 
               {/* Sincronização */}
