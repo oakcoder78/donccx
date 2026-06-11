@@ -217,10 +217,14 @@ serve(async (req) => {
       } catch (refreshErr) {
         const msg = refreshErr instanceof Error ? refreshErr.message : String(refreshErr)
         console.error('Token refresh failed:', msg)
-        if (msg.includes('expired') || msg.includes('revoked') || msg.includes('invalid_grant')) {
-          return json({ error: 'Google Calendar token expired. Please disconnect and reconnect your Google account.', code: 'TOKEN_EXPIRED' }, 401)
-        }
-        return json({ error: `Token refresh failed: ${msg}` }, 500)
+        // Any failure exchanging the refresh token means the stored Google grant is no
+        // longer usable (expired, revoked, or rejected). The only remedy is for the user
+        // to reconnect, so always surface TOKEN_EXPIRED rather than a raw 500.
+        return json({
+          error: 'Google Calendar token expired. Please disconnect and reconnect your Google account.',
+          code: 'TOKEN_EXPIRED',
+          detail: msg,
+        }, 401)
       }
     } else {
       const { data: config } = await admin
