@@ -272,11 +272,13 @@ export default function ReportEditorPage() {
     setGeneratingAnalysis(prev => ({ ...prev, [section.id]: true }))
     try {
       const sectionData = getSectionValues(section)
+      const customContext = section.content?.analysisContext || undefined
       const text = await generateSectionAnalysis({
         sectionType: section.type,
         sectionData,
         clientName: client?.fantasy_name || client?.name,
         period: report?.period,
+        customContext,
       })
       updateContent(section.id, 'callout', text)
       toast.success('Análise gerada com sucesso')
@@ -853,18 +855,27 @@ function SectionEditor({
 
         {/* Callout analítico */}
         {showCallout && sec.type !== 'custom-image' && sec.type !== 'capa' && (
-          <div>
+          <div className="mt-6 pt-4 border-t border-border">
             <label className="text-xs text-text-tertiary block mb-1">Análise / Nota</label>
             {['escala','qualidade_operacao','indicadores_operacionais','categorias_ocorrencia','desempenho_operacional','suporte'].includes(sec.type) && (
-              <button
-                onClick={() => onGenerateAnalysis(sec)}
-                disabled={generatingAnalysis || !operationalData?.current}
-                title={!operationalData?.current ? 'Dados operacionais não disponíveis para este período' : ''}
-                className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-800 mb-2"
-              >
-                <Icons.Sparkles size={14} />
-                {generatingAnalysis ? 'Gerando análise...' : 'Gerar análise'}
-              </button>
+              <div className="flex flex-col gap-2 mb-2">
+                <button
+                  onClick={() => onGenerateAnalysis(sec)}
+                  disabled={generatingAnalysis || !operationalData?.current}
+                  title={!operationalData?.current ? 'Dados operacionais não disponíveis para este período' : ''}
+                  className="flex items-center gap-1 text-xs text-sky-600 hover:text-sky-800 self-start"
+                >
+                  <Icons.Sparkles size={14} />
+                  {generatingAnalysis ? 'Gerando análise...' : 'Gerar análise'}
+                </button>
+                <textarea
+                  value={sec.content?.analysisContext ?? ''}
+                  onChange={e => onContent('analysisContext', e.target.value)}
+                  rows={2}
+                  placeholder="Instruções específicas para a análise (opcional)..."
+                  className="input-base w-full resize-none text-xs leading-relaxed"
+                />
+              </div>
             )}
             <textarea
               value={sec.content?.callout ?? ''}
