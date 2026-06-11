@@ -17,36 +17,35 @@
 | ID | Type | Title | Priority | Status | Linked SDD |
 |---|---|---|---|---|---|
 | TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Done | — |
-| TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Ready | — |
+| TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Done | — |
 
-## Open Items
+## Closed Items
 
 ### TD-002 — Desativar legacy API keys e migrar frontend para `sb_publishable_*`
 
 **Type:** Tech Debt
 **Priority:** H
-**Status:** Ready
-**Origin:** 2026-06-11 — auditoria de segurança após exposição da service_role JWT; Edge Functions e scripts já são compatíveis com `sb_secret_*` (helper `_shared/auth.ts`).
+**Status:** Done
+**Closed:** 2026-06-11 — legacy JWT-based API keys (anon + service_role) desativadas no Dashboard às 18:46Z; service_role JWT exposta efetivamente revogada.
+**Origin:** 2026-06-11 — auditoria de segurança após exposição da service_role JWT; Edge Functions e scripts já compatíveis com `sb_secret_*` (helper `_shared/auth.ts`).
 **Linked SDD:** —
-**Related commits:** —
+**Related commits:** `5dd0968` (auth hardening + compat sb_secret), `742e1c8` (RLS freshdesk_config admin+manager).
 
 ### Context
 
-A service_role JWT exposta só morre de fato quando as legacy API keys forem desativadas no Dashboard. Pré-requisitos já entregues: funções usam `getServiceKey()` (lê `SUPABASE_SECRET_KEYS`), S2S usa `SYNC_WEBHOOK_SECRET`, scripts aceitam `SUPABASE_SECRET_KEY`. Falta o lado operacional.
+A service_role JWT exposta só morre de fato quando as legacy API keys são desativadas no Dashboard. Pré-requisitos entregues no `5dd0968`: funções usam `getServiceKey()` (lê `SUPABASE_SECRET_KEYS`), S2S usa `SYNC_WEBHOOK_SECRET`, scripts aceitam `SUPABASE_SECRET_KEY`.
 
-### Proposed approach
+### What was done
 
-1. Criar chaves novas no Dashboard (Settings → API Keys): `sb_publishable_*` e `sb_secret_*` (nome `default`).
-2. Atualizar `VITE_SUPABASE_ANON_KEY` na Vercel e `.env.local` para o valor `sb_publishable_*` (supabase-js aceita sem mudança de código) e `SUPABASE_SECRET_KEY` local.
-3. Confirmar que nada mais usa as chaves legadas (n8n já migrado para `x-webhook-secret`).
-4. Desativar legacy keys no Dashboard (reversível) — isso revoga a service_role exposta sem invalidar sessões de usuários.
+1. Criadas chaves novas no Dashboard: `sb_publishable_PEDDXC13…` e secret key `default`.
+2. `VITE_SUPABASE_ANON_KEY` (Vercel + `.env.local`) trocada para a publishable key; `SUPABASE_SECRET_KEY` local adicionada. supabase-js 2.101.1 aceita as chaves novas sem mudança de código.
+3. Verificado server-side (Gate B): com a service_role legada fora do ambiente, `donc-api-sync` ainda responde 200 — prova de que `SUPABASE_SECRET_KEYS` está em uso. Frontend confirmado lendo via publishable; legacy anon passou a retornar 401 "Legacy API keys are disabled".
+4. Legacy keys desativadas no Dashboard.
 
-### Risks
+### Notes / lessons
 
-- Desativar as legacy keys antes de trocar `VITE_SUPABASE_ANON_KEY` derruba o frontend — seguir a ordem acima.
-- Deadline Supabase: chaves legadas deixam de funcionar no fim de 2026.
-
-## Closed Items
+- Vite "assa" `VITE_SUPABASE_ANON_KEY` no **build**: trocar a env exige rebuild, e navegadores com o bundle antigo em cache (legacy anon) quebram ao desativar a legacy até um hard refresh. O "Disable JWT-based API keys" desliga anon **e** service_role juntos — não dá para separar.
+- Reversível: legacy keys podem ser reativadas no Dashboard se algum cliente esquecido aparecer.
 
 ### TD-001 — Drop `clients.app_code` / `clients.url_donc`
 
