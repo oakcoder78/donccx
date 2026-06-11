@@ -857,6 +857,21 @@ function SectionEditor({
           />
         )}
 
+        {/* KPI Extras */}
+        {showExtras && (
+          <ExtrasEditor
+            extras={sec.extras ?? []}
+            isAdding={isAdding}
+            draft={extraDraft}
+            onStartAdd={onAddExtra}
+            onDraftChange={onExtraDraft}
+            onConfirm={onConfirmExtra}
+            onCancel={onCancelExtra}
+            onRemove={onRemoveExtra}
+            onEditExtra={onEditExtra}
+          />
+        )}
+
         {/* Callout analítico */}
         {showCallout && sec.type !== 'custom-image' && sec.type !== 'capa' && (
           <div className="mt-6 pt-4 border-t border-border">
@@ -892,20 +907,6 @@ function SectionEditor({
           </div>
         )}
 
-        {/* KPI Extras */}
-        {showExtras && (
-          <ExtrasEditor
-            extras={sec.extras ?? []}
-            isAdding={isAdding}
-            draft={extraDraft}
-            onStartAdd={onAddExtra}
-            onDraftChange={onExtraDraft}
-            onConfirm={onConfirmExtra}
-            onCancel={onCancelExtra}
-            onRemove={onRemoveExtra}
-            onEditExtra={onEditExtra}
-          />
-        )}
       </div>
     </div>
   )
@@ -1336,10 +1337,9 @@ function ExtrasEditor({ extras, isAdding, draft, onStartAdd, onDraftChange, onCo
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider">KPIs extras</span>
         {!isAdding && (
-          <button onClick={onStartAdd}
-            className="text-xs font-semibold text-donc-navy hover:underline">
-            + Adicionar métrica
-          </button>
+          <Button size="xs" variant="primary" onClick={onStartAdd}>
+            <Icons.Plus size={12} /> Adicionar métrica
+          </Button>
         )}
       </div>
 
