@@ -34,7 +34,7 @@ This document lists external integration points in the application, indicating w
 - **External system:** n8n — workflow automation platform.
 - **Purpose:** Receive monthly operational data synced from DONC webhub (OS, problemas, produtividade) and upsert into `client_operational_reports`.
 - **Dependent modules:** Edge Function `operational-report-sync` decodes the payload, resolves `client_id` via `client_donc_instances.contrato_saas_id`, and upserts into `client_operational_reports`.
-- **Communication location:** POST → `https://etfeqblaeuhaobefxilp.supabase.co/functions/v1/operational-report-sync` with `Authorization: Bearer <service_role_key>`. Body: `{ saas_id, period, data_os, data_problemas, data_produtividade }`.
+- **Communication location:** POST → `https://etfeqblaeuhaobefxilp.supabase.co/functions/v1/operational-report-sync` with header `x-webhook-secret: <SYNC_WEBHOOK_SECRET>` (dedicated webhook secret; the service_role key is no longer accepted). Body: `{ saas_id, period, data_os, data_problemas, data_produtividade }`.
 - **Migration:** `20260528000000_client_operational_reports.sql`
 
 ---

@@ -30,12 +30,13 @@ try {
 } catch { /* ignorado */ }
 
 const SUPABASE_URL      = process.env.VITE_SUPABASE_URL
-const SERVICE_ROLE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY
+// Prefer the new sb_secret_* key; the legacy service_role JWT still works as fallback.
+const SERVICE_ROLE_KEY  = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 const FD_API_KEY        = process.env.FRESHDESK_API_KEY
 const FD_DOMAIN         = process.env.FRESHDESK_DOMAIN
 
 if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-  console.error('❌  VITE_SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY obrigatórios no .env.local')
+  console.error('❌  VITE_SUPABASE_URL e SUPABASE_SECRET_KEY (ou SUPABASE_SERVICE_ROLE_KEY) obrigatórios no .env.local')
   process.exit(1)
 }
 if (!FD_API_KEY || !FD_DOMAIN) {

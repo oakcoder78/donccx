@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-06-11
+
+### Security — Edge Functions Auth Hardening (service_role exposta)
+- **Security fix:** Removido fallback de decode manual de JWT (`payload.role === 'service_role'` sem validação de assinatura) em `donc-api-sync`, `health-recalc`, `monthly-sync` e `operational-report-sync` — permitia forjar acesso com JWT sem assinatura válida.
+- **Security fix:** Removida comparação direta `token === serviceKey` — a service_role key não circula mais como credencial de chamada (n8n/VPS, pg_cron).
+- **Security fix:** `invite-user` agora valida o token via `auth.getUser` e exige `profiles.role === 'admin'` (antes só checava o prefixo `Bearer `).
+- **New:** `supabase/functions/_shared/auth.ts` — `getServiceKey()` (compatível com novas chaves `sb_secret_*` via `SUPABASE_SECRET_KEYS`, fallback legado), `timingSafeEqual()`, `authorizeRequest()` (webhook secret OU usuário com role permitida).
+- **New:** Auth servidor-servidor via header `x-webhook-secret` (`SYNC_WEBHOOK_SECRET`), comparação timing-safe. n8n e pg_cron não usam mais a service_role key.
+- **Migration:** `20260611000100_fix_monthly_sync_cron_auth.sql` — cron `monthly-sync-job` passa a enviar `x-webhook-secret` lido do Vault (`sync_webhook_secret`); o header antigo dependia de GUC `app.service_role_key` inexistente.
+- **Compat:** Todas as Edge Functions e scripts locais compatíveis com `sb_secret_*` — REST/Storage/Auth chamados só com header `apikey` (sem `Authorization: Bearer <secret>`); scripts aceitam `SUPABASE_SECRET_KEY`.
+- **Config:** `verify_jwt = false` nas 4 funções de sync (auth feita em código; chamadores S2S não enviam JWT).
+
+## 2026-06-09
+
+### Dashboard — Drawer "Ver Todos" nos Painéis Operacionais
+- **Fix:** "ver todos" no painel OS criadas agora abre drawer com lista completa de todos os clientes (não apenas top 5), ordenados por variação absoluta. Clicar em um cliente navega para `/empresas/:id`.
+- **Fix:** "ver todos" nos painéis Usuários ativos e Health score — mesma correção. Antes abriam `DrawerOpContent` (gráficos do primeiro cliente) em vez da lista completa.
+- **New data vars:** `opUsersAll`, `opHealthAll` — versões sem `.slice(0, 5)` dos dados de usuários ativos e health score.
+- **New drawer modes:** `op-users-list`, `op-health-list` — renderizam `DrawerListContent` com navegação ao cliente.
+
+### Database — Limpeza de Colunas Deprecadas (TD-001)
+- **Migration:** Drop das colunas `app_code` e `url_donc` da tabela `clients`.
+- **Backfill:** Cópia de valores legados para `client_donc_instances` onde a instância ainda tem NULL. Nunca sobrescreve valores existentes.
+- **Status:** Backlog item TD-001 movido de Active → Done (frontend já limpo em `a9c36d2`, migration aplicada e verificada).
+
 ## 2026-06-01
 
 ### Email Blast — Envio em Massa

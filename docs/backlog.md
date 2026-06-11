@@ -16,16 +16,47 @@
 
 | ID | Type | Title | Priority | Status | Linked SDD |
 |---|---|---|---|---|---|
-| TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Active | — |
+| TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Done | — |
+| TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Ready | — |
 
-## TD-001 — Drop `clients.app_code` / `clients.url_donc`
+## Open Items
+
+### TD-002 — Desativar legacy API keys e migrar frontend para `sb_publishable_*`
+
+**Type:** Tech Debt
+**Priority:** H
+**Status:** Ready
+**Origin:** 2026-06-11 — auditoria de segurança após exposição da service_role JWT; Edge Functions e scripts já são compatíveis com `sb_secret_*` (helper `_shared/auth.ts`).
+**Linked SDD:** —
+**Related commits:** —
+
+### Context
+
+A service_role JWT exposta só morre de fato quando as legacy API keys forem desativadas no Dashboard. Pré-requisitos já entregues: funções usam `getServiceKey()` (lê `SUPABASE_SECRET_KEYS`), S2S usa `SYNC_WEBHOOK_SECRET`, scripts aceitam `SUPABASE_SECRET_KEY`. Falta o lado operacional.
+
+### Proposed approach
+
+1. Criar chaves novas no Dashboard (Settings → API Keys): `sb_publishable_*` e `sb_secret_*` (nome `default`).
+2. Atualizar `VITE_SUPABASE_ANON_KEY` na Vercel e `.env.local` para o valor `sb_publishable_*` (supabase-js aceita sem mudança de código) e `SUPABASE_SECRET_KEY` local.
+3. Confirmar que nada mais usa as chaves legadas (n8n já migrado para `x-webhook-secret`).
+4. Desativar legacy keys no Dashboard (reversível) — isso revoga a service_role exposta sem invalidar sessões de usuários.
+
+### Risks
+
+- Desativar as legacy keys antes de trocar `VITE_SUPABASE_ANON_KEY` derruba o frontend — seguir a ordem acima.
+- Deadline Supabase: chaves legadas deixam de funcionar no fim de 2026.
+
+## Closed Items
+
+### TD-001 — Drop `clients.app_code` / `clients.url_donc`
 
 **Type:** Tech Debt
 **Priority:** M
-**Status:** Active
+**Status:** Done
+**Closed:** 2026-06-09 — migration `253b590`
 **Origin:** 2026-06-03 — session where the instances list started reading `url_donc` / `app_code` from `client_donc_instances`; the matching columns on `clients` were soft-deprecated instead of dropped.
 **Linked SDD:** —
-**Related commits:** `4a8567b` (table added in instances list), `a9c36d2` (soft deprecation in form + display), `19fd29a` (backfill + drop migration)
+**Related commits:** `4a8567b` (table added in instances list), `a9c36d2` (soft deprecation in form + display), `253b590` (backfill + drop migration)
 
 ### Context
 
@@ -33,37 +64,22 @@ As colunas `clients.app_code` e `clients.url_donc` ficaram órfãs: sem input no
 
 A tabela canônica é `client_donc_instances`, que carrega esses campos por contrato SaaS desde a migration `020_donc_api_integration`.
 
-### Proposed approach
+### Approach
 
-1. **Backfill na migration nova:**
-   ```sql
-   UPDATE client_donc_instances i
-     SET url_donc = c.url_donc,
-         app_code = c.app_code
-   FROM clients c
-   WHERE i.client_id = c.id
-     AND (i.url_donc IS NULL OR i.app_code IS NULL);
-   ```
-2. **Drop das colunas:**
-   ```sql
-   ALTER TABLE clients DROP COLUMN app_code, DROP COLUMN url_donc;
-   ```
-3. **Smoke test:** `npm run build` + abrir `/empresas/22?tab=operacional` e confirmar que a tabela de instâncias continua exibindo URL e App Code sem regressão.
+1. **Backfill:** copia `url_donc` e `app_code` de `clients` para `client_donc_instances` onde a instância ainda tem NULL. Nunca sobrescreve valores existentes.
+2. **Drop columnas:** `ALTER TABLE clients DROP COLUMN app_code, DROP COLUMN url_donc;`
+3. **Verificação:** build limpo, frontend sem regressão — tabela de instâncias em `/empresas/:id` continua exibindo URL e App Code.
 
 ### Files
 
-- `supabase/migrations/<timestamp>_drop_clients_appcode_urldonc.sql` (new) — backfill + drop em um único arquivo.
-- Sem mudanças de frontend (já foram removidas em `a9c36d2`).
+- `supabase/migrations/20260603000000_drop_clients_appcode_urldonc.sql` — backfill + drop em um único arquivo.
+- Sem mudanças de frontend (já removidas em `a9c36d2`).
 
 ### Risks
 
 - **Interno:** zero readers dessas colunas em `src/`, `supabase/functions/` ou `scripts/`. Edge Functions e scripts não as referenciam.
 - **Externo:** BI, exports ou integrações fora deste repositório que leiam `clients.app_code` / `clients.url_donc` quebrariam. Sem visibilidade aqui — registrar no log de deploy se houver essa dependência.
-- **Dados:** o backfill cobre apenas a primeira instância por cliente que ainda esteja sem valor. Se uma empresa tem múltiplas instâncias e só uma delas estava populada, o backfill não sobrescreve — comportamento conservador e desejado.
-
-## Closed Items
-
-_(none yet)_
+- **Dados:** backfill cobre apenas primeira instância por cliente sem valor. Se uma empresa tem múltiplas instâncias e só uma delas estava populada, o backfill não sobrescreve — conservador e desejado.
 
 ---
 

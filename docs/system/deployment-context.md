@@ -59,8 +59,9 @@ Description of the environment where the application runs and how the infrastruc
 - **Storage:** Variables defined in `.env.local` (or `.env`).
 - **Key variables:**
   - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - `SUPABASE_SERVICE_ROLE_KEY`
+  - `VITE_SUPABASE_ANON_KEY` (value can be the new `sb_publishable_*` key)
+  - `SUPABASE_SECRET_KEY` (new `sb_secret_*` key for local scripts; legacy `SUPABASE_SERVICE_ROLE_KEY` accepted as fallback)
+  - `SYNC_WEBHOOK_SECRET` (server-to-server auth for sync Edge Functions — n8n/VPS, pg_cron)
   - `FRESHDESK_API_KEY`
   - `FRESHDESK_DOMAIN`
   - `DONC_API_URL`

@@ -10,6 +10,20 @@ verify_jwt = false
 [functions.openrouter-proxy]
 verify_jwt = false
 
+# Sync functions: called server-to-server (n8n/VPS, pg_cron) with x-webhook-secret,
+# which is not a JWT — auth is enforced in code via _shared/auth.ts.
+[functions.donc-api-sync]
+verify_jwt = false
+
+[functions.health-recalc]
+verify_jwt = false
+
+[functions.monthly-sync]
+verify_jwt = false
+
+[functions.operational-report-sync]
+verify_jwt = false
+
 [auth]
 site_url = "https://donccx.vercel.app"
 additional_redirect_urls = ["https://donccx.vercel.app", "https://donccx.vercel.app/reset-password", "https://donccx.vercel.app/primeiro-acesso"]

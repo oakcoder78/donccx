@@ -5,13 +5,14 @@
  * Os modelos são carregados do Supabase (freshdesk_config key='ai_models').
  * O campo `model` do body recebido é ignorado — usa sempre a lista configurada.
  *
- * Secrets necessários: OPENROUTER_API_KEY, SUPABASE_SERVICE_ROLE_KEY
+ * Secrets necessários: OPENROUTER_API_KEY (+ secret key auto-injetada: SUPABASE_SECRET_KEYS ou SUPABASE_SERVICE_ROLE_KEY legada)
  * Auto-injetados: SUPABASE_URL, SUPABASE_ANON_KEY
  * Body: { messages: ChatMessage[] }
  */
 
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { getServiceKey } from "../_shared/auth.ts"
 
 const allowedOrigins = [
   "https://donccx.vercel.app",
@@ -56,31 +57,26 @@ const FALLBACK_MODELS = [
 const TIMEOUT_MS = 30_000
 
 function getSbKey(): string | null {
-  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? null
+  return getServiceKey() ?? Deno.env.get('SUPABASE_ANON_KEY') ?? null
 }
 
 /**
  * Busca a lista de modelos configurada no Supabase.
- * Requer SUPABASE_SERVICE_ROLE_KEY (precisa bypassar RLS em freshdesk_config).
+ * Requer secret key (precisa bypassar RLS em freshdesk_config).
  * Retorna FALLBACK_MODELS se falhar ou estiver vazio.
  */
 async function loadModels(): Promise<string[]> {
   try {
     const sbUrl = Deno.env.get('SUPABASE_URL') ?? 'https://etfeqblaeuhaobefxilp.supabase.co'
-    const sbKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const sbKey = getServiceKey()
     if (!sbKey) {
-      console.warn('openrouter-proxy: SUPABASE_SERVICE_ROLE_KEY ausente, usando fallback')
+      console.warn('openrouter-proxy: secret key ausente, usando fallback')
       return FALLBACK_MODELS
     }
 
     const res = await fetch(
       `${sbUrl}/rest/v1/freshdesk_config?key=eq.ai_models&select=data`,
-      {
-        headers: {
-          apikey:        sbKey,
-          Authorization: `Bearer ${sbKey}`,
-        },
-      },
+      { headers: { apikey: sbKey } },
     )
 
     if (!res.ok) {
@@ -192,7 +188,6 @@ try {
           method: 'POST',
           headers: {
             apikey: key,
-            Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
             Prefer: 'return=minimal',
           },
@@ -205,16 +200,15 @@ try {
 
     async function notifyAllFailed(models: string[]) {
       try {
-        const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+        const key = getServiceKey()
         if (!key) {
-          console.error('notifyAllFailed: SUPABASE_SERVICE_ROLE_KEY ausente, notificação não enviada')
+          console.error('notifyAllFailed: secret key ausente, notificação não enviada')
           return
         }
         await fetch(`${sbUrl}/rest/v1/notifications`, {
           method: 'POST',
           headers: {
             apikey: key,
-            Authorization: `Bearer ${key}`,
             'Content-Type': 'application/json',
             Prefer: 'return=minimal',
           },
@@ -236,7 +230,7 @@ try {
 
         const adminRes = await fetch(
           `${sbUrl}/rest/v1/profiles?role=eq.admin&select=email`,
-          { headers: { apikey: anyKey ?? '', Authorization: `Bearer ${anyKey ?? ''}` } },
+          { headers: { apikey: anyKey ?? '' } },
         )
         const admins = await adminRes.json()
         const adminEmails: string[] = (Array.isArray(admins) ? admins : [])

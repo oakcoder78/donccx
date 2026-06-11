@@ -6,13 +6,14 @@
  * Supports file attachments: frontend uploads to storage, edge downloads
  * and sends base64-encoded via Resend.
  *
- * Secrets: RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY
+ * Secrets: RESEND_API_KEY (+ secret key auto-injetada: SUPABASE_SECRET_KEYS ou SUPABASE_SERVICE_ROLE_KEY legada)
  * Body: { template_id, recipients, sent_by, from_mode?, attachments? }
  * attachments: [{ storage_path, file_name, file_size, file_type }]
  */
 
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { getServiceKey } from "../_shared/auth.ts"
 
 const allowedOrigins = [
   "https://donccx.vercel.app",
@@ -78,7 +79,7 @@ serve(async (req) => {
     if (!token) return json({ error: "Invalid authorization token" }, 401)
 
     const sbUrl = Deno.env.get("SUPABASE_URL")!
-    const sbKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    const sbKey = getServiceKey()
 
     const authRes = await fetch(`${sbUrl}/auth/v1/user`, {
       headers: { Authorization: `Bearer ${token}`, apikey: sbKey },
@@ -109,7 +110,7 @@ serve(async (req) => {
     // ── Fetch sender profile ──────────────────────────────────────────────────
     const profileRes = await fetch(
       `${sbUrl}/rest/v1/profiles?id=eq.${sent_by}&select=name,email,role,cargo,phone`,
-      { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+      { headers: { apikey: sbKey } },
     )
     const profileRows = await profileRes.json()
     const senderProfile = profileRows?.[0] as { name: string; email: string; role: string } | undefined
@@ -140,7 +141,7 @@ serve(async (req) => {
     // ── Fetch template ────────────────────────────────────────────────────────
     const tplRes = await fetch(
       `${sbUrl}/rest/v1/email_templates?id=eq.${template_id}&select=*`,
-      { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+      { headers: { apikey: sbKey } },
     )
     const tplRows = await tplRes.json()
     if (!tplRows?.length) return json({ error: "Template not found" }, 404)
@@ -215,7 +216,6 @@ serve(async (req) => {
         method: "POST",
         headers: {
           apikey: sbKey,
-          Authorization: `Bearer ${sbKey}`,
           "Content-Type": "application/json",
           Prefer: "return=minimal",
         },
@@ -240,7 +240,7 @@ serve(async (req) => {
         try {
           const ctRes = await fetch(
             `${sbUrl}/rest/v1/contacts?id=eq.${recipient.contact_id}&select=name`,
-            { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+            { headers: { apikey: sbKey } },
           )
           const ctRows = await ctRes.json()
           if (ctRows?.[0]?.name) contactName = ctRows[0].name
@@ -251,7 +251,6 @@ serve(async (req) => {
           method: "POST",
           headers: {
             apikey: sbKey,
-            Authorization: `Bearer ${sbKey}`,
             "Content-Type": "application/json",
             Prefer: "return=representation",
           },
@@ -273,7 +272,6 @@ serve(async (req) => {
             method: "POST",
             headers: {
               apikey: sbKey,
-              Authorization: `Bearer ${sbKey}`,
               "Content-Type": "application/json",
               Prefer: "return=minimal",
             },

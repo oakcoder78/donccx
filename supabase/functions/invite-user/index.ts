@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { getServiceKey } from "../_shared/auth.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,21 +13,37 @@ serve(async (req) => {
   }
 
   try {
-    // 1. Verificar presença do header Authorization
-    const authHeader = req.headers.get('Authorization') ?? ''
-    if (!authHeader.startsWith('Bearer ')) {
+    // 1. Validar token do chamador (precisa ser um usuário autenticado com role admin)
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+    if (!token) {
       return new Response(
         JSON.stringify({ error: 'Missing authorization token' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // 2. Admin client (service role) — bypasses RLS
+    // 2. Admin client (secret key) — bypasses RLS
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      getServiceKey(),
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
+
+    const { data: { user: caller }, error: callerErr } = await adminClient.auth.getUser(token)
+    if (callerErr || !caller) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    const { data: callerProfile } = await adminClient
+      .from('profiles').select('role').eq('id', caller.id).maybeSingle()
+    if (callerProfile?.role !== 'admin') {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: admin role required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
     // 3. Parse body
     const { email, role, name, redirectTo } = await req.json()
