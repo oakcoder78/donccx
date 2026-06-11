@@ -247,7 +247,11 @@ export default function ReportEditorPage() {
     const values = {}
     for (const f of resolved) {
       if (f.value != null) {
-        values[f.key] = typeof f.value === 'number' ? f.value : String(f.value)
+        values[f.key] = typeof f.value === 'number'
+          ? f.value
+          : typeof f.value === 'object'
+            ? JSON.stringify(f.value)
+            : String(f.value)
       }
     }
     return values
