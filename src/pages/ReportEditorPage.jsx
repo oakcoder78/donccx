@@ -5,6 +5,7 @@ import { useClient } from '../hooks/useClient'
 import { useProfiles } from '../hooks/useProfiles'
 import { useProjects } from '../hooks/useProjects'
 import { generateReportHTML, periodLabel, normalizeSections, defaultSections } from '../lib/reportGenerator'
+import { getSectionFields, resolveField, resolveAllFields, formatFieldValue } from '../lib/reportFields'
 import { supabase } from '../lib/supabaseClient'
 import { useDonkie } from '../hooks/useDonkie'
 import { EmailComposerModal } from '../components/email/EmailComposerModal'
@@ -225,110 +226,44 @@ export default function ReportEditorPage() {
   function toggleEnabled(id) {
     setSections(prev => prev.map(s => s.id === id ? { ...s, enabled: !s.enabled } : s))
   }
-
-  // ── AI analysis ───────────────────────────────────────────
-  function calcDelta(cur, prev) {
-    if (cur == null || prev == null || prev === 0) return null
-    return Math.round(((cur - prev) / prev) * 100)
+  function buildDataContext(period) {
+    if (!period) return null
+    const [y, m] = period.split('-').map(Number)
+    const prevDt = new Date(y, m - 2, 1)
+    return {
+      usage: usageHistory ?? [],
+      sup: supportRaw ?? null,
+      opCurrent: operationalData?.current ?? null,
+      opPrev: operationalData?.prev ?? null,
+      period,
+      prevPeriod: `${prevDt.getFullYear()}-${String(prevDt.getMonth() + 1).padStart(2, '0')}`,
+    }
   }
 
-  function buildSectionData(section) {
-    const type = section.type
-    const cur = operationalData?.current
-    const period = report?.period
-    const curUsage = usageHistory.find(u => u.ref_month === period)
-    const prevUsage = usageHistory.find(u => u.ref_month === (period
-      ? (() => { const [y, m] = period.split('-').map(Number); const d = new Date(y, m - 2, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` })()
-      : null))
-
-    switch (type) {
-      case 'escala': {
-        const porTipo = cur?.data_os?.sumario?.por_tipo || {}
-        const total = Object.values(porTipo).reduce((s, v) => s + (v || 0), 0)
-        const rawProd = cur?.data_produtividade?.sumario?.total_produtos
-        const prevProd = operationalData?.prev?.data_produtividade?.sumario?.total_produtos
-        return {
-          total_os: curUsage?.os_created,
-          delta_os: calcDelta(curUsage?.os_created, prevUsage?.os_created),
-          active_users: curUsage?.active_users,
-          delta_users: calcDelta(curUsage?.active_users, prevUsage?.active_users),
-          total_produtos: rawProd,
-          delta_produtos: calcDelta(rawProd, prevProd),
-          pct_montagem: total ? Math.round(((porTipo.Montagem || 0) / total) * 100) : 0,
-          pct_assistencia: total ? Math.round(((porTipo.Assistência || 0) / total) * 100) : 0,
-        }
+  function getSectionValues(section) {
+    const data = buildDataContext(report?.period)
+    if (!data) return {}
+    const resolved = resolveAllFields(section.type, data)
+    const values = {}
+    for (const f of resolved) {
+      if (f.value != null) {
+        values[f.key] = typeof f.value === 'number' ? f.value : String(f.value)
       }
-      case 'qualidade_operacao': {
-        const sumario = cur?.data_os?.sumario || {}
-        const pont = cur?.data_os?.tempos?.pontualidade || {}
-        const prevSum = operationalData?.prev?.data_os?.sumario
-        const comOcorr = sumario?.por_status?.finalizado_com_ocorrencia
-        const comOcorrPrev = prevSum?.por_status?.finalizado_com_ocorrencia
-        return {
-          taxa_conclusao: sumario?.taxa_conclusao,
-          finalizado_sucesso: sumario?.por_status?.finalizado_sucesso,
-          com_ocorrencia: comOcorr,
-          delta_ocorrencia: calcDelta(comOcorr, comOcorrPrev),
-          percentual_pontualidade: pont?.percentual_pontualidade,
-          atraso_medio_dias: pont?.atraso_medio_dias,
-        }
-      }
-      case 'indicadores_operacionais': {
-        const prod = cur?.data_produtividade?.sumario || {}
-        const prevProd = operationalData?.prev?.data_produtividade?.sumario
-        return {
-          execucao_min: prod?.tempo_execucao_medio_minutos,
-          delta_exec: calcDelta(prod?.tempo_execucao_medio_minutos, prevProd?.tempo_execucao_medio_minutos),
-          transito_min: prod?.tempo_transito_medio_minutos,
-          delta_transito: calcDelta(prod?.tempo_transito_medio_minutos, prevProd?.tempo_transito_medio_minutos),
-        }
-      }
-      case 'categorias_ocorrencia': {
-        const motivos = cur?.data_os?.sumario?.motivos_ocorrencia || []
-        const cancel = cur?.data_os?.sumario?.motivos_cancelamento || []
-        const fmt = (items, n) => items.filter(m => m.total > 0).slice(0, n).map(m => `${m.motivo} (${m.total})`).join('; ') || 'N/D'
-        return {
-          top3_ocorrencias: fmt(motivos, 3),
-          top2_cancelamentos: fmt(cancel, 2),
-          total_ocorrencias: motivos.reduce((s, m) => s + m.total, 0),
-        }
-      }
-      case 'desempenho_operacional': {
-        const prod = cur?.data_produtividade?.sumario || {}
-        const ranking = cur?.data_os?.operacional?.ranking_profissionais || []
-        const countAtencao = ranking.filter(p => p.total_os > 0
-          && Math.round(((p.finalizadas_sucesso || 0) / p.total_os) * 100) < 70).length
-        return {
-          indice_medio: prod?.indice_produtividade_medio,
-          total_profissionais: prod?.total_profissionais || ranking.length,
-          count_atencao: countAtencao,
-        }
-      }
-      case 'suporte': {
-        const raw = supportRaw ?? {}
-        const opened = raw.tickets_opened
-        const resolved = raw.tickets_resolved
-        const computedRate = opened != null && resolved != null && opened > 0
-          ? Math.round((resolved / opened) * 100) : null
-        return {
-          tickets_opened: opened,
-          tickets_resolved: resolved,
-          sla: raw.sla_first_response,
-          taxa_resolucao: computedRate,
-          n1_pct: raw.n1_pct,
-          n2_pct: raw.n2_pct,
-          n3_pct: raw.n3_pct,
-        }
-      }
-      default:
-        return {}
     }
+    return values
+  }
+
+  const dataContext = useMemo(() => buildDataContext(report?.period), [report?.period, usageHistory, supportRaw, operationalData])
+  function handleFieldChange(fieldKey, changes) {
+    setSections(prev => prev.map(s => s.id === activeSec?.id
+      ? { ...s, content: { ...s.content, fields: { ...s.content?.fields, [fieldKey]: { ...s.content?.fields?.[fieldKey], ...changes } } } }
+      : s))
   }
 
   async function handleGenerateAnalysis(section) {
     setGeneratingAnalysis(prev => ({ ...prev, [section.id]: true }))
     try {
-      const sectionData = buildSectionData(section)
+      const sectionData = getSectionValues(section)
       const text = await generateSectionAnalysis({
         sectionType: section.type,
         sectionData,
@@ -655,6 +590,8 @@ export default function ReportEditorPage() {
                 onGenerateAnalysis={handleGenerateAnalysis}
                 generatingAnalysis={generatingAnalysis[activeSec.id]}
                 operationalData={operationalData}
+                dataContext={dataContext}
+                onFieldChange={handleFieldChange}
               />
             )}
           </div>
@@ -765,6 +702,7 @@ function SectionEditor({
   onAddBarsItem, onUpdateBarsItem, onRemoveBarsItem,
   onUpdateSection,
   onGenerateAnalysis, generatingAnalysis, operationalData,
+  dataContext, onFieldChange,
 }) {
   const showExtras  = ['escala','suporte','projetos','contexto','custom-metrics','indicadores_operacionais','qualidade_operacao'].includes(sec.type)
   const showCallout = ['escala','suporte','projetos','destaques','contexto','custom-text','custom-metrics','custom-bars','health_score','indicadores_operacionais','qualidade_operacao','categorias_ocorrencia','desempenho_operacional'].includes(sec.type)
@@ -887,87 +825,14 @@ function SectionEditor({
           />
         )}
 
-        {/* ── Override de métricas automáticas ── */}
-        {sec.type === 'escala' && (
-          <div className="border-t border-border-tertiary pt-4">
-            <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
-            <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
-            <div className="flex flex-col gap-2">
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">O.S. Criadas</label>
-                <input type="number" value={sec.content?.overrideOs ?? ''}
-                  onChange={e => onContent('overrideOs', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Usuários Ativos</label>
-                <input type="number" value={sec.content?.overrideUsers ?? ''}
-                  onChange={e => onContent('overrideUsers', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Produtos Montados</label>
-                <input type="number" value={sec.content?.overrideProdutosMontados ?? ''}
-                  onChange={e => onContent('overrideProdutosMontados', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {sec.type === 'suporte' && (
-          <div className="border-t border-border-tertiary pt-4">
-            <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
-            <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
-            <div className="flex flex-col gap-2">
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Tickets Abertos</label>
-                <input type="number" value={sec.content?.overrideTicketsAbertos ?? ''}
-                  onChange={e => onContent('overrideTicketsAbertos', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Tickets Resolvidos</label>
-                <input type="number" value={sec.content?.overrideTicketsResolvidos ?? ''}
-                  onChange={e => onContent('overrideTicketsResolvidos', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">SLA 1ª Resposta (min)</label>
-                <input type="number" value={sec.content?.overrideSla ?? ''}
-                  onChange={e => onContent('overrideSla', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Taxa de Resolução (%)</label>
-                <input type="number" value={sec.content?.overrideTaxaResolucao ?? ''}
-                  onChange={e => onContent('overrideTaxaResolucao', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" min="0" max="100" className="input-base w-full text-sm" />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ── Override de métricas automáticas: indicadores ── */}
-        {sec.type === 'indicadores_operacionais' && (
-          <div className="border-t border-border-tertiary pt-4">
-            <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
-            <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
-            <div className="flex flex-col gap-2">
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Tempo médio de execução (min)</label>
-                <input type="number" value={sec.content?.overrideExecMin ?? ''}
-                  onChange={e => onContent('overrideExecMin', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-              <div>
-                <label className="text-xs text-text-tertiary block mb-1">Tempo em trânsito (min)</label>
-                <input type="number" value={sec.content?.overrideTransitoMin ?? ''}
-                  onChange={e => onContent('overrideTransitoMin', e.target.value === '' ? null : Number(e.target.value))}
-                  placeholder="Automático" className="input-base w-full text-sm" />
-              </div>
-            </div>
-          </div>
+        {/* ── Field-level toggles + overrides ── */}
+        {['escala','suporte','indicadores_operacionais','qualidade_operacao','categorias_ocorrencia','desempenho_operacional'].includes(sec.type) && dataContext && (
+          <FieldToggleList
+            type={sec.type}
+            fields={sec.content?.fields ?? {}}
+            dataContext={dataContext}
+            onChange={onFieldChange}
+          />
         )}
 
         {/* Callout analítico */}
@@ -1010,6 +875,51 @@ function SectionEditor({
             onEditExtra={onEditExtra}
           />
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Field Toggle List ──────────────────────────────────────────
+function FieldToggleList({ type, fields, dataContext, onChange }) {
+  const sectionFields = getSectionFields(type)
+  if (!sectionFields || sectionFields.length === 0) return null
+
+  return (
+    <div className="border-t border-border-tertiary pt-4">
+      <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
+      <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
+      <div className="flex flex-col gap-2">
+        {sectionFields.map(f => {
+          const state = fields?.[f.key] ?? { enabled: f.defaultEnabled ?? true, override: null }
+          const autoValue = f.resolve ? f.resolve(dataContext) : null
+          const displayValue = formatFieldValue(f, autoValue)
+          const isChart = f.type === 'chart'
+
+          return (
+            <div key={f.key} className="flex items-center gap-2">
+              <Toggle
+                enabled={state.enabled}
+                onToggle={v => onChange(f.key, { enabled: v })}
+              />
+              <div className="flex-1 min-w-0">
+                <label className="text-xs text-text-tertiary block">{f.label}</label>
+                <span className="text-[10px] text-text-tertiary">
+                  {isChart ? 'Gráfico' : displayValue ? `Automático: ${displayValue}` : ''}
+                </span>
+              </div>
+              {!isChart && state.enabled && (
+                <input
+                  type="text"
+                  value={state.override ?? ''}
+                  onChange={e => onChange(f.key, { override: e.target.value === '' ? null : e.target.value })}
+                  placeholder="Override"
+                  className="input-base w-24 text-xs text-right"
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

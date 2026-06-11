@@ -4,6 +4,8 @@
  * Navy #173557 · Navy-deep #0e2240 · Lime #d3da47 · Sky #59c2ed
  */
 
+import { getSectionFields, resolveField, formatFieldValue } from './reportFields'
+
 // ── Design tokens ─────────────────────────────────────────────
 const C = {
   navy:      '#173557',
@@ -60,15 +62,24 @@ function prevMonthStr(period) {
 }
 
 // ── Seções padrão ─────────────────────────────────────────────
+function buildFieldDefaults(type) {
+  const fds = getSectionFields(type)
+  const fields = {}
+  for (const f of fds) {
+    fields[f.key] = { enabled: f.defaultEnabled, override: null }
+  }
+  return fields
+}
+
 export function defaultSections() {
   return [
     { id: 'capa',           type: 'capa',           title: 'Capa',              enabled: true, content: { subtitle: '', clientTeam: [] }, extras: [] },
-    { id: 'escala',         type: 'escala',         title: 'Escala da Operação',enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'qualidade_operacao', type: 'qualidade_operacao', title: 'Qualidade da Operação', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'categorias_ocorrencia', type: 'categorias_ocorrencia', title: 'Categorias de Ocorrência', subtitle: '', enabled: true, content: { callout: '' }, extras: [] },
-    { id: 'desempenho_operacional', type: 'desempenho_operacional', title: 'Desempenho Operacional', subtitle: 'Produtividade dos profissionais em campo', enabled: false, content: { callout: '' }, extras: [] },
-    { id: 'suporte',        type: 'suporte',        title: 'Suporte',           enabled: true, content: { callout: '' }, extras: [] },
+    { id: 'escala',         type: 'escala',         title: 'Escala da Operação',enabled: true, content: { callout: '', fields: buildFieldDefaults('escala') }, extras: [] },
+    { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: true, content: { callout: '', fields: buildFieldDefaults('indicadores_operacionais') }, extras: [] },
+    { id: 'qualidade_operacao', type: 'qualidade_operacao', title: 'Qualidade da Operação', subtitle: '', enabled: true, content: { callout: '', fields: buildFieldDefaults('qualidade_operacao') }, extras: [] },
+    { id: 'categorias_ocorrencia', type: 'categorias_ocorrencia', title: 'Categorias de Ocorrência', subtitle: '', enabled: true, content: { callout: '', fields: buildFieldDefaults('categorias_ocorrencia') }, extras: [] },
+    { id: 'desempenho_operacional', type: 'desempenho_operacional', title: 'Desempenho Operacional', subtitle: 'Produtividade dos profissionais em campo', enabled: false, content: { callout: '', fields: buildFieldDefaults('desempenho_operacional') }, extras: [] },
+    { id: 'suporte',        type: 'suporte',        title: 'Suporte',           enabled: true, content: { callout: '', fields: buildFieldDefaults('suporte') }, extras: [] },
     { id: 'projetos',       type: 'projetos',       title: 'Projetos',          enabled: true, content: { callout: '' }, extras: [] },
     { id: 'health_score',   type: 'health_score',   title: 'Health Score',      enabled: true, content: {},             extras: [] },
     { id: 'destaques',      type: 'destaques',      title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
@@ -77,18 +88,48 @@ export function defaultSections() {
   ]
 }
 
+/** Garante que uma seção tenha o objeto fields no content */
+function ensureFields(sec, type) {
+  if (!sec.content) sec.content = {}
+  if (!sec.content.fields) {
+    const fds = getSectionFields(type)
+    if (fds.length) {
+      const fields = {}
+      for (const f of fds) {
+        const oldKey = f.key
+        // Migrate old-style overrides
+        let override = null
+        if (sec.content[`override${oldKey.replace(/(^|_)(\w)/g, (_, __, c) => c.toUpperCase())}`] != null) {
+          override = sec.content[`override${oldKey.replace(/(^|_)(\w)/g, (_, __, c) => c.toUpperCase())}`]
+        }
+        fields[f.key] = { enabled: f.defaultEnabled, override }
+      }
+      sec.content.fields = fields
+      // Clean up old overrides
+      if (sec.content.overrideOs != null) delete sec.content.overrideOs
+      if (sec.content.overrideUsers != null) delete sec.content.overrideUsers
+      if (sec.content.overrideProdutosMontados != null) delete sec.content.overrideProdutosMontados
+      if (sec.content.overrideExecMin != null) delete sec.content.overrideExecMin
+      if (sec.content.overrideTransitoMin != null) delete sec.content.overrideTransitoMin
+      if (sec.content.overrideTicketsAbertos != null) delete sec.content.overrideTicketsAbertos
+      if (sec.content.overrideTicketsResolvidos != null) delete sec.content.overrideTicketsResolvidos
+      if (sec.content.overrideSla != null) delete sec.content.overrideSla
+      if (sec.content.overrideTaxaResolucao != null) delete sec.content.overrideTaxaResolucao
+    }
+  }
+}
+
 /** Migra formato antigo (object) para array de seções */
 export function normalizeSections(raw) {
   if (Array.isArray(raw)) {
     // Verificar se já tem seção capa; se não, inserir no início
     const hasCapa = raw.some(s => s.id === 'capa')
-    if (!hasCapa) {
-      return [
-        { id: 'capa', type: 'capa', title: 'Capa', enabled: true, content: { subtitle: '', clientTeam: [] }, extras: [] },
-        ...raw,
-      ]
-    }
-    return raw
+    const result = hasCapa ? raw : [
+      { id: 'capa', type: 'capa', title: 'Capa', enabled: true, content: { subtitle: '', clientTeam: [] }, extras: [] },
+      ...raw,
+    ]
+    for (const sec of result) ensureFields(sec, sec.type)
+    return result
   }
   if (!raw || typeof raw !== 'object') return defaultSections()
 
@@ -106,7 +147,9 @@ export function normalizeSections(raw) {
     const text    = typeof old === 'string' ? old : (old.content ?? '')
     const field   = keyMap[def.id]
     const content = field ? { ...def.content, [field]: text } : def.content
-    return { ...def, enabled, content }
+    const sec = { ...def, enabled, content }
+    ensureFields(sec, sec.type)
+    return sec
   })
 }
 
@@ -349,6 +392,69 @@ function extrasRow(extras) {
   })), cols)
 }
 
+// ── Helpers para field registry ───────────────────────────────
+
+function slideData(period, usageHistory, operationalData, supportRaw) {
+  const [y, m] = period.split('-').map(Number)
+  const prevDt = new Date(y, m - 2, 1)
+  return {
+    usage: usageHistory ?? [],
+    sup: supportRaw ?? null,
+    opCurrent: operationalData?.current ?? null,
+    opPrev: operationalData?.prev ?? null,
+    period,
+    prevPeriod: `${prevDt.getFullYear()}-${String(prevDt.getMonth() + 1).padStart(2, '0')}`,
+  }
+}
+
+/**
+ * Renderiza KPI cards para fields enabled (não-chart) de uma seção.
+ * Cada field que não seja chart e esteja enabled vira um kpiCard.
+ * Deltas são fields independentes com chave `delta_{key}`.
+ */
+function renderFieldCards(sec, type, data, accentMap = {}) {
+  const fields = getSectionFields(type)
+  const uf = sec.content?.fields ?? {}
+  const cards = []
+
+  for (const f of fields) {
+    if (f.type === 'chart') continue
+    if (uf[f.key]?.enabled === false) continue
+
+    const override = uf[f.key]?.override
+    const value = override ?? resolveField(type, f.key, data)
+    if (value == null) continue
+
+    // Look for delta field
+    const deltaKey = `delta_${f.key}`
+    const deltaField = fields.find(df => df.key === deltaKey)
+    let deltaStr = null
+    let deltaType = 'neutral'
+    let deltaColor = 'gray'
+    if (deltaField && uf[deltaKey]?.enabled !== false) {
+      const deltaOverride = uf[deltaKey]?.override
+      const deltaValue = deltaOverride ?? resolveField(type, deltaKey, data)
+      if (deltaValue != null) {
+        deltaStr = formatFieldValue(deltaField, deltaValue)
+        deltaType = deltaValue > 0 ? 'up' : deltaValue < 0 ? 'down' : 'neutral'
+        deltaColor = deltaType === 'up' ? 'red' : deltaType === 'down' ? 'green' : 'gray'
+      }
+    }
+
+    cards.push(kpiCard({
+      label: f.label,
+      value: formatFieldValue(f, value),
+      sublabel: undefined,
+      delta: deltaStr,
+      deltaType,
+      deltaColor,
+      accentColor: accentMap[f.key] ?? accentMap._ ?? 'sky',
+    }))
+  }
+
+  return cards
+}
+
 // ── Slide wrapper ─────────────────────────────────────────────
 function slide(icon, title, body, clientName, period, pageNum, subtitle) {
   return `
@@ -435,102 +541,68 @@ function slideCapa(client, report, csm, capaContent) {
 // ── Slides de seções ──────────────────────────────────────────
 
 function slideEscala(sec, usageHistory, period, clientName, p, operationalData = null) {
-  const cur  = usageHistory.find(u => u.ref_month === period)
-  const prev = usageHistory.find(u => u.ref_month === prevMonthStr(period))
+  const data = slideData(period, usageHistory, operationalData, null)
+  const uf = sec.content?.fields ?? {}
 
-  // Support user overrides from sec.content
-  const curOs    = sec.content?.overrideOs ?? cur?.os_created
-  const curUsers = sec.content?.overrideUsers ?? cur?.active_users
-
-  function delta(cur, prev) {
-    if (cur == null || prev == null || prev === 0) return { d: null, t: 'neutral' }
-    const pct = Math.round(((cur - prev) / prev) * 100)
-    return { d: `${pct >= 0 ? '+' : ''}${pct}% vs anterior`, t: pct >= 0 ? 'up' : 'down' }
-  }
-  const du = delta(curUsers, prev?.active_users)
-  const dos = delta(curOs, prev?.os_created)
-
-  // ── KPI automático: Produtos Montados ─────────────────────
-  let autoProdutosMontados = null
-  if (operationalData?.current) {
-    const curOp     = operationalData.current
-    const prevOp    = operationalData.prev
-    const rawProd   = curOp.data_produtividade?.sumario?.total_produtos
-    const mediaProd = curOp.data_os?.operacional?.media_produtos_por_os
-    const totalProd = sec.content?.overrideProdutosMontados ?? rawProd
-    const jaTemManual = (sec.extras || []).some(e =>
-      e.label?.toLowerCase().includes('produto') && e.label?.toLowerCase().includes('montado')
-    )
-    if (totalProd != null && !jaTemManual) {
-      const totalAnterior = prevOp?.data_produtividade?.sumario?.total_produtos
-      let deltaStr = null
-      let deltaType = 'neutral'
-      if (rawProd != null && totalAnterior != null && totalAnterior !== 0) {
-        const pct = ((rawProd - totalAnterior) / totalAnterior) * 100
-        const signal = pct >= 0 ? '+' : ''
-        deltaStr = `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`
-        deltaType = pct >= 0 ? 'up' : 'down'
-      }
-      const mediaStr = mediaProd != null
-        ? `Média de ${mediaProd.toFixed(2).replace('.', ',')} produtos por OS`
-        : null
-      autoProdutosMontados = kpiCard({
-        label: 'Produtos Montados',
-        value: totalProd.toLocaleString('pt-BR'),
-        sublabel: mediaStr,
-        delta: deltaStr,
-        deltaType,
-        accentColor: 'navy',
-      })
-    }
-  }
-
-  // OS Criadas, Usuários Ativos, Produtos Montados
-  const autoCards = []
-  if (curOs != null)
-    autoCards.push(kpiCard({ label: 'O.S. Criadas', value: curOs, sublabel: 'mês atual', delta: dos.d, deltaType: dos.t, accentColor: 'lime' }))
-  if (curUsers != null)
-    autoCards.push(kpiCard({ label: 'Usuários Ativos', value: curUsers, sublabel: 'mês atual', delta: du.d, deltaType: du.t, accentColor: 'sky' }))
-  if (autoProdutosMontados) autoCards.push(autoProdutosMontados)
-
+  // KPI cards via field registry
+  const autoCards = renderFieldCards(sec, 'escala', data, {
+    os_criadas: 'lime',
+    usuarios_ativos: 'sky',
+    produtos_montados: 'navy',
+    valor_total_notas: 'green',
+    taxa_sucesso_geral: 'green',
+    _: 'sky',
+  })
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
 
-  const porTipoAtual = operationalData?.current?.data_os?.sumario?.por_tipo
-  const porTipoPrev  = operationalData?.prev?.data_os?.sumario?.por_tipo
-  const tipoChart = barChartTipoOS(porTipoAtual, porTipoPrev, period)
+  // Charts via field registry toggles
+  const showTipoChart = uf.grafico_por_tipo?.enabled !== false
+  const tipoChart = showTipoChart
+    ? barChartTipoOS(
+        data.opCurrent?.data_os?.sumario?.por_tipo,
+        data.opPrev?.data_os?.sumario?.por_tipo,
+        period
+      )
+    : ''
+
+  const showHistorico = uf.grafico_historico?.enabled !== false
+  const historicoChart = showHistorico ? barChartV(data.usage, period) : ''
 
   const body = `
     ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 2), 4)) : ''}
     ${tipoChart}
     ${calloutBlock(sec.content?.callout, C.sky)}
-    ${barChartV(usageHistory, period)}`
+    ${historicoChart}`
 
   return slide('📈', 'Escala da Operação', body, clientName, period, p, sec.subtitle)
 }
 
 function slideSuporte(sec, supportRaw, clientName, period, p) {
-  const raw = supportRaw ?? {}
-  const opened     = sec.content?.overrideTicketsAbertos ?? raw.tickets_opened    ?? null
-  const resolved   = sec.content?.overrideTicketsResolvidos ?? raw.tickets_resolved  ?? null
-  const sla        = sec.content?.overrideSla ?? raw.sla_first_response ?? null
-  const n1 = raw.n1_pct ?? null
-  const n2 = raw.n2_pct ?? null
-  const n3 = raw.n3_pct ?? null
-  const computedRate = opened != null && resolved != null && opened > 0
-    ? Math.round((resolved / opened) * 100) : null
-  const resRate = sec.content?.overrideTaxaResolucao ?? computedRate
+  const data = slideData(period, [], null, supportRaw)
+  const uf = sec.content?.fields ?? {}
 
-  const autoCards = [
-    kpiCard({ label: 'Tickets Abertos',    value: opened,   sublabel: 'mês atual', accentColor: 'navy' }),
-    kpiCard({ label: 'Tickets Resolvidos', value: resolved, sublabel: 'mês atual', accentColor: 'green' }),
-    kpiCard({ label: 'SLA 1ª Resp. (min)', value: sla,      sublabel: 'média',     accentColor: 'sky' }),
-    kpiCard({ label: 'Taxa de Resolução',  value: resRate != null ? `${resRate}%` : null,
-      sublabel: 'mês atual', accentColor: resRate != null && resRate >= 90 ? 'green' : 'lime' }),
-  ]
+  const autoCards = renderFieldCards(sec, 'suporte', data, {
+    tickets_abertos: 'navy',
+    tickets_resolvidos: 'green',
+    sla_primeira_resposta: 'sky',
+    taxa_resolucao: 'lime',
+    _: 'sky',
+  })
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor }))]
 
+  // Taxa de resolução bar (if field enabled)
+  const taxaField = getSectionFields('suporte').find(f => f.key === 'taxa_resolucao')
+  const taxaEnabled = uf.taxa_resolucao?.enabled !== false
+  const taxaOverride = uf.taxa_resolucao?.override
+  const taxaVal = taxaOverride ?? resolveField('suporte', 'taxa_resolucao', data)
+  const resolBarHtml = taxaEnabled && taxaVal != null ? resolBar(taxaVal) : ''
+
+  // N1/N2/N3 breakdown (individual field toggles)
+  const n1 = uf.n1_pct?.enabled !== false ? (uf.n1_pct?.override ?? resolveField('suporte', 'n1_pct', data)) : null
+  const n2 = uf.n2_pct?.enabled !== false ? (uf.n2_pct?.override ?? resolveField('suporte', 'n2_pct', data)) : null
+  const n3 = uf.n3_pct?.enabled !== false ? (uf.n3_pct?.override ?? resolveField('suporte', 'n3_pct', data)) : null
   const n1n2n3 = [
     n1 != null ? { label: 'N1', value: n1, color: C.green  } : null,
     n2 != null ? { label: 'N2', value: n2, color: C.yellow } : null,
@@ -538,8 +610,8 @@ function slideSuporte(sec, supportRaw, clientName, period, p) {
   ].filter(Boolean)
 
   const body = `
-    ${kpiGrid(allCards, Math.min(allCards.length, 4))}
-    ${resRate !== null ? resolBar(resRate) : ''}
+    ${allCards.length ? kpiGrid(allCards, Math.min(allCards.length, 4)) : ''}
+    ${resolBarHtml}
     ${n1n2n3.length ? subTitle('Breakdown por Nível') + barH(n1n2n3) : ''}
     ${calloutBlock(sec.content?.callout, C.navy)}`
 
@@ -648,54 +720,13 @@ function slideContexto(sec, clientName, period, p) {
 }
 
 function slideIndicadoresOperacionais(sec, operationalData, clientName, period, p) {
-  const cur = operationalData?.current
-
-  const rawExecMin     = cur?.data_produtividade?.sumario?.tempo_execucao_medio_minutos
-  const rawTransitoMin = cur?.data_produtividade?.sumario?.tempo_transito_medio_minutos
-
-  // Override support — valor é substituível, delta sempre do dado real
-  const execMin     = sec.content?.overrideExecMin ?? rawExecMin
-  const transitoMin = sec.content?.overrideTransitoMin ?? rawTransitoMin
-
-  // Delta para tempo: direção real, cor invertida
-  function deltaTempo(curVal, prevVal) {
-    if (curVal == null || prevVal == null || prevVal === 0) return { d: null, t: 'neutral', dc: 'gray' }
-    const pct = ((curVal - prevVal) / prevVal) * 100
-    const signal = pct >= 0 ? '+' : ''
-    const up = pct > 0
-    return {
-      d: `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`,
-      t: up ? 'up' : 'down',
-      dc: up ? 'red' : 'green',
-    }
-  }
-
-  const prev = operationalData?.prev
-  const dExec = deltaTempo(rawExecMin, prev?.data_produtividade?.sumario?.tempo_execucao_medio_minutos)
-  const dTrans = deltaTempo(rawTransitoMin, prev?.data_produtividade?.sumario?.tempo_transito_medio_minutos)
-
-  const autoCards = []
-  if (execMin != null)
-    autoCards.push(kpiCard({
-      label: 'Tempo médio de execução',
-      value: `${execMin} min`,
-      sublabel: 'Por ordem de serviço',
-      delta: dExec.d,
-      deltaType: dExec.t,
-      deltaColor: dExec.dc,
-      accentColor: 'sky',
-    }))
-  if (transitoMin != null)
-    autoCards.push(kpiCard({
-      label: 'Tempo em trânsito',
-      value: `${transitoMin} min`,
-      sublabel: 'Deslocamento médio até o cliente',
-      delta: dTrans.d,
-      deltaType: dTrans.t,
-      deltaColor: dTrans.dc,
-      accentColor: 'lime',
-    }))
-
+  const data = slideData(period, [], operationalData, null)
+  const autoCards = renderFieldCards(sec, 'indicadores_operacionais', data, {
+    tempo_execucao: 'sky',
+    tempo_atendimento: 'lime',
+    tempo_transito: 'lime',
+    _: 'sky',
+  })
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
     kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor })
   )]
@@ -708,89 +739,34 @@ function slideIndicadoresOperacionais(sec, operationalData, clientName, period, 
 }
 
 function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
-  const cur = operationalData?.current
+  const data = slideData(period, [], operationalData, null)
+  const uf = sec.content?.fields ?? {}
 
-  const totalOs           = cur?.data_os?.sumario?.total_os
-  const taxaConclusao     = cur?.data_os?.sumario?.taxa_conclusao
-  const finalizadoSucesso = cur?.data_os?.sumario?.por_status?.finalizado_sucesso
-  const comOcorrencia     = cur?.data_os?.sumario?.por_status?.finalizado_com_ocorrencia
+  const autoCards = renderFieldCards(sec, 'qualidade_operacao', data, {
+    taxa_sucesso: 'green',
+    total_sucesso: 'green',
+    relatos_imprevistos: 'red',
+    pontualidade: 'yellow',
+    no_prazo: 'green',
+    atrasadas: 'red',
+    atraso_medio_dias: 'yellow',
+    atrasadas_nao_concluidas: 'red',
+    os_sem_inicio: 'yellow',
+    os_pedido_peca: 'yellow',
+    nao_liberadas: 'yellow',
+    liberada_nao_iniciada: 'yellow',
+    _: 'sky',
+  })
+  const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
+    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor })
+  )]
 
-  const prev = operationalData?.prev
-  const taxaConclusaoPrev = prev?.data_os?.sumario?.taxa_conclusao
-  const comOcorrenciaPrev = prev?.data_os?.sumario?.por_status?.finalizado_com_ocorrencia
-
+  const totalOs = data.opCurrent?.data_os?.sumario?.total_os
   const mesLabel = periodLabel(period)
   const dynamicSubtitle = totalOs != null
     ? `Das ${totalOs.toLocaleString('pt-BR')} OS criadas em ${mesLabel}, mapeamos as seguintes ocorrências por categoria.`
     : ''
   const subtitle = sec.subtitle || dynamicSubtitle
-
-  const deltaExec = taxaConclusaoPrev != null
-    ? { d: `≈ ${taxaConclusaoPrev}% em mês anterior`, t: 'neutral', dc: 'gray' }
-    : { d: null, t: 'neutral', dc: 'gray' }
-
-  let deltaOcorr = { d: null, t: 'neutral', dc: 'gray' }
-  if (comOcorrencia != null && comOcorrenciaPrev != null && comOcorrenciaPrev !== 0) {
-    const pct = ((comOcorrencia - comOcorrenciaPrev) / comOcorrenciaPrev) * 100
-    const signal = pct >= 0 ? '+' : ''
-    const up = pct > 0
-    deltaOcorr = {
-      d: `${signal}${pct.toFixed(1).replace('.', ',')}% vs mês anterior`,
-      t: up ? 'up' : 'down',
-      dc: up ? 'red' : 'green',
-    }
-  }
-
-  const autoCards = []
-  if (finalizadoSucesso != null)
-    autoCards.push(kpiCard({
-      label: 'Execução limpa',
-      value: taxaConclusao != null ? `${taxaConclusao}%` : null,
-      sublabel: `${finalizadoSucesso.toLocaleString('pt-BR')} OS finalizadas sem ocorrência`,
-      delta: deltaExec.d,
-      deltaType: deltaExec.t,
-      deltaColor: deltaExec.dc,
-      accentColor: 'green',
-    }))
-  if (comOcorrencia != null)
-    autoCards.push(kpiCard({
-      label: 'Relatos de Imprevistos',
-      value: comOcorrencia.toLocaleString('pt-BR'),
-      sublabel: 'OS com registro de ocorrência',
-      delta: deltaOcorr.d,
-      deltaType: deltaOcorr.t,
-      deltaColor: deltaOcorr.dc,
-      accentColor: 'red',
-    }))
-
-  // ── Pontualidade ────────────────────────────────────────
-  const pont = operationalData?.current?.data_os?.tempos?.pontualidade
-  const pontPrev = operationalData?.prev?.data_os?.tempos?.pontualidade
-  if (pont?.percentual_pontualidade != null) {
-    let deltaPont = { d: null, t: 'neutral', dc: 'gray' }
-    if (pontPrev?.percentual_pontualidade != null) {
-      const diff = (pont.percentual_pontualidade - pontPrev.percentual_pontualidade).toFixed(1).replace('.', ',')
-      const up = diff > 0
-      deltaPont = {
-        d: `${up ? '+' : ''}${diff} pp vs mês anterior`,
-        t: up ? 'up' : 'down',
-        dc: up ? 'green' : 'red',
-      }
-    }
-    autoCards.push(kpiCard({
-      label: 'Pontualidade',
-      value: `${pont.percentual_pontualidade}%`,
-      sublabel: `${pont.no_prazo.toLocaleString('pt-BR')} OS no prazo · atraso médio ${pont.atraso_medio_dias} dias`,
-      delta: deltaPont.d,
-      deltaType: deltaPont.t,
-      deltaColor: deltaPont.dc,
-      accentColor: 'yellow',
-    }))
-  }
-
-  const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
-    kpiCard({ label: e.label, value: e.value, sublabel: e.sublabel, delta: e.delta, deltaType: e.deltaType, accentColor: e.accentColor ?? 'sky', highlighted: e.highlighted ?? false, deltaColor: e.deltaColor })
-  )]
 
   const body = `
     ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 1), 3)) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de qualidade disponível para este período.</p>`}
@@ -800,34 +776,22 @@ function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
 }
 
 function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) {
-  const rawMotivos = operationalData?.current?.data_os?.sumario?.motivos_ocorrencia || []
-  const motivosComTotal = rawMotivos.filter(m => m.total > 0)
-  const topOcorrencias = motivosComTotal.slice(0, 5)
-  const totalOcorrencias = rawMotivos.reduce((s, m) => s + m.total, 0)
-
-  const rawCancelamentos = operationalData?.current?.data_os?.sumario?.motivos_cancelamento || []
-  const cancelComTotal = rawCancelamentos.filter(m => m.total > 0)
-  const topCancelamentos = cancelComTotal.slice(0, 3)
-  const totalCancelamentos = rawCancelamentos.reduce((s, m) => s + m.total, 0)
+  const data = slideData(period, [], operationalData, null)
+  const uf = sec.content?.fields ?? {}
 
   const truncate = (str, max = 40) =>
     str.length > max ? str.slice(0, max) + '...' : str
 
-  const mesLabel = periodLabel(period)
-  const parts = []
-  if (motivosComTotal.length) parts.push(`${totalOcorrencias} ocorrências`)
-  if (cancelComTotal.length) parts.push(`${totalCancelamentos} cancelamentos`)
-  const dynamicSubtitle = parts.length ? parts.join(' · ') + ` em ${mesLabel}` : ''
-  const subtitle = sec.subtitle || dynamicSubtitle
-
   function renderBarras(items, cor) {
     if (!items.length) return ''
     const maxVal = Math.max(...items.map(m => m.total), 1)
+    const labelKey = items[0].motivo != null ? 'motivo' : 'tipo'
     return `<div style="margin:12px 0;">${items.map(m => {
       const pct = Math.round((m.total / maxVal) * 100)
+      const label = m[labelKey] || ''
       return `
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
-        <span style="min-width:200px;font-size:13px;color:${C.text};font-weight:500;" title="${m.motivo}">${truncate(m.motivo)}</span>
+        <span style="min-width:200px;font-size:13px;color:${C.text};font-weight:500;" title="${label}">${truncate(label)}</span>
         <div style="flex:1;background:${C.border};border-radius:999px;height:10px;overflow:hidden;">
           <div style="background:${cor};width:${pct}%;height:100%;border-radius:999px;"></div>
         </div>
@@ -836,24 +800,66 @@ function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) 
     }).join('')}</div>`
   }
 
-  const ocorrenciasHTML = topOcorrencias.length
-    ? subTitle('Ocorrências') + renderBarras(topOcorrencias, C.sky)
+  const mesLabel = periodLabel(period)
+
+  // categorias_ocorrencias (from new parser, has tipo/total)
+  const showOcorrencias = uf.categorias_ocorrencias?.enabled !== false
+  const rawCategorias = showOcorrencias
+    ? (resolveField('categorias_ocorrencia', 'categorias_ocorrencias', data) ?? [])
+    : []
+  const catComTotal = rawCategorias.filter(m => m.total > 0)
+  const topCategorias = catComTotal.slice(0, 5)
+  const ocorrenciasHTML = topCategorias.length
+    ? subTitle('Ocorrências') + renderBarras(topCategorias, C.sky)
     : ''
 
-  const cancelamentosHTML = topCancelamentos.length
-    ? subTitle('Cancelamentos') + renderBarras(topCancelamentos, C.red)
+  // motivos_cancelamento
+  const showCancel = uf.motivos_cancelamento?.enabled !== false
+  const rawCancel = showCancel
+    ? (resolveField('categorias_ocorrencia', 'motivos_cancelamento', data) ?? [])
+    : []
+  const cancelComTotal = rawCancel.filter(m => m.total > 0)
+  const topCancel = cancelComTotal.slice(0, 3)
+  const cancelamentosHTML = topCancel.length
+    ? subTitle('Cancelamentos') + renderBarras(topCancel, C.red)
     : ''
 
-  const semDados = !topOcorrencias.length && !topCancelamentos.length
+  // sub_status_breakdown (new parser)
+  const showSubStatus = uf.sub_status_breakdown?.enabled !== false
+  const subStatus = showSubStatus
+    ? resolveField('categorias_ocorrencia', 'sub_status_breakdown', data)
+    : null
+  let subStatusHTML = ''
+  if (subStatus) {
+    const statusLabels = { sucesso: 'Sucesso', ocorrencia: 'Ocorrência', cancelado: 'Cancelado', liberada_nao_iniciada: 'Liberada não Iniciada', nao_liberada: 'Não Liberada', iniciada_nao_concluida: 'Iniciada não Concluída', outros: 'Outros' }
+    const items = Object.entries(subStatus).map(([k, v]) => {
+      const total = typeof v === 'number' ? v : v.total
+      return { label: statusLabels[k] || k, value: total, color: k === 'sucesso' ? C.green : k === 'ocorrencia' ? C.yellow : k === 'cancelado' ? C.red : C.textLight }
+    }).filter(i => i.value > 0)
+    if (items.length) {
+      subStatusHTML = subTitle('Distribuição por Status') + renderBarras(
+        items.map(i => ({ motivo: i.label, total: i.value })),
+        C.sky
+      )
+    }
+  }
 
-  const footerNote = motivosComTotal.length
+  const hasData = topCategorias.length || topCancel.length || subStatus
+  const footerNote = catComTotal.length
     ? `<div style="font-size:11px;color:${C.textLight};font-style:italic;margin-top:8px;">Ocorrências registradas pelos profissionais através do App Donc.</div>`
     : ''
 
+  const parts = []
+  if (catComTotal.length) parts.push(`${catComTotal.reduce((s, m) => s + m.total, 0)} ocorrências`)
+  if (cancelComTotal.length) parts.push(`${cancelComTotal.reduce((s, m) => s + m.total, 0)} cancelamentos`)
+  const dynamicSubtitle = parts.length ? parts.join(' · ') + ` em ${mesLabel}` : ''
+  const subtitle = sec.subtitle || dynamicSubtitle
+
   const body = `
-    ${semDados ? `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado disponível para este período.</p>` : ''}
+    ${!hasData ? `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado disponível para este período.</p>` : ''}
     ${ocorrenciasHTML}
     ${cancelamentosHTML}
+    ${subStatusHTML}
     ${footerNote}
     ${calloutBlock(sec.content?.callout ?? '', C.yellow)}`
 
@@ -861,23 +867,26 @@ function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) 
 }
 
 function slideDesempenhoOperacional(sec, operationalData, clientName, period, p) {
-  const cur = operationalData?.current
-  const ranking = cur?.data_os?.operacional?.ranking_profissionais || []
+  const data = slideData(period, [], operationalData, null)
+  const uf = sec.content?.fields ?? {}
+
+  const ranking = data.opCurrent?.data_os?.operacional?.ranking_profissionais || []
+
+  const autoCards = renderFieldCards(sec, 'desempenho_operacional', data, {
+    total_profissionais: 'sky',
+    indice_produtividade: 'lime',
+    total_dias_trabalhados: 'navy',
+    _: 'sky',
+  })
+
+  // Ranking table (chart type, controlled by its own toggle)
+  const showRanking = uf.ranking_profissionais?.enabled !== false
+  const showProdutos = uf.produtos_mais_frequentes?.enabled !== false
 
   const normalize = (str) =>
     (str || '').replace(/\b\w/g, c => c.toUpperCase()).replace(/\s+/g, ' ').trim()
 
-  const totalProf = cur?.data_produtividade?.sumario?.total_profissionais || ranking.length
-  const indiceMedio = cur?.data_produtividade?.sumario?.indice_produtividade_medio
-  const diasTrab = cur?.data_produtividade?.sumario?.total_dias_trabalhados
-
-  const headerCards = []
-  if (totalProf) headerCards.push(kpiCard({ label: 'Profissionais Ativos', value: totalProf, accentColor: 'sky' }))
-  if (indiceMedio != null) headerCards.push(kpiCard({ label: 'Índice Médio', value: `${indiceMedio}%`, accentColor: 'lime' }))
-  const mediaDias = diasTrab && totalProf ? Math.round(diasTrab / totalProf) : null
-  if (mediaDias) headerCards.push(kpiCard({ label: 'Média Dias/Prof', value: mediaDias, accentColor: 'navy' }))
-
-  const ranked = (ranking || []).map(p => {
+  const ranked = ranking.map(p => {
     const sucesso = p.finalizadas_sucesso || 0
     const indice = p.total_os > 0 ? Math.round((sucesso / p.total_os) * 100) : 0
     return { ...p, sucesso, indice }
@@ -890,11 +899,6 @@ function slideDesempenhoOperacional(sec, operationalData, clientName, period, p)
   const worst5 = ranked.filter(p => p.total_os >= 3)
     .sort((a, b) => a.indice - b.indice || b.total_os - a.total_os)
     .slice(0, 5)
-
-  if (!top5.length && !worst5.length) {
-    const body = `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de desempenho disponível para este período.</p>`
-    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
-  }
 
   const tableRow = (p, isWorst) => {
     const baixo = isWorst && p.indice < 70 && p.indice > 0
@@ -933,10 +937,32 @@ function slideDesempenhoOperacional(sec, operationalData, clientName, period, p)
       </div>
     </div>`
 
+  // Produtos mais frequentes
+  const produtos = showProdutos
+    ? resolveField('desempenho_operacional', 'produtos_mais_frequentes', data) ?? []
+    : []
+  const topProdutos = produtos.slice(0, 5)
+  const produtosHTML = topProdutos.length
+    ? subTitle('Produtos Mais Frequentes') + topProdutos.map(p => {
+        const val = p.quantidade ?? p.total ?? 0
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid ${C.border};font-size:13px;">
+          <span style="color:${C.text};">${p.produto || p.nome || p.descricao || p.tipo || '—'}</span>
+          <span style="font-weight:700;color:${C.textLight};">${val.toLocaleString('pt-BR')}</span>
+        </div>`
+      }).join('')
+    : ''
+
+  const noData = showRanking && !top5.length && !worst5.length && !topProdutos.length
+  if (noData && !autoCards.length) {
+    const body = `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de desempenho disponível para este período.</p>`
+    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
+  }
+
   const body = `
-    ${headerCards.length ? kpiGrid(headerCards, Math.min(headerCards.length, 3)) : ''}
-    ${top5.length ? tableSection('Melhores Desempenhos', top5, false) : ''}
-    ${worst5.length ? tableSection('Precisam de Atenção', worst5, true) : ''}
+    ${autoCards.length ? kpiGrid(autoCards, Math.min(autoCards.length, 3)) : ''}
+    ${showRanking && top5.length ? tableSection('Melhores Desempenhos', top5, false) : ''}
+    ${showRanking && worst5.length ? tableSection('Precisam de Atenção', worst5, true) : ''}
+    ${produtosHTML}
     ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
 
   return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
