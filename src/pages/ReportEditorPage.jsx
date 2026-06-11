@@ -901,37 +901,86 @@ function FieldToggleList({ type, fields, dataContext, onChange }) {
   const sectionFields = getSectionFields(type)
   if (!sectionFields || sectionFields.length === 0) return null
 
+  const mainFields = sectionFields.filter(f => f.type !== 'delta')
+  const deltaMap = new Map()
+  for (const f of sectionFields) {
+    if (f.type === 'delta') {
+      const baseKey = f.key.replace(/^delta_/, '')
+      deltaMap.set(baseKey, f)
+    }
+  }
+
   return (
     <div className="border-t border-border-tertiary pt-4">
-      <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Ajustar métricas automáticas</span>
-      <p className="text-[10px] text-text-tertiary mb-3">Deixe em branco para usar o valor do sistema.</p>
-      <div className="flex flex-col gap-2">
-        {sectionFields.map(f => {
+      <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wider block mb-2">Campos automáticos</span>
+      <p className="text-[10px] text-text-tertiary mb-3">Valores calculados automaticamente. Edite se precisar ajustar.</p>
+      <div className="flex flex-col gap-1.5">
+        {mainFields.map(f => {
           const state = fields?.[f.key] ?? { enabled: f.defaultEnabled ?? true, override: null }
           const autoValue = f.resolve ? f.resolve(dataContext) : null
           const displayValue = formatFieldValue(f, autoValue)
           const isChart = f.type === 'chart'
+          const hasOverride = state.override != null && state.override !== ''
+          const isEdited = hasOverride && state.override !== String(autoValue ?? '')
+
+          const deltaField = deltaMap.get(f.key)
+          let deltaState = null
+          let deltaAuto = null
+          let deltaDisplay = null
+          if (deltaField) {
+            deltaState = fields?.[deltaField.key] ?? { enabled: true, override: null }
+            deltaAuto = deltaField.resolve ? deltaField.resolve(dataContext) : null
+            const deltaVal = deltaState.override ?? deltaAuto
+            deltaDisplay = deltaVal != null ? formatFieldValue(deltaField, deltaVal) : null
+          }
 
           return (
-            <div key={f.key} className="flex items-center gap-2">
-              <Toggle
-                enabled={state.enabled}
-                onToggle={() => onChange(f.key, { enabled: !state.enabled })}
-              />
-              <div className="flex-1 min-w-0">
-                <label className="text-xs text-text-tertiary block">{f.label}</label>
-                <span className="text-[10px] text-text-tertiary">
-                  {isChart ? 'Gráfico' : displayValue ? `Automático: ${displayValue}` : ''}
+            <div key={f.key}
+              className={`rounded-md px-3 py-2 border transition-colors ${
+                isEdited
+                  ? 'bg-amber-50 border-amber-200'
+                  : 'bg-bg-secondary border-border-tertiary'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <Toggle
+                    enabled={state.enabled}
+                    onToggle={() => onChange(f.key, { enabled: !state.enabled })}
+                  />
+                  <span className={`text-xs font-medium truncate ${state.enabled ? 'text-text-primary' : 'text-text-tertiary'}`}>
+                    {f.label}
+                  </span>
+                </div>
+                <span className={`text-xs shrink-0 ${isEdited ? 'text-amber-700 font-semibold' : 'text-text-tertiary'}`}>
+                  {isChart ? 'Gráfico' : displayValue ? `Auto: ${displayValue}` : ''}
                 </span>
               </div>
+
               {!isChart && state.enabled && (
                 <input
                   type="text"
                   value={state.override ?? ''}
+                  placeholder={displayValue || 'Sem valor automático'}
                   onChange={e => onChange(f.key, { override: e.target.value === '' ? null : e.target.value })}
-                  placeholder="Override"
-                  className="input-base w-24 text-xs text-right"
+                  className={`input-base w-full text-xs ${isEdited ? 'border-amber-300 text-amber-900' : ''}`}
                 />
+              )}
+
+              {deltaField && state.enabled && (
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className="text-[10px] text-text-tertiary font-medium w-10 shrink-0">Delta:</span>
+                  <input
+                    type="text"
+                    value={deltaState.override ?? ''}
+                    placeholder={deltaAuto != null ? `${deltaAuto >= 0 ? '+' : ''}${deltaAuto}%` : 'Automático'}
+                    onChange={e => onChange(deltaField.key, { override: e.target.value === '' ? null : e.target.value })}
+                    className="input-base w-full text-[10px] py-1"
+                  />
+                  {deltaDisplay && !deltaState.override && (
+                    <span className="text-[10px] text-text-tertiary shrink-0">{deltaDisplay}</span>
+                  )}
+                </div>
               )}
             </div>
           )
