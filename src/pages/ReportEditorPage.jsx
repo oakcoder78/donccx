@@ -613,8 +613,6 @@ export default function ReportEditorPage() {
             )}
           </div>
         </div>
-
-        {/* ── Preview ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="px-4 py-2 border-b border-border-tertiary bg-bg-primary">
             <span className="text-xs text-text-tertiary">Preview em tempo real</span>
@@ -859,17 +857,19 @@ function SectionEditor({
 
         {/* KPI Extras */}
         {showExtras && (
-          <ExtrasEditor
-            extras={sec.extras ?? []}
-            isAdding={isAdding}
-            draft={extraDraft}
-            onStartAdd={onAddExtra}
-            onDraftChange={onExtraDraft}
-            onConfirm={onConfirmExtra}
-            onCancel={onCancelExtra}
-            onRemove={onRemoveExtra}
-            onEditExtra={onEditExtra}
-          />
+          <div className="mt-6 pt-4 border-t border-border">
+            <ExtrasEditor
+              extras={sec.extras ?? []}
+              isAdding={isAdding}
+              draft={extraDraft}
+              onStartAdd={onAddExtra}
+              onDraftChange={onExtraDraft}
+              onConfirm={onConfirmExtra}
+              onCancel={onCancelExtra}
+              onRemove={onRemoveExtra}
+              onEditExtra={onEditExtra}
+            />
+          </div>
         )}
 
         {/* Callout analítico */}
