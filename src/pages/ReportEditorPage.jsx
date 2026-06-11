@@ -139,7 +139,7 @@ export default function ReportEditorPage() {
 
       const [{ data: hist }, { data: sup }, { data: opCurr }, { data: opPrev }] = await Promise.all([
         supabase.from('client_usage')
-          .select('ref_month,os_created,active_users,os_por_tipo,donc_snapshot')
+          .select('ref_month,os_created,active_users')
           .eq('client_id', clientId)
           .in('ref_month', months),
         supabase.from('client_support')
