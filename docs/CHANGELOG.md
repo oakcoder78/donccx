@@ -9,8 +9,15 @@
 - **New:** `supabase/functions/_shared/auth.ts` — `getServiceKey()` (compatível com novas chaves `sb_secret_*` via `SUPABASE_SECRET_KEYS`, fallback legado), `timingSafeEqual()`, `authorizeRequest()` (webhook secret OU usuário com role permitida).
 - **New:** Auth servidor-servidor via header `x-webhook-secret` (`SYNC_WEBHOOK_SECRET`), comparação timing-safe. n8n e pg_cron não usam mais a service_role key.
 - **Migration:** `20260611000100_fix_monthly_sync_cron_auth.sql` — cron `monthly-sync-job` passa a enviar `x-webhook-secret` lido do Vault (`sync_webhook_secret`); o header antigo dependia de GUC `app.service_role_key` inexistente.
+- **Migration:** `20260611000200_freshdesk_config_allow_manager.sql` — políticas INSERT/UPDATE de `freshdesk_config` agora permitem `role IN ('admin', 'manager')` (antes só `admin`); alinha com o que `freshdesk-proxy` já permitia para leitura.
 - **Compat:** Todas as Edge Functions e scripts locais compatíveis com `sb_secret_*` — REST/Storage/Auth chamados só com header `apikey` (sem `Authorization: Bearer <secret>`); scripts aceitam `SUPABASE_SECRET_KEY`.
 - **Config:** `verify_jwt = false` nas 4 funções de sync (auth feita em código; chamadores S2S não enviam JWT).
+- **Secret key rotation:** Secret key `default` (suspeita de exposição histórica) rotacionada para `donccxhub` — `getServiceKey()` atualizado; 12 funções redeployadas; `default` deletada no Dashboard. Commit `e16429f`.
+- **TD-002 concluído:** Legacy JWT-based API keys (anon + service_role) desativadas no Dashboard às 18:46Z — service_role JWT exposta efetivamente revogada. Frontend usa `sb_publishable_*`; supabase-js 2.101.1 aceita sem mudança de código.
+
+### Google Calendar — Token Expirado: Tratamento Amigável
+- **Fix:** `google-calendar-event` — qualquer falha ao renovar o refresh token agora retorna `{ error, code: 'TOKEN_EXPIRED' }` com status 401, em vez de propagar um erro 500 genérico. OAuth apps em modo "Teste" expiram o refresh token após 7 dias; a solução definitiva é colocar o app GCP em "Em produção" (status: feito em 2026-06-11).
+- **Lesson:** Modo "Testing" no GCP → refresh tokens com TTL de 7 dias. Modo "In production" → sem expiração (para usuários aprovados).
 
 ## 2026-06-09
 

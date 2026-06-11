@@ -75,7 +75,7 @@ Body fields for POST/PATCH:
 
 Event duration: **50 minutes**. Default reminders: email at 60min + popup at 15min.
 
-Token refresh is automatic when `tokenexpiry` is in the past.
+Token refresh is automatic when `tokenexpiry` is in the past. If the refresh token is expired or revoked, the function returns `{ error, code: 'TOKEN_EXPIRED' }` with status 401 so the frontend can show a reconnect prompt instead of a raw error.
 
 ## Environment Variables
 
@@ -165,8 +165,11 @@ API must be enabled: [Google Calendar API](https://console.developers.google.com
 - **`google-calendar-event` token updates** write `tokenExpiry` (camelCase) to DB — Supabase accepts both, PostgreSQL stores as `tokenexpiry` (lowercase).
 - **`user_google_configs` empty result (PGRST116):** `useGoogleCalendarStatus` uses `.maybeSingle()` instead of `.single()` to avoid "JSON object expected, got null" crash when no config exists.
 - **`isExpired` removed from hook:** the boolean `isExpired` was removed from the hook return object as it was not consumed anywhere. Token expiry is still checked internally.
+- **GCP OAuth app must be "In production":** Apps in "Testing" mode issue refresh tokens with a 7-day TTL. After the TTL, any Calendar API call fails with "Token refresh failed: Bad Request". Fix: GCP Console → OAuth consent screen → Publishing status → "In production". Done 2026-06-11.
+- **`TOKEN_EXPIRED` response code:** any failure in the refresh token exchange returns `{ error, code: 'TOKEN_EXPIRED' }` (HTTP 401) instead of a raw 500, so the frontend can show a reconnect prompt. The outer catch also maps `invalid_grant`, `401`, `expired`, and `revoked` error strings to the same code.
 
 ## Recent Changes
 
+- **2026-06-11 (commit `33e08eb`):** `google-calendar-event` — token refresh failure now returns `{ code: 'TOKEN_EXPIRED' }` (HTTP 401) instead of raw 500; outer catch also maps `invalid_grant`/`expired`/`revoked` to same code. GCP OAuth app moved to "In production" to eliminate 7-day refresh token TTL.
 - **2026-05-13 (commit `6a3bd88`):** Fixed Google Calendar sync integration — `ActivityModal` now only syncs on relevant field changes (type=reuniao, title, activity_date, activity_time); `ActivityDetailModal` guards `handleSyncToGoogleCalendar` with `if (!isConnected) return`; `useGoogleCalendarStatus` handles empty config gracefully; `isExpired` removed from hook return.
 - **2026-05-13 (commit `1641ccf`):** `Icons.Calendar` replaces direct lucide-react import in `ActivityDetailModal`.
