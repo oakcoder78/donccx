@@ -418,37 +418,47 @@ function renderFieldCards(sec, type, data, accentMap = {}) {
   const cards = []
 
   for (const f of fields) {
-    if (f.type === 'chart') continue
+    if (f.type === 'chart' || f.type === 'delta') continue
     if (uf[f.key]?.enabled === false) continue
 
-    const override = uf[f.key]?.override
+    const fopts = uf[f.key] ?? {}
+    const override = fopts.override
     const value = override ?? resolveField(type, f.key, data)
     if (value == null) continue
 
-    // Look for delta field
-    const deltaKey = `delta_${f.key}`
-    const deltaField = fields.find(df => df.key === deltaKey)
+    const label = fopts.label || f.label
+    const accentColor = fopts.accentColor || accentMap[f.key] || accentMap._ || 'sky'
+
+    // Delta
     let deltaStr = null
     let deltaType = 'neutral'
     let deltaColor = 'gray'
-    if (deltaField && uf[deltaKey]?.enabled !== false) {
-      const deltaOverride = uf[deltaKey]?.override
-      const deltaValue = deltaOverride ?? resolveField(type, deltaKey, data)
-      if (deltaValue != null) {
-        deltaStr = formatFieldValue(deltaField, deltaValue)
-        deltaType = deltaValue > 0 ? 'up' : deltaValue < 0 ? 'down' : 'neutral'
-        deltaColor = deltaType === 'up' ? 'red' : deltaType === 'down' ? 'green' : 'gray'
+
+    if (fopts.deltaEnabled !== false) {
+      const deltaKey = `delta_${f.key}`
+      const deltaField = fields.find(df => df.key === deltaKey)
+      if (deltaField) {
+        const dopts = uf[deltaKey] ?? {}
+        if (dopts.enabled !== false) {
+          const deltaOverride = dopts.override
+          const deltaRaw = deltaOverride ?? resolveField(type, deltaKey, data)
+          if (deltaRaw != null) {
+            deltaStr = dopts.deltaText || formatFieldValue(deltaField, deltaRaw)
+            deltaType = fopts.deltaType || (deltaRaw > 0 ? 'up' : deltaRaw < 0 ? 'down' : 'neutral')
+            deltaColor = fopts.deltaColor || (deltaType === 'up' ? 'red' : deltaType === 'down' ? 'green' : 'gray')
+          }
+        }
       }
     }
 
     cards.push(kpiCard({
-      label: f.label,
+      label,
       value: formatFieldValue(f, value),
       sublabel: undefined,
       delta: deltaStr,
       deltaType,
       deltaColor,
-      accentColor: accentMap[f.key] ?? accentMap._ ?? 'sky',
+      accentColor,
     }))
   }
 

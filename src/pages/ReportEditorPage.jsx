@@ -897,16 +897,28 @@ function SectionEditor({
 }
 
 // ── Field Toggle List ──────────────────────────────────────────
+const ACCENT_OPTS = [
+  { v: 'sky', l: 'Sky' }, { v: 'lime', l: 'Lime' },
+  { v: 'navy', l: 'Navy' }, { v: 'green', l: 'Green' },
+]
+const DELTA_OPTS = [
+  { v: 'neutral', l: '≈ Neutro' }, { v: 'up', l: '▲ Alta' }, { v: 'down', l: '▼ Baixa' }, { v: 'none', l: '— Sem seta' },
+]
+const DELTA_COLOR_OPTS = [
+  { v: 'auto', l: 'Auto' }, { v: 'green', l: 'Verde' }, { v: 'red', l: 'Vermelho' }, { v: 'gray', l: 'Cinza' },
+]
+
 function FieldToggleList({ type, fields, dataContext, onChange }) {
   const sectionFields = getSectionFields(type)
   if (!sectionFields || sectionFields.length === 0) return null
+
+  const [editingKey, setEditingKey] = useState(null)
 
   const mainFields = sectionFields.filter(f => f.type !== 'delta')
   const deltaMap = new Map()
   for (const f of sectionFields) {
     if (f.type === 'delta') {
-      const baseKey = f.key.replace(/^delta_/, '')
-      deltaMap.set(baseKey, f)
+      deltaMap.set(f.key.replace(/^delta_/, ''), f)
     }
   }
 
@@ -920,71 +932,186 @@ function FieldToggleList({ type, fields, dataContext, onChange }) {
           const autoValue = f.resolve ? f.resolve(dataContext) : null
           const displayValue = formatFieldValue(f, autoValue)
           const isChart = f.type === 'chart'
-          const hasOverride = state.override != null && state.override !== ''
-          const isEdited = hasOverride && state.override !== String(autoValue ?? '')
 
           const deltaField = deltaMap.get(f.key)
-          let deltaState = null
-          let deltaAuto = null
-          let deltaDisplay = null
+          let deltaState = null, deltaAuto = null, deltaDisplay = null
           if (deltaField) {
             deltaState = fields?.[deltaField.key] ?? { enabled: true, override: null }
             deltaAuto = deltaField.resolve ? deltaField.resolve(dataContext) : null
-            const deltaVal = deltaState.override ?? deltaAuto
-            deltaDisplay = deltaVal != null ? formatFieldValue(deltaField, deltaVal) : null
+            const dv = deltaState.override ?? deltaAuto
+            deltaDisplay = dv != null ? formatFieldValue(deltaField, dv) : null
+          }
+          const label = state.label || f.label
+
+          if (editingKey === f.key && !isChart) {
+            return (
+              <FieldEditForm
+                key={f.key}
+                f={f}
+                state={state}
+                autoValue={autoValue}
+                displayValue={displayValue}
+                deltaField={deltaField}
+                deltaState={deltaState}
+                deltaAuto={deltaAuto}
+                deltaDisplay={deltaDisplay}
+                onChange={onChange}
+                onClose={() => setEditingKey(null)}
+              />
+            )
           }
 
           return (
-            <div key={f.key}
-              className={`rounded-md px-3 py-2 border transition-colors ${
-                isEdited
-                  ? 'bg-amber-50 border-amber-200'
-                  : 'bg-bg-secondary border-border-tertiary'
-              }`}
-            >
-              <div className="flex items-center justify-between gap-2 mb-1.5">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <Toggle
-                    enabled={state.enabled}
-                    onToggle={() => onChange(f.key, { enabled: !state.enabled })}
-                  />
-                  <span className={`text-xs font-medium truncate ${state.enabled ? 'text-text-primary' : 'text-text-tertiary'}`}>
-                    {f.label}
-                  </span>
-                </div>
-                <span className={`text-xs shrink-0 ${isEdited ? 'text-amber-700 font-semibold' : 'text-text-tertiary'}`}>
-                  {isChart ? 'Gráfico' : displayValue ? `Auto: ${displayValue}` : ''}
-                </span>
-              </div>
-
-              {!isChart && state.enabled && (
-                <input
-                  type="text"
-                  value={state.override ?? ''}
-                  placeholder={displayValue || 'Sem valor automático'}
-                  onChange={e => onChange(f.key, { override: e.target.value === '' ? null : e.target.value })}
-                  className={`input-base w-full text-xs ${isEdited ? 'border-amber-300 text-amber-900' : ''}`}
-                />
-              )}
-
-              {deltaField && state.enabled && (
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <span className="text-[10px] text-text-tertiary font-medium w-10 shrink-0">Delta:</span>
-                  <input
-                    type="text"
-                    value={deltaState.override ?? ''}
-                    placeholder={deltaAuto != null ? `${deltaAuto >= 0 ? '+' : ''}${deltaAuto}%` : 'Automático'}
-                    onChange={e => onChange(deltaField.key, { override: e.target.value === '' ? null : e.target.value })}
-                    className="input-base w-full text-[10px] py-1"
-                  />
-                  {deltaDisplay && !deltaState.override && (
-                    <span className="text-[10px] text-text-tertiary shrink-0">{deltaDisplay}</span>
-                  )}
-                </div>
-              )}
-            </div>
+            <FieldViewCard
+              key={f.key}
+              f={f}
+              state={state}
+              label={label}
+              displayValue={displayValue}
+              isChart={isChart}
+              deltaField={deltaField}
+              deltaDisplay={deltaDisplay}
+              deltaState={deltaState}
+              onChange={onChange}
+              onEdit={() => setEditingKey(f.key)}
+            />
           )
         })}
+      </div>
+    </div>
+  )
+}
+
+function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, deltaDisplay, deltaState, onChange, onEdit }) {
+  return (
+    <div className="bg-bg-secondary rounded-md px-3 py-2 border border-border-tertiary">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          <Toggle
+            enabled={state.enabled}
+            onToggle={() => onChange(f.key, { enabled: !state.enabled })}
+          />
+          <span className={`text-xs font-medium truncate ${state.enabled ? 'text-text-primary' : 'text-text-tertiary'}`}>
+            {label}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-xs text-text-tertiary">{displayValue || '—'}</span>
+          {!isChart && (
+            <button onClick={onEdit} className="text-text-tertiary hover:text-donc-navy" title="Editar">
+              <Icons.Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+      {(deltaField && deltaDisplay && state.deltaEnabled !== false) && (
+        <div className="flex items-center gap-1 ml-5 mt-1">
+          <span className="text-[10px] text-text-tertiary">{deltaDisplay}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaState, deltaAuto, deltaDisplay, onChange, onClose }) {
+  const [draft, setDraft] = useState({
+    label: state.label ?? '',
+    override: state.override ?? '',
+    accentColor: state.accentColor ?? '',
+    deltaEnabled: state.deltaEnabled !== false,
+    deltaText: state.deltaText ?? '',
+    deltaType: state.deltaType ?? '',
+    deltaColor: state.deltaColor ?? '',
+  })
+  const [deltaOverride, setDeltaOverride] = useState(deltaState?.override ?? '')
+
+  function save() {
+    onChange(f.key, {
+      label: draft.label || null,
+      override: draft.override === '' ? null : draft.override,
+      accentColor: draft.accentColor || null,
+      deltaEnabled: draft.deltaEnabled,
+      deltaText: draft.deltaText || null,
+      deltaType: draft.deltaType || null,
+      deltaColor: draft.deltaColor || null,
+    })
+    if (deltaField) {
+      onChange(deltaField.key, { override: deltaOverride === '' ? null : deltaOverride })
+    }
+    onClose()
+  }
+
+  return (
+    <div className="bg-bg-secondary rounded-md p-3 border border-border-tertiary">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold text-text-primary">{f.label}</span>
+        <button onClick={onClose} className="text-text-tertiary hover:text-red-500 text-sm leading-none">×</button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-1.5 mb-2">
+        <input placeholder="Título *" value={draft.label}
+          onChange={e => setDraft(d => ({ ...d, label: e.target.value }))}
+          className="input-base text-xs col-span-2" />
+        <input placeholder="Valor" value={draft.override}
+          onChange={e => setDraft(d => ({ ...d, override: e.target.value }))}
+          className="input-base text-xs" />
+        <span className="text-[10px] text-text-tertiary self-center">Auto: {displayValue || '—'}</span>
+      </div>
+
+      <div className="mb-2">
+        <label className="text-[10px] text-text-tertiary block mb-1">Cor da borda</label>
+        <select value={draft.accentColor}
+          onChange={e => setDraft(d => ({ ...d, accentColor: e.target.value }))}
+          className="input-base text-xs w-full">
+          <option value="">Padrão do slide</option>
+          {ACCENT_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+        </select>
+      </div>
+
+      {deltaField && (
+        <div className="border-t border-border-tertiary pt-2 mt-2">
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer mb-2">
+            <input type="checkbox" checked={draft.deltaEnabled}
+              onChange={e => setDraft(d => ({ ...d, deltaEnabled: e.target.checked }))}
+              className="rounded" />
+            Exibir delta no card
+          </label>
+
+          {draft.deltaEnabled && (
+            <>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                <input placeholder="Valor (ex: +5)" value={deltaOverride}
+                  onChange={e => setDeltaOverride(e.target.value)}
+                  className="input-base text-xs" />
+                <span className="text-[10px] text-text-tertiary self-center">Auto: {deltaDisplay || '—'}</span>
+                <input placeholder="Texto personalizado" value={draft.deltaText}
+                  onChange={e => setDraft(d => ({ ...d, deltaText: e.target.value }))}
+                  className="input-base text-xs col-span-2" />
+              </div>
+              <div className="grid grid-cols-2 gap-1.5">
+                <select value={draft.deltaType}
+                  onChange={e => setDraft(d => ({ ...d, deltaType: e.target.value }))}
+                  className="input-base text-xs">
+                  <option value="">Seta: Auto</option>
+                  {DELTA_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+                <select value={draft.deltaColor}
+                  onChange={e => setDraft(d => ({ ...d, deltaColor: e.target.value }))}
+                  className="input-base text-xs">
+                  <option value="">Cor: Auto</option>
+                  {DELTA_COLOR_OPTS.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-2 mt-2">
+        <button onClick={onClose}
+          className="flex-1 text-xs py-1.5 rounded-md border border-border-secondary text-text-tertiary hover:bg-bg-tertiary">Cancelar</button>
+        <button onClick={save}
+          className="flex-1 text-xs py-1.5 rounded-md bg-donc-navy text-white font-semibold">Salvar</button>
       </div>
     </div>
   )
