@@ -996,7 +996,11 @@ function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, del
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-xs text-text-tertiary">{displayValue || '—'}</span>
+          {isChart ? (
+            <span className="text-[10px] text-text-tertiary">Gráfico</span>
+          ) : (
+            <span className="text-xs text-text-tertiary">{displayValue || '—'}</span>
+          )}
           {!isChart && (
             <button onClick={onEdit} className="text-text-tertiary hover:text-donc-navy" title="Editar">
               <Icons.Pencil className="w-3.5 h-3.5" />
