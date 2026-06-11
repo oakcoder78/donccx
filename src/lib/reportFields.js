@@ -139,7 +139,12 @@ const sectionFields = {
       label: 'OS por Tipo de Serviço',
       type: 'chart',
       defaultEnabled: true,
-      resolve: (data) => data.opCurrent?.data_os?.sumario?.por_tipo ?? null,
+      resolve: (data) => {
+        const fromDataOs = data.opCurrent?.data_os?.sumario?.por_tipo
+        if (fromDataOs) return fromDataOs
+        const usage = data.usage?.find(u => u.ref_month === data.period)
+        return usage?.os_por_tipo ?? null
+      },
     },
   ],
 

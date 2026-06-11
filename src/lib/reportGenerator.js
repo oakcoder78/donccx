@@ -568,12 +568,10 @@ function slideEscala(sec, usageHistory, period, clientName, p, operationalData =
 
   // Charts via field registry toggles
   const showTipoChart = uf.grafico_por_tipo?.enabled !== false
+  const porTipo = data.opCurrent?.data_os?.sumario?.por_tipo
+    ?? data.usage?.find(u => u.ref_month === period)?.os_por_tipo
   const tipoChart = showTipoChart
-    ? barChartTipoOS(
-        data.opCurrent?.data_os?.sumario?.por_tipo,
-        data.opPrev?.data_os?.sumario?.por_tipo,
-        period
-      )
+    ? barChartTipoOS(porTipo, undefined, period)
     : ''
 
   const showHistorico = uf.grafico_historico?.enabled !== false
