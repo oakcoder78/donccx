@@ -13,57 +13,54 @@ function mountUserContent(sectionType, data, clientName, period, customContext, 
   const [y, m] = (period || '').split('-').map(Number)
   const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
   const periodLabel = months[m - 1] ? `${months[m - 1]} ${y}` : period
+  const fmtPct = v => v != null ? `${v}%` : 'N/D'
 
   let summary
   switch (sectionType) {
     case 'escala':
       summary = `Analise os dados de escala operacional do cliente ${clientName} em ${periodLabel}:
-- OS Criadas: ${data.total_os ?? 'N/D'} (${data.delta_os != null ? (data.delta_os >= 0 ? '+' : '') + data.delta_os + '%' : 'N/D'} vs anterior)
-- Usuários Ativos: ${data.active_users ?? 'N/D'} (${data.delta_users != null ? (data.delta_users >= 0 ? '+' : '') + data.delta_users + '%' : 'N/D'} vs anterior)
-- Produtos Montados: ${data.total_produtos ?? 'N/D'} (${data.delta_produtos != null ? (data.delta_produtos >= 0 ? '+' : '') + data.delta_produtos + '%' : 'N/D'} vs anterior)
-- Composição: Montagem ${data.pct_montagem ?? 'N/D'}%, Assistência ${data.pct_assistencia ?? 'N/D'}%
+- OS Criadas: ${data.os_criadas ?? 'N/D'} (${data.delta_os_criadas != null ? (data.delta_os_criadas >= 0 ? '+' : '') + data.delta_os_criadas + '%' : 'N/D'} vs anterior)
+- Usuários Ativos: ${data.usuarios_ativos ?? 'N/D'} (${data.delta_usuarios_ativos != null ? (data.delta_usuarios_ativos >= 0 ? '+' : '') + data.delta_usuarios_ativos + '%' : 'N/D'} vs anterior)
+- Produtos Montados: ${data.produtos_montados ?? 'N/D'} (${data.delta_produtos_montados != null ? (data.delta_produtos_montados >= 0 ? '+' : '') + data.delta_produtos_montados + '%' : 'N/D'} vs anterior)
+- Composição: Montagem ${fmtPct(data.pct_montagem)}, Assistência ${fmtPct(data.pct_assistencia)}
 Gere uma análise do desempenho operacional do período.`
       break
 
     case 'qualidade_operacao':
       summary = `Analise a qualidade operacional do cliente ${clientName} em ${periodLabel}:
-- Taxa de conclusão: ${data.taxa_conclusao ?? 'N/D'}%
-- OS finalizadas sem ocorrência: ${data.finalizado_sucesso ?? 'N/D'}
-- OS com ocorrência: ${data.com_ocorrencia ?? 'N/D'} (${data.delta_ocorrencia != null ? (data.delta_ocorrencia >= 0 ? '+' : '') + data.delta_ocorrencia + '%' : 'N/D'} vs anterior)
-- Pontualidade: ${data.percentual_pontualidade ?? 'N/D'}% (atraso médio ${data.atraso_medio_dias ?? 'N/D'} dias)
+- Execução limpa: ${fmtPct(data.taxa_sucesso)}
+- OS finalizadas sem ocorrência: ${data.total_sucesso ?? 'N/D'}
+- OS com ocorrência: ${data.relatos_imprevistos ?? 'N/D'} (${data.delta_imprevistos != null ? (data.delta_imprevistos >= 0 ? '+' : '') + data.delta_imprevistos + '%' : 'N/D'} vs anterior)
+- Pontualidade: ${fmtPct(data.pontualidade)} (atraso médio ${data.atraso_medio_dias ?? 'N/D'} dias)
 Gere uma análise focada em qualidade e oportunidades de melhoria.`
       break
 
     case 'indicadores_operacionais':
       summary = `Analise os indicadores operacionais do cliente ${clientName} em ${periodLabel}:
-- Tempo médio de execução: ${data.execucao_min ?? 'N/D'} min (${data.delta_exec != null ? (data.delta_exec >= 0 ? '+' : '') + data.delta_exec + '%' : 'N/D'} vs anterior)
-- Tempo em trânsito: ${data.transito_min ?? 'N/D'} min (${data.delta_transito != null ? (data.delta_transito >= 0 ? '+' : '') + data.delta_transito + '%' : 'N/D'} vs anterior)
+- Tempo médio de execução: ${data.tempo_execucao != null ? Math.round(data.tempo_execucao * 60) + ' min' : 'N/D'} (${data.delta_tempo_execucao != null ? (data.delta_tempo_execucao >= 0 ? '+' : '') + data.delta_tempo_execucao + '%' : 'N/D'} vs anterior)
+- Tempo em trânsito: ${data.tempo_transito != null ? Math.round(data.tempo_transito * 60) + ' min' : 'N/D'}
 Gere uma análise sobre eficiência operacional dos profissionais.`
       break
 
     case 'categorias_ocorrencia':
       summary = `Analise as categorias de ocorrência do cliente ${clientName} em ${periodLabel}:
-Top 3 ocorrências: ${data.top3_ocorrencias || 'N/D'}
-Top 2 cancelamentos: ${data.top2_cancelamentos || 'N/D'}
-Total de ocorrências: ${data.total_ocorrencias ?? 'N/D'}
-Gere uma análise identificando padrões e oportunidades de ação.`
+Gere uma análise identificando padrões e oportunidades de ação com base nos dados disponíveis.`
       break
 
     case 'desempenho_operacional':
       summary = `Analise o desempenho dos profissionais do cliente ${clientName} em ${periodLabel}:
-- Índice médio de produtividade: ${data.indice_medio ?? 'N/D'}%
+- Índice médio de produtividade: ${fmtPct(data.indice_produtividade)}
 - Total de profissionais ativos: ${data.total_profissionais ?? 'N/D'}
-- Profissionais com atenção (índice < 70%): ${data.count_atencao ?? 'N/D'}
 Gere uma análise do desempenho geral da equipe de campo.`
       break
 
     case 'suporte':
       summary = `Analise o suporte ao cliente ${clientName} em ${periodLabel}:
-- Tickets abertos: ${data.tickets_opened ?? 'N/D'}
-- Tickets resolvidos: ${data.tickets_resolved ?? 'N/D'}
-- SLA primeira resposta: ${data.sla ?? 'N/D'} min
-- Taxa de resolução: ${data.taxa_resolucao ?? 'N/D'}%
-- N1: ${data.n1_pct ?? 'N/D'}%, N2: ${data.n2_pct ?? 'N/D'}%, N3: ${data.n3_pct ?? 'N/D'}%
+- Tickets abertos: ${data.tickets_abertos ?? 'N/D'}
+- Tickets resolvidos: ${data.tickets_resolvidos ?? 'N/D'}
+- SLA primeira resposta: ${data.sla_primeira_resposta ?? 'N/D'} min
+- Taxa de resolução: ${fmtPct(data.taxa_resolucao)}
+- N1: ${fmtPct(data.n1_pct)}, N2: ${fmtPct(data.n2_pct)}, N3: ${fmtPct(data.n3_pct)}
 Gere uma análise da performance de suporte no período, destacando pontos de atenção.`
       break
 

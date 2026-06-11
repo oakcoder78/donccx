@@ -89,6 +89,36 @@ const sectionFields = {
       },
     },
     {
+      key: 'pct_montagem',
+      label: '% Montagem',
+      type: 'percent',
+      defaultEnabled: false,
+      resolve: (data) => {
+        const porTipo = data.opCurrent?.data_os?.sumario?.por_tipo
+        if (!porTipo) return null
+        const getVal = (v) => typeof v === 'number' ? v : v?.total_os ?? 0
+        const montagem = getVal(porTipo.Montagem)
+        const total = Object.values(porTipo).reduce((s, v) => s + getVal(v), 0)
+        if (total === 0) return null
+        return Math.round((montagem / total) * 100)
+      },
+    },
+    {
+      key: 'pct_assistencia',
+      label: '% Assistência',
+      type: 'percent',
+      defaultEnabled: false,
+      resolve: (data) => {
+        const porTipo = data.opCurrent?.data_os?.sumario?.por_tipo
+        if (!porTipo) return null
+        const getVal = (v) => typeof v === 'number' ? v : v?.total_os ?? 0
+        const assist = getVal(porTipo.Assistência)
+        const total = Object.values(porTipo).reduce((s, v) => s + getVal(v), 0)
+        if (total === 0) return null
+        return Math.round((assist / total) * 100)
+      },
+    },
+    {
       key: 'valor_total_notas',
       label: 'Valor Total Notas',
       type: 'currency',
