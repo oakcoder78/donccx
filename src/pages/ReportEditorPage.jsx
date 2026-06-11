@@ -277,12 +277,14 @@ export default function ReportEditorPage() {
     try {
       const sectionData = getSectionValues(section)
       const customContext = section.content?.analysisContext || undefined
+      const includeRawData = section.content?.includeRawData ?? false
       const text = await generateSectionAnalysis({
         sectionType: section.type,
         sectionData,
         clientName: client?.fantasy_name || client?.name,
         period: report?.period,
         customContext,
+        includeRawData,
       })
       updateContent(section.id, 'callout', text)
       toast.success('Análise gerada com sucesso')
@@ -887,6 +889,15 @@ function SectionEditor({
                   <Icons.Sparkles size={14} />
                   {generatingAnalysis ? 'Gerando análise...' : 'Gerar análise'}
                 </button>
+                <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={sec.content?.includeRawData ?? false}
+                    onChange={e => onContent('includeRawData', e.target.checked)}
+                    className="rounded"
+                  />
+                  Incluir dados brutos (chart, arrays)
+                </label>
                 <textarea
                   value={sec.content?.analysisContext ?? ''}
                   onChange={e => onContent('analysisContext', e.target.value)}

@@ -9,7 +9,7 @@ function dataDump(data) {
     .join('\n')
 }
 
-function mountUserContent(sectionType, data, clientName, period, customContext) {
+function mountUserContent(sectionType, data, clientName, period, customContext, includeRawData) {
   const [y, m] = (period || '').split('-').map(Number)
   const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
   const periodLabel = months[m - 1] ? `${months[m - 1]} ${y}` : period
@@ -71,14 +71,20 @@ Gere uma análise da performance de suporte no período, destacando pontos de at
       summary = `Analise os dados operacionais do cliente ${clientName} em ${periodLabel}.`
   }
 
+  let prompt = summary
+
   if (customContext) {
-    summary += `\n\nInstruções adicionais do analista:\n${customContext}`
+    prompt += `\n\nInstruções adicionais do analista:\n${customContext}`
   }
 
-  return summary + '\n\nDados completos disponíveis:\n' + dataDump(data)
+  if (includeRawData) {
+    prompt += '\n\nDados completos disponíveis:\n' + dataDump(data)
+  }
+
+  return prompt
 }
 
-export async function generateSectionAnalysis({ sectionType, sectionData, clientName, period, customContext }) {
+export async function generateSectionAnalysis({ sectionType, sectionData, clientName, period, customContext, includeRawData }) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
 
@@ -88,7 +94,7 @@ Responda sempre em português brasileiro.
 Máximo 3 frases por análise.
 Não use markdown, apenas texto corrido.`
 
-  const userContent = mountUserContent(sectionType, sectionData, clientName, period, customContext)
+  const userContent = mountUserContent(sectionType, sectionData, clientName, period, customContext, includeRawData)
 
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`
   let lastError
