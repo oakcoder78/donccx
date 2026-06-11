@@ -89,7 +89,7 @@ export function defaultSections() {
 }
 
 /** Garante que uma seção tenha o objeto fields no content */
-function ensureFields(sec, type) {
+export function ensureFields(sec, type) {
   if (!sec.content) sec.content = {}
   if (!sec.content.fields) {
     const fds = getSectionFields(type)

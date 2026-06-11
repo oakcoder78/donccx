@@ -4,7 +4,7 @@ import { useReport, useReportMutations } from '../hooks/useClientReports'
 import { useClient } from '../hooks/useClient'
 import { useProfiles } from '../hooks/useProfiles'
 import { useProjects } from '../hooks/useProjects'
-import { generateReportHTML, periodLabel, normalizeSections, defaultSections } from '../lib/reportGenerator'
+import { generateReportHTML, periodLabel, normalizeSections, defaultSections, ensureFields } from '../lib/reportGenerator'
 import { getSectionFields, resolveField, resolveAllFields, formatFieldValue } from '../lib/reportFields'
 import { supabase } from '../lib/supabaseClient'
 import { useDonkie } from '../hooks/useDonkie'
@@ -255,9 +255,17 @@ export default function ReportEditorPage() {
 
   const dataContext = useMemo(() => buildDataContext(report?.period), [report?.period, usageHistory, supportRaw, operationalData])
   function handleFieldChange(fieldKey, changes) {
-    setSections(prev => prev.map(s => s.id === activeSec?.id
-      ? { ...s, content: { ...s.content, fields: { ...s.content?.fields, [fieldKey]: { ...s.content?.fields?.[fieldKey], ...changes } } } }
-      : s))
+    setSections(prev => prev.map(s => {
+      if (s.id !== activeSec?.id) return s
+      if (!s.content?.fields) ensureFields(s, s.type)
+      return {
+        ...s,
+        content: {
+          ...s.content,
+          fields: { ...s.content?.fields, [fieldKey]: { ...s.content?.fields?.[fieldKey], ...changes } },
+        },
+      }
+    }))
   }
 
   async function handleGenerateAnalysis(section) {
@@ -368,6 +376,7 @@ export default function ReportEditorPage() {
       content,
       extras: [],
     }
+    ensureFields(sec, sec.type)
     setSections(prev => [...prev, sec])
     setActiveId(id)
     setShowNewModal(false)
@@ -512,9 +521,9 @@ export default function ReportEditorPage() {
       {/* Corpo */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* ── Sidebar de seções (160px) ── */}
-        <div className="w-[160px] flex-shrink-0 border-r border-border-tertiary bg-bg-secondary flex flex-col overflow-hidden">
-          <div className="px-3 py-2 text-[10px] font-bold text-text-tertiary uppercase tracking-wider border-b border-border-tertiary flex items-center justify-between">
+        {/* ── Sidebar de seções ── */}
+        <div className="w-[200px] flex-shrink-0 border-r border-border-tertiary bg-bg-secondary flex flex-col overflow-hidden">
+          <div className="px-3 py-2.5 text-[10px] font-bold text-text-tertiary uppercase tracking-wider border-b border-border-tertiary flex items-center justify-between">
             <span>Seções</span>
             <button
               onClick={() => setShowNewModal(true)}
@@ -528,12 +537,14 @@ export default function ReportEditorPage() {
               <div className="group relative">
                 <button
                   onClick={() => setActiveId(capaSection.id)}
-                  className={`w-full flex items-center gap-1.5 px-2.5 py-2 text-left transition-colors ${
-                    activeId === capaSection.id ? 'bg-donc-navy text-white' : 'text-text-secondary hover:bg-bg-tertiary'
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-l-[3px] ${
+                    activeId === capaSection.id
+                      ? 'bg-donc-navy/[0.08] text-donc-navy font-medium border-l-donc-navy'
+                      : 'text-text-secondary hover:bg-bg-tertiary border-l-transparent'
                   }`}
                 >
-                  <SecIcon type="capa" />
-                  <span className="text-[11px] leading-tight truncate flex-1">{capaSection.title}</span>
+                  <SecIcon type="capa" className="w-4 h-4" />
+                  <span className="text-xs leading-tight truncate flex-1">{capaSection.title}</span>
                 </button>
               </div>
             )}
@@ -667,17 +678,22 @@ function SortableSidebarItem({ sec, isActive, showDelete, onSelect, onDelete }) 
     <div ref={setNodeRef} style={style} className="group relative">
       <button
         onClick={onSelect}
-        className={`w-full flex items-center gap-1.5 px-2.5 py-2 text-left transition-colors ${
-          isActive ? 'bg-donc-navy text-white' : 'text-text-secondary hover:bg-bg-tertiary'
-        } ${!sec.enabled ? 'opacity-40' : ''}`}
+        className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors border-l-[3px] ${
+          isActive
+            ? 'bg-donc-navy/[0.08] text-donc-navy font-medium border-l-donc-navy'
+            : 'text-text-secondary hover:bg-bg-tertiary border-l-transparent'
+        } ${!sec.enabled ? 'opacity-50' : ''}`}
       >
         <span
           {...attributes} {...listeners}
-          className="flex-shrink-0 text-[10px] leading-none cursor-grab opacity-0 group-hover:opacity-50 hover:!opacity-100 select-none"
+          className="flex-shrink-0 text-xs leading-none cursor-grab select-none opacity-20 group-hover:opacity-60"
           onClick={e => e.stopPropagation()}
-        >⋮⋮</span>
-        <SecIcon type={sec.type} />
-        <span className="text-[11px] leading-tight truncate flex-1">{sec.title}</span>
+        >⠿</span>
+        <SecIcon type={sec.type} className="w-4 h-4" />
+        <span className="text-xs leading-tight truncate flex-1">{sec.title}</span>
+        {!sec.enabled && (
+          <Icons.EyeOff className="w-3 h-3 text-text-tertiary flex-shrink-0" />
+        )}
       </button>
       {showDelete && (
         <button
@@ -900,7 +916,7 @@ function FieldToggleList({ type, fields, dataContext, onChange }) {
             <div key={f.key} className="flex items-center gap-2">
               <Toggle
                 enabled={state.enabled}
-                onToggle={v => onChange(f.key, { enabled: v })}
+                onToggle={() => onChange(f.key, { enabled: !state.enabled })}
               />
               <div className="flex-1 min-w-0">
                 <label className="text-xs text-text-tertiary block">{f.label}</label>
