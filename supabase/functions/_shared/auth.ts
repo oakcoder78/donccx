@@ -17,11 +17,13 @@ export function getServiceKey(): string {
   try {
     const keys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? 'null')
     if (keys && typeof keys === 'object') {
-      const candidate = keys['default'] ?? Object.values(keys)[0]
+      // 'donccxhub' is the active secret key; 'default' was rotated out (potentially
+      // exposed). Fall back to whatever single secret key exists if neither name matches.
+      const candidate = keys['donccxhub'] ?? Object.values(keys)[0]
       if (typeof candidate === 'string' && candidate.length > 0) return candidate
     }
   } catch (_) {
-    // fall through to legacy key
+    // fall through to legacy key (only reachable if SUPABASE_SECRET_KEYS is absent)
   }
   return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 }
