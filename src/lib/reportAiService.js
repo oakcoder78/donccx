@@ -68,13 +68,16 @@ Gere uma análise da performance de suporte no período, destacando pontos de at
       summary = `Analise os dados operacionais do cliente ${clientName} em ${periodLabel}.`
   }
 
-  let prompt = summary
+  let prompt
 
   if (customContext) {
-    prompt += `\n\nInstruções adicionais do analista:\n${customContext}`
+    prompt = customContext
+  } else {
+    prompt = summary
   }
 
-  if (includeRawData) {
+  const shouldDump = includeRawData || customContext
+  if (shouldDump) {
     prompt += '\n\nDados completos disponíveis:\n' + dataDump(data)
   }
 
