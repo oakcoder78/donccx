@@ -18,6 +18,7 @@
 |---|---|---|---|---|---|
 | TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Done | — |
 | TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Done | — |
+| TD-003 | Tech Debt | Validar dados do n8n no RMC | M | Backlog | — |
 
 ## Closed Items
 
@@ -79,6 +80,41 @@ A tabela canônica é `client_donc_instances`, que carrega esses campos por cont
 - **Interno:** zero readers dessas colunas em `src/`, `supabase/functions/` ou `scripts/`. Edge Functions e scripts não as referenciam.
 - **Externo:** BI, exports ou integrações fora deste repositório que leiam `clients.app_code` / `clients.url_donc` quebrariam. Sem visibilidade aqui — registrar no log de deploy se houver essa dependência.
 - **Dados:** backfill cobre apenas primeira instância por cliente sem valor. Se uma empresa tem múltiplas instâncias e só uma delas estava populada, o backfill não sobrescreve — conservador e desejado.
+
+---
+
+## TD-003 — Validar dados do n8n no RMC
+
+**Type:** Tech Debt
+**Priority:** M
+**Status:** Backlog
+**Origin:** 2026-06-11 — dados do n8n (`data_os.sumario.por_tipo`) têm estrutura aninhada `{ "Tipo": { total_os: N } }` diferente do esperado pelo frontend; alguns campos podem estar ausentes ou em formato inconsistente.
+**Linked SDD:** —
+**Related commits:** `27152ee`, `f32e1c5`, `bce71a4`
+
+### Context
+O n8n parser envia dados operacionais para `client_operational_reports.data_os` via `operational-report-sync`. Durante a sessão de 2026-06-11 descobrimos que:
+
+- `por_tipo` vem como `{ "Tipo": { total_os: N, taxa_sucesso: N, ... } }`, não `{ "Tipo": N }` — precisou de transformação manual no `reportGenerator.js`
+- Possibilidade de outros campos terem formato ou caminho inesperado
+- `client_usage` (DONC API sync) tem formato diferente do n8n para os mesmos dados conceituais
+- Não há schema/validação do payload n8n — é `Record<string, unknown>` na edge function
+
+### Proposed approach
+1. Mapear todos os campos que o RMC consome e verificar se o n8n envia cada um no formato esperado
+2. Verificar cobertura por cliente — clientes com `data_os` nulo vs completo
+3. Decidir estratégia: normalizar no n8n, normalizar no frontend, ou padronizar via schema no `operational-report-sync`
+4. Documentar schema esperado do payload n8n
+
+### Files
+- `supabase/functions/operational-report-sync/index.ts` (Modify — adicionar validação de payload/Zod schema)
+- `src/lib/reportFields.js` (Modify — ajustar resolves se formato variar por cliente)
+- `docs/system/data-flow.md` (Modify — documentar pipeline n8n → RMC)
+- `docs/modules/report-ai-analysis.md` (Modify — atualizar se schema afetar prompt)
+
+### Risks
+- Alterar formato no n8n pode quebrar outros consumidores do mesmo payload
+- Clientes com `data_os` null podem ter falha silenciosa no RMC (já acontece hoje)
 
 ---
 
