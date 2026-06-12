@@ -18,7 +18,8 @@
 |---|---|---|---|---|---|
 | TD-001 | Tech Debt | Drop `clients.app_code` / `clients.url_donc` (backfill + drop columns) | M | Done | — |
 | TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Done | — |
-| TD-003 | Tech Debt | Validar dados do n8n no RMC | M | Backlog | — |
+| TD-003 | Tech Debt | Migrar RMC para dados do n8n (os_criadas, histórico) | M | Done | — |
+| TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 
 ## Closed Items
 
@@ -83,38 +84,57 @@ A tabela canônica é `client_donc_instances`, que carrega esses campos por cont
 
 ---
 
-## TD-003 — Validar dados do n8n no RMC
+## TD-003 — Migrar RMC para dados do n8n (os_criadas, histórico)
 
 **Type:** Tech Debt
 **Priority:** M
-**Status:** Backlog
+**Status:** Done
+**Closed:** 2026-06-12 — frontend migrado para `client_operational_reports` como fonte principal
 **Origin:** 2026-06-11 — dados do n8n (`data_os.sumario.por_tipo`) têm estrutura aninhada `{ "Tipo": { total_os: N } }` diferente do esperado pelo frontend; alguns campos podem estar ausentes ou em formato inconsistente.
 **Linked SDD:** —
 **Related commits:** `27152ee`, `f32e1c5`, `bce71a4`
 
-### Context
-O n8n parser envia dados operacionais para `client_operational_reports.data_os` via `operational-report-sync`. Durante a sessão de 2026-06-11 descobrimos que:
+### What was done
 
-- `por_tipo` vem como `{ "Tipo": { total_os: N, taxa_sucesso: N, ... } }`, não `{ "Tipo": N }` — precisou de transformação manual no `reportGenerator.js`
-- Possibilidade de outros campos terem formato ou caminho inesperado
-- `client_usage` (DONC API sync) tem formato diferente do n8n para os mesmos dados conceituais
-- Não há schema/validação do payload n8n — é `Record<string, unknown>` na edge function
-
-### Proposed approach
-1. Mapear todos os campos que o RMC consome e verificar se o n8n envia cada um no formato esperado
-2. Verificar cobertura por cliente — clientes com `data_os` nulo vs completo
-3. Decidir estratégia: normalizar no n8n, normalizar no frontend, ou padronizar via schema no `operational-report-sync`
-4. Documentar schema esperado do payload n8n
+1. **`os_criadas` + delta** — migrado de `usage[].os_created` para `opCurrent.data_os.sumario.total_os` (n8n)
+2. **`grafico_historico` (12 meses)** — migrado de `client_usage` para `client_operational_reports`; gráfico exibe meses disponíveis (cresce conforme n8n acumula)
+3. **`active_users`** — mantido em `client_usage` (n8n não envia esse dado ainda)
+4. **`USAGE` helper** — removido (dead code)
+5. **Query `client_usage`** — reduzida para só `ref_month, active_users`
 
 ### Files
-- `supabase/functions/operational-report-sync/index.ts` (Modify — adicionar validação de payload/Zod schema)
-- `src/lib/reportFields.js` (Modify — ajustar resolves se formato variar por cliente)
-- `docs/system/data-flow.md` (Modify — documentar pipeline n8n → RMC)
-- `docs/modules/report-ai-analysis.md` (Modify — atualizar se schema afetar prompt)
+- `src/lib/reportFields.js` (Modify — resolves de os_criadas + delta)
+- `src/pages/ReportEditorPage.jsx` (Modify — query opHistory + opHistory state)
+- `src/lib/reportGenerator.js` (Modify — barChartV, slideData, slideEscala, generateReportHTML)
+
+### Remaining
+- Validação Zod do payload n8n postergada → TD-004
+
+---
+
+## TD-004 — Adicionar validação Zod no operational-report-sync
+
+**Type:** Tech Debt
+**Priority:** L
+**Status:** Backlog
+**Origin:** 2026-06-12 — schema do n8n ainda em evolução; postergado até formato estabilizar
+**Linked SDD:** —
+**Related commits:** —
+
+### Context
+O payload do n8n (`data_os`, `data_produtividade`, `data_problemas`) não tem validação de schema — é `Record<string, unknown>` na edge function. Erros de formato só aparecem no frontend. O `por_tipo` ainda é normalizado ad-hoc no frontend (`reportGenerator.js:572-574`).
+
+### Proposed approach
+1. Adicionar Zod schema em `operational-report-sync/index.ts`
+2. Normalizar `por_tipo` na edge function (remover adaptação do frontend)
+3. Retornar 400 com detalhes se payload não validar
+
+### Files
+- `supabase/functions/operational-report-sync/index.ts` (Modify — adicionar validação Zod)
 
 ### Risks
-- Alterar formato no n8n pode quebrar outros consumidores do mesmo payload
-- Clientes com `data_os` null podem ter falha silenciosa no RMC (já acontece hoje)
+- Quebrar pipeline se n8n enviar campo novo que o schema rejeite
+- Esperar formato do n8n estabilizar antes de implementar
 
 ---
 

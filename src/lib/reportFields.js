@@ -14,7 +14,6 @@
  *   format        — optional custom format function (value) => string
  */
 
-const USAGE = (p) => (data) => data.usage?.find(u => u.ref_month === (p?.(data) ?? data.period))
 const PREV = (resolveFn) => (data) => {
   const cur = resolveFn(data)
   const prev = resolveFn({ ...data, period: data.prevPeriod })
@@ -30,7 +29,7 @@ const sectionFields = {
       label: 'O.S. Criadas',
       type: 'number',
       defaultEnabled: true,
-      resolve: (data) => data.usage?.find(u => u.ref_month === data.period)?.os_created ?? null,
+      resolve: (data) => data.opCurrent?.data_os?.sumario?.total_os ?? null,
     },
     {
       key: 'delta_os_criadas',
@@ -38,8 +37,8 @@ const sectionFields = {
       type: 'delta',
       defaultEnabled: true,
       resolve: (data) => {
-        const cur = data.usage?.find(u => u.ref_month === data.period)?.os_created
-        const prev = data.usage?.find(u => u.ref_month === data.prevPeriod)?.os_created
+        const cur = data.opCurrent?.data_os?.sumario?.total_os
+        const prev = data.opPrev?.data_os?.sumario?.total_os
         if (cur == null || prev == null || prev === 0) return null
         return Math.round(((cur - prev) / prev) * 100)
       },

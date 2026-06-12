@@ -259,21 +259,20 @@ function resolBar(pct) {
   </div>`
 }
 
-function barChartV(usageHistory, period) {
-  // Aggregate by ref_month — clients with multiple instances generate N rows/month
+function barChartV(opHistory, period) {
   const agg = {}
-  for (const u of usageHistory ?? []) {
-    if (u.pending === true) continue          // skip incomplete current-month snapshots
-    if (u.os_created == null) continue
-    if (!agg[u.ref_month]) agg[u.ref_month] = { ref_month: u.ref_month, os_created: 0 }
-    agg[u.ref_month].os_created += u.os_created
+  for (const u of opHistory ?? []) {
+    const total = u.data_os?.sumario?.total_os
+    if (total == null) continue
+    if (!agg[u.period]) agg[u.period] = { ref_month: u.period, total_os: 0 }
+    agg[u.period].total_os += total
   }
   const sorted = Object.values(agg)
     .sort((a, b) => a.ref_month.localeCompare(b.ref_month))
     .slice(-12)
   if (!sorted.length) return ''
 
-  const maxVal = Math.max(...sorted.map(u => u.os_created), 1)
+  const maxVal = Math.max(...sorted.map(u => u.total_os), 1)
   const svgW = 700
   const chartH = 140
   const topP = 24, botP = 26
@@ -284,14 +283,14 @@ function barChartV(usageHistory, period) {
 
   const bars = sorted.map((u, i) => {
     const x = 20 + gap + i * (barW + gap)
-    const h = Math.max(2, Math.round((u.os_created / maxVal) * chartH))
+    const h = Math.max(2, Math.round((u.total_os / maxVal) * chartH))
     const y = topP + (chartH - h)
     const isCur = u.ref_month === period
     return `
       <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3"
         fill="${isCur ? C.lime : C.sky}" opacity="${isCur ? 1 : 0.7}"/>
       <text x="${x + barW / 2}" y="${y - 5}" text-anchor="middle" font-size="10" font-weight="700"
-        fill="${C.text}" font-family="sans-serif">${u.os_created}</text>
+        fill="${C.text}" font-family="sans-serif">${u.total_os}</text>
       <text x="${x + barW / 2}" y="${topP + chartH + 16}" text-anchor="middle" font-size="10"
         fill="${C.textLight}" font-family="sans-serif">${mShort(u.ref_month)}</text>`
   }).join('')
@@ -394,11 +393,11 @@ function extrasRow(extras) {
 
 // ── Helpers para field registry ───────────────────────────────
 
-function slideData(period, usageHistory, operationalData, supportRaw) {
+function slideData(period, opHistory, operationalData, supportRaw) {
   const [y, m] = period.split('-').map(Number)
   const prevDt = new Date(y, m - 2, 1)
   return {
-    usage: usageHistory ?? [],
+    usage: opHistory ?? [],
     sup: supportRaw ?? null,
     opCurrent: operationalData?.current ?? null,
     opPrev: operationalData?.prev ?? null,
@@ -550,8 +549,8 @@ function slideCapa(client, report, csm, capaContent) {
 
 // ── Slides de seções ──────────────────────────────────────────
 
-function slideEscala(sec, usageHistory, period, clientName, p, operationalData = null) {
-  const data = slideData(period, usageHistory, operationalData, null)
+function slideEscala(sec, opHistory, period, clientName, p, operationalData = null) {
+  const data = slideData(period, opHistory, operationalData, null)
   const uf = sec.content?.fields ?? {}
 
   // KPI cards via field registry
@@ -1053,7 +1052,7 @@ function slideCustomBars(sec, clientName, period, p) {
  */
 export function generateReportHTML(client, report, csm, extraData = {}) {
   const { sections: rawSecs = [], period = '', title = 'Relatório Mensal' } = report || {}
-  const { usageHistory = [], supportRaw = null, healthData = null, projects = [], operationalData = null } = extraData
+  const { opHistory = [], supportRaw = null, healthData = null, projects = [], operationalData = null } = extraData
 
   const sections   = normalizeSections(rawSecs)
   const clientName = client?.fantasy_name || client?.name || '—'
@@ -1070,7 +1069,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
     .filter(s => s.type !== 'capa' && s.enabled !== false)
     .map(s => {
       const p = pageNum++
-      if (s.type === 'escala')          return slideEscala(s, usageHistory, period, clientName, p, operationalData)
+      if (s.type === 'escala')          return slideEscala(s, opHistory, period, clientName, p, operationalData)
       if (s.type === 'suporte')         return slideSuporte(s, supportRaw, clientName, period, p)
       if (s.type === 'projetos')        return slideProjetos(s, projects, clientName, period, p)
       if (s.type === 'health_score')    return slideHealthScore(s, healthData, clientName, period, p)

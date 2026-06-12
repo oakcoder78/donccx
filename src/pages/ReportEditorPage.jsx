@@ -95,6 +95,7 @@ export default function ReportEditorPage() {
 
   // ── Dados externos ──────────────────────────────────────
   const [usageHistory, setUsageHistory] = useState([])
+  const [opHistory,    setOpHistory]    = useState([])
   const [supportRaw,      setSupportRaw]      = useState(null)
   const [operationalData, setOperationalData] = useState(null)
   const [dataLoaded,      setDataLoaded]      = useState(false)
@@ -137,9 +138,9 @@ export default function ReportEditorPage() {
       const prevDt = new Date(y, m - 2, 1)
       const prevP = `${prevDt.getFullYear()}-${String(prevDt.getMonth() + 1).padStart(2, '0')}`
 
-      const [{ data: hist }, { data: sup }, { data: opCurr }, { data: opPrev }] = await Promise.all([
+      const [{ data: usage }, { data: sup }, { data: opCurr }, { data: opPrev }, { data: opHist }] = await Promise.all([
         supabase.from('client_usage')
-          .select('ref_month,os_created,active_users')
+          .select('ref_month,active_users')
           .eq('client_id', clientId)
           .in('ref_month', months),
         supabase.from('client_support')
@@ -157,8 +158,14 @@ export default function ReportEditorPage() {
           .eq('client_id', clientId)
           .eq('period', prevP)
           .maybeSingle(),
+        supabase.from('client_operational_reports')
+          .select('period, data_os')
+          .eq('client_id', clientId)
+          .in('period', months)
+          .not('data_os', 'is', null),
       ])
-      setUsageHistory(hist ?? [])
+      setUsageHistory(usage ?? [])
+      setOpHistory(opHist ?? [])
       setSupportRaw(sup ?? null)
       setOperationalData({ current: opCurr, prev: opPrev })
       setDataLoaded(true)
@@ -210,7 +217,7 @@ export default function ReportEditorPage() {
       client,
       { ...report, sections },
       csm,
-      { usageHistory, supportRaw, healthData, projects, operationalData }
+      { opHistory, supportRaw, healthData, projects, operationalData }
     )
   }, [client, report, sections, csm, usageHistory, supportRaw, healthData, projects, operationalData])
 
