@@ -2,6 +2,17 @@
 
 ## 2026-06-11
 
+### Reports — AI Analysis Evolution
+- **Fix:** Field keys in AI prompt (`mountUserContent`) now match `reportFields.js` — all section prompts were using stale names (`total_os` → `os_criadas`, `active_users` → `usuarios_ativos`, `execucao_min` → `tempo_execucao`, etc.), causing every value to resolve to "N/D"
+- **Fix:** Added `pct_montagem` and `pct_assistencia` fields to escala registry (resolve from `data_os.sumario.por_tipo`)
+- **Fix:** Object values in data dump now serialize via `JSON.stringify` instead of `String()` (was producing `[object Object]`)
+- **New:** Custom instruction textarea per section (`analysisContext`) — when filled, replaces the default summary, auto-includes a field-value dump, and switches system prompt to strict mode ("analyze ONLY what was asked")
+- **New:** `includeRawData` checkbox per section — when ON, appends all resolved field values (including charts/arrays) to the AI prompt
+- **New:** Two system prompt variants — standard for summary-only mode, strict ("ignore unrelated metrics") when custom instructions are provided
+- **UX:** KPI Extras reordered to between auto fields and callout; `mt-6 pt-4 border-t` spacing on both KPI Extras and callout blocks
+- **UX:** "+ Adicionar métrica" changed from text-link to `<Button variant="primary" size="xs">` with `<Icons.Plus />` (project standard)
+- **New file:** `docs/modules/report-ai-analysis.md` — full module documentation
+
 ### Security — Edge Functions Auth Hardening (service_role exposta)
 - **Security fix:** Removido fallback de decode manual de JWT (`payload.role === 'service_role'` sem validação de assinatura) em `donc-api-sync`, `health-recalc`, `monthly-sync` e `operational-report-sync` — permitia forjar acesso com JWT sem assinatura válida.
 - **Security fix:** Removida comparação direta `token === serviceKey` — a service_role key não circula mais como credencial de chamada (n8n/VPS, pg_cron).
