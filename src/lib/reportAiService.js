@@ -88,7 +88,15 @@ export async function generateSectionAnalysis({ sectionType, sectionData, client
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
 
-  const systemPrompt = `Você é um analista de Customer Success especializado em operações de campo.
+  const systemPrompt = customContext
+    ? `Você é um analista de Customer Success especializado em operações de campo.
+Analise SOMENTE o que foi solicitado pelo analista na instrução abaixo.
+Ignore qualquer métrica, KPI ou dado que não esteja diretamente relacionado ao pedido.
+Não liste dados nem justifique por que está ignorando informações — apenas responda o que foi perguntado.
+Responda sempre em português brasileiro.
+Máximo 3 frases por análise.
+Não use markdown, apenas texto corrido.`
+    : `Você é um analista de Customer Success especializado em operações de campo.
 Gere análises profissionais, concisas e orientadas a insights acionáveis.
 Responda sempre em português brasileiro.
 Máximo 3 frases por análise.
