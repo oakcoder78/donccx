@@ -28,8 +28,10 @@ export function useProjectCockpit() {
         .select(`
           id, client_id, title, type, status, start_date, end_date, created_at, onboarding_id,
           client:clients!client_id(id, fantasy_name, abc_class, csm_id),
-          onboarding:onboardings!onboarding_id(id, situacao_geral, fase_atual_id),
-          current_phase:onboarding_fases!fase_atual_id(id, fase_type_id, status, planned_end, planned_start, display_order)
+          onboarding:onboardings!onboarding_id(
+            id, situacao_geral, fase_atual_id,
+            current_phase:onboarding_fases!fase_atual_id(id, fase_type_id, status, planned_end, planned_start, display_order)
+          )
         `)
         .in('status', ['planejado', 'em_andamento'])
         .order('created_at', { ascending: false })
@@ -139,8 +141,8 @@ export function useProjectCockpit() {
         let displayStatus = 'on_time'
         if (onboarding.situacao_geral === 'travado') {
           displayStatus = 'paused'
-        } else if (p.onboarding_id && p.current_phase?.planned_end) {
-          if (p.current_phase.planned_end < today && p.current_phase.status !== 'concluida') {
+        } else if (p.onboarding_id && onboarding.current_phase?.planned_end) {
+          if (onboarding.current_phase.planned_end < today && onboarding.current_phase.status !== 'concluida') {
             displayStatus = 'delayed'
           }
         } else if (!p.onboarding_id && projectMilestones.length) {
@@ -152,12 +154,13 @@ export function useProjectCockpit() {
           }
         }
 
-        const currentPhase = p.current_phase
+        const cp = onboarding.current_phase
+        const currentPhase = cp
           ? {
-              id: p.current_phase.id,
-              name: faseTypesMap[p.current_phase.fase_type_id] || null,
-              status: p.current_phase.status,
-              plannedEnd: p.current_phase.planned_end,
+              id: cp.id,
+              name: faseTypesMap[cp.fase_type_id] || null,
+              status: cp.status,
+              plannedEnd: cp.planned_end,
             }
           : null
 
