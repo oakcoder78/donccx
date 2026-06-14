@@ -156,6 +156,7 @@ export default function CsRadarPage() {
   const [segmentIds, setSegmentIds] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [selectedDate, setSelectedDate] = useState(null)
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
@@ -484,7 +485,7 @@ export default function CsRadarPage() {
             ) : null}
           </div>
 
-          {/* Heatmap + Recent activities */}
+          {/* Heatmap */}
           <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5 mb-6">
             <h3 className="text-sm font-semibold text-text-primary mb-4">Heatmap de atividades</h3>
             {data.heatmap.length === 0 ? (
@@ -492,26 +493,40 @@ export default function CsRadarPage() {
             ) : (
               <div className="flex flex-col lg:flex-row gap-6">
                 <div className="flex-shrink-0">
-                  <HeatmapGrid data={data.heatmap} />
+                  <HeatmapGrid
+                    data={data.heatmap}
+                    selectedDate={selectedDate}
+                    onCellClick={date => setSelectedDate(selectedDate === date ? null : date)}
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
-                    Últimas atividades ({data.recentActivities.length})
-                  </div>
-                  <div className="space-y-1 max-h-[184px] overflow-y-auto">
-                    {data.recentActivities.map(a => (
-                      <div key={a.id} className="flex items-center gap-2 text-sm">
-                        <span className="text-text-tertiary text-xs whitespace-nowrap tabular-nums">
-                          {formatDate(a.date)}
-                        </span>
-                        <ActivityTypeIcon type={a.type} />
-                        <span className="text-text-primary truncate">{a.client_name}</span>
-                        <span className="text-text-tertiary">·</span>
-                        <span className="text-text-tertiary text-xs capitalize">{a.type}</span>
+                {selectedDate && data.dayActivities[selectedDate] && (
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
+                        Atividades em {formatDate(selectedDate)} ({data.dayActivities[selectedDate].length})
                       </div>
-                    ))}
+                      <button
+                        onClick={() => setSelectedDate(null)}
+                        className="text-text-tertiary hover:text-text-primary transition-colors"
+                      >
+                        <Icons.X size={14} />
+                      </button>
+                    </div>
+                    <div className="space-y-1 max-h-[184px] overflow-y-auto">
+                      {data.dayActivities[selectedDate].map(a => (
+                        <div key={a.id} className="flex items-center gap-2 text-sm">
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: TYPE_COLORS[a.type] || '#94a3b8' }}
+                          />
+                          <span className="text-text-primary truncate">{a.client_name}</span>
+                          <span className="text-text-tertiary">·</span>
+                          <span className="text-text-tertiary text-xs capitalize truncate">{a.title || a.type}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
           </div>
@@ -636,7 +651,7 @@ function formatDate(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
 }
 
-function HeatmapGrid({ data }) {
+function HeatmapGrid({ data, selectedDate, onCellClick }) {
   if (!data.length) return null
 
   const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -669,13 +684,12 @@ function HeatmapGrid({ data }) {
   }
   if (week.length) weeks.push(week)
 
-  function cellClass(count) {
+  function cellClass(count, date) {
     if (!count) return 'bg-bg-secondary'
     const pct = count / maxCount
-    if (pct > 0.75) return 'bg-donc-sky'
-    if (pct > 0.5) return 'bg-donc-sky/70'
-    if (pct > 0.25) return 'bg-donc-sky/40'
-    return 'bg-donc-sky/20'
+    const base = pct > 0.75 ? 'bg-donc-sky' : pct > 0.5 ? 'bg-donc-sky/70' : pct > 0.25 ? 'bg-donc-sky/40' : 'bg-donc-sky/20'
+    if (date === selectedDate) return `${base} ring-2 ring-donc-navy`
+    return base
   }
 
   return (
@@ -688,9 +702,11 @@ function HeatmapGrid({ data }) {
       {weeks.map((week, wi) => (
         <div key={wi} className="flex gap-1 mb-1">
           {week.map((cell, ci) => (
-            <div
+            <button
               key={ci}
-              className={`w-8 h-8 rounded-[4px] ${cell ? cellClass(cell.count) : ''}`}
+              disabled={!cell}
+              onClick={() => cell && onCellClick?.(cell.date)}
+              className={`w-8 h-8 rounded-[4px] ${cell ? cellClass(cell.count, cell.date) : ''} ${cell ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
               title={cell ? `${cell.date} · ${cell.count} ${cell.count === 1 ? 'atividade' : 'atividades'}` : ''}
             />
           ))}

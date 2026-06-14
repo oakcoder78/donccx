@@ -95,15 +95,20 @@ export function useCsRadar(filters) {
         .map(([date, count]) => ({ date, count }))
         .sort((a, b) => a.date.localeCompare(b.date))
 
-      // ── 8. Recent activities (latest 20 for inline list) ──
-      const recentActivities = activities.slice(0, 20).map(a => ({
-        id: a.id,
-        date: a.activity_date,
-        type: a.type,
-        title: a.title,
-        client_id: a.client_id,
-        client_name: a.client?.fantasy_name || '—',
-      }))
+      // ── 8. Day activities (grouped by date for heatmap drill-down) ──
+      const dayActivities = {}
+      for (const a of activities) {
+        const d = a.activity_date
+        if (!dayActivities[d]) dayActivities[d] = []
+        dayActivities[d].push({
+          id: a.id,
+          date: d,
+          type: a.type,
+          title: a.title,
+          client_id: a.client_id,
+          client_name: a.client?.fantasy_name || '—',
+        })
+      }
 
       // ── 9. RMCs published ──
       let rmcQuery = supabase
@@ -230,7 +235,7 @@ export function useCsRadar(filters) {
         byType,
         byResponsible,
         heatmap,
-        recentActivities,
+        dayActivities,
         clients: clientRows,
       }
     },
