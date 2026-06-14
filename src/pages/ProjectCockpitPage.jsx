@@ -1,0 +1,347 @@
+import { useState } from 'react'
+import { useProjectCockpit } from '@/hooks/useProjectCockpit'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Icons } from '@/lib/icons'
+
+export default function ProjectCockpitPage() {
+  const { data: rows, isLoading, error } = useProjectCockpit()
+  const [openSet, setOpenSet] = useState(new Set())
+
+  function toggleRow(clientId) {
+    setOpenSet(prev => {
+      const next = new Set(prev)
+      next.has(clientId) ? next.delete(clientId) : next.add(clientId)
+      return next
+    })
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
+        <div className="mt-6 text-text-tertiary text-sm flex items-center gap-2">
+          <Icons.Loader2 className="w-4 h-4 animate-spin" />
+          Carregando...
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
+        <div className="mt-6 p-4 bg-donc-red/10 border border-donc-red/20 rounded-lg text-donc-red text-sm">
+          Erro ao carregar dados: {error.message}
+        </div>
+      </div>
+    )
+  }
+
+  if (!rows?.length) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
+        <div className="mt-6 text-text-tertiary text-sm">Nenhum cliente com projeto ativo encontrado.</div>
+      </div>
+    )
+  }
+
+  const total = rows.length
+  const onTime = rows.filter(r => r.displayStatus === 'on_time').length
+  const delayed = rows.filter(r => r.displayStatus === 'delayed').length
+  const paused = rows.filter(r => r.displayStatus === 'paused').length
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
+
+      <SummaryBar total={total} onTime={onTime} delayed={delayed} paused={paused} />
+
+      <div className="mt-5 space-y-1.5">
+        {rows.map(row => (
+          <CockpitRow
+            key={row.clientId}
+            row={row}
+            isOpen={openSet.has(row.clientId)}
+            onToggle={() => toggleRow(row.clientId)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ChevronIcon({ open }) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"
+      className="transition-transform duration-200 flex-shrink-0"
+      style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+    >
+      <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SummaryBar({ total, onTime, delayed, paused }) {
+  return (
+    <div className="mt-5 flex items-center gap-4 p-4 bg-bg-primary border border-border-tertiary rounded-xl text-sm">
+      <div className="flex items-center gap-2">
+        <Icons.FolderKanban className="w-4 h-4 text-text-tertiary" />
+        <span className="text-text-secondary">{total} cliente{total !== 1 ? 's' : ''}</span>
+      </div>
+      <div className="w-px h-5 bg-border-tertiary" />
+      <div className="flex items-center gap-2">
+        <Icons.CheckCircle2 className="w-4 h-4 text-donc-verde" />
+        <span className="text-text-secondary">{total ? Math.round(onTime / total * 100) : 0}% em dia ({onTime})</span>
+      </div>
+      <div className="w-px h-5 bg-border-tertiary" />
+      <div className="flex items-center gap-2">
+        <Icons.AlertCircle className="w-4 h-4 text-donc-red" />
+        <span className="text-text-secondary">{total ? Math.round(delayed / total * 100) : 0}% atrasado ({delayed})</span>
+      </div>
+      {paused > 0 && (
+        <>
+          <div className="w-px h-5 bg-border-tertiary" />
+          <div className="flex items-center gap-2">
+            <Icons.PauseCircle className="w-4 h-4 text-donc-amber" />
+            <span className="text-text-secondary">{paused} parado{paused !== 1 ? 's' : ''}</span>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+const statusConfig = {
+  on_time: { icon: Icons.CheckCircle2, color: 'text-donc-verde', bg: 'bg-donc-verde/10', label: 'Em dia' },
+  delayed: { icon: Icons.AlertCircle, color: 'text-donc-red', bg: 'bg-donc-red/10', label: 'Atrasado' },
+  paused:  { icon: Icons.PauseCircle, color: 'text-donc-amber', bg: 'bg-donc-amber/10', label: 'Parado' },
+}
+
+function progressBarColor(pct) {
+  if (pct >= 80) return 'bg-donc-verde'
+  if (pct >= 40) return 'bg-donc-amber'
+  return 'bg-donc-red'
+}
+
+function CockpitRow({ row, isOpen, onToggle }) {
+  const cfg = statusConfig[row.displayStatus] || statusConfig.on_time
+  const Icon = cfg.icon
+  const [activeTabId, setActiveTabId] = useState(row.projects[0]?.id || null)
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-xl overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-bg-tertiary transition-colors focus-visible:outline-none"
+      >
+        <ChevronIcon open={isOpen} />
+        <Icon className={`w-5 h-5 flex-shrink-0 ${cfg.color}`} />
+        <div className="flex-1 min-w-0 flex items-center gap-3">
+          <span className="font-semibold text-text-primary truncate">{row.clientName}</span>
+          {row.abcClass && (
+            <span className="text-[11px] font-medium text-text-tertiary bg-bg-secondary px-1.5 py-0.5 rounded flex-shrink-0">
+              ABC: {row.abcClass}
+            </span>
+          )}
+          {row.currentPhase && (
+            <span className="text-sm text-text-tertiary truncate hidden sm:inline">
+              Fase: {row.currentPhase}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="w-24 h-2 bg-bg-secondary rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${progressBarColor(row.progress)}`}
+              style={{ width: `${row.progress}%` }}
+            />
+          </div>
+          <span className="text-sm font-medium text-text-secondary w-10 text-right tabular-nums">{row.progress}%</span>
+        </div>
+      </button>
+
+      {isOpen && (
+        <ExpandedContent
+          projects={row.projects}
+          activeTabId={activeTabId}
+          onTabChange={setActiveTabId}
+        />
+      )}
+    </div>
+  )
+}
+
+function ExpandedContent({ projects, activeTabId, onTabChange }) {
+  const activeProj = projects.find(p => p.id === activeTabId) || projects[0]
+
+  return (
+    <div className="border-t border-border-tertiary px-4 py-3 space-y-4 bg-bg-primary">
+      {projects.length > 1 && (
+        <div className="flex gap-1 border-b border-border-tertiary pb-2">
+          {projects.map(proj => (
+            <button
+              key={proj.id}
+              onClick={() => onTabChange(proj.id)}
+              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                activeProj.id === proj.id
+                  ? 'bg-donc-sky/10 text-donc-sky'
+                  : 'text-text-tertiary hover:text-text-secondary'
+              }`}
+            >
+              {proj.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeProj.onboardingId ? (
+        <>
+          {activeProj.allFases.length > 0 && (
+            <ProjectTimeline fases={activeProj.allFases} faseAtualId={activeProj.currentPhase?.id} />
+          )}
+          {activeProj.activities.length > 0 && (
+            <ProjectActivitiesList activities={activeProj.activities} />
+          )}
+          {activeProj.allFases.length === 0 && activeProj.activities.length === 0 && (
+            <div className="text-sm text-text-tertiary py-2">Nenhuma fase ou atividade pendente.</div>
+          )}
+        </>
+      ) : (
+        <>
+          {activeProj.milestones.length > 0 && (
+            <ProjectMilestonesList milestones={activeProj.milestones} />
+          )}
+          {activeProj.milestones.length === 0 && (
+            <div className="text-sm text-text-tertiary py-2">Nenhum milestone registrado.</div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+function ProjectTimeline({ fases, faseAtualId }) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">Timeline</div>
+      <div className="flex items-start overflow-x-auto pb-2 gap-0" style={{ scrollbarWidth: 'thin' }}>
+        {fases.map((fase, idx) => {
+          const isDone = fase.status === 'concluida'
+          const isActive = fase.id === faseAtualId || (!faseAtualId && fase.status === 'ativa')
+          const isLast = idx === fases.length - 1
+          const next = fases[idx + 1]
+          return (
+            <div key={fase.id} style={{ display: 'contents' }}>
+              <PhaseCircleSmall fase={fase} isActive={isActive} isDone={isDone} />
+              {!isLast && <ConnectorSmall leftDone={isDone} rightActive={!!(next?.id === faseAtualId || next?.status === 'ativa')} />}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function PhaseCircleSmall({ fase, isActive, isDone }) {
+  let circleBg, circleBorder, circleColor, circleShadow
+  if (isDone) {
+    circleBg = '#1aa56a'; circleBorder = '#1aa56a'; circleColor = '#fff'; circleShadow = 'none'
+  } else if (isActive) {
+    circleBg = 'rgba(89,194,237,0.12)'; circleBorder = '#59c2ed'; circleColor = '#0a6a96'
+    circleShadow = '0 0 0 3px rgba(89,194,237,0.18)'
+  } else {
+    circleBg = '#f4f5f7'; circleBorder = '#d4d3ce'; circleColor = 'rgba(23,53,87,0.35)'; circleShadow = 'none'
+  }
+  const labelColor = isDone ? '#157a47' : isActive ? '#0a6a96' : 'rgba(23,53,87,0.4)'
+  const Icon = isDone ? Icons.Check : Icons.FileText
+  const iconSize = isDone ? 14 : 12
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 56, maxWidth: 80 }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        border: `2px solid ${circleBorder}`, background: circleBg, color: circleColor,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        boxShadow: circleShadow, transition: 'box-shadow 0.2s, border-color 0.2s',
+      }}>
+        <Icon size={iconSize} color={circleColor} strokeWidth={isDone ? 2.4 : 1.6} />
+      </div>
+      <div style={{ fontSize: 10, textAlign: 'center', fontWeight: isDone || isActive ? 600 : 400, color: labelColor, lineHeight: 1.2, maxWidth: 76, wordBreak: 'break-word' }}>
+        {fase.name || `Fase #${fase.faseTypeId}`}
+      </div>
+      <div style={{ fontSize: 9, textAlign: 'center', color: 'rgba(23,53,87,0.5)', lineHeight: 1.2 }}>
+        {fase.plannedEnd || '—'}
+      </div>
+    </div>
+  )
+}
+
+function ConnectorSmall({ leftDone, rightActive }) {
+  const bg = leftDone && rightActive
+    ? 'linear-gradient(90deg, #1aa56a, #59c2ed)'
+    : leftDone ? '#1aa56a' : '#d4d3ce'
+  return <div style={{ flex: 1, minWidth: 8, height: 2, background: bg, marginTop: 15, flexShrink: 0, alignSelf: 'flex-start' }} />
+}
+
+function ProjectActivitiesList({ activities }) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
+        Atividades pendentes ({activities.length})
+      </div>
+      <div className="space-y-1.5">
+        {activities.map(a => (
+          <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary text-sm">
+            <span className="w-3 h-3 rounded-full border border-text-tertiary flex-shrink-0" />
+            <span className="flex-1 text-text-primary">{a.title}</span>
+            {a.dueDate && (
+              <span className={`text-xs flex-shrink-0 ${a.dueDate < new Date().toISOString().split('T')[0] ? 'text-donc-red' : 'text-text-tertiary'}`}>
+                {formatDate(a.dueDate)}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ProjectMilestonesList({ milestones }) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
+        Milestones ({milestones.length})
+      </div>
+      <div className="space-y-1.5">
+        {milestones.map(m => {
+          const isOverdue = m.dueDate && m.dueDate < new Date().toISOString().split('T')[0] && m.status !== 'done'
+          return (
+            <div key={m.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary text-sm">
+              <Icons.Flag className={`w-3.5 h-3.5 flex-shrink-0 ${isOverdue ? 'text-donc-red' : 'text-text-tertiary'}`} />
+              <span className="flex-1 text-text-primary">{m.title}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-12 h-1.5 bg-bg-primary rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full ${progressBarColor(m.progress)}`} style={{ width: `${m.progress}%` }} />
+                </div>
+                <span className="text-xs text-text-secondary w-7 text-right tabular-nums">{m.progress}%</span>
+              </div>
+              {m.dueDate && (
+                <span className={`text-xs flex-shrink-0 ${isOverdue ? 'text-donc-red' : 'text-text-tertiary'}`}>
+                  {formatDate(m.dueDate)}
+                </span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+}

@@ -23,6 +23,15 @@ const cockpits = [
     color: 'text-donc-sky',
     bgColor: 'bg-donc-sky/10',
   },
+  {
+    key: 'projects_cockpit',
+    title: 'Projetos',
+    description: 'Status dos projetos ativos por cliente, fases, prazos e progresso',
+    icon: Icons.FolderKanban,
+    href: '/projetos-cockpit',
+    color: 'text-donc-purple',
+    bgColor: 'bg-donc-purple/10',
+  },
 ]
 
 export default function CockpitsPage() {
