@@ -484,21 +484,40 @@ export default function CsRadarPage() {
             ) : null}
           </div>
 
-          {/* Heatmap */}
+          {/* Heatmap + Recent activities */}
           <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5 mb-6">
             <h3 className="text-sm font-semibold text-text-primary mb-4">Heatmap de atividades</h3>
             {data.heatmap.length === 0 ? (
               <p className="text-sm text-text-tertiary">Nenhuma atividade no período</p>
             ) : (
-              <HeatmapGrid data={data.heatmap} />
+              <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex-shrink-0">
+                  <HeatmapGrid data={data.heatmap} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
+                    Últimas atividades ({data.recentActivities.length})
+                  </div>
+                  <div className="space-y-1 max-h-[184px] overflow-y-auto">
+                    {data.recentActivities.map(a => (
+                      <div key={a.id} className="flex items-center gap-2 text-sm">
+                        <span className="text-text-tertiary text-xs whitespace-nowrap tabular-nums">
+                          {formatDate(a.date)}
+                        </span>
+                        <ActivityTypeIcon type={a.type} />
+                        <span className="text-text-primary truncate">{a.client_name}</span>
+                        <span className="text-text-tertiary">·</span>
+                        <span className="text-text-tertiary text-xs capitalize">{a.type}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
           {/* Client table */}
           <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-            <div className="px-5 py-3 border-b border-border-tertiary">
-              <h3 className="text-sm font-semibold text-text-primary">Clientes</h3>
-            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

@@ -95,7 +95,17 @@ export function useCsRadar(filters) {
         .map(([date, count]) => ({ date, count }))
         .sort((a, b) => a.date.localeCompare(b.date))
 
-      // ── 8. RMCs published ──
+      // ── 8. Recent activities (latest 20 for inline list) ──
+      const recentActivities = activities.slice(0, 20).map(a => ({
+        id: a.id,
+        date: a.activity_date,
+        type: a.type,
+        title: a.title,
+        client_id: a.client_id,
+        client_name: a.client?.fantasy_name || '—',
+      }))
+
+      // ── 9. RMCs published ──
       let rmcQuery = supabase
         .from('client_reports')
         .select('client_id, period, published_at')
@@ -220,6 +230,7 @@ export function useCsRadar(filters) {
         byType,
         byResponsible,
         heatmap,
+        recentActivities,
         clients: clientRows,
       }
     },
