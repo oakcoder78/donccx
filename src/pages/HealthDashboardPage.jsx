@@ -7,6 +7,7 @@ import { useProfiles } from '@/hooks/useProfiles'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ClientHealthDrawer } from '@/components/clients/ClientHealthDrawer'
+import { useHealthConfig } from '@/hooks/useHealthConfig'
 
 const C = {
   ink: '#0e223a', ink2: '#3b4a5e', ink3: '#6b7889', ink4: '#9aa5b5',
@@ -84,6 +85,7 @@ export default function HealthDashboardPage() {
   const [dimFilter, setDimFilter] = useState('')
   const [csmFilter, setCsmFilter] = useState('')
   const [drawerClientId, setDrawerClientId] = useState(null)
+  const [showInfoModal, setShowInfoModal] = useState(false)
   const debounceRef = useRef(null)
   const drawerOpen = !!drawerClientId
 
@@ -164,6 +166,36 @@ export default function HealthDashboardPage() {
     fontFamily: 'inherit',
   })
 
+  const { data: healthConfig } = useHealthConfig()
+  const thresholds = healthConfig?.config ?? { threshold_healthy: 75, threshold_attention: 50 }
+  const rules = healthConfig?.rules ?? []
+  const weights = healthConfig?.weights ?? []
+
+  const stageGroupLabels = {
+    onboarding: 'Onboarding',
+    producao: 'Produção',
+    producao_sem_projeto: 'Produção sem projeto',
+  }
+
+  const dimLabels = {
+    uso: 'Uso', suporte: 'Suporte', relacionamento: 'Relacionamento',
+    financeiro: 'Financeiro', projeto: 'Projeto', temperatura: 'Temperatura',
+  }
+
+  const dimOrder = ['uso', 'suporte', 'relacionamento', 'financeiro', 'projeto', 'temperatura']
+
+  const groupedWeights = {}
+  for (const w of weights) {
+    if (!groupedWeights[w.stage_group]) groupedWeights[w.stage_group] = {}
+    groupedWeights[w.stage_group][w.dimension] = w.weight
+  }
+
+  const groupedRules = {}
+  for (const r of rules) {
+    if (!groupedRules[r.dimension]) groupedRules[r.dimension] = []
+    groupedRules[r.dimension].push(r)
+  }
+
   if (error) return (
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader title="Health Score · Carteira" />
@@ -188,6 +220,15 @@ export default function HealthDashboardPage() {
       <PageHeader
         title="Health Score · Carteira"
         subtitle={isLoading ? '' : `${clients.length} cliente${clients.length !== 1 ? 's' : ''} ativo${clients.length !== 1 ? 's' : ''}`}
+        action={
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-primary transition-colors px-3 py-1.5 rounded-md border border-border-secondary bg-bg-primary"
+          >
+            <Icons.HelpCircle size={14} />
+            Como funciona
+          </button>
+        }
       />
 
       {/* Scorecard */}
@@ -267,6 +308,31 @@ export default function HealthDashboardPage() {
         )}
       </div>
 
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-tertiary mb-3">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-donc-verde" />
+          Saudável (≥{thresholds.threshold_healthy})
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-donc-amber" />
+          Atenção (≥{thresholds.threshold_attention})
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-donc-red" />
+          Alerta (&lt;{thresholds.threshold_attention})
+        </span>
+        <span className="text-border-tertiary hidden sm:inline">|</span>
+        {DIMS.map(d => (
+          <span key={d.key} className="hidden sm:inline-flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: DIM_COLORS[d.key] }} />
+            {d.label}
+          </span>
+        ))}
+        <span className="text-border-tertiary hidden sm:inline">|</span>
+        <span className="hidden sm:inline">Δ vs. mês anterior</span>
+      </div>
+
       {/* Table */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
         <div className="overflow-x-auto w-full">
@@ -275,11 +341,20 @@ export default function HealthDashboardPage() {
               <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8">#</th>
                 <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Empresa</th>
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-16">Total</th>
-                {DIMS.map(d => (
-                  <th key={d.key} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-12">{d.label}</th>
-                ))}
-                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-14">Δ</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-16" title="Score composto 0-100. 5 dimensões (0-20 cada) + temperatura CSM. Pesos variam por grupo de estágio.">Total</th>
+                {DIMS.map(d => {
+                  const tips = {
+                    health_uso: 'Uso da plataforma: OS ativas, usuários ativos, mudanças no catálogo',
+                    health_suporte: 'Suporte: tickets abertos, SLA, taxa de resolução',
+                    health_relacionamento: 'Relacionamento: decisor, champion, frequência de engajamento',
+                    health_financeiro: 'Financeiro: dias em atraso no contrato',
+                    health_projeto: 'Projeto: status de onboarding, milestones, atividades vencidas',
+                  }
+                  return (
+                    <th key={d.key} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-12" title={tips[d.key]}>{d.label}</th>
+                  )
+                })}
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-14" title="Variação do score total em relação ao mês anterior">Δ</th>
               </tr>
             </thead>
             <tbody>
@@ -356,6 +431,131 @@ export default function HealthDashboardPage() {
           />
         )}
       </aside>
+
+      {/* Info modal */}
+      {showInfoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-4"
+          onClick={() => setShowInfoModal(false)}
+        >
+          <div
+            className="bg-bg-primary border border-border-tertiary rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-tertiary flex-shrink-0">
+              <h2 className="text-base font-semibold text-text-primary">Como funciona o Health Score</h2>
+              <button onClick={() => setShowInfoModal(false)} className="text-text-tertiary hover:text-text-primary transition-colors">
+                <Icons.X size={18} />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-6 overflow-y-auto text-sm text-text-secondary">
+              {/* O que é */}
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-2">O que é</h3>
+                <p>
+                  O Health Score é uma nota de 0 a 100 que reflete a saúde do relacionamento com cada cliente.
+                  É composto por <strong className="text-text-primary">5 dimensões</strong> (Uso, Suporte, Relacionamento,
+                  Financeiro, Projeto) mais a <strong className="text-text-primary">Temperatura CSM</strong>.
+                  Cada dimensão vale 0-20 e é ponderada por peso conforme o grupo de estágio do cliente.
+                </p>
+              </div>
+
+              {/* Bandas */}
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-2">Classificação</h3>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-donc-verde flex-shrink-0" />
+                    <span><strong className="text-text-primary">Saudável</strong> — score ≥ {thresholds.threshold_healthy}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-donc-amber flex-shrink-0" />
+                    <span><strong className="text-text-primary">Atenção</strong> — score entre {thresholds.threshold_attention} e {thresholds.threshold_healthy - 1}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-donc-red flex-shrink-0" />
+                    <span><strong className="text-text-primary">Alerta</strong> — score &lt; {thresholds.threshold_attention}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pesos por estágio */}
+              {groupedWeights && Object.keys(groupedWeights).length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary mb-2">Pesos por grupo de estágio</h3>
+                  <p className="mb-3">Cada grupo de estágio possui pesos diferentes para cada dimensão. A soma totaliza 100.</p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-border-tertiary text-text-tertiary">
+                          <th className="text-left px-2 py-1.5 font-medium">Grupo</th>
+                          {dimOrder.map(d => (
+                            <th key={d} className="text-center px-2 py-1.5 font-medium">{dimLabels[d]}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(groupedWeights).map(([group, dims]) => (
+                          <tr key={group} className="border-b border-border-tertiary last:border-b-0">
+                            <td className="px-2 py-1.5 text-text-primary font-medium whitespace-nowrap">{stageGroupLabels[group] || group}</td>
+                            {dimOrder.map(d => (
+                              <td key={d} className="text-center px-2 py-1.5 tabular-nums">{dims[d] ?? '—'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Regras por dimensão */}
+              {dimOrder.filter(d => d !== 'temperatura').map(dim => {
+                const dimRules = groupedRules[dim] || []
+                if (!dimRules.length) return null
+                const colorKey = 'health_' + dim
+                return (
+                  <div key={dim}>
+                    <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: DIM_COLORS[colorKey] || '#94a3b8' }} />
+                      {dimLabels[dim]}
+                    </h3>
+                    <div className="space-y-1">
+                      {dimRules.map(r => (
+                        <div key={r.id} className="flex items-center justify-between text-xs">
+                          <span className="text-text-secondary">{r.label}</span>
+                          <span className={`tabular-nums font-medium ml-4 ${r.points > 0 ? 'text-donc-verde' : r.points < 0 ? 'text-donc-red' : 'text-text-tertiary'}`}>
+                            {r.points > 0 ? `+${r.points}` : r.points}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+
+              {/* Temperatura */}
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-2">Temperatura CSM</h3>
+                <p>
+                  Avaliação subjetiva do CSM sobre o cliente, de 0 a 10 (convertido para 0-20).
+                  Expira em 30 dias se não for reavaliada pelo CSM responsável.
+                </p>
+              </div>
+
+              {/* Trend */}
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-2">Trend (Δ)</h3>
+                <p>
+                  Diferença entre o score total do mês atual e o mês anterior.
+                  Valores positivos indicam melhora, negativos indicam piora.
+                  A trend é calculada automaticamente na sincronização mensal.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
