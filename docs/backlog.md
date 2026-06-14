@@ -20,6 +20,44 @@
 | TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Done | — |
 | TD-003 | Tech Debt | Migrar RMC para dados do n8n (os_criadas, histórico) | M | Done | — |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
+| IDEA-001 | Idea | UI Pattern Library — Phase 2 (8 patterns restantes) | M | Ready | `docs/sdd/ui-patterns-phase2-sdd.md` |
+
+---
+
+## IDEA-001 — UI Pattern Library — Phase 2
+
+**Type:** Idea
+**Priority:** M
+**Status:** Ready
+**Linked SDD:** `docs/sdd/ui-patterns-phase2-sdd.md`
+**Origin:** 2026-06-14 — audit found 20 undocumented UI pattern categories after initial library (17 sections) was created
+
+### Context
+
+The initial `docs/ui-patterns.md` covered 17 core patterns (table, toggle, badge, progress bar, card, etc.) plus 7 high-impact ones (button, avatar, search, filter bar, tabs, confirmation dialog, toast). An audit of the full codebase found 8 more categories in active use that have no documented standard.
+
+### Patterns to add
+
+| Section | Pattern | Effort |
+|---------|---------|--------|
+| 25 | Collapsible / Accordion | low |
+| 26 | Phase / Step Indicator | low |
+| 27 | Summary / KPI Bar | low |
+| 28 | File Upload | medium |
+| 29 | Data Visualization | medium |
+| 30 | Activity / Timeline Item | medium |
+| 31 | Section Header | low |
+| 32 | Responsive Layout | low |
+
+### Files
+- `docs/ui-patterns.md` — Add sections 25-32
+- `docs/CHANGELOG.md` — Add entry
+
+### Acceptance
+- Each section has exact Tailwind classes, source references, and usage examples
+- Build passes
+
+---
 
 ## Closed Items
 

@@ -640,8 +640,8 @@ A filter bar combines selects, search, and a clear button in a flex-wrap row:
   </select>
 
   <div className="relative flex-1 min-w-[160px] max-w-[240px]">
-    <Icons.Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
-    <input className="w-full pl-8 pr-3 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary outline-none focus:border-donc-sky placeholder:text-text-tertiary" />
+    <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
+    <input className="w-full pl-9 pr-3 py-1.5 text-sm rounded-md border border-border-secondary bg-bg-primary focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky placeholder:text-text-tertiary" />
   </div>
 
   <button className="text-xs text-text-tertiary hover:text-text-primary underline">
