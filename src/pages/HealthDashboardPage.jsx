@@ -49,8 +49,6 @@ function scoreBandColor(s) {
   return C.green
 }
 
-const GRID = '32px 1fr 64px 48px 48px 48px 48px 48px 56px'
-
 function ScoreCard({ label, value, color, large }) {
   return (
     <div style={{
@@ -270,91 +268,67 @@ export default function HealthDashboardPage() {
       </div>
 
       {/* Table */}
-      <div style={{ background: C.surface, borderRadius: 12, border: `1px solid ${C.line}`, overflow: 'hidden' }}>
-        {/* Header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: GRID,
-          gap: 14,
-          padding: '10px 8px',
-          borderBottom: `1px solid ${C.line}`,
-          background: C.bg,
-          alignItems: 'center',
-        }}>
-          <div style={{ fontSize: 11, color: C.ink4 }}>#</div>
-          <div style={{ fontSize: 11, color: C.ink4 }}>Empresa</div>
-          <div style={{ fontSize: 11, color: C.ink4 }}>Total</div>
-          {DIMS.map(d => (
-            <div key={d.key} style={{ fontSize: 11, color: DIM_COLORS[d.key], fontWeight: 600 }}>{d.label}</div>
-          ))}
-          <div style={{ fontSize: 11, color: C.ink4 }}>Δ</div>
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8">#</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Empresa</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-16">Total</th>
+                {DIMS.map(d => (
+                  <th key={d.key} className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-12">{d.label}</th>
+                ))}
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-14">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading && Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                  <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded w-2/3" /></td>
+                  <td className="px-4 py-2.5"><div className="h-5 bg-bg-secondary rounded" /></td>
+                  {DIMS.map(d => <td key={d.key} className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>)}
+                  <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                </tr>
+              ))}
+              {!isLoading && sorted.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="text-center py-12 text-text-tertiary text-sm px-4">Nenhum cliente encontrado</td>
+                </tr>
+              )}
+              {!isLoading && sorted.map((c, i) => (
+                <tr
+                  key={c.id}
+                  onClick={() => setDrawerClientId(c.id)}
+                  className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary cursor-pointer"
+                >
+                  <td className="px-4 py-2.5 text-text-tertiary text-xs">{i + 1}</td>
+                  <td className="px-4 py-2.5 text-text-primary font-medium">{c.fantasy_name || c.name}</td>
+                  <td className="px-4 py-2.5" style={{ fontSize: 22, fontWeight: 700, color: scoreBandColor(c.health_total), fontVariantNumeric: 'tabular-nums' }}>
+                    {c.health_total ?? '—'}
+                  </td>
+                  {DIMS.map(d => (
+                    <td key={d.key} className="px-4 py-2.5" style={{ color: DIM_COLORS[d.key], fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+                      {c[d.key] ?? '—'}
+                    </td>
+                  ))}
+                  <td className="px-4 py-2.5" style={{
+                    fontWeight: 600,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: c.health_trend > 0 ? C.green : c.health_trend < 0 ? C.red : C.ink4,
+                  }}>
+                    {c.health_trend == null || c.health_trend === 0
+                      ? '—'
+                      : c.health_trend > 0
+                        ? `+${c.health_trend}`
+                        : `${c.health_trend}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-
-        {/* Loading rows */}
-        {isLoading && Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="animate-pulse" style={{
-            display: 'grid', gridTemplateColumns: GRID, gap: 14,
-            padding: '14px 8px', borderBottom: `0.5px solid ${C.line}`,
-            alignItems: 'center',
-          }}>
-            <div style={{ height: 12, background: '#e8ecf0', borderRadius: 4 }} />
-            <div style={{ height: 13, background: '#e8ecf0', borderRadius: 4, width: '65%' }} />
-            <div style={{ height: 22, background: '#e8ecf0', borderRadius: 4 }} />
-            {DIMS.map(d => <div key={d.key} style={{ height: 13, background: '#e8ecf0', borderRadius: 4 }} />)}
-            <div style={{ height: 13, background: '#e8ecf0', borderRadius: 4 }} />
-          </div>
-        ))}
-
-        {/* Empty */}
-        {!isLoading && sorted.length === 0 && (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: C.ink3, fontSize: 14 }}>
-            Nenhum cliente encontrado
-          </div>
-        )}
-
-        {/* Rows */}
-        {!isLoading && sorted.map((c, i) => (
-          <div
-            key={c.id}
-            onClick={() => setDrawerClientId(c.id)}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: GRID,
-              gap: 14,
-              padding: '12px 8px',
-              borderBottom: `0.5px solid ${C.line}`,
-              cursor: 'pointer',
-              alignItems: 'center',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#f8f9fb')}
-            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-          >
-            <div style={{ fontSize: 12, color: C.ink3 }}>{i + 1}</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: C.ink }}>
-              {c.fantasy_name || c.name}
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: scoreBandColor(c.health_total), fontVariantNumeric: 'tabular-nums' }}>
-              {c.health_total ?? '—'}
-            </div>
-            {DIMS.map(d => (
-              <div key={d.key} style={{ fontSize: 13, color: DIM_COLORS[d.key], fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
-                {c[d.key] ?? '—'}
-              </div>
-            ))}
-            <div style={{
-              fontSize: 12,
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-              color: c.health_trend > 0 ? C.green : c.health_trend < 0 ? C.red : C.ink4,
-            }}>
-              {c.health_trend == null || c.health_trend === 0
-                ? '—'
-                : c.health_trend > 0
-                  ? `+${c.health_trend}`
-                  : `${c.health_trend}`}
-            </div>
-          </div>
-        ))}
       </div>
     </div>
 

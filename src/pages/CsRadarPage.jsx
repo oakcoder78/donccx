@@ -495,27 +495,27 @@ export default function CsRadarPage() {
           </div>
 
           {/* Client table */}
-          <div className="bg-bg-primary border border-border-tertiary rounded-xl overflow-hidden">
+          <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
             <div className="px-5 py-3 border-b border-border-tertiary">
               <h3 className="text-sm font-semibold text-text-primary">Clientes</h3>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border-tertiary text-text-tertiary text-xs uppercase tracking-wider">
-                    <th className="text-left px-4 py-3 font-medium">Cliente</th>
-                    <th className="text-left px-4 py-3 font-medium">HS</th>
-                    <th className="text-left px-4 py-3 font-medium">Última atividade</th>
-                    <th className="text-right px-4 py-3 font-medium">Qtd</th>
-                    <th className="text-left px-4 py-3 font-medium">RMC</th>
-                    <th className="text-left px-4 py-3 font-medium">Projeto</th>
-                    <th className="text-center px-4 py-3 font-medium w-12">●</th>
+                  <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">HS</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Última atividade</th>
+                    <th className="text-right px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Qtd</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">RMC</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Projeto</th>
+                    <th className="text-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white w-12">●</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredClients.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-10 text-text-tertiary text-sm">
+                      <td colSpan={7} className="text-center py-10 text-text-tertiary text-sm px-4">
                         {debouncedSearch
                           ? `Nenhum cliente encontrado para "${debouncedSearch}"`
                           : 'Nenhum cliente encontrado'}
@@ -529,13 +529,13 @@ export default function CsRadarPage() {
                       })
                       .map(c => (
                         <tr key={c.id} className="border-b border-border-tertiary last:border-b-0 hover:bg-bg-secondary transition-colors">
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <span className="font-medium text-text-primary">{c.fantasy_name}</span>
                           </td>
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-2.5">
                             <HealthBadge score={c.health_total} />
                           </td>
-                          <td className="px-4 py-3 text-text-secondary">
+                          <td className="px-4 py-2.5 text-text-secondary">
                             {c.last_activity_date ? (
                               <span className="flex items-center gap-1.5">
                                 {formatDate(c.last_activity_date)}
@@ -545,13 +545,13 @@ export default function CsRadarPage() {
                               </span>
                             ) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-text-primary font-medium">
+                          <td className="px-4 py-2.5 text-right tabular-nums text-text-primary font-medium">
                             {c.activity_count || '—'}
                           </td>
-                          <td className="px-4 py-3 text-text-secondary">
+                          <td className="px-4 py-2.5 text-text-secondary">
                             {c.last_rmc_period || '—'}
                           </td>
-                          <td className="px-4 py-3 text-text-secondary">
+                          <td className="px-4 py-2.5 text-text-secondary">
                             {c.active_project_title ? (
                               <div>
                                 <span className="text-text-primary">{c.active_project_title}</span>
@@ -567,7 +567,7 @@ export default function CsRadarPage() {
                               </div>
                             ) : '—'}
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-4 py-2.5 text-center">
                             <SemaphoreDot color={c.semaphore} />
                           </td>
                         </tr>
