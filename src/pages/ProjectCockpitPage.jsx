@@ -4,12 +4,34 @@ import { useProjectCockpit } from '@/hooks/useProjectCockpit'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Icons } from '@/lib/icons'
 
+function Toggle({ value, onChange, disabled }) {
+  return (
+    <div
+      role="switch"
+      aria-checked={value}
+      onClick={() => !disabled && onChange(!value)}
+      style={{
+        width: 36, height: 20, borderRadius: 10, flexShrink: 0,
+        backgroundColor: value ? '#173557' : '#d4d3ce',
+        position: 'relative', transition: 'background 0.2s',
+        cursor: disabled ? 'default' : 'pointer',
+        display: 'inline-block',
+      }}
+    >
+      <div style={{
+        position: 'absolute', top: 2, left: value ? 18 : 2,
+        width: 16, height: 16, borderRadius: '50%', backgroundColor: '#fff',
+        transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+      }} />
+    </div>
+  )
+}
+
 export default function ProjectCockpitPage() {
   const navigate = useNavigate()
   const { data: rows, isLoading, error } = useProjectCockpit()
   const [openSet, setOpenSet] = useState(new Set())
-  const [globalPanelOpen, setGlobalPanelOpen] = useState(false)
-  const [alertOpen, setAlertOpen] = useState(false)
+  const [globalOpen, setGlobalOpen] = useState(false)
 
   function toggleRow(clientId) {
     setOpenSet(prev => {
@@ -19,8 +41,8 @@ export default function ProjectCockpitPage() {
     })
   }
 
-  const { allActivities, overdueActivities, dueThisWeek } = useMemo(() => {
-    if (!rows) return { allActivities: [], overdueActivities: [], dueThisWeek: [] }
+  const { allActivities, overdueCount, dueThisWeekCount } = useMemo(() => {
+    if (!rows) return { allActivities: [], overdueCount: 0, dueThisWeekCount: 0 }
     const today = new Date().toISOString().split('T')[0]
     const weekEnd = new Date()
     weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()))
@@ -36,8 +58,8 @@ export default function ProjectCockpitPage() {
     }
     return {
       allActivities: flat,
-      overdueActivities: flat.filter(a => a.dueDate && a.dueDate < today && a.status !== 'concluida'),
-      dueThisWeek: flat.filter(a => a.dueDate && a.dueDate >= today && a.dueDate <= endStr && a.status !== 'concluida'),
+      overdueCount: flat.filter(a => a.dueDate && a.dueDate < today && a.status !== 'concluida').length,
+      dueThisWeekCount: flat.filter(a => a.dueDate && a.dueDate >= today && a.dueDate <= endStr && a.status !== 'concluida').length,
     }
   }, [rows])
 
@@ -86,32 +108,39 @@ export default function ProjectCockpitPage() {
       <BackButton navigate={navigate} />
       <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
 
-      {overdueActivities.length > 0 && (
-        <AlertBanner
-          open={alertOpen}
-          onToggle={() => setAlertOpen(!alertOpen)}
-          overdue={overdueActivities}
-          dueThisWeek={dueThisWeek}
-        />
-      )}
-
       <SummaryBar total={total} onTime={onTime} delayed={delayed} paused={paused} />
 
-      <button
-        onClick={() => setGlobalPanelOpen(!globalPanelOpen)}
-        className="mt-5 w-full flex items-center gap-2 px-4 py-3 bg-bg-primary border border-border-tertiary rounded-xl text-left hover:bg-bg-tertiary transition-colors"
-      >
-        <Icons.ClipboardList className="w-4 h-4 text-text-tertiary" />
-        <span className="text-sm font-medium text-text-primary flex-1">Visão Geral de Atividades</span>
-        <span className="text-xs text-text-tertiary">{allActivities.length} atividades</span>
-        <ChevronIcon open={globalPanelOpen} />
-      </button>
+      <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-xl overflow-hidden">
+        <button
+          onClick={() => setGlobalOpen(!globalOpen)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-bg-tertiary transition-colors"
+        >
+          <Icons.ClipboardList className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+          <span className="text-sm font-medium text-text-primary">Visão Geral de Atividades</span>
+          <span className="text-xs text-text-tertiary ml-1">
+            {allActivities.length} atividade{allActivities.length !== 1 ? 's' : ''}
+          </span>
+          {overdueCount > 0 && (
+            <span className="text-xs text-donc-red font-medium">
+              · {overdueCount} atrasada{overdueCount !== 1 ? 's' : ''}
+            </span>
+          )}
+          {dueThisWeekCount > 0 && (
+            <span className="text-xs text-text-tertiary">
+              · {dueThisWeekCount} vence{dueThisWeekCount !== 1 ? 'm' : ''} esta semana
+            </span>
+          )}
+          <div className="ml-auto">
+            <ChevronIcon open={globalOpen} />
+          </div>
+        </button>
 
-      {globalPanelOpen && (
-        <div className="border border-t-0 border-border-tertiary rounded-b-xl bg-bg-primary px-4 py-3">
-          <GlobalActivitiesPanel activities={allActivities} />
-        </div>
-      )}
+        {globalOpen && (
+          <div className="border-t border-border-tertiary p-4">
+            <GlobalActivitiesPanel activities={allActivities} />
+          </div>
+        )}
+      </div>
 
       <div className="mt-5 space-y-1.5">
         {rows.map(row => (
@@ -144,35 +173,6 @@ function ChevronIcon({ open }) {
     >
       <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
-  )
-}
-
-function AlertBanner({ open, onToggle, overdue, dueThisWeek }) {
-  return (
-    <div className="mt-5 bg-donc-red/5 border border-donc-red/20 rounded-xl overflow-hidden">
-      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-donc-red/5 transition-colors">
-        <Icons.AlertTriangle className="w-5 h-5 text-donc-red flex-shrink-0" />
-        <div className="flex-1 text-sm">
-          <span className="font-medium text-donc-red">{overdue.length} atividade{overdue.length !== 1 ? 's' : ''} atrasada{overdue.length !== 1 ? 's' : ''}</span>
-          {dueThisWeek.length > 0 && (
-            <span className="text-text-tertiary ml-2">· {dueThisWeek.length} vence{dueThisWeek.length !== 1 ? 'm' : ''} esta semana</span>
-          )}
-        </div>
-        <ChevronIcon open={open} />
-      </button>
-      {open && (
-        <div className="border-t border-donc-red/10 px-4 py-2 space-y-1">
-          {overdue.map(a => (
-            <div key={a.id} className="flex items-center gap-2 text-sm py-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-donc-red flex-shrink-0" />
-              <span className="text-text-secondary font-medium">{a.clientName}</span>
-              <span className="text-text-tertiary">· {a.title}</span>
-              <span className="text-donc-red text-xs ml-auto flex-shrink-0">{formatDate(a.dueDate)}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -398,43 +398,45 @@ function ProjectActivitiesList({ activities }) {
     <div>
       <div className="flex items-center justify-between mb-2">
         <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">Atividades ({activities.length})</div>
-        <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer select-none">
-          <input type="checkbox" checked={showAll} onChange={() => setShowAll(!showAll)} className="accent-donc-sky" />
+        <label className="flex items-center gap-2 text-xs text-text-tertiary cursor-pointer select-none">
+          <Toggle value={showAll} onChange={setShowAll} />
           Mostrar concluídas
         </label>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-tertiary text-xs text-text-tertiary uppercase tracking-wide">
-              <th className="text-left font-medium px-3 py-2">Atividade</th>
-              <th className="text-left font-medium px-3 py-2">Data</th>
-              <th className="text-left font-medium px-3 py-2">Status</th>
-              <th className="text-left font-medium px-3 py-2">Responsável</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(a => (
-              <tr key={a.id} className="border-b border-border-tertiary/50 last:border-0">
-                <td className="px-3 py-2.5 text-text-primary">
-                  <div>{a.title}</div>
-                  {a.typeName && <div className="text-xs text-text-tertiary mt-0.5">{a.typeName}</div>}
-                </td>
-                <td className={`px-3 py-2.5 whitespace-nowrap ${a.dueDate < new Date().toISOString().split('T')[0] ? 'text-donc-red' : 'text-text-secondary'}`}>
-                  {a.dueDate ? formatDate(a.dueDate) : '—'}
-                </td>
-                <td className="px-3 py-2.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[a.status] || ''}`}>
-                    {statusLabel[a.status] || a.status}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 text-text-secondary">
-                  {a.responsibleContato || a.responsibleInterno || '—'}
-                </td>
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-donc-navy text-white">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Atividade</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Data</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Status</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Responsável</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map(a => (
+                <tr key={a.id} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
+                  <td className="px-4 py-2.5 text-text-primary">
+                    <div>{a.title}</div>
+                    {a.typeName && <div className="text-xs text-text-tertiary mt-0.5">{a.typeName}</div>}
+                  </td>
+                  <td className={`px-4 py-2.5 whitespace-nowrap ${a.dueDate < new Date().toISOString().split('T')[0] ? 'text-donc-red' : 'text-text-secondary'}`}>
+                    {a.dueDate ? formatDate(a.dueDate) : '—'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[a.status] || ''}`}>
+                      {statusLabel[a.status] || a.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-text-secondary">
+                    {a.responsibleContato || a.responsibleInterno || '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )
@@ -477,44 +479,46 @@ function GlobalActivitiesPanel({ activities }) {
           </button>
         ))}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-tertiary text-xs text-text-tertiary uppercase tracking-wide">
-              <th className="text-left font-medium px-3 py-2">Cliente</th>
-              <th className="text-left font-medium px-3 py-2">Projeto</th>
-              <th className="text-left font-medium px-3 py-2">Atividade</th>
-              <th className="text-left font-medium px-3 py-2">Data</th>
-              <th className="text-left font-medium px-3 py-2">Status</th>
-              <th className="text-left font-medium px-3 py-2">Responsável</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(a => (
-              <tr key={a.id} className="border-b border-border-tertiary/50 last:border-0">
-                <td className="px-3 py-2.5 text-text-primary font-medium">{a.clientName}</td>
-                <td className="px-3 py-2.5 text-text-secondary">{a.projectTitle}</td>
-                <td className="px-3 py-2.5 text-text-primary">
-                  <div>{a.title}</div>
-                  {a.typeName && <div className="text-xs text-text-tertiary mt-0.5">{a.typeName}</div>}
-                </td>
-                <td className={`px-3 py-2.5 whitespace-nowrap ${a.dueDate && a.dueDate < today ? 'text-donc-red' : 'text-text-secondary'}`}>
-                  {a.dueDate ? formatDate(a.dueDate) : '—'}
-                </td>
-                <td className="px-3 py-2.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[a.status] || ''}`}>
-                    {statusLabel[a.status] || a.status}
-                  </span>
-                </td>
-                <td className="px-3 py-2.5 text-text-secondary">
-                  {a.responsibleContato || a.responsibleInterno || '—'}
-                </td>
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden w-full">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-donc-navy text-white">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Projeto</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Atividade</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Data</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Status</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Responsável</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map(a => (
+                <tr key={a.id} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
+                  <td className="px-4 py-2.5 text-text-primary font-medium">{a.clientName}</td>
+                  <td className="px-4 py-2.5 text-text-secondary">{a.projectTitle}</td>
+                  <td className="px-4 py-2.5 text-text-primary">
+                    <div>{a.title}</div>
+                    {a.typeName && <div className="text-xs text-text-tertiary mt-0.5">{a.typeName}</div>}
+                  </td>
+                  <td className={`px-4 py-2.5 whitespace-nowrap ${a.dueDate && a.dueDate < today ? 'text-donc-red' : 'text-text-secondary'}`}>
+                    {a.dueDate ? formatDate(a.dueDate) : '—'}
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[a.status] || ''}`}>
+                      {statusLabel[a.status] || a.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-text-secondary">
+                    {a.responsibleContato || a.responsibleInterno || '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         {filtered.length === 0 && (
-          <div className="text-sm text-text-tertiary py-6 text-center">Nenhuma atividade encontrada com este filtro.</div>
+          <div className="px-4 py-8 text-center text-sm text-text-tertiary">Nenhuma atividade encontrada com este filtro.</div>
         )}
       </div>
     </div>
