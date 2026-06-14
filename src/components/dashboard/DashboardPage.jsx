@@ -1538,7 +1538,7 @@ export default function DashboardPage() {
                   const pillBg = band === 'red' ? C.redSoft : band === 'amber' ? C.amberSoft : C.greenSoft
                   return (
                     <div key={c.id} onClick={() => openDrawer('cliente', { client: c })}
-                      style={{ display: 'grid', gridTemplateColumns: '160px 1fr 44px 70px', gap: 14, alignItems: 'center', padding: '10px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
+                      style={{ display: 'grid', gridTemplateColumns: '160px 1fr 44px 80px', gap: 14, alignItems: 'center', padding: '10px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
                       onMouseEnter={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.paddingLeft = '6px'; e.currentTarget.style.paddingRight = '6px' }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.fantasy_name || c.name}</div>
@@ -1546,7 +1546,7 @@ export default function DashboardPage() {
                         <div style={{ height: '100%', borderRadius: 999, background: color, width: `${Math.min(100, score)}%` }} />
                       </div>
                       <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em', textAlign: 'right', fontVariantNumeric: 'tabular-nums', color }}>{score}</div>
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, textAlign: 'center', background: pillBg, color }}>{label}</span>
+                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '3px 6px', borderRadius: 999, textAlign: 'center', display: 'block', background: pillBg, color }}>{label}</span>
                     </div>
                   )
                 })}
