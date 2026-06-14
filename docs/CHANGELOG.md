@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-06-14
+
+### Cockpits — Project Cockpit (Novo)
+- **New:** `/projetos-cockpit` — dashboard de projetos ativos por cliente com fases, status, progresso, timeline e atividades (`abd6f62`)
+- **New:** `useProjectCockpit` hook — query agregada com join aninhado `fase_atual_id` dentro de `onboardings`, cálculo de progresso, role gating (`dbf403b`)
+- **New:** SummaryBar (em dia/atrasado/parado), client rows com collapse/expand, sub-rows por projeto (`d8344b0`)
+- **New:** ProjectTimeline, ProjectMilestonesList, PhaseCircle, back nav com ArrowLeft (`f2151dc`)
+- **New:** Visão Geral de Atividades unificada com alertas + filtros + tabela padrão, toggle "Mostrar concluídas" (`2bc153b`)
+- **Refactor:** Tabelas padronizadas com `bg-donc-navy` header, toggle no estilo do projeto (`704b501`)
+
+### CS Radar — Heatmap Interativo + Tabela Padronizada
+- **Refactor:** Tabela de clientes alinhada ao padrão `bg-donc-navy`, header `px-4 py-2.5`, container `rounded-lg` (`d84698d`)
+- **New:** Heatmap clicável — cada célula abre painel à direita com atividades do dia (`48bdce9`)
+- **New:** `dayActivities` no hook — agrupa atividades por data para drill-down (`48bdce9`)
+- **Remove:** Título "Clientes" redundante acima da tabela (`48bdce9`)
+
+### Health Dashboard — Contexto + Informações
+- **Refactor:** Tabela convertida de CSS Grid inline para `<table>` padrão `bg-donc-navy`, hover via Tailwind (`d84698d`)
+- **New:** Barra de legenda entre chips e tabela (bandas com thresholds dinâmicos + dimensões + Δ) (`d25d9b1`)
+- **New:** Tooltips nos headers da tabela explicando cada dimensão (`d25d9b1`)
+- **New:** Botão "Como funciona" no PageHeader + modal com regras, pesos e bandas vindos do banco (`d25d9b1`)
+- **New:** `useHealthConfig` agora retorna também `health_dimension_weights` (`d25d9b1`)
+
+### Dashboard — Badge de Saúde com Largura Fixa
+- **Fix:** Badge "SAUDÁVEL/ATENÇÃO/RISCO" agora usa `display: block` em coluna fixa de 80px — todas as labels têm o mesmo tamanho visual, sem texto vazando na borda (`417391e`)
+
 ## 2026-06-11
 
 ### Reports — AI Analysis Evolution

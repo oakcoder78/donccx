@@ -343,7 +343,7 @@ Usar o design system existente:
 
 | Phase | Status | Date | Commits | Notes |
 |---|---|---|---|---|---|
-| 1 — Scaffold + Flag | Done | 2026-06-14 | — | Build ok |
-| 2 — Query + Data Layer | Done | 2026-06-14 | — | Build ok; PauseCircle registrado em icons.js |
-| 3 — Client Rows + Indicators | Done | 2026-06-14 | — | Build ok; SummaryBar, collapse/expand, sub-rows |
-| 4 — Timeline + Activities | Done | 2026-06-14 | — | Build ok; PhaseCircle compacto, atividades, milestones |
+| 1 — Scaffold + Flag | Done | 2026-06-14 | `abd6f62` | Migration SQL, página vazia, rota, card no hub |
+| 2 — Query + Data Layer | Done | 2026-06-14 | `dbf403b` | useProjectCockpit hook, nested current_phase join fix |
+| 3 — Client Rows + Indicators | Done | 2026-06-14 | `d8344b0` `f2151dc` | SummaryBar, collapse/expand, back nav, activities table |
+| 4 — Timeline + Activities | Done | 2026-06-14 | `2bc153b` `704b501` | Visão Geral, toggle concluídas, tabelas padronizadas |

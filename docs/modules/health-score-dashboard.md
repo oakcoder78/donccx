@@ -18,6 +18,7 @@ The Health Score Dashboard (`/health`) provides a centralized view of the client
 ```
 HealthDashboardPage (src/pages/HealthDashboardPage.jsx)
 ├── PageHeader ("Health Score · Carteira" + "{n} clientes ativos")
+│   └── action button "Como funciona" (icon HelpCircle, opens info modal)
 ├── Scorecard (4 cards)
 │   ├── Média Geral (colored by band)
 │   ├── Saudáveis  (green #2f9e70)
@@ -29,8 +30,10 @@ HealthDashboardPage (src/pages/HealthDashboardPage.jsx)
 │   └── Critical dimension dropdown (filters score < 10)
 ├── Band chips (Todos / Saudáveis / Atenção / Alerta with counts)
 ├── "Limpar filtros" button (visible when any filter active)
-└── Ranking table
+├── Legend bar (bands with threshold colors + dimension color dots + Δ hint)
+└── Ranking table (padrão bg-donc-navy)
     ├── Columns: #, Empresa, Total, Uso, Sup, Rel, Fin, Proj, Δ
+    ├── Tooltips on all dimension headers (explain what each measures)
     └── Row click → navigate(/empresas/{id}?tab=health)
 ```
 
@@ -102,6 +105,21 @@ The `health_trend` column was added via migration `20260519000001_add_health_tre
 | `—` | Gray (`C.ink4`) | No change or no prior data |
 
 Values are `0` (rendered as `—`) until the first monthly-sync runs.
+
+## Info Modal — "Como funciona o Health Score"
+
+The `action` button on `PageHeader` opens a centered overlay modal with dynamic content from the database:
+
+| Section | Source | Content |
+|---------|--------|---------|
+| O que é | Static text | Description of 0-100 score, 5 dimensions + temperature |
+| Classificação | `health_config` thresholds | Band cards with dynamic threshold values |
+| Pesos por grupo | `health_dimension_weights` | Table of 3 stage groups × 6 dimensions with weights |
+| Regras por dimensão | `health_rules` (grouped, colored) | Each dimension: all rules with label + points (green/red/gray) |
+| Temperatura CSM | Static text | Subjective CSM rating 0-10, expires in 30 days |
+| Trend Δ | Static text | Month-over-month comparison explanation |
+
+Data is loaded via `useHealthConfig()` — same query used by `ClientHealthDrawer` and `SettingsHealth`.
 
 ## Back Button Context
 
@@ -204,7 +222,7 @@ The `MetricRow` component renders each metric as `<label> <value>` row.
 | File | Purpose |
 |---|---|---|
 | `src/pages/CockpitsPage.jsx` | Gateway page `/cockpits` — links to Health Score and CS Radar |
-| `src/pages/HealthDashboardPage.jsx` | Main dashboard page (343 lines) |
+| `src/pages/HealthDashboardPage.jsx` | Main dashboard page (436 lines) |
 | `src/components/clients/ClientHealthDrawer.jsx` | Client drawer with accordion + real metrics per dimension |
 | `src/components/clients/ClientDetail.jsx` | Client detail page with back button context |
 | `src/components/dashboard/DashboardPage.jsx` | Main dashboard with health block + "ver todos →" → `/health` |
@@ -212,7 +230,7 @@ The `MetricRow` component renders each metric as `<label> <value>` row.
 | `src/hooks/useClients.js` | Hook for loading clients with filters |
 | `src/hooks/useProfiles.js` | Hook for loading profiles (CSM dropdown) |
 | `src/hooks/useFeatureFlags.js` | Feature flag hook |
-| `src/hooks/useHealthConfig.js` | Hook for loading `health_rules` (used by drawer) |
+| `src/hooks/useHealthConfig.js` | Hook for loading `health_config` + `health_rules` + `health_dimension_weights` |
 | `src/lib/icons.js` | Icon barrel (never import from lucide-react directly) |
 | `supabase/migrations/20260519000001_add_health_trend.sql` | Trend column + SQL function |
 | `supabase/functions/monthly-sync/index.ts` | Step 4 triggers trend calculation |

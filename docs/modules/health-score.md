@@ -87,6 +87,7 @@ calcTemperatura ──► temp ──┘
 - Called from UI components displaying client health dashboards.
 - May be used in scheduled reports or alerts.
 - Accepts custom `weights` to adjust importance per business needs.
+- `useHealthConfig()` hook loads `health_config`, `health_rules`, and `health_dimension_weights` — used by the health dashboard's info modal and the settings page for dynamic rules display.
 
 ## Main User Flows
 1. **Standard Scoring** – Pass a full client object and rule set; receive a detailed health report.

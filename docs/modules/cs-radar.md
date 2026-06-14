@@ -25,8 +25,10 @@ Full radar page with:
 - Limpar filtros (botão aparece quando há filtros ativos)
 - 4 KPI cards (atividades, clientes com toque, RMCs, projetos com avanço)
 - Activity type bar chart (cores por tipo: reuniao navy, ligacao sky, email lime, whatsapp navy/60, tarefa sky/60, nota slate) + by-responsible chart (admin/manager only)
-- Heatmap grid (grade completa, alinhamento semanal, escala de opacidade sky `#59c2ed`, tooltip no hover)
+- Heatmap grid (grade completa, alinhamento semanal, escala de opacidade sky `#59c2ed`, tooltip no hover, **células clicáveis**)
+- Day activity panel (lado direito do heatmap, exibe atividades do dia selecionado, fecha com × ou re-clique)
 - Client table with semaphore sorting (🔴 → 🟡 → 🟢)
+- Client table padronizada com `bg-donc-navy` header (sem título "Clientes" redundante)
 - Activity exclusion: `type='nota' + title='RMC visualizado'`
 - Client list filtered by `lifecycle_stage = 'cliente'`
 - RMC denominator excludes Onboarding, Em espera, Churned
@@ -43,7 +45,7 @@ useCsRadar({ dateFrom, dateTo, responsibleId, clientIds, activityTypes, segmentI
   ├── client_reports (published in period)
   └── milestones (updated in period) → projects with progress
 
-Output: { kpis, byType[], byResponsible[], heatmap[], clients[] }
+Output: { kpis, byType[], byResponsible[], heatmap[], dayActivities{}, clients[] }
 ```
 
 ## Page Structure
@@ -59,7 +61,8 @@ CsRadarPage
 ├── MiddleRow (2 cols)
 │   ├── Activity type bars (horizontal, sorted desc)
 │   └── Responsible bars
-├── Heatmap grid (day columns, week rows, intensity)
+├── Heatmap grid (day columns, week rows, intensity, cells clickable)
+├── Day activity panel (shown on click, lists activities for selected date)
 └── Client table
     ├── Col: Nome + HS badge
     ├── Col: Última atividade (date + type icon)
