@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProjectCockpit } from '@/hooks/useProjectCockpit'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -8,6 +8,8 @@ export default function ProjectCockpitPage() {
   const navigate = useNavigate()
   const { data: rows, isLoading, error } = useProjectCockpit()
   const [openSet, setOpenSet] = useState(new Set())
+  const [globalPanelOpen, setGlobalPanelOpen] = useState(false)
+  const [alertOpen, setAlertOpen] = useState(false)
 
   function toggleRow(clientId) {
     setOpenSet(prev => {
@@ -16,6 +18,28 @@ export default function ProjectCockpitPage() {
       return next
     })
   }
+
+  const { allActivities, overdueActivities, dueThisWeek } = useMemo(() => {
+    if (!rows) return { allActivities: [], overdueActivities: [], dueThisWeek: [] }
+    const today = new Date().toISOString().split('T')[0]
+    const weekEnd = new Date()
+    weekEnd.setDate(weekEnd.getDate() + (7 - weekEnd.getDay()))
+    const endStr = weekEnd.toISOString().split('T')[0]
+
+    const flat = []
+    for (const row of rows) {
+      for (const proj of row.projects) {
+        for (const a of proj.activities) {
+          flat.push({ ...a, clientName: row.clientName, projectTitle: proj.title })
+        }
+      }
+    }
+    return {
+      allActivities: flat,
+      overdueActivities: flat.filter(a => a.dueDate && a.dueDate < today && a.status !== 'concluida'),
+      dueThisWeek: flat.filter(a => a.dueDate && a.dueDate >= today && a.dueDate <= endStr && a.status !== 'concluida'),
+    }
+  }, [rows])
 
   if (isLoading) {
     return (
@@ -62,7 +86,32 @@ export default function ProjectCockpitPage() {
       <BackButton navigate={navigate} />
       <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
 
+      {overdueActivities.length > 0 && (
+        <AlertBanner
+          open={alertOpen}
+          onToggle={() => setAlertOpen(!alertOpen)}
+          overdue={overdueActivities}
+          dueThisWeek={dueThisWeek}
+        />
+      )}
+
       <SummaryBar total={total} onTime={onTime} delayed={delayed} paused={paused} />
+
+      <button
+        onClick={() => setGlobalPanelOpen(!globalPanelOpen)}
+        className="mt-5 w-full flex items-center gap-2 px-4 py-3 bg-bg-primary border border-border-tertiary rounded-xl text-left hover:bg-bg-tertiary transition-colors"
+      >
+        <Icons.ClipboardList className="w-4 h-4 text-text-tertiary" />
+        <span className="text-sm font-medium text-text-primary flex-1">Visão Geral de Atividades</span>
+        <span className="text-xs text-text-tertiary">{allActivities.length} atividades</span>
+        <ChevronIcon open={globalPanelOpen} />
+      </button>
+
+      {globalPanelOpen && (
+        <div className="border border-t-0 border-border-tertiary rounded-b-xl bg-bg-primary px-4 py-3">
+          <GlobalActivitiesPanel activities={allActivities} />
+        </div>
+      )}
 
       <div className="mt-5 space-y-1.5">
         {rows.map(row => (
@@ -95,6 +144,35 @@ function ChevronIcon({ open }) {
     >
       <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  )
+}
+
+function AlertBanner({ open, onToggle, overdue, dueThisWeek }) {
+  return (
+    <div className="mt-5 bg-donc-red/5 border border-donc-red/20 rounded-xl overflow-hidden">
+      <button onClick={onToggle} className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-donc-red/5 transition-colors">
+        <Icons.AlertTriangle className="w-5 h-5 text-donc-red flex-shrink-0" />
+        <div className="flex-1 text-sm">
+          <span className="font-medium text-donc-red">{overdue.length} atividade{overdue.length !== 1 ? 's' : ''} atrasada{overdue.length !== 1 ? 's' : ''}</span>
+          {dueThisWeek.length > 0 && (
+            <span className="text-text-tertiary ml-2">· {dueThisWeek.length} vence{dueThisWeek.length !== 1 ? 'm' : ''} esta semana</span>
+          )}
+        </div>
+        <ChevronIcon open={open} />
+      </button>
+      {open && (
+        <div className="border-t border-donc-red/10 px-4 py-2 space-y-1">
+          {overdue.map(a => (
+            <div key={a.id} className="flex items-center gap-2 text-sm py-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-donc-red flex-shrink-0" />
+              <span className="text-text-secondary font-medium">{a.clientName}</span>
+              <span className="text-text-tertiary">· {a.title}</span>
+              <span className="text-donc-red text-xs ml-auto flex-shrink-0">{formatDate(a.dueDate)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -216,11 +294,9 @@ function ExpandedContent({ projects, activeTabId, onTabChange }) {
           {activeProj.allFases.length > 0 && (
             <ProjectTimeline fases={activeProj.allFases} faseAtualId={activeProj.currentPhase?.id} />
           )}
-          {activeProj.activities.length > 0 && (
-            <ProjectActivitiesList activities={activeProj.activities} />
-          )}
+          <ProjectActivitiesList activities={activeProj.activities} />
           {activeProj.allFases.length === 0 && activeProj.activities.length === 0 && (
-            <div className="text-sm text-text-tertiary py-2">Nenhuma fase ou atividade pendente.</div>
+            <div className="text-sm text-text-tertiary py-2">Nenhuma fase ou atividade encontrada.</div>
           )}
         </>
       ) : (
@@ -313,10 +389,19 @@ const statusLabel = {
 }
 
 function ProjectActivitiesList({ activities }) {
+  const [showAll, setShowAll] = useState(false)
+  const filtered = showAll ? activities : activities.filter(a => a.status !== 'concluida')
+
+  if (!activities.length) return null
+
   return (
     <div>
-      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
-        Atividades ({activities.length})
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide">Atividades ({activities.length})</div>
+        <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer select-none">
+          <input type="checkbox" checked={showAll} onChange={() => setShowAll(!showAll)} className="accent-donc-sky" />
+          Mostrar concluídas
+        </label>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -329,7 +414,7 @@ function ProjectActivitiesList({ activities }) {
             </tr>
           </thead>
           <tbody>
-            {activities.map(a => (
+            {filtered.map(a => (
               <tr key={a.id} className="border-b border-border-tertiary/50 last:border-0">
                 <td className="px-3 py-2.5 text-text-primary">
                   <div>{a.title}</div>
@@ -350,6 +435,87 @@ function ProjectActivitiesList({ activities }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function GlobalActivitiesPanel({ activities }) {
+  const [filter, setFilter] = useState('all')
+  const today = new Date().toISOString().split('T')[0]
+
+  const filtered = activities.filter(a => {
+    if (filter === 'pendente') return a.status === 'pendente'
+    if (filter === 'em_andamento') return a.status === 'em_andamento'
+    if (filter === 'concluida') return a.status === 'concluida'
+    if (filter === 'atrasada') return a.dueDate && a.dueDate < today && a.status !== 'concluida'
+    return true
+  })
+
+  const filters = [
+    { key: 'all', label: 'Todas' },
+    { key: 'pendente', label: 'Pendentes' },
+    { key: 'em_andamento', label: 'Em andamento' },
+    { key: 'concluida', label: 'Concluídas' },
+    { key: 'atrasada', label: 'Atrasadas' },
+  ]
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1 mb-3">
+        {filters.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+              filter === f.key
+                ? 'bg-donc-sky/10 text-donc-sky'
+                : 'text-text-tertiary hover:text-text-secondary'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border-tertiary text-xs text-text-tertiary uppercase tracking-wide">
+              <th className="text-left font-medium px-3 py-2">Cliente</th>
+              <th className="text-left font-medium px-3 py-2">Projeto</th>
+              <th className="text-left font-medium px-3 py-2">Atividade</th>
+              <th className="text-left font-medium px-3 py-2">Data</th>
+              <th className="text-left font-medium px-3 py-2">Status</th>
+              <th className="text-left font-medium px-3 py-2">Responsável</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(a => (
+              <tr key={a.id} className="border-b border-border-tertiary/50 last:border-0">
+                <td className="px-3 py-2.5 text-text-primary font-medium">{a.clientName}</td>
+                <td className="px-3 py-2.5 text-text-secondary">{a.projectTitle}</td>
+                <td className="px-3 py-2.5 text-text-primary">
+                  <div>{a.title}</div>
+                  {a.typeName && <div className="text-xs text-text-tertiary mt-0.5">{a.typeName}</div>}
+                </td>
+                <td className={`px-3 py-2.5 whitespace-nowrap ${a.dueDate && a.dueDate < today ? 'text-donc-red' : 'text-text-secondary'}`}>
+                  {a.dueDate ? formatDate(a.dueDate) : '—'}
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[a.status] || ''}`}>
+                    {statusLabel[a.status] || a.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-text-secondary">
+                  {a.responsibleContato || a.responsibleInterno || '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && (
+          <div className="text-sm text-text-tertiary py-6 text-center">Nenhuma atividade encontrada com este filtro.</div>
+        )}
       </div>
     </div>
   )

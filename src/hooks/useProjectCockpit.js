@@ -86,7 +86,6 @@ export function useProjectCockpit() {
             responsible_interno:profiles!responsible_interno_id(name)
           `)
           .in('onboarding_id', onbIds)
-          .in('status', ['pendente', 'em_andamento'])
           .order('due_date', { ascending: true, nullsFirst: false })
 
         for (const a of activities ?? []) {
