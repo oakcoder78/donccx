@@ -325,7 +325,7 @@ function ProjectActivitiesList({ activities }) {
               <th className="text-left font-medium px-3 py-2">Atividade</th>
               <th className="text-left font-medium px-3 py-2">Data</th>
               <th className="text-left font-medium px-3 py-2">Status</th>
-              <th className="text-left font-medium px-3 py-2">Respons\u00e1vel</th>
+              <th className="text-left font-medium px-3 py-2">Responsável</th>
             </tr>
           </thead>
           <tbody>
