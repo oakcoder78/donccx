@@ -70,12 +70,12 @@ export default function ContactsPage() {
         <div className="flex-1 min-w-0">
           {/* Search */}
           <div className="relative mb-3">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none">🔍</span>
+            <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Buscar por nome ou empresa..."
-              className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
+              className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary text-text-primary placeholder:text-text-tertiary"
             />
           </div>
 

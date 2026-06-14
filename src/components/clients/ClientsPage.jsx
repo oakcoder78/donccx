@@ -8,6 +8,7 @@ import { Badge } from '../ui/Badge'
 import { StagePill } from '../ui/StagePill'
 import { HealthBar, HealthScore } from '../ui/HealthBar'
 import { Avatar } from '../ui/Avatar'
+import { Icons } from '@/lib/icons'
 import { PageSpinner } from '../ui/Spinner'
 import { ClientForm } from './ClientForm'
 
@@ -93,12 +94,15 @@ export default function ClientsPage() {
 
       {/* Search + inactive toggle */}
       <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Buscar empresa..."
-          className="w-full max-w-xs px-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
-        />
+        <div className="relative w-full max-w-sm">
+          <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar empresa..."
+            className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary text-text-primary placeholder:text-text-tertiary"
+          />
+        </div>
         <select
           value={lifecycleFilter}
           onChange={(e) => setLifecycleFilter(e.target.value)}

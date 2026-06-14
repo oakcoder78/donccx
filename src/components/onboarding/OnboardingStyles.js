@@ -90,28 +90,6 @@ export const styles = {
     },
   },
   activity: {
-    searchWrap: {
-      position: 'relative',
-      marginBottom: '12px',
-    },
-    search: {
-      width: '100%',
-      padding: '9px 14px 9px 36px',
-      background: '#fff',
-      border: '1px solid #d4d3ce',
-      borderRadius: '8px',
-      fontSize: '13px',
-      fontFamily: 'inherit',
-      color: '#173557',
-    },
-    searchIcon: {
-      position: 'absolute',
-      left: '12px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      color: 'rgba(23,53,87,0.4)',
-      pointerEvents: 'none',
-    },
     catalogDropdown: {
       position: 'absolute',
       top: 'calc(100% + 4px)',

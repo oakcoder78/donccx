@@ -175,16 +175,13 @@ export default function ActivitiesPage() {
       />
 
       <div className="relative max-w-sm mb-4">
+        <Icons.Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary pointer-events-none" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Buscar atividades..."
-          className="w-full pl-3 pr-10 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary"
+          className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary text-text-primary placeholder:text-text-tertiary"
         />
-
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none">
-          <Icons.Search className="w-4 h-4" />
-        </span>
       </div>
 
       <div className="flex gap-0 border-b-2 border-border-tertiary mb-4 overflow-x-auto">

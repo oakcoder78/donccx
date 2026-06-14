@@ -1366,9 +1366,9 @@ function CatalogSearch({ actTypes, activities, onboardingId, targetFaseId, qc, l
 
   return (
     <div>
-      <div style={styles.activity.searchWrap}>
-        <span style={styles.activity.searchIcon}><Icons.Search size={14} /></span>
-        <input id="onb-cat-input" ref={inputRef} style={styles.activity.search} placeholder="Buscar no catálogo de atividades…" value={search} onChange={e => { setSearch(e.target.value); setShowDd(true) }} onFocus={() => setShowDd(true)} autoComplete="off" />
+      <div className="relative mb-3">
+        <Icons.Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+        <input id="onb-cat-input" ref={inputRef} placeholder="Buscar no catálogo de atividades…" value={search} onChange={e => { setSearch(e.target.value); setShowDd(true) }} onFocus={() => setShowDd(true)} autoComplete="off" className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary text-text-primary placeholder:text-text-tertiary" />
         {showDd && (
           <div style={styles.activity.catalogDropdown} ref={ddRef}>
             {filtered.map(t => (
@@ -1577,12 +1577,15 @@ function FaseMgmtPanel({ fases, faseTypes, onboardingId, qc, onClose }) {
 
       <div>
         <label style={S.label}>Adicionar fase</label>
-        <input
-          style={{ ...S.input, marginBottom: 6 }}
-          placeholder="Buscar ou criar tipo de fase…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
+        <div className="relative mb-1.5">
+          <Icons.Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none" />
+          <input
+            placeholder="Buscar ou criar tipo de fase…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-border-secondary rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-donc-sky/40 focus:border-donc-sky bg-bg-primary text-text-primary placeholder:text-text-tertiary"
+          />
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           {showCreate && (
             <div

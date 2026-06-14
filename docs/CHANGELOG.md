@@ -26,6 +26,11 @@
 ### Dashboard — Badge de Saúde com Largura Fixa
 - **Fix:** Badge "SAUDÁVEL/ATENÇÃO/RISCO" agora usa `display: block` em coluna fixa de 80px — todas as labels têm o mesmo tamanho visual, sem texto vazando na borda (`417391e`)
 
+### Documentação — UI Pattern Library + Components
+- **Refactor:** `docs/modules/ui.md` renomeado para `docs/modules/components.md`, atualizado com API de componentes
+- **New:** `docs/ui-patterns.md` — biblioteca completa de padrões visuais: tabela, toggle, badge, progress bar, card, skeleton, empty state, error state, overlay, drawer, form input, band chip, keyboard nav, paleta de cores
+- **New:** `docs/ui-patterns.md` — expandido com 7 padrões de alto impacto: Button (#18), Avatar (#19), Search Input (#20), Filter Bar (#21), Tab/Segmented Control (#22), Confirmation Dialog (#23), Toast/Notification (#24)
+
 ## 2026-06-11
 
 ### Reports — AI Analysis Evolution
