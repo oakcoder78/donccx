@@ -81,7 +81,9 @@ export function useProjectCockpit() {
           .from('onboarding_activities')
           .select(`
             id, onboarding_id, fase_id, activity_type_id, title, status, due_date, display_order,
-            activity_type:onboarding_activity_types!activity_type_id(name)
+            activity_type:onboarding_activity_types!activity_type_id(name),
+            responsible_contato:contacts!responsible_contato_id(name),
+            responsible_interno:profiles!responsible_interno_id(name)
           `)
           .in('onboarding_id', onbIds)
           .in('status', ['pendente', 'em_andamento'])
@@ -97,6 +99,8 @@ export function useProjectCockpit() {
             status: a.status,
             dueDate: a.due_date,
             displayOrder: a.display_order,
+            responsibleContato: a.responsible_contato?.name || null,
+            responsibleInterno: a.responsible_interno?.name || null,
           })
         }
       }

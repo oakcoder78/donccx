@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjectCockpit } from '@/hooks/useProjectCockpit'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Icons } from '@/lib/icons'
 
 export default function ProjectCockpitPage() {
+  const navigate = useNavigate()
   const { data: rows, isLoading, error } = useProjectCockpit()
   const [openSet, setOpenSet] = useState(new Set())
 
@@ -18,6 +20,7 @@ export default function ProjectCockpitPage() {
   if (isLoading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
+        <BackButton navigate={navigate} />
         <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
         <div className="mt-6 text-text-tertiary text-sm flex items-center gap-2">
           <Icons.Loader2 className="w-4 h-4 animate-spin" />
@@ -30,6 +33,7 @@ export default function ProjectCockpitPage() {
   if (error) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
+        <BackButton navigate={navigate} />
         <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
         <div className="mt-6 p-4 bg-donc-red/10 border border-donc-red/20 rounded-lg text-donc-red text-sm">
           Erro ao carregar dados: {error.message}
@@ -41,6 +45,7 @@ export default function ProjectCockpitPage() {
   if (!rows?.length) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
+        <BackButton navigate={navigate} />
         <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
         <div className="mt-6 text-text-tertiary text-sm">Nenhum cliente com projeto ativo encontrado.</div>
       </div>
@@ -54,6 +59,7 @@ export default function ProjectCockpitPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
+      <BackButton navigate={navigate} />
       <PageHeader title="Project Cockpit" description="Acompanhamento de projetos ativos por cliente" />
 
       <SummaryBar total={total} onTime={onTime} delayed={delayed} paused={paused} />
@@ -69,6 +75,15 @@ export default function ProjectCockpitPage() {
         ))}
       </div>
     </div>
+  )
+}
+
+function BackButton({ navigate }) {
+  return (
+    <button onClick={() => navigate('/cockpits')} className="flex items-center gap-1.5 text-sm text-text-tertiary hover:text-text-secondary transition-colors mb-4">
+      <Icons.ArrowLeft className="w-4 h-4" />
+      Voltar para Cockpits
+    </button>
   )
 }
 
@@ -285,24 +300,56 @@ function ConnectorSmall({ leftDone, rightActive }) {
   return <div style={{ flex: 1, minWidth: 8, height: 2, background: bg, marginTop: 15, flexShrink: 0, alignSelf: 'flex-start' }} />
 }
 
+const statusBadge = {
+  pendente:     'bg-donc-amber/10 text-donc-amber',
+  em_andamento: 'bg-donc-sky/10 text-donc-sky',
+  concluida:    'bg-donc-verde/10 text-donc-verde',
+}
+
+const statusLabel = {
+  pendente:     'Pendente',
+  em_andamento: 'Em andamento',
+  concluida:    'Concluída',
+}
+
 function ProjectActivitiesList({ activities }) {
   return (
     <div>
       <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
-        Atividades pendentes ({activities.length})
+        Atividades ({activities.length})
       </div>
-      <div className="space-y-1.5">
-        {activities.map(a => (
-          <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-secondary text-sm">
-            <span className="w-3 h-3 rounded-full border border-text-tertiary flex-shrink-0" />
-            <span className="flex-1 text-text-primary">{a.title}</span>
-            {a.dueDate && (
-              <span className={`text-xs flex-shrink-0 ${a.dueDate < new Date().toISOString().split('T')[0] ? 'text-donc-red' : 'text-text-tertiary'}`}>
-                {formatDate(a.dueDate)}
-              </span>
-            )}
-          </div>
-        ))}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border-tertiary text-xs text-text-tertiary uppercase tracking-wide">
+              <th className="text-left font-medium px-3 py-2">Atividade</th>
+              <th className="text-left font-medium px-3 py-2">Data</th>
+              <th className="text-left font-medium px-3 py-2">Status</th>
+              <th className="text-left font-medium px-3 py-2">Respons\u00e1vel</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.map(a => (
+              <tr key={a.id} className="border-b border-border-tertiary/50 last:border-0">
+                <td className="px-3 py-2.5 text-text-primary">
+                  <div>{a.title}</div>
+                  {a.typeName && <div className="text-xs text-text-tertiary mt-0.5">{a.typeName}</div>}
+                </td>
+                <td className={`px-3 py-2.5 whitespace-nowrap ${a.dueDate < new Date().toISOString().split('T')[0] ? 'text-donc-red' : 'text-text-secondary'}`}>
+                  {a.dueDate ? formatDate(a.dueDate) : '—'}
+                </td>
+                <td className="px-3 py-2.5">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[a.status] || ''}`}>
+                    {statusLabel[a.status] || a.status}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-text-secondary">
+                  {a.responsibleContato || a.responsibleInterno || '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
