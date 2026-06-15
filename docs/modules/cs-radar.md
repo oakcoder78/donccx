@@ -27,8 +27,9 @@ Full radar page with:
 - Activity type bar chart (cores por tipo: reuniao navy, ligacao sky, email lime, whatsapp navy/60, tarefa sky/60, nota slate) + by-responsible chart (admin/manager only)
 - Heatmap grid (grade completa, alinhamento semanal, escala de opacidade sky `#59c2ed`, tooltip no hover, **células clicáveis**)
 - Day activity panel (lado direito do heatmap, exibe atividades do dia selecionado, fecha com × ou re-clique)
-- Client table with semaphore sorting (🔴 → 🟡 → 🟢)
 - Client table padronizada com `bg-donc-navy` header (sem título "Clientes" redundante)
+- Client table row expansion — click on row expands inline with activity list (accordion, same as projetos-cockpit)
+- Columns: Cliente | HS | Qtd | Última atividade | Descrição | RMC | Projeto Ativo
 - Activity exclusion: `type='nota' + title='RMC visualizado'`
 - Client list filtered by `lifecycle_stage = 'cliente'`
 - RMC denominator excludes Onboarding, Em espera, Churned
@@ -45,7 +46,7 @@ useCsRadar({ dateFrom, dateTo, responsibleId, clientIds, activityTypes, segmentI
   ├── client_reports (published in period)
   └── milestones (updated in period) → projects with progress
 
-Output: { kpis, byType[], byResponsible[], heatmap[], dayActivities{}, clients[] }
+Output: { kpis, byType[], byResponsible[], heatmap[], dayActivities{}, clientActivities{}, clients[] }
 ```
 
 ## Page Structure
@@ -64,12 +65,18 @@ CsRadarPage
 ├── Heatmap grid (day columns, week rows, intensity, cells clickable)
 ├── Day activity panel (shown on click, lists activities for selected date)
 └── Client table
-    ├── Col: Nome + HS badge
-    ├── Col: Última atividade (date + type icon)
+    ├── Col: Nome + ChevronIcon (click to expand row)
+    ├── Col: HS badge
     ├── Col: Qtd atividades
-    ├── Col: RMC
-    ├── Col: Projeto + milestone + % + "N outros"
-    └── Col: Semáforo (🔴 >30d sem toque / 🟡 sem RMC / 🟢 ok)
+    ├── Col: Última atividade (date only)
+    ├── Col: Descrição (title of last activity, truncated)
+    ├── Col: RMC (period)
+    ├── Col: Projeto Ativo (Sim/Não, green if active)
+    └── Expanded row (colSpan=7): ClientActivitiesList table
+        ├── Tipo (icon + label)
+        ├── Atividade
+        ├── Data
+        └── Responsável
 ```
 
 ## Planned Phases
@@ -81,7 +88,7 @@ CsRadarPage
 | Phase 3 — Charts refinement | **Complete** | ActivityTypeChart colors per type, ResponsibleTable gated by role |
 | Phase 4 — All filters | **Complete** | ResponsibleSelect, ClientMultiSelect, ActivityTypeSelect, SegmentSelect |
 | Phase 5 — Empty/search states | **Complete** | Debounced search, shimmer skeleton, empty states, refetch retry |
-| **All phases** | **Complete** | — |
+| Phase 6 — Table refinement | **Complete** | Row expansion (accordion), replace semaphore with Projeto Ativo, reorder columns, add Descrição column |
 
 ## Key Files
 
