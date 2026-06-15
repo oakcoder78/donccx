@@ -548,11 +548,11 @@ export default function CsRadarPage() {
                   <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
                     <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
                     <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">HS</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Última atividade</th>
                     <th className="text-right px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Qtd</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Última atividade</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Descrição</th>
                     <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">RMC</th>
-                    <th className="text-left px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Projeto</th>
-                    <th className="text-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white w-12">●</th>
+                    <th className="text-center px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white">Projeto Ativo</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -566,11 +566,7 @@ export default function CsRadarPage() {
                     </tr>
                   ) : (
                     filteredClients
-                      .sort((a, b) => {
-                        const order = { red: 0, yellow: 1, green: 2 }
-                        return order[a.semaphore] - order[b.semaphore]
-                      })
-                      .flatMap(c => {
+                        .flatMap(c => {
                         const isOpen = openSet.has(c.id)
                         const items = []
                         items.push(
@@ -584,40 +580,22 @@ export default function CsRadarPage() {
                             <td className="px-4 py-2.5">
                               <HealthBadge score={c.health_total} />
                             </td>
-                            <td className="px-4 py-2.5 text-text-secondary">
-                              {c.last_activity_date ? (
-                                <span className="flex items-center gap-1.5">
-                                  {formatDate(c.last_activity_date)}
-                                  {c.last_activity_type && (
-                                    <ActivityTypeIcon type={c.last_activity_type} />
-                                  )}
-                                </span>
-                              ) : '—'}
-                            </td>
                             <td className="px-4 py-2.5 text-right tabular-nums text-text-primary font-medium">
                               {c.activity_count || '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-text-secondary whitespace-nowrap">
+                              {c.last_activity_date ? formatDate(c.last_activity_date) : '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-text-secondary max-w-[200px] truncate" title={c.last_activity_title || ''}>
+                              {c.last_activity_title || '—'}
                             </td>
                             <td className="px-4 py-2.5 text-text-secondary">
                               {c.last_rmc_period || '—'}
                             </td>
-                            <td className="px-4 py-2.5 text-text-secondary">
-                              {c.active_project_title ? (
-                                <div>
-                                  <span className="text-text-primary">{c.active_project_title}</span>
-                                  {c.active_milestone_title && (
-                                    <span className="text-xs text-text-tertiary ml-1">
-                                      · {c.active_milestone_title}
-                                      {c.active_milestone_progress != null && ` (${c.active_milestone_progress}%)`}
-                                    </span>
-                                  )}
-                                  {c.extra_projects > 0 && (
-                                    <span className="text-xs text-donc-sky ml-1">+{c.extra_projects} outros</span>
-                                  )}
-                                </div>
-                              ) : '—'}
-                            </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <SemaphoreDot color={c.semaphore} />
+                            <td className="px-4 py-2.5 text-center font-medium">
+                              <span className={c.active_project_title ? 'text-donc-verde' : 'text-text-tertiary'}>
+                                {c.active_project_title ? 'Sim' : 'Não'}
+                              </span>
                             </td>
                           </tr>
                         )

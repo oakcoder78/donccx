@@ -227,6 +227,7 @@ export function useCsRadar(filters) {
           abc_class: c.abc_class,
           last_activity_date: lastAct?.activity_date || null,
           last_activity_type: lastAct?.type || null,
+          last_activity_title: lastAct?.title || null,
           activity_count: activityCountByClient[c.id] || 0,
           last_rmc_period: lastRmc?.period || null,
           active_project_title: project?.title || null,
