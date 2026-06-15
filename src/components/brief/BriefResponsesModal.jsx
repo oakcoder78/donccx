@@ -415,8 +415,17 @@ function ClientDoubtsPanel({ clientQuestions, structure, onReply, onToggleVisibi
 }
 
 // ── Question card ────────────────────────────────────────────────────────────
-function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote, clientQsForQ, onShowDoubts, onRemove }) {
+function QuestionCard({ question, idx, response, attachments, savedNote, onSaveNote, onDeleteNote, isSavingNote, clientQsForQ, onShowDoubts, onRemove, onUpdateQuestion, csmPrefill, onPrefillChange }) {
   const hasResponse = !!response?.response_text
+  const [editingText, setEditingText] = useState(false)
+  const [draftText, setDraftText] = useState(question.text)
+  const [editingNote, setEditingNote] = useState(false)
+  const [draftNote, setDraftNote] = useState(question.note || '')
+  const textRef = useRef(null)
+  const noteRef = useRef(null)
+
+  useEffect(() => { if (editingText && textRef.current) textRef.current.focus() }, [editingText])
+  useEffect(() => { if (editingNote && noteRef.current) noteRef.current.focus() }, [editingNote])
 
   const handleDownload = useCallback(async (att) => {
     const { data, error } = await supabase.storage
@@ -425,6 +434,21 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
     if (error || !data?.signedUrl) { toast.error('Erro ao gerar link'); return }
     window.open(data.signedUrl, '_blank', 'noopener')
   }, [])
+
+  const saveText = () => {
+    if (draftText.trim() && draftText !== question.text) {
+      onUpdateQuestion({ text: draftText.trim() })
+    }
+    setEditingText(false)
+  }
+
+  const saveNote = () => {
+    const val = draftNote.trim() || null
+    if (val !== (question.note || null)) {
+      onUpdateQuestion({ note: val })
+    }
+    setEditingNote(false)
+  }
 
   return (
     <div
@@ -442,10 +466,34 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
         </span>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 flex-wrap">
-            <span className="text-sm font-medium text-text-primary leading-snug flex-1">
-              {question.text}
-              {question.required && <span className="text-red-400 ml-0.5">*</span>}
-            </span>
+            {editingText ? (
+              <input
+                ref={textRef}
+                value={draftText}
+                onChange={e => setDraftText(e.target.value)}
+                onBlur={saveText}
+                onKeyDown={e => { if (e.key === 'Enter') saveText(); if (e.key === 'Escape') { setDraftText(question.text); setEditingText(false) } }}
+                className="text-sm font-medium flex-1 min-w-0 bg-transparent border-b-2 outline-none px-0 py-0.5"
+                style={{ borderColor: SKY, color: NAVY }}
+              />
+            ) : (
+              <span
+                className="text-sm font-medium text-text-primary leading-snug flex-1 cursor-pointer hover:text-[#59c2ed] transition-colors"
+                onClick={() => { setDraftText(question.text); setEditingText(true) }}
+              >
+                {question.text}
+                {question.required && <span className="text-red-400 ml-0.5">*</span>}
+              </span>
+            )}
+            {!editingText && (
+              <button
+                onClick={() => { setDraftText(question.text); setEditingText(true) }}
+                className="flex-shrink-0 p-1 text-text-tertiary hover:text-[#59c2ed] transition-colors"
+                title="Editar pergunta"
+              >
+                <Icons.Pencil size={13} />
+              </button>
+            )}
             {hasResponse && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0"
                 style={{ background: 'rgba(34,160,98,0.15)', color: GREEN }}>
@@ -463,18 +511,54 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
             )}
           </div>
 
-          {question.note && (
+          {(question.note || editingNote) && (
             <div className="mt-1.5 flex items-start gap-1.5 text-xs px-2 py-1.5 rounded-md"
               style={{ background: `${SKY}0c`, border: `1px solid ${SKY}30` }}>
               <Icons.HelpCircle size={12} className="flex-shrink-0 mt-0.5" style={{ color: SKY }} />
-              <span className="text-text-secondary">{question.note}</span>
+              {editingNote ? (
+                <input
+                  ref={noteRef}
+                  value={draftNote}
+                  onChange={e => setDraftNote(e.target.value)}
+                  onBlur={saveNote}
+                  onKeyDown={e => { if (e.key === 'Enter') saveNote(); if (e.key === 'Escape') { setDraftNote(question.note || ''); setEditingNote(false) } }}
+                  className="flex-1 min-w-0 bg-transparent border-b-2 outline-none px-0 py-0"
+                  style={{ borderColor: SKY, color: NAVY }}
+                  placeholder="Orientação para resposta…"
+                />
+              ) : (
+                <span
+                  className="text-text-secondary flex-1 cursor-pointer hover:text-[#59c2ed] transition-colors"
+                  onClick={() => { setDraftNote(question.note || ''); setEditingNote(true) }}
+                >
+                  {question.note}
+                </span>
+              )}
+              {!editingNote && (
+                <button
+                  onClick={() => { setDraftNote(question.note || ''); setEditingNote(true) }}
+                  className="flex-shrink-0 text-text-tertiary hover:text-[#59c2ed] transition-colors"
+                  title="Editar orientação"
+                >
+                  <Icons.Pencil size={11} />
+                </button>
+              )}
             </div>
+          )}
+          {!question.note && !editingNote && (
+            <button
+              onClick={() => { setDraftNote(''); setEditingNote(true) }}
+              className="mt-1 text-[11px] text-text-tertiary hover:text-[#59c2ed] transition-colors flex items-center gap-1"
+            >
+              <Icons.Plus size={11} />
+              Adicionar orientação
+            </button>
           )}
         </div>
       </div>
 
-      {/* Response (read-only) */}
-      {hasResponse ? (
+      {/* Response (read-only if client answered, editable pre-fill otherwise) */}
+      {hasResponse && response.responded_by_email !== 'csm' ? (
         <div className="ml-7 mb-2">
           <div className="text-xs text-text-tertiary mb-1 font-medium">Resposta do cliente</div>
           <div
@@ -492,9 +576,15 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
         </div>
       ) : (
         <div className="ml-7 mb-2">
-          <div className="text-xs text-text-tertiary italic px-3 py-2 rounded-lg border border-dashed border-border-tertiary bg-bg-secondary">
-            Sem resposta ainda
-          </div>
+          <div className="text-xs text-text-tertiary mb-1 font-medium">Pré-preenchimento</div>
+          <textarea
+            value={csmPrefill}
+            onChange={e => onPrefillChange(e.target.value)}
+            rows={2}
+            placeholder="Digite uma resposta pré-preenchida para o cliente…"
+            className="w-full text-sm text-text-primary leading-relaxed px-3 py-2 rounded-lg border resize-none outline-none transition-colors"
+            style={{ borderColor: 'var(--color-border-tertiary)', background: 'var(--color-bg-primary)', fontFamily: 'inherit' }}
+          />
         </div>
       )}
 
@@ -579,6 +669,13 @@ export function BriefResponsesModal({ instance, onClose }) {
     replyToQuestion,
     isReplying,
   } = useBriefCsmNotes(instance.id)
+
+  const [editingSectionTitle, setEditingSectionTitle] = useState(false)
+  const [draftSectionTitle, setDraftSectionTitle] = useState('')
+  const [confirmDeleteSection, setConfirmDeleteSection] = useState(null)
+  const [csmPrefills, setCsmPrefills] = useState({})
+  const prefillsRef = useRef(csmPrefills)
+  prefillsRef.current = csmPrefills
 
   const activeSection = structure[activeSectionIdx] ?? null
   const unansweredCount = clientQuestions.filter(q => !q.csm_reply).length
@@ -755,6 +852,81 @@ export function BriefResponsesModal({ instance, onClose }) {
     ))
     setHasChanges(true)
   }
+
+  const editSectionTitle = () => {
+    setDraftSectionTitle(activeSection?.title || '')
+    setEditingSectionTitle(true)
+  }
+
+  const saveSectionTitle = () => {
+    if (!draftSectionTitle.trim()) return
+    setStructure(prev => prev.map((sec, i) =>
+      i === activeSectionIdx ? { ...sec, title: draftSectionTitle.trim() } : sec
+    ))
+    setHasChanges(true)
+    setEditingSectionTitle(false)
+  }
+
+  const handleRemoveSection = (idx) => {
+    const sec = structure[idx]
+    const hasResponses = (sec.questions || []).some(q => !!getResponse(q.id))
+    if (hasResponses) {
+      setConfirmDeleteSection(idx)
+    } else {
+      removeSection(idx)
+    }
+  }
+
+  const removeSection = (idx) => {
+    setStructure(prev => prev.filter((_, i) => i !== idx))
+    setHasChanges(true)
+    if (activeSectionIdx >= idx) {
+      const nextIdx = Math.max(0, idx > 0 ? idx - 1 : 0)
+      setActiveSectionIdx(Math.min(nextIdx, structure.length - 2))
+    }
+  }
+
+  const updateQuestion = (qId, updates) => {
+    setStructure(prev => prev.map((sec, i) =>
+      i === activeSectionIdx
+        ? {
+            ...sec,
+            questions: (sec.questions || []).map(q =>
+              q.id === qId ? { ...q, ...updates } : q
+            ),
+          }
+        : sec
+    ))
+    setHasChanges(true)
+  }
+
+  const upsertResponse = useMutation({
+    mutationFn: async ({ questionId, responseText }) => {
+      const { error } = await supabase.from('brief_responses').upsert({
+        instance_id: instance.id,
+        question_id: questionId,
+        response_text: responseText,
+        responded_by_email: 'csm',
+        responded_by_name: 'CSM (pré-preenchimento)',
+      }, { onConflict: 'instance_id,question_id' })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['brief_responses', instance.id] })
+    },
+    onError: () => toast.error('Erro ao salvar resposta'),
+  })
+
+  const handlePrefillChange = (questionId, value) => {
+    setCsmPrefills(prev => ({ ...prev, [questionId]: value }))
+    if (upsertResponseTimeout.current) clearTimeout(upsertResponseTimeout.current)
+    upsertResponseTimeout.current = setTimeout(() => {
+      upsertResponse.mutate({ questionId, responseText: value })
+    }, 1200)
+  }
+
+  const upsertResponseTimeout = useRef(null)
+
   const updatedAt = instance.updated_at || instance.created_at
 
   return (
@@ -936,7 +1108,37 @@ export function BriefResponsesModal({ instance, onClose }) {
                     <div className="text-xs text-text-tertiary mb-0.5">
                       Seção {activeSectionIdx + 1} de {structure.length}
                     </div>
-                    <h3 className="text-base font-bold" style={{ color: NAVY }}>{activeSection.title}</h3>
+                    <div className="flex items-center gap-2">
+                      {editingSectionTitle ? (
+                        <input
+                          value={draftSectionTitle}
+                          onChange={e => setDraftSectionTitle(e.target.value)}
+                          onBlur={saveSectionTitle}
+                          onKeyDown={e => { if (e.key === 'Enter') saveSectionTitle(); if (e.key === 'Escape') setEditingSectionTitle(false) }}
+                          className="text-base font-bold bg-transparent border-b-2 outline-none px-0 py-0.5 flex-1 min-w-0"
+                          style={{ borderColor: SKY, color: NAVY }}
+                          autoFocus
+                        />
+                      ) : (
+                        <h3 className="text-base font-bold flex-1 min-w-0 truncate" style={{ color: NAVY }}>
+                          {activeSection.title}
+                        </h3>
+                      )}
+                      <button
+                        onClick={editingSectionTitle ? saveSectionTitle : editSectionTitle}
+                        className="p-1.5 rounded-md text-text-tertiary hover:text-[#59c2ed] hover:bg-bg-secondary transition-colors flex-shrink-0"
+                        title={editingSectionTitle ? 'Salvar título' : 'Editar título'}
+                      >
+                        {editingSectionTitle ? <Icons.Check size={15} /> : <Icons.Pencil size={15} />}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveSection(activeSectionIdx)}
+                        className="p-1.5 rounded-md text-text-tertiary hover:text-red-500 hover:bg-bg-secondary transition-colors flex-shrink-0"
+                        title="Excluir seção"
+                      >
+                        <Icons.Trash2 size={15} />
+                      </button>
+                    </div>
                     {activeSection.deliverable && (
                       <p className="text-xs text-text-tertiary mt-1 max-w-xl">
                         <span className="font-medium" style={{ color: SKY }}>Entregável:</span>{' '}
@@ -961,6 +1163,9 @@ export function BriefResponsesModal({ instance, onClose }) {
                         clientQsForQ={getClientQsForQ(q.id)}
                         onShowDoubts={() => handleShowDoubts(q.id)}
                         onRemove={() => handleRemoveQuestion(qIdx)}
+                        onUpdateQuestion={(updates) => updateQuestion(q.id, updates)}
+                        csmPrefill={csmPrefills[q.id] || response?.response_text || ''}
+                        onPrefillChange={(val) => handlePrefillChange(q.id, val)}
                       />
                     ))}
 
@@ -1046,7 +1251,7 @@ export function BriefResponsesModal({ instance, onClose }) {
         </div>
       </div>
 
-      {/* Confirm delete modal */}
+      {/* Confirm delete question modal */}
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setConfirmDelete(null)}>
           <div
@@ -1078,6 +1283,45 @@ export function BriefResponsesModal({ instance, onClose }) {
                   className="flex-1 text-xs px-3 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
                 >
                   Remover
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm delete section modal */}
+      {confirmDeleteSection !== null && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setConfirmDeleteSection(null)}>
+          <div
+            className="bg-bg-primary rounded-xl w-full flex flex-col overflow-hidden shadow-2xl"
+            style={{ maxWidth: 400 }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <Icons.XCircle size={20} className="text-red-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-text-primary">Excluir seção?</h3>
+                </div>
+              </div>
+              <p className="text-sm text-text-secondary mb-4">
+                Esta seção contém perguntas com respostas do cliente. Ao excluir, as respostas ficarão órfãs. Deseja continuar?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setConfirmDeleteSection(null)}
+                  className="flex-1 text-xs px-3 py-2 rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => { removeSection(confirmDeleteSection); setConfirmDeleteSection(null) }}
+                  className="flex-1 text-xs px-3 py-2 rounded-lg bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+                >
+                  Excluir
                 </button>
               </div>
             </div>
