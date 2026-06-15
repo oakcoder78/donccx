@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect, Fragment } from 'react'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { useCsRadar } from '@/hooks/useCsRadar'
@@ -157,6 +157,7 @@ export default function CsRadarPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedDate, setSelectedDate] = useState(null)
+  const [openSet, setOpenSet] = useState(new Set())
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchTerm), 300)
@@ -186,6 +187,14 @@ export default function CsRadarPage() {
     setSegmentIds([])
     setSearchTerm('')
   }, [])
+
+  function toggleRow(clientId) {
+    setOpenSet(prev => {
+      const next = new Set(prev)
+      next.has(clientId) ? next.delete(clientId) : next.add(clientId)
+      return next
+    })
+  }
 
   const filters = useMemo(() => {
     const range = computeDateRange(period, customFrom ? new Date(customFrom + 'T00:00:00') : null, customTo ? new Date(customTo + 'T00:00:00') : null)
@@ -561,51 +570,71 @@ export default function CsRadarPage() {
                         const order = { red: 0, yellow: 1, green: 2 }
                         return order[a.semaphore] - order[b.semaphore]
                       })
-                      .map(c => (
-                        <tr key={c.id} className="border-b border-border-tertiary last:border-b-0 hover:bg-bg-secondary transition-colors">
-                          <td className="px-4 py-2.5">
-                            <span className="font-medium text-text-primary">{c.fantasy_name}</span>
-                          </td>
-                          <td className="px-4 py-2.5">
-                            <HealthBadge score={c.health_total} />
-                          </td>
-                          <td className="px-4 py-2.5 text-text-secondary">
-                            {c.last_activity_date ? (
-                              <span className="flex items-center gap-1.5">
-                                {formatDate(c.last_activity_date)}
-                                {c.last_activity_type && (
-                                  <ActivityTypeIcon type={c.last_activity_type} />
-                                )}
-                              </span>
-                            ) : '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-right tabular-nums text-text-primary font-medium">
-                            {c.activity_count || '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-text-secondary">
-                            {c.last_rmc_period || '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-text-secondary">
-                            {c.active_project_title ? (
-                              <div>
-                                <span className="text-text-primary">{c.active_project_title}</span>
-                                {c.active_milestone_title && (
-                                  <span className="text-xs text-text-tertiary ml-1">
-                                    · {c.active_milestone_title}
-                                    {c.active_milestone_progress != null && ` (${c.active_milestone_progress}%)`}
-                                  </span>
-                                )}
-                                {c.extra_projects > 0 && (
-                                  <span className="text-xs text-donc-sky ml-1">+{c.extra_projects} outros</span>
-                                )}
+                      .flatMap(c => {
+                        const isOpen = openSet.has(c.id)
+                        const items = []
+                        items.push(
+                          <tr key={c.id} className="border-b border-border-tertiary last:border-b-0 hover:bg-bg-secondary transition-colors cursor-pointer" onClick={() => toggleRow(c.id)}>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <ChevronIcon open={isOpen} />
+                                <span className="font-medium text-text-primary">{c.fantasy_name}</span>
                               </div>
-                            ) : '—'}
-                          </td>
-                          <td className="px-4 py-2.5 text-center">
-                            <SemaphoreDot color={c.semaphore} />
-                          </td>
-                        </tr>
-                      ))
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <HealthBadge score={c.health_total} />
+                            </td>
+                            <td className="px-4 py-2.5 text-text-secondary">
+                              {c.last_activity_date ? (
+                                <span className="flex items-center gap-1.5">
+                                  {formatDate(c.last_activity_date)}
+                                  {c.last_activity_type && (
+                                    <ActivityTypeIcon type={c.last_activity_type} />
+                                  )}
+                                </span>
+                              ) : '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-text-primary font-medium">
+                              {c.activity_count || '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-text-secondary">
+                              {c.last_rmc_period || '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-text-secondary">
+                              {c.active_project_title ? (
+                                <div>
+                                  <span className="text-text-primary">{c.active_project_title}</span>
+                                  {c.active_milestone_title && (
+                                    <span className="text-xs text-text-tertiary ml-1">
+                                      · {c.active_milestone_title}
+                                      {c.active_milestone_progress != null && ` (${c.active_milestone_progress}%)`}
+                                    </span>
+                                  )}
+                                  {c.extra_projects > 0 && (
+                                    <span className="text-xs text-donc-sky ml-1">+{c.extra_projects} outros</span>
+                                  )}
+                                </div>
+                              ) : '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <SemaphoreDot color={c.semaphore} />
+                            </td>
+                          </tr>
+                        )
+                        if (isOpen) {
+                          items.push(
+                            <tr key={`exp-${c.id}`} className="border-b border-border-tertiary">
+                              <td colSpan={7} className="px-4 py-3 bg-bg-secondary">
+                                <ClientActivitiesList
+                                  activities={data.clientActivities[c.id] || []}
+                                  clientName={c.fantasy_name}
+                                />
+                              </td>
+                            </tr>
+                          )
+                        }
+                        return items
+                      })
                   )}
                 </tbody>
               </table>
@@ -649,6 +678,67 @@ function formatDate(dateStr) {
   if (!dateStr) return '—'
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+}
+
+const TYPE_LABELS = {
+  reuniao: 'Reunião',
+  ligacao: 'Ligação',
+  email: 'E-mail',
+  whatsapp: 'WhatsApp',
+  tarefa: 'Tarefa',
+  nota: 'Nota',
+}
+
+function ChevronIcon({ open }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+      className="transition-transform duration-200 flex-shrink-0 text-text-tertiary"
+      style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+    >
+      <path d="M2.5 4.5l3.5 3.5 3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function ClientActivitiesList({ activities, clientName }) {
+  return (
+    <div>
+      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
+        Atividades de {clientName} ({activities.length})
+      </div>
+      {activities.length === 0 ? (
+        <div className="text-sm text-text-tertiary py-2">Nenhuma atividade no período.</div>
+      ) : (
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-donc-navy text-white">
+                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white">Tipo</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white">Atividade</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white">Data</th>
+                <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wider text-white">Responsável</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activities.map(a => (
+                <tr key={a.id} className="border-b border-border-tertiary last:border-b-0 hover:bg-bg-secondary transition-colors">
+                  <td className="px-4 py-2 text-text-secondary">
+                    <span className="flex items-center gap-1.5">
+                      <ActivityTypeIcon type={a.type} />
+                      <span>{TYPE_LABELS[a.type] || a.type}</span>
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 text-text-primary">{a.title}</td>
+                  <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{formatDate(a.activity_date)}</td>
+                  <td className="px-4 py-2 text-text-secondary">{a.responsible_name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function HeatmapGrid({ data, selectedDate, onCellClick }) {

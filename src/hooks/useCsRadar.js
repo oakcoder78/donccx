@@ -110,7 +110,20 @@ export function useCsRadar(filters) {
         })
       }
 
-      // ── 9. RMCs published ──
+      // ── 9. Client activities (grouped by client for row expansion) ──
+      const clientActivities = {}
+      for (const a of activities) {
+        if (!clientActivities[a.client_id]) clientActivities[a.client_id] = []
+        clientActivities[a.client_id].push({
+          id: a.id,
+          type: a.type,
+          title: a.title,
+          activity_date: a.activity_date,
+          responsible_name: a.responsible?.name || '—',
+        })
+      }
+
+      // ── 10. RMCs published ──
       let rmcQuery = supabase
         .from('client_reports')
         .select('client_id, period, published_at')
@@ -236,6 +249,7 @@ export function useCsRadar(filters) {
         byResponsible,
         heatmap,
         dayActivities,
+        clientActivities,
         clients: clientRows,
       }
     },
