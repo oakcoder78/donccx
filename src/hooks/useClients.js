@@ -96,17 +96,31 @@ export function useClientMutations() {
       if (error) throw error
 
       if (catalogItems !== undefined) {
-        const { error: delErr } = await supabase.from('client_catalog').delete().eq('client_id', id)
+        const currentIds = catalogItems.map(item =>
+          typeof item === 'object' ? item.catalog_item_id : item
+        )
+
+        // Delete entries no longer in the selection
+        let query = supabase.from('client_catalog').delete().eq('client_id', id)
+        if (currentIds.length > 0) {
+          query = query.filter('catalog_item_id', 'not.in', `(${currentIds.join(',')})`)
+        }
+        const { error: delErr } = await query
         if (delErr) throw delErr
+
+        // Upsert current entries (handles duplicates via onConflict)
         if (catalogItems.length) {
-          const { error: insErr } = await supabase.from('client_catalog').insert(
-            catalogItems.map(item => {
-              const cid = typeof item === 'object' ? item.catalog_item_id : item
-              const st  = typeof item === 'object' ? (item.status || 'implantado') : 'implantado'
-              return { client_id: id, catalog_item_id: cid, status: st }
-            })
-          )
-          if (insErr) throw insErr
+          const { error: upsErr } = await supabase
+            .from('client_catalog')
+            .upsert(
+              catalogItems.map(item => ({
+                client_id: id,
+                catalog_item_id: typeof item === 'object' ? item.catalog_item_id : item,
+                status: typeof item === 'object' ? (item.status || 'implantado') : 'implantado',
+              })),
+              { onConflict: 'client_id,catalog_item_id' }
+            )
+          if (upsErr) throw upsErr
         }
       }
 
