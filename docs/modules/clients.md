@@ -152,6 +152,15 @@ This ensures early-stage clients do not see irrelevant information and the inter
 4. Form calls Supabase `update`.
 5. Detail view updates with new data.
 
+### Client Save Resilience (2026-06-15)
+The `useClients.js` mutation was hardened against race conditions and RLS failures:
+
+- **Validation:** when `lifecycle_stage === 'cliente'`, both `selectedCatalog` (service chips in Operacional tab) and `modPricing` (solution toggles in Contrato tab) are checked. Previously only `selectedCatalog` was checked, blocking save for clients with only solutions.
+- **Save strategy for `client_catalog`:** replaced `delete-all + insert` with **selective delete** (only rows removed from selection) + **upsert** (`onConflict: client_id,catalog_item_id`). This prevents 409 Conflict errors from trigger rollbacks and eliminates duplicates.
+- **Deduplication:** `catalogItems` is deduplicated by `catalog_item_id` via `Map` — prevents PostgreSQL `ON CONFLICT DO UPDATE cannot affect row a second time` error when the same `catalog_item_id` appears in both `selectedCatalog` and `modPricing`.
+- **Error handling:** all `delete`/`insert`/`upsert` calls check and throw on error; `saveModPricing` has an explicit `onError` toast handler.
+- **Root cause:** `client_catalog_history` had RLS enabled but no INSERT policy. The trigger `trg_client_catalog_history` (AFTER INSERT/UPDATE on `client_catalog`) tried to insert into history and failed, rolling back the entire transaction. Fixed by migration `20260615000001`.
+
 ### Flow: View Client Detail
 1. User clicks a client card.
 2. Router loads `ClientDetail` with client ID.

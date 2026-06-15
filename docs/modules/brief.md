@@ -113,6 +113,12 @@ Wide (max 1000px) two-column modal — Hub CSM view with internal notes layer:
 - **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; below sections: separator + **"Dúvidas" item** (`Icons.MessageCircle`, sky ring bg when active) with red badge counting unanswered `clientQuestions`
 - **Navigation state:** `activeView: 'section' | 'doubts'` + `activeSectionIdx`. Clicking a section sets `activeView='section'`; clicking "Dúvidas" sets `activeView='doubts'`. Footer Anterior/Próxima disabled when `activeView='doubts'`.
 - **Right panel — section view:** sticky section header (eyebrow, title, deliverable); per-question cards:
+  - Section title inline edit: pencil icon → input field → Enter/blur saves, Escape cancels (`editingSectionTitle` state)
+  - Section deliverable ("Entregável") inline edit: same pattern as title, pencil → input → save
+  - Section delete: Trash2 icon → confirm if section has any responses, otherwise removes immediately; `handleRemoveSection` checks `getResponse(q.id)` per question
+  - Question text inline edit: pencil on question label → input → blur/Enter saves to `question.text` in `structure` state; `handleUpdateQuestion(sIdx, qIdx, { text: ... })`
+  - Question note inline edit: pencil on hint box → input → blur/Enter saves to `question.note`; inline (doesn't expand note area)
+  - **Pre-fill answers:** CSM can type directly in the response textarea when no client response exists (checked via `responded_by_email !== 'csm'`). Auto-saves with 1.2s debounce via `upsertResponse` mutation → `brief_responses` with `responded_by_email: 'csm'`. On the public page, client sees pre-fill as editable and can overwrite.
   - hint box (sky, if `question.note`)
   - client response (read-only)
   - attachments with signed URL download

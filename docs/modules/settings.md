@@ -136,5 +136,8 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 - `src/components/settings/SettingsDoncAPI.jsx` – DONC API configuration UI.
 - `src/components/settings/SettingsFeatureFlags.jsx` – feature‑flag toggles UI.
 - `src/components/settings/SettingsFaseTypes.jsx` – onboarding phase types UI. Table columns: Nome, Descrição, Marco, Req. Evidência, Permite Anexos, Ordem, Ativo, Ações.
+  - **Fix (2026-06-15):** column map usava nomes em português (`ativo`, `nome`, `descricao`) — corrigido para os nomes reais da coluna `onboarding_fase_types`: `active`, `name`, `description`.
 - `src/components/settings/SettingsActivityTypes.jsx` – onboarding activity types UI.
 - `src/components/settings/SettingsProjectTemplates.jsx` – project templates UI.
+  - **Fix (2026-06-15):** toggle crash (`e.stopPropagation is not a function` no onChange) — movido `stopPropagation` para onClick do botão.
+  - **Fix (2026-06-15):** `addFase` inseria em `project_template_activities` (que requer `activity_type_id NOT NULL`) — corrigido para `project_template_fases`.

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-06-15
+
+### Brief — Edição Inline + Preenchimento CSM
+- **New:** Section title inline edit + section delete (pencil icon, Enter/blur salva, Escape cancela) (`d8bfa2c`)
+- **New:** Question text + note inline edit (mesmo pattern: blur/Enter salva, Escape reverte) (`d8bfa2c`)
+- **New:** Section deliverable ("Entregável") inline edit (`4f30640`)
+- **New:** Pre-fill answers — upsert em `brief_responses` com `responded_by_email: 'csm'`, debounce 1.2s (`d8bfa2c`)
+- **Fix:** `BriefResponsesModal` — `ReferenceError: response is not defined` → `getResponse(q.id)?.response_text` (`7d9a256`)
+- **DB:** Migration `20260615000000` — policies `brief_responses_insert` / `brief_responses_update` para CSMs e admin/manager
+
+### Settings — Column Mapping + Crash Fix
+- **Fix:** `SettingsFaseTypes` — mapeia `ativo`→`active`, `nome`→`name`, `descricao`→`description` em 7 locais (empty state, Toggle, startEdit, handleAdd, handleEdit, handleToggleAtivo) (`4f13ede`)
+- **Fix:** `SettingsProjectTemplates` — toggle crash (`e.stopPropagation is not a function`); `addFase` escrevia em `project_template_activities` em vez de `project_template_fases` (`4407e9c`, `42c9dc0`)
+
+### Clients — Validação + Resiliência de Save
+- **Fix:** Validação agora aceita soluções ativas (`modPricing`), não só serviços (`selectedCatalog`) (`9b56643`)
+- **Fix:** Save de `client_catalog` troca `delete-all + insert` por `selective delete (só removidos) + upsert` com `onConflict`, eliminando 409/500 (`29b7d5c`)
+- **Fix:** `catalogItems` deduplicado por `Map(catalog_item_id)` — evita `ON CONFLICT DO UPDATE cannot affect row a second time` (`a583810`)
+- **Fix:** Error checks adicionados em `delete`/`insert`/`upsert` de `client_catalog` e `module_pricing` (`9b56643`, `df08cb8`)
+- **Fix:** `saveModPricing` ganha `onError` handler com toast (`9b56643`)
+- **DB:** Migration `20260615000001` — policy `client_catalog_history_insert` (trigger `trg_client_catalog_history` quebrava por RLS sem insert policy)
+
 ## 2026-06-14
 
 ### Cockpits — Project Cockpit (Novo)
@@ -224,11 +246,14 @@
 
 | Migration | Description |
 |-----------|-------------|
+| `20260615000001_fix_client_catalog_history_rls.sql` | Adds `client_catalog_history_insert` policy — trigger quebrava por RLS ao salvar client_catalog |
+| `20260615000000_brief_responses_insert_policy.sql` | Adds `brief_responses_insert` / `brief_responses_update` policies |
+| `20260614000000_projects_cockpit_flag.sql` | Adds `projects_cockpit` feature flag |
+| `20260522000000_brief_views.sql` | Creates `brief_views` table for tracking who viewed each brief |
 | `20260521000004_correct_relatorio_mensal_template.sql` | Corrected `relatorio_mensal` email template HTML |
 | `20260521000003_fix_report_views.sql` | UNIQUE `(report_id, email)` on `report_views` + updated RPC |
 | `20260521000002_fix_relatorio_mensal_template.sql` | Replaced `relatorio_mensal` template with Comunicado Geral shell |
 | `20260521000000_relatorio_mensal_template.sql` | Initial `relatorio_mensal` email template (superseded) |
-| `20260522000000_brief_views.sql` | Creates `brief_views` table for tracking who viewed each brief |
 | `20260521000000_brief_csm_notes_allow_reply_to_client_questions.sql` | Broadens RLS to allow CSM reply on client questions |
 | `20260520000000_brief_csm_notes_client_questions.sql` | Adds `origin`, `client_email`, `client_name`, `csm_reply`, `replied_at`, `replied_by` to `brief_csm_notes` |
 | `20260519000000_brief_csm_notes_question_id.sql` | Adds `question_id` column to `brief_csm_notes` for per-question notes |
