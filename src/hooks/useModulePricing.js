@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
+import toast from 'react-hot-toast'
 
 export function useModulePricing(clientId) {
   return useQuery({
@@ -22,7 +23,8 @@ export function useModulePricingMutations() {
 
   const saveAll = useMutation({
     mutationFn: async ({ clientId, items }) => {
-      await supabase.from('module_pricing').delete().eq('client_id', clientId)
+      const { error: delErr } = await supabase.from('module_pricing').delete().eq('client_id', clientId)
+      if (delErr) throw delErr
       if (items.length > 0) {
         const { error } = await supabase.from('module_pricing').insert(items)
         if (error) throw error
@@ -32,6 +34,7 @@ export function useModulePricingMutations() {
       qc.invalidateQueries({ queryKey: ['module_pricing', clientId] })
       qc.invalidateQueries({ queryKey: ['client', String(clientId)] })
     },
+    onError: (e) => toast.error('Erro ao salvar módulos: ' + e.message),
   })
 
   return { saveAll }

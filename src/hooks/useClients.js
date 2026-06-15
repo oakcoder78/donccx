@@ -96,15 +96,17 @@ export function useClientMutations() {
       if (error) throw error
 
       if (catalogItems !== undefined) {
-        await supabase.from('client_catalog').delete().eq('client_id', id)
+        const { error: delErr } = await supabase.from('client_catalog').delete().eq('client_id', id)
+        if (delErr) throw delErr
         if (catalogItems.length) {
-          await supabase.from('client_catalog').insert(
+          const { error: insErr } = await supabase.from('client_catalog').insert(
             catalogItems.map(item => {
               const cid = typeof item === 'object' ? item.catalog_item_id : item
               const st  = typeof item === 'object' ? (item.status || 'implantado') : 'implantado'
               return { client_id: id, catalog_item_id: cid, status: st }
             })
           )
+          if (insErr) throw insErr
         }
       }
 

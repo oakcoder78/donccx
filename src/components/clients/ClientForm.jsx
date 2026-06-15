@@ -237,9 +237,12 @@ export function ClientForm({ client, onClose }) {
   async function handleSubmit(e) {
     e.preventDefault()
 
-    if (form.lifecycle_stage === 'cliente' && selectedCatalog.length === 0) {
-      toast.error('Clientes devem possuir ao menos um serviço selecionado.')
-      return
+    if (form.lifecycle_stage === 'cliente') {
+      const hasActiveSolutions = Object.values(modPricing).some(v => v.active)
+      if (selectedCatalog.length === 0 && !hasActiveSolutions) {
+        toast.error('Clientes devem possuir ao menos um serviço ou solução selecionado.')
+        return
+      }
     }
 
     let logoUrl = form.logo_url
