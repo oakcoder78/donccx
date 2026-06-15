@@ -1164,7 +1164,7 @@ export function BriefResponsesModal({ instance, onClose }) {
                         onShowDoubts={() => handleShowDoubts(q.id)}
                         onRemove={() => handleRemoveQuestion(qIdx)}
                         onUpdateQuestion={(updates) => updateQuestion(q.id, updates)}
-                        csmPrefill={csmPrefills[q.id] || response?.response_text || ''}
+                        csmPrefill={csmPrefills[q.id] ?? getResponse(q.id)?.response_text ?? ''}
                         onPrefillChange={(val) => handlePrefillChange(q.id, val)}
                       />
                     ))}
