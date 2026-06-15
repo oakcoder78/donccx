@@ -627,7 +627,6 @@ export default function CsRadarPage() {
                               <td colSpan={7} className="px-4 py-3 bg-bg-secondary">
                                 <ClientActivitiesList
                                   activities={data.clientActivities[c.id] || []}
-                                  clientName={c.fantasy_name}
                                 />
                               </td>
                             </tr>
@@ -700,12 +699,9 @@ function ChevronIcon({ open }) {
   )
 }
 
-function ClientActivitiesList({ activities, clientName }) {
+function ClientActivitiesList({ activities }) {
   return (
     <div>
-      <div className="text-xs font-medium text-text-tertiary uppercase tracking-wide mb-2">
-        Atividades de {clientName} ({activities.length})
-      </div>
       {activities.length === 0 ? (
         <div className="text-sm text-text-tertiary py-2">Nenhuma atividade no período.</div>
       ) : (
