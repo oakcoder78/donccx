@@ -17,7 +17,7 @@ function Toggle({ checked, onChange, disabled, title }) {
   return (
     <button
       type="button"
-      onClick={() => !disabled && onChange(!checked)}
+      onClick={(e) => { e.stopPropagation(); !disabled && onChange(!checked) }}
       disabled={disabled}
       style={{
         width: 30, height: 17, borderRadius: 9,
@@ -412,7 +412,7 @@ function TemplateCard({
             <span>Padrão</span>
             <Toggle
               checked={template.is_default}
-              onChange={e => { e.stopPropagation(); onToggleDefault(template.is_default) }}
+              onChange={() => onToggleDefault(template.is_default)}
             />
           </label>
           {isManager && (
