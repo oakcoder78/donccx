@@ -261,7 +261,10 @@ export function ClientForm({ client, onClose }) {
     const activeModItems = Object.entries(modPricing)
       .filter(([, v]) => v.active)
       .map(([id, v]) => ({ catalog_item_id: Number(id), status: v.status || 'implantado' }))
-    const catalogItems = [...servicesInCatalog, ...activeModItems]
+    // Deduplicate by catalog_item_id (last wins — activeModItems carries correct status)
+    const catalogItems = [...new Map(
+      [...servicesInCatalog, ...activeModItems].map(i => [i.catalog_item_id, i])
+    ).values()]
 
     const payload = {
       name: form.name,
