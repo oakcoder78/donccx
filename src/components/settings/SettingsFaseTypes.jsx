@@ -11,7 +11,7 @@ import { SettingsSectionHeader } from './SettingsSectionHeader'
 const EMPTY = {
   nome: '', descricao: '', is_milestone: false,
   requires_evidence: false, allows_attachments: true,
-  display_order: 0, ativo: true,
+  display_order: 0, active: true,
 }
 
 function Toggle({ value, onChange, disabled }) {
@@ -88,7 +88,7 @@ function InlineForm({ form, setForm, onSave, onCancel, saving, withMilestone }) 
       </div>
       <div className="flex items-center gap-6">
         <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer select-none">
-          <Toggle value={form.ativo} onChange={v => set('ativo', v)} />
+          <Toggle value={form.active} onChange={v => set('active', v)} />
           Ativo
         </label>
         {withMilestone && (
@@ -155,7 +155,7 @@ export function SettingsFaseTypes() {
       requires_evidence: item.requires_evidence,
       allows_attachments: item.allows_attachments ?? true,
       display_order: item.display_order,
-      ativo: item.active,
+      active: item.active,
     })
   }
 
@@ -163,13 +163,13 @@ export function SettingsFaseTypes() {
     if (!newForm.nome.trim()) { toast.error('Nome obrigatório'); return }
     setSaving(true)
     const { error } = await supabase.from('onboarding_fase_types').insert({
-      nome: newForm.nome.trim(),
-      descricao: newForm.descricao || null,
+      name: newForm.nome.trim(),
+      description: newForm.descricao || null,
       is_milestone: newForm.is_milestone,
       requires_evidence: newForm.requires_evidence,
       allows_attachments: newForm.allows_attachments,
       display_order: Number(newForm.display_order),
-      ativo: newForm.ativo,
+      active: newForm.active,
     })
     setSaving(false)
     if (error) { toast.error(error.message); return }
@@ -185,13 +185,13 @@ export function SettingsFaseTypes() {
     const { error } = await supabase
       .from('onboarding_fase_types')
       .update({
-        nome: editForm.nome.trim(),
-        descricao: editForm.descricao || null,
+        name: editForm.nome.trim(),
+        description: editForm.descricao || null,
         is_milestone: editForm.is_milestone,
         requires_evidence: editForm.requires_evidence,
         allows_attachments: editForm.allows_attachments,
         display_order: Number(editForm.display_order),
-        ativo: editForm.ativo,
+        active: editForm.active,
       })
       .eq('id', editingId)
     setSaving(false)
@@ -204,10 +204,10 @@ export function SettingsFaseTypes() {
   async function handleToggleAtivo(item) {
     const { error } = await supabase
       .from('onboarding_fase_types')
-      .update({ ativo: !item.active })
+      .update({ active: !item.active })
       .eq('id', item.id)
     if (error) { toast.error(error.message); return }
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, ativo: !i.ativo } : i))
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, active: !i.active } : i))
   }
 
   async function handleDelete(item) {
