@@ -191,7 +191,7 @@ export function SettingsProjectTemplates() {
   const addFase = useMutation({
     mutationFn: async ({ templateId, faseTypeId }) => {
       const faseType = faseTypes?.find(f => f.id === parseInt(faseTypeId))
-      const { error } = await supabase.from('project_template_activities').insert({
+      const { error } = await supabase.from('project_template_fases').insert({
         template_id: templateId,
         fase_type_id: parseInt(faseTypeId),
         display_order: faseType?.display_order || 0,
