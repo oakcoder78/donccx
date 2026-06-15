@@ -673,6 +673,8 @@ export function BriefResponsesModal({ instance, onClose }) {
   const [editingSectionTitle, setEditingSectionTitle] = useState(false)
   const [draftSectionTitle, setDraftSectionTitle] = useState('')
   const [confirmDeleteSection, setConfirmDeleteSection] = useState(null)
+  const [editingSectionDeliverable, setEditingSectionDeliverable] = useState(false)
+  const [draftSectionDeliverable, setDraftSectionDeliverable] = useState('')
   const [csmPrefills, setCsmPrefills] = useState({})
   const prefillsRef = useRef(csmPrefills)
   prefillsRef.current = csmPrefills
@@ -865,6 +867,19 @@ export function BriefResponsesModal({ instance, onClose }) {
     ))
     setHasChanges(true)
     setEditingSectionTitle(false)
+  }
+
+  const editSectionDeliverable = () => {
+    setDraftSectionDeliverable(activeSection?.deliverable || '')
+    setEditingSectionDeliverable(true)
+  }
+
+  const saveSectionDeliverable = () => {
+    setStructure(prev => prev.map((sec, i) =>
+      i === activeSectionIdx ? { ...sec, deliverable: draftSectionDeliverable.trim() || sec.deliverable } : sec
+    ))
+    setHasChanges(true)
+    setEditingSectionDeliverable(false)
   }
 
   const handleRemoveSection = (idx) => {
@@ -1139,12 +1154,33 @@ export function BriefResponsesModal({ instance, onClose }) {
                         <Icons.Trash2 size={15} />
                       </button>
                     </div>
-                    {activeSection.deliverable && (
-                      <p className="text-xs text-text-tertiary mt-1 max-w-xl">
-                        <span className="font-medium" style={{ color: SKY }}>Entregável:</span>{' '}
-                        {activeSection.deliverable}
-                      </p>
-                    )}
+                    {activeSection.deliverable || editingSectionDeliverable ? (
+                      <div className="flex items-center gap-2 mt-1 max-w-xl">
+                        {editingSectionDeliverable ? (
+                          <input
+                            value={draftSectionDeliverable}
+                            onChange={e => setDraftSectionDeliverable(e.target.value)}
+                            onBlur={saveSectionDeliverable}
+                            onKeyDown={e => { if (e.key === 'Enter') saveSectionDeliverable(); if (e.key === 'Escape') { setDraftSectionDeliverable(activeSection.deliverable || ''); setEditingSectionDeliverable(false) }}}
+                            className="text-xs bg-transparent border-b outline-none px-0 py-0.5 flex-1 min-w-0"
+                            style={{ borderColor: SKY }}
+                            autoFocus
+                          />
+                        ) : (
+                          <p className="text-xs text-text-tertiary flex-1 min-w-0">
+                            <span className="font-medium" style={{ color: SKY }}>Entregável:</span>{' '}
+                            {activeSection.deliverable}
+                          </p>
+                        )}
+                        <button
+                          onClick={editingSectionDeliverable ? saveSectionDeliverable : editSectionDeliverable}
+                          className="p-1 rounded-md text-text-tertiary hover:text-[#59c2ed] hover:bg-bg-secondary transition-colors flex-shrink-0"
+                          title={editingSectionDeliverable ? 'Salvar entregável' : 'Editar entregável'}
+                        >
+                          {editingSectionDeliverable ? <Icons.Check size={13} /> : <Icons.Pencil size={13} />}
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Questions */}
