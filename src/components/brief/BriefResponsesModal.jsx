@@ -649,6 +649,68 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
   )
 }
 
+function normalize(str) {
+  return str.replace(/\s+/g, ' ').replace(/ \*$/, '').trim().toLowerCase()
+}
+
+function parseBriefMD(md, sections) {
+  const matches = []
+  const warnings = []
+  const sectionBlocks = md.split(/(?=^## )/m)
+
+  for (const block of sectionBlocks) {
+    const sectionMatch = block.match(/^## (.+)$/m)
+    if (!sectionMatch) continue
+    const sectionTitle = sectionMatch[1].trim()
+    const section = sections.find(s => normalize(s.title) === normalize(sectionTitle))
+    if (!section) { warnings.push({ text: sectionTitle, reason: 'Seção não encontrada no brief' }); continue }
+
+    const questionBlocks = block.split(/(?=^### )/m)
+    for (const qBlock of questionBlocks) {
+      const qMatch = qBlock.match(/^### (.+)$/m)
+      if (!qMatch) continue
+      const questionText = qMatch[1].replace(/ \*$/, '').trim()
+      const question = section.questions.find(q => normalize(q.text) === normalize(questionText))
+      if (!question) { warnings.push({ text: questionText, reason: 'Pergunta não encontrada no brief' }); continue }
+
+      const lines = qBlock.split('\n')
+      let inOrientacao = false
+      const responseParts = []
+      for (const line of lines) {
+        if (line.startsWith('> **Orientação:')) { inOrientacao = true; continue }
+        if (inOrientacao && line.startsWith('>')) continue
+        inOrientacao = false
+        if (line.startsWith('> ')) responseParts.push(line.slice(2))
+      }
+      matches.push({ questionId: question.id, questionText: question.text, newResponse: responseParts.join('\n').trim() })
+    }
+  }
+  return { matches, warnings }
+}
+
+function parseJSON(text, sections) {
+  const matches = []
+  const warnings = []
+  let data
+  try { data = JSON.parse(text) } catch { return { matches, warnings: [{ text: 'Arquivo', reason: 'JSON inválido' }] } }
+  const items = data.responses || data
+  if (!Array.isArray(items)) return { matches, warnings: [{ text: 'Arquivo', reason: 'JSON deve conter um array de respostas' }] }
+  const allQuestions = sections.flatMap(s => s.questions || [])
+  const questionMap = new Map(allQuestions.map(q => [q.id, q.text]))
+  for (const item of items) {
+    if (!item.question_id) { warnings.push({ text: 'Item sem question_id', reason: 'question_id ausente' }); continue }
+    const questionText = questionMap.get(item.question_id)
+    if (!questionText) { warnings.push({ text: item.question_id, reason: 'question_id não encontrado no brief' }); continue }
+    matches.push({ questionId: item.question_id, questionText, newResponse: item.response_text || '' })
+  }
+  return { matches, warnings }
+}
+
+function parseUploadFile(text, fileName, sections) {
+  if (fileName.endsWith('.json')) return parseJSON(text, sections)
+  return parseBriefMD(text, sections)
+}
+
 // ── Main modal ───────────────────────────────────────────────────────────────
 export function BriefResponsesModal({ instance, onClose }) {
   const qc = useQueryClient()
@@ -678,6 +740,8 @@ export function BriefResponsesModal({ instance, onClose }) {
   const [csmPrefills, setCsmPrefills] = useState({})
   const prefillsRef = useRef(csmPrefills)
   prefillsRef.current = csmPrefills
+  const [uploadState, setUploadState] = useState({ show: false, fileName: '', matches: [], warnings: [], isUploading: false })
+  const fileInputRef = useRef(null)
 
   const activeSection = structure[activeSectionIdx] ?? null
   const unansweredCount = clientQuestions.filter(q => !q.csm_reply).length
@@ -794,6 +858,32 @@ export function BriefResponsesModal({ instance, onClose }) {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+
+  const handleUploadClick = () => fileInputRef.current?.click()
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const text = event.target.result
+      const { matches, warnings } = parseUploadFile(text, file.name, structure)
+      const enriched = matches.map(m => {
+        const existing = responses?.find(r => r.question_id === m.questionId)
+        return { ...m, oldResponse: existing?.response_text || '', status: existing?.response_text ? 'changed' : 'new' }
+      })
+      if (!enriched.length) { toast.warn('Nenhuma resposta reconhecida no arquivo.'); return }
+      setUploadState({ show: true, fileName: file.name, matches: enriched, warnings, isUploading: false })
+    }
+    reader.onerror = () => toast.error('Erro ao ler o arquivo')
+    reader.readAsText(file)
+    e.target.value = ''
+  }
+
+  const handleConfirmUpload = () => {
+    setUploadState(s => ({ ...s, isUploading: true }))
+    uploadResponses.mutate(uploadState.matches)
   }
 
   const canSend = instance.status === 'draft' || instance.status === 'in_progress'
@@ -942,6 +1032,26 @@ export function BriefResponsesModal({ instance, onClose }) {
 
   const upsertResponseTimeout = useRef(null)
 
+  const uploadResponses = useMutation({
+    mutationFn: async (matches) => {
+      const rows = matches.map(m => ({
+        instance_id: instance.id, question_id: m.questionId, response_text: m.newResponse,
+        responded_by_email: 'csm', responded_by_name: 'CSM (pré-preenchimento)',
+      }))
+      const { error } = await supabase.from('brief_responses').upsert(rows, { onConflict: 'instance_id,question_id' })
+      if (error) throw error
+    },
+    onSuccess: (_, matches) => {
+      qc.invalidateQueries({ queryKey: ['brief_responses', instance.id] })
+      toast.success(`${matches.length} respostas importadas com sucesso!`)
+      setUploadState(s => ({ ...s, show: false, isUploading: false }))
+    },
+    onError: () => {
+      toast.error('Erro ao importar respostas')
+      setUploadState(s => ({ ...s, isUploading: false }))
+    },
+  })
+
   const updatedAt = instance.updated_at || instance.created_at
 
   return (
@@ -1047,6 +1157,16 @@ export function BriefResponsesModal({ instance, onClose }) {
 
                 {/* Separator + Export + Doubts items */}
                 <div className="mx-1 my-2 border-t border-border-tertiary" />
+                <input ref={fileInputRef} type="file" accept=".md,.json" style={{ display: 'none' }} onChange={handleFileChange} />
+                <button
+                  onClick={handleUploadClick}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all border border-transparent hover:bg-bg-secondary"
+                >
+                  <div className="w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: 'var(--color-bg-secondary)' }}>
+                    <Icons.Upload size={18} style={{ color: 'var(--color-text-tertiary)' }} />
+                  </div>
+                  <span className="text-xs font-semibold text-text-primary">Importar respostas</span>
+                </button>
                 <button
                   onClick={handleExportBrief}
                   className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all border border-transparent hover:bg-bg-secondary"
@@ -1360,6 +1480,82 @@ export function BriefResponsesModal({ instance, onClose }) {
                   Excluir
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload preview modal */}
+      {uploadState.show && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => !uploadState.isUploading && setUploadState(s => ({ ...s, show: false }))}>
+          <div className="bg-bg-primary rounded-xl w-full flex flex-col overflow-hidden shadow-2xl" style={{ maxWidth: 560 }} onClick={e => e.stopPropagation()}>
+            <div className="p-5 border-b border-border-tertiary flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Icons.Upload size={20} className="text-green-600" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-text-primary truncate">Importar respostas</h3>
+                <p className="text-xs text-text-tertiary truncate">{uploadState.fileName}</p>
+              </div>
+            </div>
+
+            <div className="p-5 max-h-[60vh] overflow-y-auto space-y-2">
+              {uploadState.warnings.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                  <p className="text-xs font-semibold text-amber-700 mb-1">Avisos ({uploadState.warnings.length})</p>
+                  {uploadState.warnings.map((w, i) => (
+                    <p key={i} className="text-[11px] text-amber-600">— {w.text}: {w.reason}</p>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-sm text-text-secondary mb-3">
+                {uploadState.matches.length} resposta(s) reconhecida(s). {uploadState.matches.filter(m => m.status === 'changed').length} serão atualizadas, {uploadState.matches.filter(m => m.status === 'new').length} serão adicionadas.
+              </p>
+
+              {uploadState.matches.map((m, i) => (
+                <div key={i} className="rounded-lg border border-border-tertiary p-3">
+                  <div className="flex items-start gap-2 mb-1">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 flex-shrink-0 ${m.status === 'changed' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
+                      {m.status === 'changed' ? 'ALTERADO' : 'NOVO'}
+                    </span>
+                    <p className="text-xs font-semibold text-text-primary leading-snug">{m.questionText}</p>
+                  </div>
+                  {m.oldResponse && (
+                    <div className="mt-1.5 pl-5 border-l-2 border-red-300">
+                      <p className="text-[10px] font-semibold text-red-500 mb-0.5">Anterior</p>
+                      <p className="text-[11px] text-text-tertiary whitespace-pre-wrap line-through">{m.oldResponse}</p>
+                    </div>
+                  )}
+                  <div className="mt-1.5 pl-5 border-l-2 border-green-400">
+                    <p className="text-[10px] font-semibold text-green-600 mb-0.5">Nova</p>
+                    <p className="text-[11px] text-text-primary whitespace-pre-wrap">{m.newResponse}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-border-tertiary flex gap-2">
+              <button
+                onClick={() => setUploadState(s => ({ ...s, show: false }))}
+                disabled={uploadState.isUploading}
+                className="flex-1 text-xs px-3 py-2 rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmUpload}
+                disabled={uploadState.isUploading}
+                className="flex-1 text-xs px-3 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {uploadState.isUploading && (
+                  <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {uploadState.isUploading ? 'Importando…' : `Importar ${uploadState.matches.length} resposta(s)`}
+              </button>
             </div>
           </div>
         </div>
