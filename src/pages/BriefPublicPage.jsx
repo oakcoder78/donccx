@@ -357,7 +357,7 @@ function QuestionCard({
 
   const isAnswered = !!(value && value.trim())
   const isMissing  = required && !isAnswered && touched
-  const isTextarea = type === 'textarea' || type === 'longo' || !type
+  const isTextarea = type !== 'date'
 
   const cardBg     = isMissing ? '#fdf8f8' : isAnswered ? '#f8fcfa' : '#fff'
   const cardBorder = isMissing ? 'rgba(196,68,68,0.45)' : focused ? 'rgba(89,194,237,0.55)' : isAnswered ? 'rgba(34,160,98,0.32)' : 'rgba(15,34,58,0.09)'
