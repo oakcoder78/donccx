@@ -295,8 +295,8 @@ function QuestionDrawer({ open, onClose, clientQuestions, drawerText, onChange, 
         </div>
       ) : (
         <>
-          <textarea value={drawerText} onChange={e => onChange(e.target.value)} placeholder="Descreva sua dúvida…" rows={4}
-            style={{ width: '100%', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', fontSize: 13, resize: 'vertical', outline: 'none' }}
+          <textarea value={drawerText} onChange={e => onChange(e.target.value)} placeholder="Descreva sua dúvida…" rows={5}
+            style={{ width: '100%', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '8px 10px', fontFamily: 'inherit', fontSize: 13, resize: 'vertical', outline: 'none', minHeight: 120 }}
             onFocus={e => e.target.style.borderColor = SKY}
             onBlur={e => e.target.style.borderColor = 'rgba(15,34,58,0.14)'}
           />
@@ -415,7 +415,7 @@ function QuestionCard({
       {/* Input */}
       <div style={{ marginLeft: 38 }}>
         {isTextarea
-          ? <textarea value={value} onChange={e => onChange(e.target.value)} disabled={readOnly} placeholder="Digite a resposta…" rows={4} style={{ ...inputStyle, minHeight: 90, lineHeight: 1.55 }} onFocus={onFocus} onBlur={onBlur} />
+          ? <textarea value={value} onChange={e => onChange(e.target.value)} disabled={readOnly} placeholder="Digite a resposta…" rows={5} style={{ ...inputStyle, minHeight: 140, lineHeight: 1.55 }} onFocus={onFocus} onBlur={onBlur} />
           : <input type={type === 'date' ? 'date' : 'text'} value={value} onChange={e => onChange(e.target.value)} disabled={readOnly} placeholder="Digite a resposta…" style={inputStyle} onFocus={onFocus} onBlur={onBlur} />
         }
         {saveStatus && (
@@ -552,8 +552,8 @@ function QuestionCard({
             </div>
           ) : (
             <>
-              <textarea value={doubtText} onChange={e => onDoubtTextChange(e.target.value)} placeholder="Descreva sua dúvida sobre esta pergunta…" rows={3}
-                style={{ width: '100%', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 7, padding: '7px 9px', fontFamily: 'inherit', fontSize: 12.5, resize: 'none', outline: 'none', marginBottom: 8 }}
+              <textarea value={doubtText} onChange={e => onDoubtTextChange(e.target.value)} placeholder="Descreva sua dúvida sobre esta pergunta…" rows={4}
+                style={{ width: '100%', border: '1px solid rgba(15,34,58,0.14)', borderRadius: 7, padding: '7px 9px', fontFamily: 'inherit', fontSize: 12.5, resize: 'none', outline: 'none', marginBottom: 8, minHeight: 100 }}
                 onFocus={e => e.target.style.borderColor = SKY}
                 onBlur={e => e.target.style.borderColor = 'rgba(15,34,58,0.14)'}
               />
@@ -1056,7 +1056,7 @@ export default function BriefPublicPage() {
                   {(sec.questions || []).map((q, qi) => (
                     <div key={q.id} style={{ marginBottom: 20 }}>
                       <div style={{ fontWeight: 600, color: NAVY, marginBottom: 4 }}>{qi + 1}. {q.text}{q.required && ' *'}</div>
-                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', minHeight: 48, background: '#fafafa', fontSize: 13, color: responses[q.id] ? NAVY : '#94a3b8' }}>
+                      <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: '8px 12px', minHeight: 90, background: '#fafafa', fontSize: 13, color: responses[q.id] ? NAVY : '#94a3b8' }}>
                         {responses[q.id] || '(sem resposta)'}
                       </div>
                     </div>

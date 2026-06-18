@@ -146,11 +146,11 @@ function CsmNoteArea({ questionId, savedNote, onSave, onDelete, isSaving }) {
         <textarea
           value={draft.text}
           onChange={e => setDraft(d => ({ ...d, text: e.target.value }))}
-          rows={3}
+          rows={4}
           placeholder="Adicione uma observação interna sobre esta resposta…"
           autoFocus
           className="w-full px-3 py-2.5 text-sm bg-bg-primary text-text-primary placeholder-text-tertiary outline-none resize-none"
-          style={{ fontFamily: 'inherit' }}
+          style={{ fontFamily: 'inherit', minHeight: 100 }}
         />
         <div className="flex justify-end gap-2 px-3 py-2 border-t border-border-tertiary bg-bg-secondary">
           <button
@@ -373,11 +373,11 @@ function ClientDoubtsPanel({ clientQuestions, structure, onReply, onToggleVisibi
                 <textarea
                   value={drafts[q.id] || ''}
                   onChange={e => setDrafts(d => ({ ...d, [q.id]: e.target.value }))}
-                  rows={3}
+                  rows={4}
                   placeholder="Digite a resposta…"
                   autoFocus
                   className="w-full px-3 py-2.5 text-sm bg-bg-primary text-text-primary placeholder-text-tertiary outline-none resize-none"
-                  style={{ fontFamily: 'inherit' }}
+                  style={{ fontFamily: 'inherit', minHeight: 100 }}
                 />
                 <div className="flex justify-end gap-2 px-3 py-2 border-t border-border-tertiary bg-bg-secondary">
                   <button
@@ -580,10 +580,10 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
           <textarea
             value={csmPrefill}
             onChange={e => onPrefillChange(e.target.value)}
-            rows={2}
+            rows={4}
             placeholder="Digite uma resposta pré-preenchida para o cliente…"
             className="w-full text-sm text-text-primary leading-relaxed px-3 py-2 rounded-lg border resize-none outline-none transition-colors"
-            style={{ borderColor: 'var(--color-border-tertiary)', background: 'var(--color-bg-primary)', fontFamily: 'inherit' }}
+            style={{ borderColor: 'var(--color-border-tertiary)', background: 'var(--color-bg-primary)', fontFamily: 'inherit', minHeight: 120 }}
           />
         </div>
       )}

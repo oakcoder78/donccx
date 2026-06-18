@@ -29,6 +29,7 @@ import BriefPublicPage from './pages/BriefPublicPage'
 import SettingsBriefTemplates from './pages/SettingsBriefTemplates'
 import AtendimentoPage from './pages/AtendimentoPage'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
+import ModuleUnavailablePage from './pages/ModuleUnavailablePage'
 import HealthDashboardPage from './pages/HealthDashboardPage'
 import CockpitsPage from './pages/CockpitsPage'
 import CsRadarPage from './pages/CsRadarPage'
@@ -89,12 +90,12 @@ function PrivateRoute() {
     return <Navigate to="/primeiro-acesso" replace />
   }
 
-  if (profile.role === 'analyst' && !location.pathname.startsWith('/atendimento')) {
+  if (profile.role === 'analyst' && isEnabled('whatsapp_atendimento', profile.role) && !location.pathname.startsWith('/atendimento')) {
     return <Navigate to="/atendimento" replace />
   }
 
   if (location.pathname.startsWith('/atendimento') && !isEnabled('whatsapp_atendimento', profile?.role)) {
-    return <Navigate to="/dashboard" replace />
+    return <Navigate to="/module-unavailable" replace />
   }
 
   return <Outlet />
@@ -171,6 +172,7 @@ function AppRoutes() {
       {/* Protected — AppLayout (Navbar + Donkie) + PrivateRoute gate */}
       <Route element={<PrivateRoute />}>
         <Route element={<AppLayout googleOAuthSignal={googleOAuthSignal} />}>
+          <Route path="/module-unavailable" element={<ModuleUnavailablePage variant="no-access" />} />
           <Route path="/atendimento" element={<AtendimentoPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/cockpits" element={<CockpitsPage />} />
