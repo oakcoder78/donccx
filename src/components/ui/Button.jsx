@@ -4,6 +4,7 @@ const variants = {
   green:     'bg-donc-verde text-white hover:bg-donc-verde/90',
   danger:    'bg-donc-red text-white hover:bg-donc-red/90',
   ghost:     'text-text-secondary hover:bg-bg-tertiary',
+  lime:      'bg-donc-lime text-donc-navy hover:bg-donc-lime/90',
 }
 
 const sizes = {

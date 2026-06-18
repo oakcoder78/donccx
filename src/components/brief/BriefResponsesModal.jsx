@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useBriefResponses, useBriefCsmNotes } from '@/hooks/useBrief'
 import { Icons } from '@/lib/icons'
+import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabaseClient'
 import toast from 'react-hot-toast'
 
@@ -1158,53 +1159,41 @@ export function BriefResponsesModal({ instance, onClose }) {
                 {/* Separator + Export + Doubts items */}
                 <div className="mx-1 my-2 border-t border-border-tertiary" />
                 <input ref={fileInputRef} type="file" accept=".md,.json" style={{ display: 'none' }} onChange={handleFileChange} />
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleUploadClick}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all border border-transparent hover:bg-bg-secondary"
+                  className="w-full justify-start"
                 >
-                  <div className="w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: 'var(--color-bg-secondary)' }}>
-                    <Icons.Upload size={18} style={{ color: 'var(--color-text-tertiary)' }} />
-                  </div>
-                  <span className="text-xs font-semibold text-text-primary">Importar respostas</span>
-                </button>
-                <button
+                  <Icons.Upload size={14} />
+                  Importar Respostas
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleExportBrief}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all border border-transparent hover:bg-bg-secondary"
+                  className="w-full justify-start"
                 >
-                  <div className="w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0" style={{ background: 'var(--color-bg-secondary)' }}>
-                    <Icons.Download size={18} style={{ color: 'var(--color-text-tertiary)' }} />
-                  </div>
-                  <span className="text-xs font-semibold text-text-primary">Baixar MD</span>
-                </button>
-                <button
+                  <Icons.Download size={14} />
+                  Exportar Respostas
+                </Button>
+                <Button
+                  variant="lime"
+                  size="sm"
                   onClick={() => { setActiveView('doubts'); setDoubtTarget(null) }}
-                  className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-lg text-left transition-all
-                    ${activeView === 'doubts'
-                      ? 'border border-[#59c2ed] bg-white shadow-sm'
-                      : 'border border-transparent hover:bg-bg-secondary'
-                    }`}
+                  className="w-full justify-start relative"
                 >
-                  <div
-                    className="w-9 h-9 flex items-center justify-center rounded-full flex-shrink-0"
-                    style={{ background: activeView === 'doubts' ? `${SKY}14` : 'var(--color-bg-secondary)' }}
-                  >
-                    <Icons.MessageCircle
-                      size={18}
-                      style={{ color: activeView === 'doubts' ? SKY : 'var(--color-text-tertiary)' }}
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0 flex items-center justify-between gap-1">
-                    <span className="text-xs font-semibold text-text-primary">Dúvidas</span>
-                    {unansweredCount > 0 && (
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                        style={{ background: 'rgba(196,68,68,0.14)', color: '#b42828' }}
-                      >
-                        {unansweredCount}
-                      </span>
-                    )}
-                  </div>
-                </button>
+                  <Icons.MessageCircle size={14} />
+                  <span className="flex-1 text-left">Dúvidas</span>
+                  {unansweredCount > 0 && (
+                    <span
+                      className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold px-1 rounded-full border-2 border-bg-primary"
+                      style={{ background: '#E24B4A', color: '#ffffff' }}
+                    >
+                      {unansweredCount}
+                    </span>
+                  )}
+                </Button>
               </div>
 
               {/* Rail footer */}
