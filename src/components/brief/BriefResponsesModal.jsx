@@ -1164,7 +1164,7 @@ export function BriefResponsesModal({ instance, onClose }) {
                     variant="primary"
                     size="md"
                     onClick={handleUploadClick}
-                    className="w-full justify-start"
+                    className="w-[calc(100%-1rem)] self-center justify-center"
                   >
                     <Icons.Upload size={16} />
                     Importar Respostas
@@ -1173,7 +1173,7 @@ export function BriefResponsesModal({ instance, onClose }) {
                     variant="primary"
                     size="md"
                     onClick={handleExportBrief}
-                    className="w-full justify-start"
+                    className="w-[calc(100%-1rem)] self-center justify-center"
                   >
                     <Icons.Download size={16} />
                     Exportar Respostas
@@ -1182,10 +1182,10 @@ export function BriefResponsesModal({ instance, onClose }) {
                     variant="lime"
                     size="md"
                     onClick={() => { setActiveView('doubts'); setDoubtTarget(null) }}
-                    className="w-full justify-start relative"
+                    className="w-[calc(100%-1rem)] self-center justify-center relative"
                   >
                     <Icons.MessageCircle size={16} />
-                    <span className="flex-1 text-left">Dúvidas</span>
+                    <span>Dúvidas</span>
                     {unansweredCount > 0 && (
                       <span
                         className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold px-1 rounded-full border-2 border-bg-primary"
