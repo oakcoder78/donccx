@@ -507,6 +507,7 @@ const variants = {
   green:     'bg-donc-verde text-white hover:bg-donc-verde/90',
   danger:    'bg-donc-red text-white hover:bg-donc-red/90',
   ghost:     'text-text-secondary hover:bg-bg-tertiary',
+  lime:      'bg-donc-lime text-donc-navy hover:bg-donc-lime/90',
 }
 ```
 
@@ -541,6 +542,7 @@ Always: `inline-flex items-center gap-2 font-medium rounded-md transition-colors
 | green | `bg-donc-verde text-white hover:bg-donc-verde/90` |
 | danger | `bg-donc-red text-white hover:bg-donc-red/90` |
 | ghost | `text-text-secondary hover:bg-bg-tertiary` |
+| lime | `bg-donc-lime text-donc-navy hover:bg-donc-lime/90` |
 
 ### Inline action button (non-component variant)
 For small inline actions without importing Button:
