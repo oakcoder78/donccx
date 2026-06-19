@@ -24,7 +24,7 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | Component | File | Responsibility |
 |-----------|------|----------------|
 | `BriefCreateModal` | `src/components/brief/BriefCreateModal.jsx` | Create instance: template selection, title, save |
-| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client |
+| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client, import/export responses |
 | `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Questionários" (navy), opens BriefPanel modal; badge shows unanswered clientQuestions count |
 | `BriefTemplateEditorModal` | `src/components/brief/BriefTemplateEditorModal.jsx` | Full editor modal: sections/questions CRUD, DnD sort, allow_attachment toggle |
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
@@ -107,10 +107,12 @@ Modal panel (max 900px) listing all brief instances for the onboarding:
 ### BriefResponsesModal
 
 Wide (max 1000px) two-column modal — Hub CSM view with internal notes layer:
-- **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + "Exportar MD" + "Ajuda" (tour) + close
-- **"Exportar MD" button:** Downloads all responses as a Markdown file with sections, questions, and client answers formatted as headings and blockquotes
+- **Header:** eyebrow + title + status badge + "Copiar link" + "Enviar para cliente" + "Ajuda" (tour) + close
 - **Segmented progress bar:** one segment per section, width ∝ question count; green=complete, sky gradient=partial
-- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; below sections: separator + **"Dúvidas" item** (`Icons.MessageCircle`, sky ring bg when active) with red badge counting unanswered `clientQuestions`
+- **Left rail (240px):** section list with SVG circular progress rings (gray track, sky fill, green+✓ at 100%); active = sky border + shadow; below sections: separator + action buttons:
+  - **"Importar Respostas"** (`Icons.Upload`, `Button variant="primary"` navy) — opens hidden file input (`.md`, `.json`), parses uploaded file, shows preview modal, bulk upserts matched responses
+  - **"Exportar Respostas"** (`Icons.Download`, `Button variant="primary"` navy) — downloads all responses as a Markdown file with sections, questions, and client answers formatted as headings and blockquotes
+  - **"Dúvidas"** (`Icons.MessageCircle`, `Button variant="lime"`) — always lime; red notification badge (18px, `#E24B4A`, white border) on top-right corner counting unanswered `clientQuestions`; badge disappears when count is zero
 - **Navigation state:** `activeView: 'section' | 'doubts'` + `activeSectionIdx`. Clicking a section sets `activeView='section'`; clicking "Dúvidas" sets `activeView='doubts'`. Footer Anterior/Próxima disabled when `activeView='doubts'`.
 - **Right panel — section view:** sticky section header (eyebrow, title, deliverable); per-question cards:
   - Section title inline edit: pencil icon → input field → Enter/blur saves, Escape cancels (`editingSectionTitle` state)
