@@ -10,6 +10,8 @@ The Email module provides transactional email delivery and mass email campaigns 
 - **Email composition** — single-screen composer with chips-style recipient input (Gmail-like), template/subject/body fields, attachment upload, optional preview modal.
 - **Delivery** — sends via Resend API through a Supabase Edge Function.
 - **Logging** — every send attempt is recorded in `email_logs` for auditability.
+- **View-in-browser** — merged HTML stored in `email_view_cache` per recipient; public page at `/email/view/:token` renders it.
+- **Unsubscribe** — opt-out tracked via `email_unsubscribes` tokens + `contacts.unsubscribed` column; public page at `/email/unsubscribe/:token` handles it; unsubscribed contacts filtered out of mass send.
 - **Activity creation** — successful sends generate a `type=email` activity on the client timeline.
 - **Mass send** — bulk email sender in Settings with recipient auto-selection (champion, técnico, has activity), per-client expand/collapse, and per-recipient merge variables (`nome_contato`, `nome_empresa`). Safety limit of 100 recipients per batch enforced in the UI.
 - **Role-based sender** — `from_mode` controls whether the email appears to come from the CSM or from `noreply@donc.com.br`.
@@ -28,8 +30,10 @@ The Email module provides transactional email delivery and mass email campaigns 
 | `src/components/contacts/ContactPanel.jsx` | Email button in contact side panel |
 | `src/components/contacts/ContactsPage.jsx` | Email button in contacts table |
 | `src/components/settings/SettingsEmailBlast.jsx` | Mass send page — recipient selector + composer + send (Settings menu) |
-| `src/hooks/useEmailBlastRecipients.js` | Hook — parallel queries for active clients + activity contacts |
-| `supabase/functions/send-email/index.ts` | Edge Function — Resend API, template merge, logging, activity creation, attachment download+base64 |
+| `src/hooks/useEmailBlastRecipients.js` | Hook — parallel queries for active clients + activity contacts; filters `unsubscribed` contacts |
+| `src/pages/EmailViewPage.jsx` | Public page — renders email HTML from `email_view_cache` via full-viewport iframe |
+| `src/pages/EmailUnsubscribePage.jsx` | Public page — handles opt-out: updates `contacts.unsubscribed = true`, shows confirmation |
+| `supabase/functions/send-email/index.ts` | Edge Function — Resend API, template merge, token generation, cache storage, logging, activity creation, attachment download+base64 |
 
 ## Data Interaction
 
@@ -67,7 +71,9 @@ const { data: activityRows } = await supabase
 |-------|--------|---------|
 | `email_templates` | R: all authenticated / W: admin only | Template storage |
 | `email_logs` | R/W: all authenticated | Send audit trail |
-| `contacts` | R: via join | Contact lookup for recipients |
+| `email_view_cache` | R: anon (by token) / W: authenticated (edge function) | Cached merged HTML for view-in-browser |
+| `email_unsubscribes` | R/U: anon (by token) / W: authenticated (edge function) | Unsubscribe tokens + opt-out tracking |
+| `contacts` | R: via join | Contact lookup for recipients; `unsubscribed` column added via migration |
 | `contact_links` | R: via join | Client-contact relationship |
 | `clients` | R: via join | Client context for activity |
 | `profiles` | R: service role | CSM identity for `from` address |
@@ -198,15 +204,19 @@ Edge function:
   2. Fetch profile (sender name/email/role)
   3. Validate from_mode permission (admin/manager required for "noreply")
   4. Validate CSM domain: if `from_mode='csm'` and email not `@donc.com.br` → return 400
-  5. Resolve from_address
+  5. Resolve from_address + PUBLIC_URL (for link generation)
   6. Fetch template from DB
   7. Download attachments from storage → base64 encode (once, before recipient loop)
   8. Loop recipients:
-        a. mergeTags(template, vars)
-        b. POST /emails (Resend) — includes attachments if present
-        c. INSERT email_log
-        d. INSERT activity — `Prefer: return=representation` to capture ID
-        e. INSERT activity_attachments (if activity created + files attached)
+         a. Generate viewToken + unsubToken (crypto.randomUUID) + emailLogId
+         b. Enrich vars: add `view_in_browser_url`, `unsubscribe_url`, `recipient_email`
+         c. mergeTags(template, enrichedVars)
+         d. POST /emails (Resend) — includes attachments if present
+         e. INSERT email_log (with pre-generated emailLogId)
+         f. If sent: INSERT email_view_cache (html_body + viewToken + emailLogId)
+         g. If sent: INSERT email_unsubscribes (contact_id + email + unsubToken)
+         h. INSERT activity — `Prefer: return=representation` to capture ID
+         i. INSERT activity_attachments (if activity created + files attached)
   9. Return { sent, failed, logs }
 ```
 
@@ -247,7 +257,7 @@ handleSend():
 - `@tanstack/react-query` — template list caching (`useTemplates`, `useSaveTemplate`)
 - `react-hot-toast` — success/error feedback
 - `SettingsSectionHeader` — consistent settings header
-- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, `@tiptap/extension-text-align` — WYSIWYG editor (`EmailEditor`)
+- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-underline`, `@tiptap/extension-link`, `@tiptap/extension-text-align`, `@tiptap/extension-placeholder` — WYSIWYG editor (`EmailEditor`)
 - `useEmailBlastRecipients` — parallel queries for mass send recipient data
 
 ## Main User Flows
@@ -307,6 +317,7 @@ No changes needed — the existing `activity_attachments` infrastructure renders
 
 ## Recent Changes
 
+- **2026-06-24 (commits `d7c5293`, `946768f`, `adba3e1`):** Unsubscribe + view-in-browser — new `email_view_cache` and `email_unsubscribes` tables; `contacts.unsubscribed` column; `EmailViewPage` (`/email/view/:token`) and `EmailUnsubscribePage` (`/email/unsubscribe/:token`) public pages; edge function generates per-recipient tokens and stores cached HTML. Templates `Comunicado Geral` and `Relatorio Mensal` now include footer with unsubscribe/view-in-browser links. `useEmailBlastRecipients` filters out unsubscribed contacts. Editor fixes: bullet list CSS visibility, `transformPastedHTML` paste handler, `@tiptap/extension-placeholder`.
 - **2026-06-01 (commit `f8b857e`):** Mass email blast — new Settings page `SettingsEmailBlast` with recipient selector (3-criteria pre-selection), full composer (reuses `EmailEditor`, `send-email` edge function), per-recipient merge tags, attachment upload (`blast_temp/`). New hook `useEmailBlastRecipients`. SDD document at `docs/sdd/email-blast-sdd.md`.
 - **2026-05-16 (commits `167804e`, `797b6cd`, `8a529a4`, `84c39f2`, `2f15cd0`):** WYSIWYG editor (`EmailEditor` via TipTap v2) replaces textarea with formatting toolbar (Bold, Italic, Underline, H1-H3, lists, alignment, link, remove formatting). ✨ Reescrever button in toolbar calls `openrouter-proxy` edge function with configurable rewrite prompt (`email_rewrite_prompt` in `freshdesk_config`). `supabase/config.toml` — added `[functions.openrouter-proxy] verify_jwt = false`. Email templates: `<p>{{corpo_mensagem}}</p>` changed to `<div>` to avoid nested `<p>`.
 - **2026-05-15 (multiple commits):** Email attachments — upload to storage, download+base64 in edge, send via Resend, persist as `activity_attachments`. Composer redesigned: single-screen with chips "Para:", company swap icon, preview modal (not a step). Domain validation: CSM sender requires `@donc.com.br`. Email button added to ClientTabContatos.
@@ -325,6 +336,9 @@ All templates support these variables via `{{variable}}` merge syntax:
 | `csm_cargo` | `profiles.cargo` of sender | "Customer Success Manager" |
 | `csm_telefone` | `profiles.phone` of sender | "(11) 99999-9999" |
 | `csm_email` | `profiles.email` of sender | "joao.silva@donc.com.br" |
+| `unsubscribe_url` | Generated by edge function per recipient | `https://donccx.vercel.app/email/unsubscribe/{token}` |
+| `view_in_browser_url` | Generated by edge function per recipient | `https://donccx.vercel.app/email/view/{token}` |
+| `recipient_email` | Recipient's email address | "jorge@example.com" |
 | `reply_to` | fixed: `suporte@donc.com.br` | Set via Resend API `reply_to` param on every send |
 
 **Mass send only:** These variables are injected per recipient (not globally) by the frontend before calling the edge function:
@@ -347,19 +361,32 @@ Initial templates are seeded via migration `20260511000000_email_module.sql`:
 
 Layout was revised in migration `20260511120000_fix_email_template_signature.sql` — signature columns resized to 60%/20%/20%, font sizes adjusted.
 
+Templates `comunicado` and `relatorio_mensal` were later replaced/renamed in the dashboard — the active templates are now:
+
+| DB Name | Variables | Footer |
+|---------|-----------|--------|
+| `Comunicado Geral` | assunto, corpo_mensagem, unsubscribe_url, view_in_browser_url, recipient_email | Unsubscribe + view-in-browser links (added in migration `20260617000002`) |
+| `Relatorio Mensal` | assunto, corpo_mensagem, unsubscribe_url, view_in_browser_url, recipient_email | Unsubscribe + view-in-browser links (added in migration `20260617000002`) |
+| `CSM Individual` | assunto, corpo_mensagem, csm_nome, csm_cargo, csm_telefone, csm_email | No footer (individual/transactional) |
+
 ## File Reference Map
 
 - `src/components/email/EmailComposerModal.jsx` — composer modal entry point (single-screen)
 - `src/components/email/EmailEditor.jsx` — TipTap WYSIWYG editor with toolbar and rewrite button
 - `src/components/email/EmailTemplatesManager.jsx` — template CRUD manager
+- `src/pages/EmailViewPage.jsx` — public page: view email in browser (full-viewport iframe)
+- `src/pages/EmailUnsubscribePage.jsx` — public page: opt-out handling (updates `contacts.unsubscribed`)
 - `src/components/clients/tabs/ClientTabContatos.jsx` — email button per contact
 - `src/components/settings/SettingsPage.jsx` — menu integration (EmailTemplatesManager + SettingsEmailBlast under "Comunicação")
 - `src/components/settings/SettingsEmailBlast.jsx` — mass send page (recipient selector + composer + send)
 - `src/hooks/useEmailBlastRecipients.js` — parallel queries for active clients + activity contacts
 - `src/lib/icons.js` — `Mail` icon for settings section header; `Send` for mass send menu icon
-- `supabase/functions/send-email/index.ts` — edge function implementation (unchanged)
+- `supabase/functions/send-email/index.ts` — edge function implementation
 - `supabase/migrations/20260511000000_email_module.sql` — initial schema + seed
 - `supabase/migrations/20260511120000_fix_email_template_signature.sql` — signature fix + from_mode column
+- `supabase/migrations/20260617000000_email_unsubscribe.sql` — `email_view_cache`, `email_unsubscribes`, `contacts.unsubscribed`
+- `supabase/migrations/20260617000001_update_email_templates_footer.sql` — footer + variables on templates
+- `supabase/migrations/20260617000002_fix_template_names_footer.sql` — corrected template name targeting
 - `docs/sdd/email-blast-sdd.md` — SDD document for mass send feature
 
 ---

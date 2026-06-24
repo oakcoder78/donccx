@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-06-24
+
+### Email — Unsubscribe/View-in-Browser + Editor WYSIWYG (fixes)
+- **New:** `Comunicado Geral` e `Relatorio Mensal` — footer com unsubscribe/view-in-browser (migrações 20260617000001 e 20260617000002)
+- **New:** `email_view_cache` table — armazena HTML merged para view-in-browser
+- **New:** `email_unsubscribes` table + `contacts.unsubscribed` column — rastreia descadastros (migração 20260617000000)
+- **New:** `EmailViewPage` — rota pública `/email/view/:token` para ver e-mail no navegador (`adba3e1`)
+- **New:** `EmailUnsubscribePage` — rota pública `/email/unsubscribe/:token` para descadastro (`d7c5293`)
+- **Fix:** `EmailEditor` — CSS de listas visíveis (disc/decimal/circle/lower-alpha) + `@tiptap/extension-placeholder` nativo (`946768f`)
+- **Fix:** `EmailEditor` — `transformPastedHTML` preserva formatação ao colar (DOMParser + whitelist de tags/styles) (`946768f`)
+- **Fix:** Edge function `send-email` — gera view/unsub tokens por recipient, armazena em `email_view_cache` + `email_unsubscribes`, mergeia `unsubscribe_url`/`view_in_browser_url`/`recipient_email` (`d7c5293`)
+- **Fix:** `useEmailBlastRecipients` — filtra `unsubscribed = true` dos envios em massa (`d7c5293`)
+- **DB:** Migration `20260617000000_email_unsubscribe.sql` — schema + RLS
+- **DB:** Migration `20260617000001_update_email_templates_footer.sql` — footer nos templates
+- **DB:** Migration `20260617000002_fix_template_names_footer.sql` — correção dos nomes
+- **Chore:** Instalado `@tiptap/extension-placeholder@^2.27.2`
+
 ## 2026-06-15
 
 ### Brief — Edição Inline + Preenchimento CSM
