@@ -138,6 +138,9 @@ serve(async (req) => {
       ? "DONC <noreply@donc.com.br>"
       : `${senderProfile?.name ?? "DONC"} <${csmEmail}>`
 
+    const PUBLIC_URL = Deno.env.get("PUBLIC_URL") ??
+      (sbUrl.includes("localhost") ? "http://localhost:5173" : "https://donccx.vercel.app")
+
     // ── Fetch template ────────────────────────────────────────────────────────
     const tplRes = await fetch(
       `${sbUrl}/rest/v1/email_templates?id=eq.${template_id}&select=*`,
@@ -176,8 +179,20 @@ serve(async (req) => {
     let failedCount = 0
 
     for (const recipient of recipients) {
-      const mergedSubject = mergeTags(tpl.subject, recipient.variables)
-      const mergedHtml    = mergeTags(tpl.html_body, recipient.variables)
+      // ── Generate tokens for unsubscribe / view-in-browser ─────────────────
+      const viewToken  = crypto.randomUUID()
+      const unsubToken = crypto.randomUUID()
+      const emailLogId = crypto.randomUUID()
+
+      const enrichedVars: Record<string, string> = {
+        ...recipient.variables,
+        view_in_browser_url: `${PUBLIC_URL}/email/view/${viewToken}`,
+        unsubscribe_url:     `${PUBLIC_URL}/email/unsubscribe/${unsubToken}`,
+        recipient_email:     recipient.email,
+      }
+
+      const mergedSubject = mergeTags(tpl.subject, enrichedVars)
+      const mergedHtml    = mergeTags(tpl.html_body, enrichedVars)
 
       // ── Send via Resend ───────────────────────────────────────────────────
       let status      = "sent"
@@ -220,6 +235,7 @@ serve(async (req) => {
           Prefer: "return=minimal",
         },
         body: JSON.stringify({
+          id:              emailLogId,
           template_id:     template_id,
           client_id:       recipient.client_id,
           contact_id:      recipient.contact_id,
@@ -234,6 +250,40 @@ serve(async (req) => {
 
       if (status === "sent") {
         sentCount++
+
+        // ── Store view-in-browser cache ──────────────────────────────────
+        try {
+          await fetch(`${sbUrl}/rest/v1/email_view_cache`, {
+            method: "POST",
+            headers: {
+              apikey: sbKey,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({
+              email_log_id: emailLogId,
+              html_body:    mergedHtml,
+              token:        viewToken,
+            }),
+          })
+        } catch (_) { /* non-fatal */ }
+
+        // ── Store unsubscribe token ──────────────────────────────────────
+        try {
+          await fetch(`${sbUrl}/rest/v1/email_unsubscribes`, {
+            method: "POST",
+            headers: {
+              apikey: sbKey,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({
+              contact_id: recipient.contact_id,
+              email:      recipient.email,
+              token:      unsubToken,
+            }),
+          })
+        } catch (_) { /* non-fatal */ }
 
         // ── Fetch contact name for activity description ───────────────────
         let contactName = recipient.email

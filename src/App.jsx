@@ -30,6 +30,8 @@ import SettingsBriefTemplates from './pages/SettingsBriefTemplates'
 import AtendimentoPage from './pages/AtendimentoPage'
 import PrimeiroAcesso from './pages/PrimeiroAcesso'
 import ModuleUnavailablePage from './pages/ModuleUnavailablePage'
+import EmailViewPage from './pages/EmailViewPage'
+import EmailUnsubscribePage from './pages/EmailUnsubscribePage'
 import HealthDashboardPage from './pages/HealthDashboardPage'
 import CockpitsPage from './pages/CockpitsPage'
 import CsRadarPage from './pages/CsRadarPage'
@@ -160,6 +162,10 @@ function AppRoutes() {
 
       {/* Public Brief */}
       <Route path="/brief/:token" element={<BriefPublicPage />} />
+
+      {/* Public email */}
+      <Route path="/email/view/:token" element={<EmailViewPage />} />
+      <Route path="/email/unsubscribe/:token" element={<EmailUnsubscribePage />} />
 
       {/* Public auth */}
       <Route path="/reset-password" element={<ResetPasswordPage />} />

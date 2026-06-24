@@ -4,10 +4,81 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
+import Placeholder from '@tiptap/extension-placeholder'
 import { Icons } from '@/lib/icons'
 
 const NAVY = '#173557'
 const SKY = '#59c2ed'
+
+const EDITOR_LIST_STYLES = `
+  .ProseMirror ul { list-style-type: disc; padding-left: 1.5em; }
+  .ProseMirror ol { list-style-type: decimal; padding-left: 1.5em; }
+  .ProseMirror li { margin-bottom: 0.25em; }
+  .ProseMirror li p { margin: 0; display: inline; }
+  .ProseMirror ul ul,
+  .ProseMirror ol ul { list-style-type: circle; }
+  .ProseMirror ol ol,
+  .ProseMirror ul ol { list-style-type: lower-alpha; }
+`
+
+function sanitizePastedHtml(html) {
+  if (!html) return html
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(html, 'text/html')
+    const allowedTags = new Set([
+      'p', 'br', 'div', 'span', 'b', 'strong', 'i', 'em', 'u', 's', 'strike',
+      'ul', 'ol', 'li', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'font', 'sub', 'sup', 'blockquote', 'pre', 'code', 'hr',
+      'table', 'thead', 'tbody', 'tr', 'th', 'td', 'caption',
+      'img',
+    ])
+    const allowedAttrs = new Set(['href', 'src', 'alt', 'width', 'height', 'target', 'rel'])
+
+    function clean(node) {
+      if (node.nodeType === 1) {
+        if (!allowedTags.has(node.tagName.toLowerCase())) {
+          const parent = node.parentNode
+          while (node.firstChild) parent.insertBefore(node.firstChild, node)
+          parent.removeChild(node)
+          return
+        }
+        const style = node.getAttribute('style')
+        if (style) {
+          const safe = style
+            .split(';')
+            .map(s => s.trim())
+            .filter(s => {
+              const prop = s.split(':')[0]?.trim().toLowerCase()
+              if (!prop) return false
+              return ['color', 'background-color', 'background', 'font-size', 'font-family',
+                'font-weight', 'font-style', 'text-decoration', 'text-align',
+                'margin', 'margin-left', 'margin-right', 'margin-top', 'margin-bottom',
+                'padding', 'padding-left', 'padding-right', 'padding-top', 'padding-bottom',
+                'border', 'border-left', 'border-right', 'border-top', 'border-bottom',
+                'border-collapse', 'width', 'height', 'max-width', 'vertical-align',
+                'line-height', 'white-space', 'display', 'float',
+              ].includes(prop)
+            })
+            .join(';')
+          if (safe) node.setAttribute('style', safe)
+          else node.removeAttribute('style')
+        }
+        ;[...node.attributes].forEach(attr => {
+          if (!allowedAttrs.has(attr.name) && attr.name !== 'style') {
+            node.removeAttribute(attr.name)
+          }
+        })
+      }
+      Array.from(node.childNodes).forEach(clean)
+    }
+
+    clean(doc.body)
+    return doc.body.innerHTML
+  } catch {
+    return html
+  }
+}
 
 function ToolbarBtn({ icon: Icon, active, onClick, title }) {
   return (
@@ -48,6 +119,7 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
         HTMLAttributes: { style: 'color: #59c2ed; text-decoration: underline; cursor: pointer;' },
       }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Placeholder.configure({ placeholder }),
     ],
     content: value || '',
     onUpdate: ({ editor }) => {
@@ -62,6 +134,7 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
         class: 'prose prose-sm max-w-none focus:outline-none',
         style: `min-height: 250px; padding: 14px 16px; font-family: inherit; font-size: 14px; line-height: 1.7; color: ${NAVY};`,
       },
+      transformPastedHTML: sanitizePastedHtml,
     },
   })
 
@@ -190,25 +263,11 @@ export default function EmailEditor({ value, onChange, placeholder = 'Escreva aq
         </div>
       )}
 
+      <style>{EDITOR_LIST_STYLES}</style>
+
       {/* Editor */}
       <div style={{ maxHeight: 400, overflowY: 'auto', position: 'relative' }}>
         <EditorContent editor={editor} />
-
-        {!value && (
-          <div
-            className="pointer-events-none select-none"
-            style={{
-              position: 'absolute', top: 0, left: 0, right: 0,
-              padding: '14px 16px',
-              fontSize: 14,
-              color: '#94a3b8',
-              fontFamily: 'inherit',
-              lineHeight: 1.7,
-            }}
-          >
-            {placeholder}
-          </div>
-        )}
       </div>
     </div>
   )

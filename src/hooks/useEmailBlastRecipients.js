@@ -26,7 +26,7 @@ export function useEmailBlastRecipients() {
               contact_links(
                 contact_id, papel, champion,
                 contacts(
-                  id, name, email,
+                  id, name, email, unsubscribed,
                   contact_emails(email, is_primary)
                 )
               )
@@ -60,9 +60,10 @@ export function useEmailBlastRecipients() {
                   champion: !!link.champion,
                   papel: link.papel || '',
                   hasActivity: contactIdsWithActivities.has(link.contact_id),
+                  unsubscribed: !!c?.unsubscribed,
                 }
               })
-              .filter(c => c.email)
+              .filter(c => c.email && !c.unsubscribed)
 
             return {
               clientId: client.id,
