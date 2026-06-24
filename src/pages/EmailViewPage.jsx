@@ -45,15 +45,14 @@ export default function EmailViewPage() {
     )
   }
 
+  const bodyHtml = html.replace(/^[\s\S]*?<body[^>]*>([\s\S]*)<\/body>[\s\S]*$/i, '$1').trim() || html
+
   return (
     <div style={styles.wrapper}>
-      <div style={{ width: '100%', maxWidth: 600, margin: '0 auto' }}>
-        <iframe
-          title="E-mail"
-          srcDoc={html}
-          style={{ width: '100%', height: '100vh', border: 'none', background: '#fff' }}
-        />
-      </div>
+      <div
+        style={{ width: '100%', maxWidth: 600, margin: '0 auto', background: '#fff' }}
+        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+      />
     </div>
   )
 }
@@ -62,11 +61,7 @@ const styles = {
   wrapper: {
     minHeight: '100vh',
     background: '#f4f4f4',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 0,
-    margin: 0,
+    overflowY: 'auto',
   },
   card: {
     background: '#fff',
