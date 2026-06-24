@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabaseClient'
 import { Icons } from '@/lib/icons'
 
+const FOOTER_BG = '#f4f4f4'
+
 export default function EmailViewPage() {
   const { token } = useParams()
   const [html, setHtml] = useState('')
@@ -28,7 +30,10 @@ export default function EmailViewPage() {
 
   if (loading) {
     return (
-      <div style={styles.wrapper}>
+      <div style={{
+        minHeight: '100vh', background: FOOTER_BG,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
         <Icons.Loader2 className="w-6 h-6 text-gray-400 animate-spin" />
       </div>
     )
@@ -36,39 +41,41 @@ export default function EmailViewPage() {
 
   if (error) {
     return (
-      <div style={styles.wrapper}>
-        <div style={styles.card}>
+      <div style={{
+        minHeight: '100vh', background: FOOTER_BG,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+      }}>
+        <div style={{
+          background: '#fff', borderRadius: 8, padding: '48px 32px',
+          textAlign: 'center', maxWidth: 420, width: '100%',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        }}>
           <Icons.FileQuestion className="w-10 h-10 text-gray-400 mx-auto mb-3" />
-          <p style={{ color: '#666', fontSize: 14, textAlign: 'center' }}>{error}</p>
+          <p style={{ color: '#666', fontSize: 14, textAlign: 'center', margin: 0 }}>{error}</p>
         </div>
       </div>
     )
   }
 
-  const bodyHtml = html.replace(/^[\s\S]*?<body[^>]*>([\s\S]*)<\/body>[\s\S]*$/i, '$1').trim() || html
-
   return (
-    <div style={styles.wrapper}>
-      <div
-        style={{ width: '100%', maxWidth: 600, margin: '0 auto', background: '#fff' }}
-        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+    <div style={{
+      minHeight: '100vh',
+      background: '#f4f4f4',
+      overflowX: 'auto',
+      display: 'flex',
+      justifyContent: 'center',
+    }}>
+      <iframe
+        title="E-mail"
+        srcDoc={html}
+        style={{
+          width: 600,
+          minWidth: 600,
+          height: '100vh',
+          border: 'none',
+          display: 'block',
+        }}
       />
     </div>
   )
-}
-
-const styles = {
-  wrapper: {
-    minHeight: '100vh',
-    background: '#f4f4f4',
-    overflowY: 'auto',
-  },
-  card: {
-    background: '#fff',
-    borderRadius: 8,
-    padding: '48px 32px',
-    textAlign: 'center',
-    maxWidth: 420,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  },
 }
