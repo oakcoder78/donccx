@@ -58,23 +58,11 @@ export default function EmailViewPage() {
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f4f4f4',
-      overflowX: 'auto',
-      display: 'flex',
-      justifyContent: 'center',
-    }}>
+    <div style={{ position: 'fixed', inset: 0 }}>
       <iframe
         title="E-mail"
         srcDoc={html}
-        style={{
-          width: 600,
-          minWidth: 600,
-          height: '100vh',
-          border: 'none',
-          display: 'block',
-        }}
+        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
       />
     </div>
   )
