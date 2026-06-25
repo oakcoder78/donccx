@@ -9,6 +9,7 @@
 - **New:** `brief-public` — Zod input validation: discriminatedUnion for all 9 actions (validate token, payload shapes per action)
 - **New:** `supabase/tests/rls_policies.sql` — automated RLS policy test suite (9 tests: existence, role-based, Phase 2.5 specific, SECURITY DEFINER search_path, anon grants, blanket policy check)
 - **New:** `.github/PULL_REQUEST_TEMPLATE.md` — security review checklist for new PRs
+- **Fix:** Migration `20260625160000_fix_rls_role_check.sql` — RLS policies quebravam o dashboard: `auth.jwt() ->> 'role'` trocado por `public.get_user_role()` (função SECURITY DEFINER que lê `profiles.role` sem recursão); 44 policies corrigidas; removido `supabase/fix_rls_policies.sql` (script incorreto que revertia para `auth.uid() IS NOT NULL`)
 - **New:** `docs/security/SECURITY_REMEDIATION_PLAN.md` — quarterly credential rotation schedule (Mar/Jun/Sep/Dec) with procedure
 
 - **DB:** Migration `20260625200000_security_phase2_rls.sql` — harden SECURITY DEFINER functions (`check_marco_evidence`, `create_default_fases`): added `SET search_path = public`; fix permissive RLS on 6 tables (`email_logs` → admin/manager read, `ai_model_logs` → admin insert, `milestones` → service_role policy, `brief_csm_notes` → visible/own only, `freshdesk_config` → admin/manager select, `client_donc_instances` → admin/manager select)
