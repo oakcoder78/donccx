@@ -2,6 +2,10 @@
 
 ## 2026-06-25
 
+### Audit System — Phase 1 + Backlog
+
+- **New:** Backlog de ferramentas de segurança adicionado ao SDD (Semgrep, npm audit, OWASP ZAP, trufflehog, Supabase Advisor)
+
 ### Audit System — Phase 1
 
 - **Fix:** `audit_logs` RLS restrito — admin/manager veem todos os logs, CSM/analyst só os próprios

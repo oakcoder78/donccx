@@ -101,3 +101,17 @@ Inserida via migration com `enabled_by_default = true` para já nascer ativa.
 
 Trocar `LIMIT 200` por cursor-based pagination usando `created_at` como cursor.
 Frontend: botão "Carregar mais" no lugar de scroll infinito.
+
+## 6. Security Testing Tooling (Backlog)
+
+Avaliar e integrar ferramentas automatizadas de segurança:
+
+| Ferramenta | Tipo | Objetivo |
+|------------|------|----------|
+| Semgrep | SAST | Escanear código por padrões inseguros (XSS, SQLi, hardcoded secrets) |
+| npm audit | SCA | Identificar CVEs em dependências |
+| OWASP ZAP | DAST | Escanear app em execução (XSS, CSRF, headers, clickjacking) |
+| trufflehog / gitleaks | Secret scan | Varrer git history por credenciais vazadas |
+| Supabase Database Advisor | Infra scan | Recomendações de segurança/performance no Dashboard |
+
+**Critério de aceite:** pipeline CI executa SAST + SCA a cada push; DAST semanal; secret scan no pre-commit hook.
