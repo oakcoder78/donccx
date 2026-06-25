@@ -2,6 +2,20 @@
 
 ## 2026-06-24
 
+### Security — Phase 0 Remediation (Critical)
+
+- **Fix:** Edge function `donkie-chat` — adicionado JWT auth (`authorizeRequest`), rate limit in-memory (10 req/min), CORS restrito, erro genérico (`ac1a4a5`)
+- **Fix:** Edge function `send-email` — REST injection via `sent_by` UUID validation + identity check (caller === sent_by || admin/manager) + admin SDK em vez de raw REST + erro genérico (`ac1a4a5`)
+- **New:** `_shared/auth.ts` — export `createCorsHeaders()` (origens permitidas: `donccx.vercel.app`, `localhost:5173`, Vercel previews) (`ac1a4a5`)
+- **Chore:** `.gitignore` — adicionado `.openclaude-profile.json` e `.openclaude/`
+- **Chore:** Histórico git limpo — `.openclaude-profile.json` removido via `git filter-repo` + force push
+- **Chore:** `.env.example` — adicionado `VITE_ANTHROPIC_API_KEY` e `VITE_GOOGLE_CLIENT_ID`
+- **Chore:** Todas as 6 API keys rotacionadas (OpenRouter, Anthropic, Supabase Secret, Supabase Access Token, Resend, Freshdesk)
+- **Chore:** Secrets atualizados no Supabase Dashboard (`ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `FRESHDESK_API_KEY`, `SUPABASE_SECRET_KEYS`)
+- **Fix:** `useDonkie.jsx` — `searchClientsByName` quebrava com vírgula no termo de busca (ex: "Oi, quem é você"); adicionado `sanitizeSearchTerm()` (`dbe81ba`)
+
+## 2026-06-24
+
 ### Email — Unsubscribe/View-in-Browser + Editor WYSIWYG (fixes)
 - **New:** `Comunicado Geral` e `Relatorio Mensal` — footer com unsubscribe/view-in-browser (migrações 20260617000001 e 20260617000002)
 - **New:** `email_view_cache` table — armazena HTML merged para view-in-browser

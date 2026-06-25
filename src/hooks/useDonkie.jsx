@@ -177,11 +177,16 @@ function detectClientMention(text) {
   return null
 }
 
+function sanitizeSearchTerm(term) {
+  return term.replace(/,/g, ' ').replace(/%/g, '\\%')
+}
+
 async function searchClientsByName(term) {
+  const safe = sanitizeSearchTerm(term)
   const { data, error } = await supabase
     .from('clients')
     .select('id, name, fantasy_name')
-    .or(`fantasy_name.ilike.%${term}%,name.ilike.%${term}%`)
+    .or(`fantasy_name.ilike.%${safe}%,name.ilike.%${safe}%`)
     .eq('contract_active', true)
     .order('fantasy_name')
     .limit(6)
