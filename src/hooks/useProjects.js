@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useAuditLog } from './useAuditLog'
 import toast from 'react-hot-toast'
 
 export function useProjects(clientId) {
@@ -155,6 +156,7 @@ export function useProjectMutations(clientId) {
 export function useDeleteProject() {
   const qc       = useQueryClient()
   const navigate = useNavigate()
+  const { logAction } = useAuditLog()
 
   return useMutation({
     mutationFn: async ({ id, onboarding_id, title }) => {
@@ -166,11 +168,7 @@ export function useDeleteProject() {
         if (onbErr) throw onbErr
       }
 
-      await supabase.from('audit_logs').insert({
-        entity_type: 'project',
-        action:      'deleted',
-        entity_name: title,
-      })
+      await logAction('deleted', 'project', id, title)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['projects_all'] })
