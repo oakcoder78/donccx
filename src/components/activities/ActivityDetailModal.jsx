@@ -141,7 +141,7 @@ useEffect(() => {
     if (!confirm('Excluir esta atividade?')) return
     if (a.google_event_id && isConnected && sessionToken) {
       try {
-        await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-event`, {
+        const delRes = await fetch(`${SUPABASE_URL}/functions/v1/google-calendar-event`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${sessionToken}`,
@@ -149,6 +149,12 @@ useEffect(() => {
           },
           body: JSON.stringify({ method: 'DELETE', google_event_id: a.google_event_id }),
         })
+        if (!delRes.ok) {
+          const delData = await delRes.json().catch(() => ({}))
+          if (delData.code === 'TOKEN_EXPIRED') {
+            toast.error('Google Calendar desconectado — evento local excluído, mas o evento no calendário permanece.')
+          }
+        }
       } catch {
         toast.error('Erro ao remover evento do Google Calendar, mas a atividade será excluída.')
       }
@@ -190,7 +196,7 @@ useEffect(() => {
 
       const data = await res.json()
       if (!res.ok) {
-        if (data.code === 'TOKEN_EXPIRED') throw new Error('Google Calendar desconectado. Reconecte em Minha Conta.')
+        if (data.code === 'TOKEN_EXPIRED') throw new Error('Conexão com Google Calendar expirou. Vá em "Minha Conta" e reconecte.')
         throw new Error(data.error ?? 'Erro desconhecido')
       }
       toast.success('Evento criado no Google Calendar!')

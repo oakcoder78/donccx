@@ -221,9 +221,8 @@ serve(async (req) => {
         // longer usable (expired, revoked, or rejected). The only remedy is for the user
         // to reconnect, so always surface TOKEN_EXPIRED rather than a raw 500.
         return json({
-          error: 'Google Calendar token expired. Please disconnect and reconnect your Google account.',
+          error: 'Conexão com Google Calendar expirou — reconecte em "Minha Conta".',
           code: 'TOKEN_EXPIRED',
-          detail: msg,
         }, 401)
       }
     } else {
@@ -307,10 +306,10 @@ serve(async (req) => {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('google-calendar-event:', msg)
     if (msg.includes('401') || msg.includes('invalid_grant') || msg.includes('expired') || msg.includes('revoked')) {
-      return json({ error: 'Google Calendar token expired. Please disconnect and reconnect your Google account.', code: 'TOKEN_EXPIRED' }, 401)
+      return json({ error: 'Conexão com Google Calendar expirou — reconecte em "Minha Conta".', code: 'TOKEN_EXPIRED' }, 401)
     }
     if (msg.includes('403')) {
-      return json({ error: 'Google Calendar access denied. Please re-authorize.', code: 'TOKEN_EXPIRED' }, 403)
+      return json({ error: 'Acesso ao Google Calendar negado — reconecte em "Minha Conta".', code: 'TOKEN_EXPIRED' }, 403)
     }
     return json({ error: msg }, 500)
   }
