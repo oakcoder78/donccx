@@ -53,6 +53,25 @@ export interface AuthResult {
  * Authorizes a request either as a trusted server (x-webhook-secret matching
  * SYNC_WEBHOOK_SECRET) or as a signed-in user whose profiles.role is in allowedRoles.
  */
+export function createCorsHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = [
+    'https://donccx.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ]
+  const base = {
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
+  if (!origin) {
+    return { ...base, 'Access-Control-Allow-Origin': 'https://donccx.vercel.app' }
+  }
+  const isVercelPreview = /^https:\/\/[a-zA-Z0-9-]+-donccx\.vercel\.app$/.test(origin)
+  if (allowedOrigins.includes(origin) || isVercelPreview) {
+    return { ...base, 'Access-Control-Allow-Origin': origin }
+  }
+  return { ...base, 'Access-Control-Allow-Origin': 'https://donccx.vercel.app' }
+}
+
 export async function authorizeRequest(
   req: Request,
   admin: SupabaseClient,

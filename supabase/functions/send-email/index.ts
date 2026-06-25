@@ -13,6 +13,7 @@
 
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { getServiceKey } from "../_shared/auth.ts"
 
 const allowedOrigins = [
@@ -85,6 +86,9 @@ serve(async (req) => {
       headers: { Authorization: `Bearer ${token}`, apikey: sbKey },
     })
     if (!authRes.ok) return json({ error: "Unauthorized" }, 401)
+    const authUser = await authRes.json()
+
+    const admin = createClient(sbUrl, sbKey)
 
     // ── Parse body ────────────────────────────────────────────────────────────
     const body = await req.json()
@@ -107,13 +111,26 @@ serve(async (req) => {
       return json({ error: "template_id and recipients[] required" }, 400)
     }
 
+    // ── Validate sent_by is a valid UUID ─────────────────────────────────────
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(sent_by)) {
+      return json({ error: "Invalid sent_by: must be a valid UUID" }, 400)
+    }
+
+    // ── Verify identity — only send as yourself or if admin/manager ──────────
+    const callerId = authUser?.id ?? ""
+    const callerProfile = await admin.from("profiles").select("role").eq("id", callerId).single()
+    const isAdminOrManager = ["admin", "manager"].includes(callerProfile.data?.role ?? "")
+    if (sent_by !== callerId && !isAdminOrManager) {
+      return json({ error: "You can only send emails as yourself" }, 403)
+    }
+
     // ── Fetch sender profile ──────────────────────────────────────────────────
-    const profileRes = await fetch(
-      `${sbUrl}/rest/v1/profiles?id=eq.${sent_by}&select=name,email,role,cargo,phone`,
-      { headers: { apikey: sbKey } },
-    )
-    const profileRows = await profileRes.json()
-    const senderProfile = profileRows?.[0] as { name: string; email: string; role: string } | undefined
+    const { data: senderProfile } = await admin
+      .from("profiles")
+      .select("name, email, role, cargo, phone")
+      .eq("id", sent_by)
+      .single()
 
     const csmEmail = senderProfile?.email ?? ""
 
@@ -347,7 +364,7 @@ serve(async (req) => {
     return json({ sent: sentCount, failed: failedCount, logs })
 
   } catch (err) {
-    console.error("send-email:", err)
-    return json({ error: String(err) }, 500)
+    console.error("[send-email] Internal error:", err)
+    return json({ error: "Internal server error" }, 500)
   }
 })

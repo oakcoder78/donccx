@@ -33,6 +33,8 @@ dist-ssr
 # Secrets e binários locais
 *.json.secret
 client_secret_*.json
+.openclaude-profile.json
+.openclaude/
 supabase.exe
 supabase_windows_amd64.tar.gz
 supabase/functions/**/.env
@@ -40,3 +42,6 @@ OAuthClient.jpg
 
 supabase/.temp/
 supabase/.branches/
+
+# Security audit plans (not synced)
+docs/security/
