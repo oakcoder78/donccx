@@ -8,7 +8,9 @@ Stack: React 18 + Vite 6 + TailwindCSS 3 + Supabase + TanStack Query v5 + react-
 Root: `E:\donc\donccx`  
 Entry: `src/main.jsx` → `src/App.jsx`  
 Dev: `npm run dev`  
-Build (only verification step, no lint/typecheck/test): `npm run build`
+Build (only verification step): `npm run build`  
+No local Supabase stack — all DB/functions changes go directly to production.  
+Test directly on https://donccx-donccx.vercel.app after deploy.
 
 ## Rules
 
@@ -49,16 +51,26 @@ Feature flags: `useFeatureFlags` hook controls feature availability per role (e.
 
 ## Supabase & Backend
 
-- Migrations: `supabase/migrations/` (sequential numbered SQL files).
-- Edge Functions: `supabase/functions/*` (12 functions). Several have `verify_jwt = false` in `config.toml` but perform their own bearer-token + role checks in code.
+- Migrations: `supabase/migrations/` (sequential numbered SQL files). Deploy with `supabase db push --include-all`.
+- Edge Functions: `supabase/functions/*` (13 functions). Deploy with `supabase functions deploy <name>`. Several have `verify_jwt = false` in `config.toml` but perform their own bearer-token + role checks in code.
 - Storage: Manual bucket setup (`company-logos`, `user-avatars`). See `STORAGE_SETUP.md`.
-- `supabase functions deploy <name>` to deploy.
+- No Docker — all changes go directly to production, no local Supabase stack.
+
+## Deploy Workflow (production-only)
+
+No local Supabase. Sequence:
+1. `npm run build` — verify frontend compiles
+2. Edit/commit migration files in `supabase/migrations/`
+3. `supabase db push --include-all` — apply pending migrations
+4. `supabase functions deploy <name>` — deploy each changed function
+5. Vercel auto-deploys on `git push origin main`
+6. Test on https://donccx-donccx.vercel.app
 
 ## Operational Scripts (`scripts/`)
 
 - `node scripts/freshdesk-map-companies.js [--apply]` — maps Freshdesk companies.
 - `node scripts/freshdesk-sync.js YYYY-MM [--dry-run]` — syncs monthly Freshdesk data.
-- These parse `.env.local` directly; require service-role and Freshdesk secrets.
+- These parse `.env.local` directly; require service-role and Freshdesk secrets. All testing is production-only via live API calls.
 
 ## Context-Mode Routing (plugin: `context-mode`)
 

@@ -3,9 +3,9 @@
 ## Prerequisites
 
 ```bash
-npm run dev           # Frontend dev server
-supabase start        # Local Supabase stack
-supabase functions serve --no-verify-jwt  # Edge Functions locally
+npm run dev           # Frontend dev server (local)
+# Supabase is production-only — no local stack.
+# Edge Functions tested via curl against production URL.
 ```
 
 ## 1. Build verification
@@ -112,7 +112,7 @@ Wait 60s, verify normal requests resume.
 
 ## Notes
 
-- Run tests against local Supabase first (`supabase start`), then against staging/prod
-- RLS tests depends on having users with each role in the database
+- All tests run directly against production (https://donccx-donccx.vercel.app) — no local Supabase
+- RLS tests depend on having users with each role in the database
 - Rate limiting tests require serial requests — use curl in a loop, not browser
-- Edge Function validation tests can use curl directly against `localhost:54321`
+- Edge Function validation tests use curl against production URL with valid bearer token
