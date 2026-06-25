@@ -2,6 +2,13 @@
 
 ## 2026-06-25
 
+### Audit System — Phase 1
+
+- **Fix:** `audit_logs` RLS restrito — admin/manager veem todos os logs, CSM/analyst só os próprios
+- **Fix:** `useDeleteProject` agora usa `useAuditLog` hook (inseria sem `user_id`/`user_name`)
+- **New:** Feature flag `logs` seeded (admin/manager) — menu Auditoria agora visível
+- **New:** `docs/security/SDD-AUDIT.md` — assessment completo + plano de melhorias (Fases 2-3)
+
 ### Security — Phase 2 Remediation
 
 - **New:** `donkie-chat` — Zod input validation: messages array (role enum, content length), system string
