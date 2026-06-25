@@ -13,7 +13,9 @@
 // supabase-edge-runtime: verify_jwt=false
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { getServiceKey } from "../_shared/auth.ts"
+import { getServiceKey, createRateLimiter } from "../_shared/auth.ts"
+
+const freshdeskLimiter = createRateLimiter(60_000, 30)
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -39,6 +41,10 @@ serve(async (req) => {
 
     const { data: { user }, error: authErr } = await admin.auth.getUser(token)
     if (authErr || !user) return json({ error: 'Invalid token' }, 401)
+
+    if (!freshdeskLimiter(user.id)) {
+      return json({ error: 'Too many requests. Try again later.' }, 429)
+    }
 
     const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
     if (!['admin', 'manager', 'analyst'].includes(profile?.role ?? '')) return json({ error: 'Forbidden' }, 403)

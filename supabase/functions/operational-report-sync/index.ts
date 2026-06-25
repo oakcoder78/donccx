@@ -119,6 +119,6 @@ serve(async (req) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[operational-report-sync] error:', msg)
-    return json({ ok: false, error: msg }, 500)
+    return json({ ok: false, error: 'Internal server error' }, 500)
   }
 })

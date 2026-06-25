@@ -538,13 +538,13 @@ serve(async (req) => {
         recalculated++
       } catch (err) {
         console.error(`health-recalc: client_id=${client.id}`, err)
-        errors.push({ client_id: client.id, error: String(err) })
+        errors.push({ client_id: client.id, error: 'Internal error' })
       }
     }
 
     return json({ recalculated, errors })
   } catch (err) {
     console.error('health-recalc:', err)
-    return json({ error: String(err) }, 500)
+    return json({ error: 'Internal server error' }, 500)
   }
 })

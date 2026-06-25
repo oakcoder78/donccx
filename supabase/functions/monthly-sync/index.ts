@@ -233,7 +233,7 @@ async function syncFreshdesk(
       synced++
     } catch (err) {
       console.error(`monthly-sync: freshdesk error client_id=${client.id}`, err)
-      errors.push({ name: client.name, error: String(err) })
+      errors.push({ name: client.name, error: 'Internal error' })
     }
   }
 
@@ -275,7 +275,7 @@ serve(async (req) => {
       console.log('monthly-sync: donc-api-sync done', doncResult?.synced)
     } catch (err) {
       console.error('monthly-sync: donc-api-sync error', err)
-      doncResult = { error: String(err) }
+      doncResult = { error: 'Internal error' }
     }
 
     // 2. freshdesk sync (Freshdesk API direto — sem CORS no Edge)
@@ -285,7 +285,7 @@ serve(async (req) => {
       console.log('monthly-sync: freshdesk done', freshdeskResult?.synced)
     } catch (err) {
       console.error('monthly-sync: freshdesk error', err)
-      freshdeskResult = { error: String(err) }
+      freshdeskResult = { error: 'Internal error' }
     }
 
     // 3. health-recalc (todos os clientes)
@@ -300,7 +300,7 @@ serve(async (req) => {
       console.log('monthly-sync: health-recalc done', healthResult?.recalculated)
     } catch (err) {
       console.error('monthly-sync: health-recalc error', err)
-      healthResult = { error: String(err) }
+      healthResult = { error: 'Internal error' }
     }
 
     // 4. Update health_trend (current health_total - prev month snapshot)
@@ -312,12 +312,12 @@ serve(async (req) => {
       console.log('monthly-sync: health-trend done', trendCount)
     } catch (err) {
       console.error('monthly-sync: health-trend error', err)
-      trendResult = { error: String(err) }
+      trendResult = { error: 'Internal error' }
     }
 
     return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult })
   } catch (err) {
     console.error('monthly-sync:', err)
-    return json({ error: String(err) }, 500)
+    return json({ error: 'Internal server error' }, 500)
   }
 })

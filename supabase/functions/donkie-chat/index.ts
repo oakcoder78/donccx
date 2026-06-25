@@ -1,6 +1,15 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://esm.sh/zod@3'
 import { authorizeRequest, createCorsHeaders, getServiceKey } from '../_shared/auth.ts'
+
+const DonkieChatSchema = z.object({
+  system: z.string().max(5000).optional(),
+  messages: z.array(z.object({
+    role: z.enum(['user', 'assistant', 'system']),
+    content: z.string().min(1).max(50000),
+  })).min(1).max(50),
+})
 
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX = 10
@@ -46,7 +55,14 @@ serve(async (req) => {
       })
     }
 
-    const { system, messages } = await req.json()
+    const parsed = DonkieChatSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+    const { system, messages } = parsed.data
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',

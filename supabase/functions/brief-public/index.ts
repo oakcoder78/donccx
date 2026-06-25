@@ -1,14 +1,70 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { getServiceKey } from '../_shared/auth.ts'
+import { z } from 'https://esm.sh/zod@3'
+import { getServiceKey, createCorsHeaders } from '../_shared/auth.ts'
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+const BriefPublicSchema = z.object({
+  token: z.string().min(1),
+  email: z.string().email().optional(),
+}).and(z.discriminatedUnion('action', [
+  z.object({ action: z.literal('validate') }),
+  z.object({ action: z.literal('get') }),
+  z.object({
+    action: z.literal('submit_question'),
+    payload: z.object({
+      question_id: z.number().int().positive().optional(),
+      note: z.string().min(1),
+    }),
+  }),
+  z.object({ action: z.literal('get_client_questions') }),
+  z.object({
+    action: z.literal('save_response'),
+    payload: z.object({
+      question_id: z.number().int().positive(),
+      response_text: z.string().min(1),
+    }),
+  }),
+  z.object({ action: z.literal('complete') }),
+  z.object({
+    action: z.literal('get_attachment_urls'),
+    payload: z.object({
+      paths: z.array(z.string().min(1)).min(1),
+    }),
+  }),
+  z.object({
+    action: z.literal('upload_attachment'),
+    payload: z.object({
+      question_id: z.number().int().positive().optional(),
+      file_name: z.string().min(1),
+      file_size: z.number().positive().max(10 * 1024 * 1024),
+      file_type: z.string().min(1),
+      data_base64: z.string().min(1),
+    }),
+  }),
+  z.object({
+    action: z.literal('delete_attachment'),
+    payload: z.object({
+      attachment_id: z.number().int().positive(),
+    }),
+  }),
+]))
 
 serve(async (req) => {
+  const origin = req.headers.get('origin')
+  const cors = createCorsHeaders(origin)
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+
+  const ok = (data: object) =>
+    new Response(JSON.stringify(data), {
+      headers: { ...cors, 'Content-Type': 'application/json' }
+    })
+
+  const err = (message: string, status: number) =>
+    new Response(JSON.stringify({ error: message }), {
+      status,
+      headers: { ...cors, 'Content-Type': 'application/json' }
+    })
 
   const sb = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -16,7 +72,11 @@ serve(async (req) => {
   )
 
   try {
-    const { action, token, email, ...payload } = await req.json()
+    const parsed = BriefPublicSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return err('Requisição inválida', 400)
+    }
+    const { action, token, email, ...payload } = parsed.data
 
     const { data: instance, error: instErr } = await sb
       .from('brief_instances')
@@ -217,6 +277,9 @@ serve(async (req) => {
 
       const urls: Record<string, string> = {}
       for (const path of paths) {
+        if (!path.startsWith(`${instance.id}/`)) {
+          return err('Path fora do escopo do brief', 403)
+        }
         try {
           const { data: signedUrl } = await sb.storage
             .from('project-briefs')
@@ -233,11 +296,6 @@ serve(async (req) => {
       if (instance.status === 'completed') return err('Brief já concluído', 403)
 
       const { question_id, file_name, file_size, file_type, data_base64 } = payload
-      if (!file_name || !file_size || !file_type || !data_base64)
-        return err('Parâmetros incompletos', 400)
-
-      const maxSize = 10 * 1024 * 1024
-      if (file_size > maxSize) return err('Arquivo maior que 10MB', 400)
 
       const allowedTypes = [
         'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
@@ -291,7 +349,6 @@ serve(async (req) => {
       if (instance.status === 'completed') return err('Brief já concluído', 403)
 
       const { attachment_id } = payload
-      if (!attachment_id) return err('attachment_id requerido', 400)
 
       const { data: attachment } = await sb
         .from('brief_attachments')
@@ -315,17 +372,7 @@ serve(async (req) => {
     return err('Action inválida', 400)
 
   } catch (e) {
-    return err(e.message ?? 'Erro interno', 500)
+    console.error('[brief-public] Internal error:', e)
+    return err('Erro interno', 500)
   }
 })
-
-const ok = (data: object) =>
-  new Response(JSON.stringify(data), {
-    headers: { ...cors, 'Content-Type': 'application/json' }
-  })
-
-const err = (message: string, status: number) =>
-  new Response(JSON.stringify({ error: message }), {
-    status,
-    headers: { ...cors, 'Content-Type': 'application/json' }
-  })

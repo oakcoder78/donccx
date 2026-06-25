@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { getServiceKey } from "../_shared/auth.ts"
+import { getServiceKey, createRateLimiter } from "../_shared/auth.ts"
+
+const createUserLimiter = createRateLimiter(60_000, 5)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -30,7 +32,16 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 
-    // 3. Validate caller's JWT (works with any client key, validates against project JWKS)
+    // 3. IP-based rate limit
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    if (!createUserLimiter(clientIp)) {
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 4. Validate caller's JWT (works with any client key, validates against project JWKS)
     const { data: { user: caller }, error: authError } = await adminClient.auth.getUser(token)
     if (authError || !caller) {
       console.error('getUser error:', authError?.message)
@@ -94,9 +105,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
-    console.error('Unhandled error:', err)
+    console.error('create-user: Unhandled error:', err)
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

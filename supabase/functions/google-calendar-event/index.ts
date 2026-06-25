@@ -240,6 +240,10 @@ serve(async (req) => {
 
     const tz = (body.timeZone as string) ?? 'America/Sao_Paulo'
     const linkedActivity = body.linkedActivity as { table: string; id: string } | undefined
+    const ALLOWED_LINKED_TABLES = ['activities', 'onboarding_activities']
+    const safeLinkedActivity = (linkedActivity && linkedActivity.table && ALLOWED_LINKED_TABLES.includes(linkedActivity.table))
+      ? linkedActivity
+      : undefined
 
     // ── DELETE ────────────────────────────────────────────────────────────
     if (method === 'DELETE') {
@@ -248,11 +252,11 @@ serve(async (req) => {
 
       await deleteCalendarEvent(accessToken, googleEventId)
 
-      if (linkedActivity?.table && linkedActivity?.id) {
+      if (safeLinkedActivity) {
         await admin
-          .from(linkedActivity.table)
+          .from(safeLinkedActivity.table)
           .update({ google_event_id: null })
-          .eq('id', linkedActivity.id)
+          .eq('id', safeLinkedActivity.id)
       }
 
       return json({ deleted: true })
@@ -290,11 +294,11 @@ serve(async (req) => {
     // ── POST (create) ─────────────────────────────────────────────────────
     const result = await insertCalendarEvent(accessToken, eventPayload)
 
-    if (linkedActivity?.table && linkedActivity?.id) {
+    if (safeLinkedActivity) {
       await admin
-        .from(linkedActivity.table)
+        .from(safeLinkedActivity.table)
         .update({ google_event_id: result.id })
-        .eq('id', linkedActivity.id)
+        .eq('id', safeLinkedActivity.id)
     }
 
     return json(result)

@@ -20,6 +20,19 @@ import { getServiceKey } from '../_shared/auth.ts'
 
 const FRONTEND_BASE = 'https://donccx.vercel.app'
 
+const ALLOWED_ORIGINS = [
+  'https://donccx.vercel.app',
+  /^https:\/\/[a-zA-Z0-9-]+-donccx\.vercel\.app$/,
+  'http://localhost:5173',
+  'http://localhost:3000',
+]
+
+function isValidOrigin(origin: string): boolean {
+  return ALLOWED_ORIGINS.some(allowed =>
+    typeof allowed === 'string' ? origin === allowed : allowed.test(origin)
+  )
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -75,7 +88,7 @@ serve(async (req) => {
     const [userId, frontendOrigin] = rawState.split('|')
     const error = url.searchParams.get('error')
     const errorDescription = url.searchParams.get('error_description')
-    const redirectBase = frontendOrigin || FRONTEND_BASE
+    const redirectBase = (frontendOrigin && isValidOrigin(frontendOrigin)) ? frontendOrigin : FRONTEND_BASE
 
     if (error) {
       const msg = encodeURIComponent(errorDescription ?? error)

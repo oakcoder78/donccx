@@ -1,5 +1,38 @@
 # Changelog
 
+## 2026-06-25
+
+### Security — Phase 2 Remediation
+
+- **New:** `donkie-chat` — Zod input validation: messages array (role enum, content length), system string
+- **New:** `send-email` — Zod input validation: template_id, recipients (email+variables), sent_by (uuid), attachments schema
+- **New:** `brief-public` — Zod input validation: discriminatedUnion for all 9 actions (validate token, payload shapes per action)
+- **New:** `supabase/tests/rls_policies.sql` — automated RLS policy test suite (9 tests: existence, role-based, Phase 2.5 specific, SECURITY DEFINER search_path, anon grants, blanket policy check)
+- **New:** `.github/PULL_REQUEST_TEMPLATE.md` — security review checklist for new PRs
+- **New:** `docs/security/SECURITY_REMEDIATION_PLAN.md` — quarterly credential rotation schedule (Mar/Jun/Sep/Dec) with procedure
+
+- **DB:** Migration `20260625200000_security_phase2_rls.sql` — harden SECURITY DEFINER functions (`check_marco_evidence`, `create_default_fases`): added `SET search_path = public`; fix permissive RLS on 6 tables (`email_logs` → admin/manager read, `ai_model_logs` → admin insert, `milestones` → service_role policy, `brief_csm_notes` → visible/own only, `freshdesk_config` → admin/manager select, `client_donc_instances` → admin/manager select)
+- **Fix:** `brief-public` — path traversal em `get_attachment_urls`: valida que `path` começa com `instance.id/`
+- **New:** `_shared/auth.ts` — `createRateLimiter(windowMs, maxReqs)` utility (in-memory Map)
+- **Fix:** `send-email` — rate limit: 30 req/min per user (via `createRateLimiter`)
+- **Fix:** `create-user` — rate limit: 5 req/min per IP (via `createRateLimiter`)
+- **Fix:** `invite-user` — rate limit: 20 req/min per admin (via `createRateLimiter`)
+- **Fix:** `freshdesk-proxy` — rate limit: 30 req/min per user (via `createRateLimiter`)
+
+## 2026-06-25
+
+### Security — Phase 1 Remediation (High)
+
+- **DB:** Migration `20260625000000_security_phase1_rls.sql` — remove 28 blanket `"Authenticated users" FOR ALL TO authenticated USING(true) WITH CHECK(true)` policies, replace with role-based policies (admin/manager: ALL, CSM: own clients SELECT, analyst: SELECT) across `profiles`, `clients`, `onboardings`, `activities`, `activity_attachments`, `client_catalog`, `client_support`, `client_usage`, `contact_links`, `module_pricing`, `onboarding_evidencias`, `projects`, `catalog_items`, `health_config`, `health_rules`, `onboarding_activity_types`, `onboarding_capabilities`, `onboarding_config`, `onboarding_fase_types`, `contact_phones`, `contacts`, `segments`, `stages`, `project_template_activities`, `project_template_fases`, `project_templates`, `onboarding_activities`, `onboarding_fases`, `onboarding_pendencias`; also revoke `GRANT ALL TO anon` from 39 tables + alter default privileges
+- **Fix:** `brief-public` — error leakage: `e.message` → `'Erro interno` (console.error kept); CORS: wildcard `*` → `createCorsHeaders(origin)` from `_shared/auth.ts`
+- **Fix:** `create-user` — error leakage: `String(err)` → `'Internal server error'`
+- **Fix:** `invite-user` — error leakage: `String(err)` → `'Internal server error'`
+- **Fix:** `health-recalc` — error leakage: `String(err)` → `'Internal error'` / `'Internal server error'`
+- **Fix:** `monthly-sync` — error leakage: 7 catch blocks sanitized (`String(err)` → `'Internal error'` / `'Internal server error'`)
+- **Fix:** `operational-report-sync` — error leakage: `err.message` → `'Internal server error'`
+- **Fix:** `google-calendar-callback` — open redirect: `frontendOrigin` from `state` param now validated against whitelist before redirect
+- **Fix:** `google-calendar-event` — REST injection: `linkedActivity.table` restricted to `['activities', 'onboarding_activities']`
+
 ## 2026-06-24
 
 ### Security — Phase 0 Remediation (Critical)

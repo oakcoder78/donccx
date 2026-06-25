@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { getServiceKey } from "../_shared/auth.ts"
+import { getServiceKey, createRateLimiter } from "../_shared/auth.ts"
+
+const inviteUserLimiter = createRateLimiter(60_000, 20)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,6 +38,13 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+    if (!inviteUserLimiter(caller.id)) {
+      return new Response(
+        JSON.stringify({ error: 'Too many requests. Try again later.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { data: callerProfile } = await adminClient
       .from('profiles').select('role').eq('id', caller.id).maybeSingle()
     if (callerProfile?.role !== 'admin') {
@@ -95,9 +104,9 @@ serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
-    console.error('Unhandled error:', err)
+    console.error('invite-user: Unhandled error:', err)
     return new Response(
-      JSON.stringify({ error: String(err) }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

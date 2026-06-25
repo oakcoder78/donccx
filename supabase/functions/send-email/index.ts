@@ -14,7 +14,32 @@
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { getServiceKey } from "../_shared/auth.ts"
+import { z } from "https://esm.sh/zod@3"
+import { getServiceKey, createRateLimiter } from "../_shared/auth.ts"
+
+const sendEmailLimiter = createRateLimiter(60_000, 30)
+
+const RecipientSchema = z.object({
+  contact_id: z.number().int().positive(),
+  client_id: z.number().int().positive(),
+  email: z.string().email(),
+  variables: z.record(z.string()),
+})
+
+const AttachmentSchema = z.object({
+  storage_path: z.string().min(1),
+  file_name: z.string().min(1),
+  file_size: z.number().positive(),
+  file_type: z.string().min(1),
+})
+
+const SendEmailSchema = z.object({
+  template_id: z.string().min(1),
+  recipients: z.array(RecipientSchema).min(1).max(100),
+  sent_by: z.string().uuid(),
+  from_mode: z.enum(["csm", "noreply"]).optional(),
+  attachments: z.array(AttachmentSchema).max(10).optional(),
+})
 
 const allowedOrigins = [
   "https://donccx.vercel.app",
@@ -91,34 +116,19 @@ serve(async (req) => {
     const admin = createClient(sbUrl, sbKey)
 
     // ── Parse body ────────────────────────────────────────────────────────────
-    const body = await req.json()
-    const { template_id, recipients, sent_by, from_mode: rawFromMode, attachments = [] } = body as {
-      template_id: string
-      recipients: Array<{
-        contact_id: number
-        client_id: number
-        email: string
-        variables: Record<string, string>
-      }>
-      sent_by: string
-      from_mode?: string
-      attachments?: Attachment[]
+    const parsed = SendEmailSchema.safeParse(await req.json())
+    if (!parsed.success) {
+      return json({ error: "Invalid request body" }, 400)
     }
+    const { template_id, recipients, sent_by, from_mode: rawFromMode, attachments = [] } = parsed.data
 
     const from_mode: "csm" | "noreply" = rawFromMode === "noreply" ? "noreply" : "csm"
 
-    if (!template_id || !Array.isArray(recipients) || recipients.length === 0) {
-      return json({ error: "template_id and recipients[] required" }, 400)
-    }
-
-    // ── Validate sent_by is a valid UUID ─────────────────────────────────────
-    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-    if (!UUID_RE.test(sent_by)) {
-      return json({ error: "Invalid sent_by: must be a valid UUID" }, 400)
-    }
-
     // ── Verify identity — only send as yourself or if admin/manager ──────────
     const callerId = authUser?.id ?? ""
+    if (!sendEmailLimiter(callerId)) {
+      return json({ error: "Too many requests. Try again later." }, 429)
+    }
     const callerProfile = await admin.from("profiles").select("role").eq("id", callerId).single()
     const isAdminOrManager = ["admin", "manager"].includes(callerProfile.data?.role ?? "")
     if (sent_by !== callerId && !isAdminOrManager) {

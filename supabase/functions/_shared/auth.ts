@@ -72,6 +72,22 @@ export function createCorsHeaders(origin: string | null): Record<string, string>
   return { ...base, 'Access-Control-Allow-Origin': 'https://donccx.vercel.app' }
 }
 
+/** In-memory rate limiter for Edge Functions (per warm instance). */
+export function createRateLimiter(windowMs: number, maxRequests: number) {
+  const map = new Map<string, { count: number; resetAt: number }>()
+  return function checkRateLimit(key: string): boolean {
+    const now = Date.now()
+    const entry = map.get(key)
+    if (!entry || now > entry.resetAt) {
+      map.set(key, { count: 1, resetAt: now + windowMs })
+      return true
+    }
+    if (entry.count >= maxRequests) return false
+    entry.count++
+    return true
+  }
+}
+
 export async function authorizeRequest(
   req: Request,
   admin: SupabaseClient,
