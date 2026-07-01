@@ -4,6 +4,7 @@ import { Icons } from '@/lib/icons'
 import { supabase } from '@/lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
+import { friendlyError } from '@/lib/syncErrors'
 
 // ── Estilos base ───────────────────────────────────────────────────────────────
 const S = {
@@ -309,7 +310,7 @@ export function SettingsDoncAPI() {
 
       loadPendingCount()
     } catch (e) {
-      toast.error(e.message)
+      toast.error(friendlyError(e.message))
     } finally {
       setSyncing(false)
     }
@@ -387,11 +388,20 @@ export function SettingsDoncAPI() {
               Período: {syncResult.dataInicio} → {syncResult.dataFim}
             </p>
             {syncResult.errors?.length > 0 && (
-              <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', fontSize: 12, color: '#b45309' }}>
-                {syncResult.errors.map((e, i) => (
-                  <li key={i}>{e.label} (ID {e.contrato_saas_id}): {e.error}</li>
-                ))}
-              </ul>
+              <div>
+                <ul style={{ margin: '4px 0 0', padding: '0 0 0 16px', fontSize: 12, color: '#b45309' }}>
+                  {syncResult.errors.map((e, i) => (
+                    <li key={i}>{e.label} (ID {e.contrato_saas_id}): {friendlyError(e.error)}</li>
+                  ))}
+                </ul>
+                <button
+                  style={{ marginTop: 8, fontSize: 12, color: '#173557', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline', fontWeight: 600 }}
+                  onClick={handleSync}
+                  disabled={syncing}
+                >
+                  Tentar novamente
+                </button>
+              </div>
             )}
             {pendingCount > 0 && (
               <button

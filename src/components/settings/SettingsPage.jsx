@@ -8,6 +8,7 @@ import { SettingsLogs } from './SettingsLogs'
 import { SettingsFreshdesk } from './SettingsFreshdesk'
 import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
+import { SettingsSyncStatus } from './SettingsSyncStatus'
 
 import { SettingsFeatureFlags } from './SettingsFeatureFlags'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -32,6 +33,7 @@ const SETTINGS_MENU_ICONS = {
   'email-templates': Icons.Mail,
   'email-blast': Icons.Send,
   'brief-templates': Icons.FileQuestion,
+  'sync-status': Icons.Clock,
   default: Icons.Settings,
 }
 
@@ -66,6 +68,7 @@ const MENU_GROUPS = [
   { label: 'Integrações', items: [
     { key: 'freshdesk', label: 'Freshdesk', featureFlag: 'freshdesk' },
     { key: 'donc-api',  label: 'API DONC',   managerOnly: true },
+    { key: 'sync-status', label: 'Status da Sincronização', managerOnly: true },
   ]},
   { label: 'Comunicação', items: [
     { key: 'email-templates', label: 'Templates de E-mail', featureFlag: 'email_templates' },
@@ -109,6 +112,7 @@ export default function SettingsPage() {
       case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
       case 'donkie':   return isEnabled('ai', profile?.role) && <SettingsAI />
       case 'donc-api': return isManager && <SettingsDoncAPI />
+      case 'sync-status': return isManager && <SettingsSyncStatus />
       case 'features': return isEnabled('features', profile?.role) && <SettingsFeatureFlags />
       case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
       case 'activity-types': return isEnabled('activity_types', profile?.role) && <SettingsActivityTypes />

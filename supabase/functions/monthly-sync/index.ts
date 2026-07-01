@@ -255,9 +255,17 @@ serve(async (req) => {
     const { authorized } = await authorizeRequest(req, admin, ['admin', 'manager'])
     if (!authorized) return json({ error: 'Forbidden' }, 403)
 
+    // Insert sync_log entry
+    const { data: logEntry, error: logErr } = await admin
+      .from('sync_log')
+      .insert({ job_name: 'monthly-sync', status: 'running' })
+      .select('id')
+      .single()
+
+    const logId = logEntry?.id ?? null
+    const hasLog = !!logId
+
     const month = prevMonth()
-    // Internal calls authenticate with the dedicated webhook secret, never with
-    // the caller's credential or the service key.
     const internalHeaders = {
       'x-webhook-secret': Deno.env.get('SYNC_WEBHOOK_SECRET') ?? '',
       'Content-Type':     'application/json',
@@ -315,9 +323,41 @@ serve(async (req) => {
       trendResult = { error: 'Internal error' }
     }
 
+    if (hasLog) {
+      await admin.from('sync_log').update({
+        status: 'success',
+        finished_at: new Date().toISOString(),
+        summary: { donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult },
+      }).eq('id', logId)
+    }
+
     return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult })
   } catch (err) {
     console.error('monthly-sync:', err)
+    // Try to update sync_log if we had a log entry
+    const admin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      getServiceKey(),
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    )
+    try {
+      const { data: lastRunning } = await admin
+        .from('sync_log')
+        .select('id')
+        .eq('status', 'running')
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (lastRunning?.id) {
+        await admin.from('sync_log').update({
+          status: 'failed',
+          finished_at: new Date().toISOString(),
+          error_message: err instanceof Error ? err.message : String(err),
+        }).eq('id', lastRunning.id)
+      }
+    } catch {
+      console.error('monthly-sync: failed to update sync_log on error')
+    }
     return json({ error: 'Internal server error' }, 500)
   }
 })

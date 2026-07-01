@@ -10,6 +10,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useGreeting, GREETING_DEBUG } from '@/lib/greeting-engine'
 import { ActivityDetailModal } from '../activities/ActivityDetailModal'
 import { Icons } from '@/lib/icons'
+import toast from 'react-hot-toast'
+import { friendlyError } from '@/lib/syncErrors'
 
 const HEALTH_ICONS = {
   health_uso: Icons.BarChart3,
@@ -726,8 +728,9 @@ export default function DashboardPage() {
       qc.invalidateQueries({ queryKey: ['instances_no_sync'] })
       qc.invalidateQueries({ queryKey: ['ops_dashboard'] })
       qc.invalidateQueries({ queryKey: ['clients'] })
-    } catch {
+    } catch (e) {
       setSyncing(s => ({ ...s, [instId]: 'error' }))
+      toast.error(friendlyError(e?.message))
     }
   }
 

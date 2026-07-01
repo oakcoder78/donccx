@@ -8,6 +8,7 @@ import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
+import { friendlyError } from '@/lib/syncErrors'
 
 // ── Normalização para matching ────────────────────────────────────────────────
 function normalize(name) {
@@ -90,7 +91,7 @@ function MappingSection() {
         ? `${found} sugestão${found !== 1 ? 'ões' : ''} encontrada${found !== 1 ? 's' : ''}`
         : 'Nenhuma sugestão automática encontrada')
     } catch (e) {
-      toast.error(e.message || 'Erro ao buscar empresas do Freshdesk')
+      toast.error(friendlyError(e.message) || 'Erro ao buscar empresas do Freshdesk')
     } finally {
       setFetching(false)
     }
@@ -113,7 +114,7 @@ function MappingSection() {
       .update({ freshdesk_company_id: value })
       .eq('id', clientId)
     if (error) {
-      toast.error(error.message)
+      toast.error(friendlyError(error.message))
     } else {
       setClients(p => p.map(c => c.id === clientId ? { ...c, freshdesk_company_id: value } : c))
       setEdits(p => { const n = { ...p }; delete n[clientId]; return n })
@@ -266,7 +267,7 @@ function SyncSection() {
       await fetchAndSaveFreshdeskConfig()
       toast.success('Configurações do Freshdesk atualizadas (grupos, agentes e campos de ticket)')
     } catch (e) {
-      toast.error(e.message || 'Erro ao atualizar configurações do Freshdesk')
+      toast.error(friendlyError(e.message) || 'Erro ao atualizar configurações do Freshdesk')
     } finally {
       setUpdatingConfig(false)
     }
@@ -303,7 +304,7 @@ function SyncSection() {
         toast(`${result.synced} sincronizadas, ${result.errors.length} com erro`, { icon: '⚠️' })
       }
     } catch (e) {
-      toast.error(e.message || 'Erro na sincronização')
+      toast.error(friendlyError(e.message) || 'Erro na sincronização')
     } finally {
       setSyncing(false)
     }
@@ -351,9 +352,12 @@ function SyncSection() {
             <p className="text-donc-red font-medium">❌ Erros:</p>
             <ul className="space-y-0.5 text-text-tertiary">
               {lastResult.errors.map((e, i) => (
-                <li key={i}>{e.name}: {e.error}</li>
+                <li key={i}>{e.name}: {friendlyError(e.error)}</li>
               ))}
             </ul>
+            <Button onClick={handleSync} disabled={syncing} variant="ghost" size="sm">
+              Tentar novamente
+            </Button>
           </div>
         )}
       </div>

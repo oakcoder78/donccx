@@ -4,7 +4,9 @@ import { useAuth } from '@/contexts/AuthContext'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { UserEditModal } from '../ui/UserEditModal'
+import { Icons } from '@/lib/icons'
 import toast from 'react-hot-toast'
 
 const mainNavLinks = [
@@ -38,6 +40,10 @@ export function Navbar({ googleOAuthSignal }) {
       window.history.replaceState({}, '', window.location.pathname)
     }
   }, [googleOAuthSignal])
+
+  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
+  const { data: syncData } = useSyncStatus({ enabled: isAdminOrManager })
+  const syncFailed = isAdminOrManager && syncData?.status === 'failed'
 
   const isAnalyst = profile?.role === 'analyst'
 
@@ -88,6 +94,18 @@ export function Navbar({ googleOAuthSignal }) {
             </NavLink>
           ))}
         </div>
+
+        {/* Sync failure badge */}
+        {syncFailed && (
+          <button
+            onClick={() => navigate('/configuracoes')}
+            className="flex items-center gap-1 text-red-400 hover:text-red-300 transition-colors mr-1 px-2 py-1.5 rounded-md hover:bg-white/10"
+            title={syncData?.error_message || 'Falha na sincronização mensal'}
+          >
+            <Icons.AlertTriangle size={16} />
+            <span className="text-[11px] font-medium hidden sm:inline">Sync</span>
+          </button>
+        )}
 
         {/* User button */}
         <div className="relative">

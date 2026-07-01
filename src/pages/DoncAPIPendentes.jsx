@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
+import { Modal } from '../components/ui/Modal'
+import { Button } from '../components/ui/Button'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function fmtMonth(ym) {
@@ -189,6 +191,7 @@ export default function DoncAPIPendentes() {
   const [dismissing, setDismissing] = useState(new Set())
   const [approving,  setApproving]  = useState(false)
   const [rejecting,  setRejecting]  = useState(false)
+  const [confirmAction, setConfirmAction] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -255,22 +258,30 @@ export default function DoncAPIPendentes() {
     }, 280)
   }
 
-  async function approveAll() {
-    if (!window.confirm(`Aprovar todos os ${rows.length} registros pendentes?`)) return
-    setApproving(true)
-    for (const row of rows) {
-      await doAction(row, 'approve')
+  async function handleBulkConfirm() {
+    const type = confirmAction.type
+    setConfirmAction(null)
+    if (type === 'approve') {
+      setApproving(true)
+      for (const row of rows) {
+        await doAction(row, 'approve')
+      }
+      setApproving(false)
+    } else {
+      setRejecting(true)
+      for (const row of rows) {
+        await doAction(row, 'reject')
+      }
+      setRejecting(false)
     }
-    setApproving(false)
   }
 
-  async function rejectAll() {
-    if (!window.confirm(`Rejeitar todos os ${rows.length} registros pendentes?`)) return
-    setRejecting(true)
-    for (const row of rows) {
-      await doAction(row, 'reject')
-    }
-    setRejecting(false)
+  function approveAll() {
+    setConfirmAction({ type: 'approve', count: rows.length })
+  }
+
+  function rejectAll() {
+    setConfirmAction({ type: 'reject', count: rows.length })
   }
 
   return (
@@ -342,6 +353,23 @@ export default function DoncAPIPendentes() {
           ))}
         </div>
       ))}
+
+      <Modal isOpen={!!confirmAction} onClose={() => setConfirmAction(null)} title="Confirmar ação">
+        <p style={{ marginBottom: 16, fontSize: 14, color: '#333' }}>
+          {confirmAction?.type === 'approve'
+            ? `Aprovar todos os ${confirmAction.count} registros pendentes?`
+            : `Rejeitar todos os ${confirmAction.count} registros pendentes?`}
+        </p>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <Button variant="ghost" onClick={() => setConfirmAction(null)}>Cancelar</Button>
+          <Button
+            variant={confirmAction?.type === 'approve' ? 'primary' : 'danger'}
+            onClick={handleBulkConfirm}
+          >
+            {confirmAction?.type === 'approve' ? 'Aprovar todos' : 'Rejeitar todos'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }
