@@ -331,6 +331,17 @@ serve(async (req) => {
       }).eq('id', logId)
     }
 
+    // Auto-unschedule one-off jobs after execution
+    try {
+      const { data: oneoffJob } = await admin.rpc('manage_cron_job', { p_action: 'get_config', p_job_name: 'monthly-sync-oneoff' })
+      if (oneoffJob?.active) {
+        await admin.rpc('manage_cron_job', { p_action: 'unschedule', p_job_name: 'monthly-sync-oneoff' })
+        console.log('monthly-sync: one-off job unscheduled after execution')
+      }
+    } catch (_) {
+      // non-critical — one-off cleanup is best-effort
+    }
+
     return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult })
   } catch (err) {
     console.error('monthly-sync:', err)

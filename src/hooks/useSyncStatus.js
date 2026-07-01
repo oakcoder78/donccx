@@ -21,3 +21,21 @@ export function useSyncStatus({ enabled } = {}) {
     refetchInterval: 5 * 60 * 1000,
   })
 }
+
+export function useSyncHistory({ limit = 10, enabled } = {}) {
+  return useQuery({
+    queryKey: ['sync_history', limit],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sync_log')
+        .select('*')
+        .eq('job_name', 'monthly-sync')
+        .order('started_at', { ascending: false })
+        .limit(limit)
+      if (error) throw error
+      return data
+    },
+    enabled,
+    staleTime: 30_000,
+  })
+}
