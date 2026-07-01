@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 4 — Complete (Phase 3 done)
+- **Active phase:** All phases complete ✅
 - **SDD lifecycle stage:** Active
 
 **What already exists related to this work:**
@@ -357,24 +357,42 @@ Target pattern:
 
 ---
 
-### Phase 5 — Global sync alert (proactive notification)
+### Phase 5 — Global sync alert + Scheduling + History
 
-**Status:** Planned
+**Status:** Complete ✅
 
 **Scope:**
 - Badge global no header quando última sync automática falhou
 - Polling a cada 5 minutos do `useSyncStatus`
+- Botão "Executar agora" na página de Status com seletor de mês
+- Histórico das últimas 15 execuções em tabela
+- Agendamento flexível (presets + custom cron + one-off)
 
 #### Checklist
 
-- [ ] **Global header:** Add sync status badge for admin/manager
-- [ ] **Polling:** `useSyncStatus` with `refetchInterval: 5 * 60 * 1000`
-- [ ] **Build:** `npm run build` with no errors
+- [x] **Migration:** RPC `manage_cron_job` (SECURITY DEFINER) para schedule/unschedule/get_config via pg_cron
+- [x] **Edge Function:** `sync-schedule` — proxy para frontend chamar RPC + disparar monthly-sync diretamente
+- [x] **EF monthly-sync:** Auto-unschedule one-off jobs após execução
+- [x] **Hook:** `useSyncHistory` — query `sync_log` com limit
+- [x] **Navbar:** Badge `AlertTriangle` sync failure para admin/manager
+- [x] **SettingsSyncStatus:** Seção "Executar agora" com month picker
+- [x] **SettingsSyncStatus:** Seção "Agendamento" com presets + custom cron + one-off datepicker
+- [x] **SettingsSyncStatus:** Seção "Histórico" com tabela de execuções
+- [x] **Build:** `npm run build` sem erros
+- [x] **Deploy:** Migration `20260701000002` → `sync-schedule` EF → `monthly-sync` EF v23
+- [x] **Commit+Push:** `a959371`
 
 #### Implementation Log (Phase 5)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
+| 2026-07-01 | `a959371` | `supabase/migrations/20260701000002_create_manage_cron_job_rpc.sql` | RPC SECURITY DEFINER para gerenciar cron.job (schedule/unschedule/get_config) |
+| 2026-07-01 | `a959371` | `supabase/functions/sync-schedule/index.ts` (new) | Edge Function `sync-schedule` — actions: `run-now`, `set-schedule`, `schedule-oneoff`, `get-config` |
+| 2026-07-01 | `a959371` | `supabase/functions/monthly-sync/index.ts` (mod) | Auto-unschedule `monthly-sync-oneoff` após execução bem-sucedida |
+| 2026-07-01 | `a959371` | `supabase/config.toml` | `verify_jwt = false` para sync-schedule |
+| 2026-07-01 | `a959371` | `src/hooks/useSyncStatus.js` (mod) | Novo export `useSyncHistory({ limit })` para listar execuções passadas |
+| 2026-07-01 | `a959371` | `src/components/settings/SettingsSyncStatus.jsx` (mod) | 4 seções: status, executar agora, agendamento, histórico |
+| 2026-07-01 | `a959371` | `src/components/layout/Navbar.jsx` (mod) | Badge `AlertTriangle` no header para admin/manager quando `sync_log.status === 'failed'` |
 
 ---
 
@@ -386,10 +404,16 @@ Target pattern:
 - DoncAPIPendentes usa `Modal` do projeto no lugar de `window.confirm()` ✅ (Phase 2)
 - Mensagens de erro mapeadas via `friendlyError()` em todas as telas de sync ✅ (Phase 1 + 4)
 - SettingsDoncAPI e SettingsFreshdesk com mensagens amigáveis + botão "Tentar novamente" nos erros ✅ (Phase 4)
-- Tabela `sync_log` criada + Edge Function `monthly-sync` version 22 registra execuções ✅ (Phase 3)
+- Tabela `sync_log` criada + Edge Function `monthly-sync` registra execuções ✅ (Phase 3)
 - Componente `SettingsSyncStatus` disponível em Configurações → Integrações → Status da Sincronização ✅ (Phase 3)
+- Badge global no header quando sync falha + link para Configurações ✅ (Phase 5)
+- Histórico das últimas 15 execuções em tabela na página de Status ✅ (Phase 5)
+- Botão "Executar agora" com seletor de mês na página de Status ✅ (Phase 5)
+- Agendamento flexível (presets, custom cron, one-off datepicker) na página de Status ✅ (Phase 5)
+- RPC `manage_cron_job + Edge Function sync-schedule` para gerenciar cron via frontend ✅ (Phase 5)
+- `monthly-sync` auto-unschedule one-off jobs após execução ✅ (Phase 5)
 - **`pg_net` extension habilitada** — cron automático deve funcionar em 01/08/2026 ✅ (fix adicional)
-- Phase 5 (global header badge) pendente
+- **Todas as 5 fases completas** ✅
 
 ### Architectural decisions
 
@@ -398,9 +422,12 @@ Target pattern:
 | Tabela `sync_log` separada em vez de expor `cron.job_run_details` via REST API | O schema `cron` não é exposto pela REST API do Supabase. Expor via RPC seria possível, mas criar uma tabela própria é mais simples e dá controle sobre o schema. |
 | `friendlyError()` centralizado em lib | Todas as telas de sync podem importar do mesmo lugar. Fácil de estender com novos padrões de erro sem modificar cada componente. |
 | Modal do projeto em vez de `window.confirm()` | Consistência visual com o resto do app. Suporte a temas, animações, e acessibilidade. |
-| Phase 5 (global alert) como última prioridade | O badge global é conforto, não funcionalidade. As outras fases resolvem os gaps funcionais. |
+| Phase 5 expandida (schedule + history + one-off) | O badge global foi implementado junto com features reativas de agendamento sob demanda. Maior valor agregado que apenas o badge. |
 | Cron status como página de settings, não dashboard | O público do status do cron é admin/manager, que já está familiarizado com a página de settings. Evita poluir o dashboard do CSM. |
 | Polling de 5 min no sync status | A Edge Function monthly-sync roda uma vez por mês, então polling pesado não faz sentido. |
+| RPC `manage_cron_job` SECURITY DEFINER | Necessário para admin/manager poderem gerenciar `cron.job` via REST API, que não expõe o schema cron. O RPC roda com permissões de superuser apenas para as operações de cron. |
+| `sync-schedule` EF como proxy de gerenciamento | Centraliza a lógica de agendamento em uma EF que autentica o usuário (JWT) e chama o RPC. Evita expor o RPC diretamente para o frontend. |
+| One-off job auto-unschedule | O job `monthly-sync-oneoff` é removido pela própria `monthly-sync` após execução bem-sucedida. Evita execuções anuais indesejadas do mesmo schedule. |
 
 ---
 
@@ -430,7 +457,7 @@ When resuming this document for implementation:
 7. Update the **Checkpoint** section with the new production state.
 8. **Phase 3 requires backend changes.** Deploy migration before deploying the function. Follow the deploy sequence in AGENTS.md: migration → function deploy → Vercel deploy.
 9. **Do not modify `supabase/functions/donc-api-sync/index.ts`** — it only needs changes if error messages from it are unclear, which is handled at the frontend level by `friendlyError()`.
-10. **Phase 5 is optional, low priority.** Only implement after all other phases are complete and tested.
+10. **All phases complete.** Phase 5 included header badge, scheduling UI, history table, `sync-schedule` EF, and `manage_cron_job` RPC. See Implementation Log for details.
 
 ### Technical Summary Template (fill at the end of each phase)
 
