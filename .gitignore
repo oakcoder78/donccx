@@ -50,4 +50,4 @@ supabase/.temp/
 supabase/.branches/
 
 # Security audit plans (not synced)
-docs/security/
+docs/security/estrutura.json

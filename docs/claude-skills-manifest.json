@@ -1,0 +1,42 @@
+{
+  "note": "Skills originally at .claude/skills/ (copias diretas). Fonte canonica: .agents/skills/. Reinstalar com: ln -s ../../.agents/skills/<name> <name>",
+  "source_dir": ".agents/skills/",
+  "target_dir": ".claude/skills/",
+  "skills": [
+    {
+      "name": "caveman",
+      "description": "Ultra-compressed communication mode. Cuts token usage ~75% by speaking like caveman while keeping full technical accuracy.",
+      "source": ".agents/skills/caveman/SKILL.md"
+    },
+    {
+      "name": "caveman-commit",
+      "description": "Ultra-compressed commit message generator. Conventional Commits format.",
+      "source": ".agents/skills/caveman-commit/SKILL.md"
+    },
+    {
+      "name": "caveman-compress",
+      "description": "Compress natural language memory files into caveman format to save input tokens.",
+      "source": ".agents/skills/caveman-compress/SKILL.md"
+    },
+    {
+      "name": "caveman-help",
+      "description": "Quick-reference card for all caveman modes, skills, and commands.",
+      "source": ".agents/skills/caveman-help/SKILL.md"
+    },
+    {
+      "name": "caveman-review",
+      "description": "Ultra-compressed code review comments.",
+      "source": ".agents/skills/caveman-review/SKILL.md"
+    },
+    {
+      "name": "compress",
+      "description": "Compress natural language memory files into caveman format.",
+      "source": ".agents/skills/compress/SKILL.md"
+    },
+    {
+      "name": "huashu-design",
+      "description": "HTML-based hi-fi prototyping, interactive demos, slides, animations, design exploration.",
+      "source": ".agents/skills/huashu-design/SKILL.md"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ Routing rules in `.agents\core-agents.md`.
 ## Project
 
 Stack: React 18 + Vite 6 + TailwindCSS 3 + Supabase + TanStack Query v5 + react-router-dom v7  
-Root: `E:\donc\donccx`  
+Root: `/home/oak/projects/donc/donccx`  
 Entry: `src/main.jsx` → `src/App.jsx`  
 Dev: `npm run dev`  
 Build (only verification step): `npm run build`  
