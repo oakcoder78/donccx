@@ -180,6 +180,25 @@ Index only when relevant.
 
 ---
 
+# Security Documentation
+
+Location:
+
+docs/security/
+
+Contains:
+
+- SECURITY_REMEDIATION_PLAN.md — audit findings, credential rotation, RLS/CORS/error-leak fixes, phased remediation (Phase 0+1 ✅, Phase 2 pending)
+
+Use when:
+
+- modifying Edge Functions (auth, CORS, error handling)
+- changing RLS policies or GRANT permissions
+- handling credentials or secrets
+- auditing security posture
+
+---
+
 # Lookup Strategy
 
 Always:

@@ -13,6 +13,9 @@ dist
 dist-ssr
 *.local
 
+# Analysis artifacts
+graphify-out/
+
 # Environment files
 .env.local
 .env.*.local
