@@ -13,6 +13,9 @@ dist
 dist-ssr
 *.local
 
+# Local config files (Claude, etc.)
+.claude/settings.local.json
+
 # Analysis artifacts
 graphify-out/
 
