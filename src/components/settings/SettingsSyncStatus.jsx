@@ -187,7 +187,7 @@ export function SettingsSyncStatus() {
 
   const statusVariant = !lastRun ? 'slate' : lastRun.status === 'success' ? 'green' : 'red'
   const statusLabel = !lastRun ? 'Nunca executou' : lastRun.status === 'success' ? 'Sucesso' : 'Falha'
-  const statusIcon = !lastRun ? '⏳' : lastRun.status === 'success' ? '✅' : '❌'
+  const StatusIcon = !lastRun ? Icons.Clock : lastRun.status === 'success' ? Icons.CheckCircle : Icons.XCircle
 
   return (
     <div style={{ maxWidth: 720 }}>
@@ -203,7 +203,7 @@ export function SettingsSyncStatus() {
         {!isLoading && !error && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 24 }}>{statusIcon}</span>
+              <StatusIcon size={24} style={{ color: !lastRun ? '#888780' : lastRun.status === 'success' ? '#166534' : '#dc2626' }} />
               <div>
                 <Badge variant={statusVariant}>{statusLabel}</Badge>
                 <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>
@@ -260,9 +260,11 @@ export function SettingsSyncStatus() {
             <label style={S.label}>Mês de referência</label>
             <input type="month" style={S.input} value={month} onChange={e => setMonth(e.target.value)} />
           </div>
-          <button style={S.btn('#59c2ed', executing)} onClick={handleRunNow} disabled={executing}>
-            {executing ? 'Executando...' : 'Executar'}
-          </button>
+          <div style={S.fieldBox}>
+            <button style={S.btn('#59c2ed', executing)} onClick={handleRunNow} disabled={executing}>
+              {executing ? 'Executando...' : 'Executar'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -276,42 +278,50 @@ export function SettingsSyncStatus() {
           Altere a recorrência automática ou agende uma execução única.
         </p>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-          <div>
-            <label style={S.label}>Schedule</label>
-            <select style={S.select} value={preset} onChange={e => setPreset(e.target.value)}>
-              {SCHEDULE_PRESETS.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </select>
-            {preset === '' && (
-              <input
-                type="text"
-                style={{ ...S.input, marginTop: 8, fontFamily: 'monospace' }}
-                value={customCron}
-                onChange={e => setCustomCron(e.target.value)}
-                placeholder="Ex: 0 2 * * 1 (toda segunda às 02:00)"
-              />
-            )}
-            <button style={{ ...S.btn('#173557', saving), marginTop: 10 }} onClick={handleSaveSchedule} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar Schedule'}
-            </button>
+        <div style={{ display: 'flex', gap: 14, alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div style={S.fieldBox}>
+              <label style={S.label}>Schedule</label>
+              <select style={S.select} value={preset} onChange={e => setPreset(e.target.value)}>
+                {SCHEDULE_PRESETS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+              {preset === '' && (
+                <input
+                  type="text"
+                  style={{ ...S.input, marginTop: 8, fontFamily: 'monospace' }}
+                  value={customCron}
+                  onChange={e => setCustomCron(e.target.value)}
+                  placeholder="Ex: 0 2 * * 1 (toda segunda às 02:00)"
+                />
+              )}
+            </div>
+            <div style={{ marginTop: 'auto' }}>
+              <button style={S.btn('#173557', saving)} onClick={handleSaveSchedule} disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar Schedule'}
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label style={S.label}>Execução única (data/hora)</label>
-            <input
-              type="datetime-local"
-              style={S.input}
-              value={oneoffDatetime}
-              onChange={e => setOneoffDatetime(e.target.value)}
-            />
-            <p style={{ fontSize: 11, color: '#888780', margin: '4px 0 8px' }}>
-              O job é removido automaticamente após executar.
-            </p>
-            <button style={S.btn('#b45309', schedulingOneoff || !oneoffDatetime)} onClick={handleScheduleOneoff} disabled={schedulingOneoff || !oneoffDatetime}>
-              {schedulingOneoff ? 'Agendando...' : 'Agendar'}
-            </button>
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+            <div style={S.fieldBox}>
+              <label style={S.label}>Execução única (data/hora)</label>
+              <input
+                type="datetime-local"
+                style={S.input}
+                value={oneoffDatetime}
+                onChange={e => setOneoffDatetime(e.target.value)}
+              />
+              <p style={{ fontSize: 11, color: '#888780', margin: '4px 0 0' }}>
+                O job é removido automaticamente após executar.
+              </p>
+            </div>
+            <div style={{ marginTop: 'auto' }}>
+              <button style={S.btn('#b45309', schedulingOneoff || !oneoffDatetime)} onClick={handleScheduleOneoff} disabled={schedulingOneoff || !oneoffDatetime}>
+                {schedulingOneoff ? 'Agendando...' : 'Agendar'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
