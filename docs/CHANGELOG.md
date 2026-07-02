@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-01
+
+### Sync Scheduling — Fixes
+
+- **Fix:** `manage_cron_job` RPC — `cron.unschedule()` throws "could not find valid entry for job" when job doesn't exist. Wrapped in `BEGIN...EXCEPTION` to prevent 500 on first-use scheduling (`20260701000003_fix_cron_unschedule_error.sql`).
+- **Fix:** `SettingsSyncStatus` — times displayed in UTC; changed to `America/Sao_Paulo` (`formatDateTimeBR`, `nextCronDate`).
+- **Fix:** `SettingsSyncStatus` — `handleScheduleOneoff` didn't refetch after scheduling; added `refetchLatest()`/`refetchHistory()`.
+- **Fix:** `DoncAPIPendentes` — Modal crash: `confirmAction.count` accessed without optional chaining when `confirmAction` is null (`TypeError: Cannot read properties of null`).
+- **Ops:** Edge Functions `sync-schedule` and `monthly-sync` redeployed.
+
 ## 2026-06-25
 
 ### Audit System — Phase 1 + Backlog

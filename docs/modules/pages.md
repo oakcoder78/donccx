@@ -69,6 +69,10 @@ Pages are plain React components that import shared UI primitives (`Spinner`, `A
 - Custom hooks expose domain‑specific caches (clients, activities, health config, milestones).
 - Refs (`useRef`) used for stable callbacks in OCR handling and step‑wise form patches.
 
+### DoncAPIPendentes Notes
+
+- **Bulk confirm modal:** the ternary inside `<p>` evaluates `confirmAction.count` without optional chaining on the else branch. Fixed 2026-07-01: `confirmAction?.count ?? 0`.
+
 ## Known Risks
 - Heavy coupling between pages and many internal hooks can make isolated testing difficult.
 - Several pages perform side‑effects (fetches, Supabase writes) directly in component bodies; errors may surface as UI glitches.

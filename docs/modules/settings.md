@@ -33,6 +33,7 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsProjectTemplates.jsx** | UI for managing project templates with phases and activities. |
 | **SettingsAI.jsx** | UI for AI + Donkie configuration, consolidated into 5 sections: Models+Debug, Histórico de Falhas, WhatsApp Prompt, Donkie config, Email Prompt. Accessed via "Donkie IA" menu entry. |
 | **SettingsDoncAPI.jsx** | UI for configuring the DONC API integration (manager‑only). |
+| **SettingsSyncStatus.jsx** | UI for monthly sync orchestration: run-now, set recurring schedule, schedule one-off execution, execution history table (triggered via Edge Function `sync-schedule`). |
 | **SettingsFeatureFlags.jsx** | UI for toggling feature flags across the system. |
 | **UserEditModal.jsx** | UI for personal profile editing (name, gender, birth_date, phone, avatar). |
 
