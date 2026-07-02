@@ -203,7 +203,7 @@ export function SettingsSyncStatus() {
         {!isLoading && !error && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <StatusIcon size={24} style={{ color: !lastRun ? '#888780' : lastRun.status === 'success' ? '#166534' : '#dc2626' }} />
+              <StatusIcon size={16} style={{ color: '#173557' }} />
               <div>
                 <Badge variant={statusVariant}>{statusLabel}</Badge>
                 <p style={{ fontSize: 12, color: '#888780', margin: '4px 0 0' }}>
