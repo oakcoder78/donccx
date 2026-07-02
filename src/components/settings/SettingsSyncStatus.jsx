@@ -8,7 +8,7 @@ import { friendlyError } from '@/lib/syncErrors'
 
 function formatDateTimeBR(dateString) {
   if (!dateString) return '-'
-  return new Date(dateString).toLocaleString('pt-BR', { timeZone: 'UTC', timeZoneName: 'short' })
+  return new Date(dateString).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })
 }
 
 function nextCronDate() {
@@ -17,7 +17,7 @@ function nextCronDate() {
   if (next <= now) {
     next.setUTCMonth(next.getUTCMonth() + 1)
   }
-  return next.toLocaleString('pt-BR', { timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  return new Date(next.getTime()).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
 }
 
 function prevMonthValue() {
@@ -178,6 +178,8 @@ export function SettingsSyncStatus() {
       const d = new Date(oneoffDatetime)
       toast.success(`Execução única agendada para ${d.toLocaleString('pt-BR')}`)
       setOneoffDatetime('')
+      refetchLatest()
+      refetchHistory()
     } catch (e) {
       toast.error(friendlyError(e.message))
     } finally {
