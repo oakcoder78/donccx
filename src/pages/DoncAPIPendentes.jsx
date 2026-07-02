@@ -357,8 +357,8 @@ export default function DoncAPIPendentes() {
       <Modal isOpen={!!confirmAction} onClose={() => setConfirmAction(null)} title="Confirmar ação">
         <p style={{ marginBottom: 16, fontSize: 14, color: '#333' }}>
           {confirmAction?.type === 'approve'
-            ? `Aprovar todos os ${confirmAction.count} registros pendentes?`
-            : `Rejeitar todos os ${confirmAction.count} registros pendentes?`}
+            ? `Aprovar todos os ${confirmAction?.count ?? 0} registros pendentes?`
+            : `Rejeitar todos os ${confirmAction?.count ?? 0} registros pendentes?`}
         </p>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <Button variant="ghost" onClick={() => setConfirmAction(null)}>Cancelar</Button>
