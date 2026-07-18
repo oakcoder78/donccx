@@ -316,11 +316,11 @@ export function SettingsSyncStatus() {
         </p>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ ...S.fieldBox, flex: '0 0 160px' }}>
+          <div style={{ ...S.fieldBox, flex: '1 0 160px', minWidth: 160 }}>
             <label style={S.label}>Mês de referência</label>
             <input type="month" style={S.input} value={month} onChange={e => setMonth(e.target.value)} />
           </div>
-          <div style={{ ...S.fieldBox, flex: '0 0 200px' }}>
+          <div style={{ ...S.fieldBox, flex: '1 0 200px', minWidth: 200 }}>
             <label style={S.label}>Data/hora (opcional)</label>
             <input
               type="datetime-local"
@@ -329,8 +329,8 @@ export function SettingsSyncStatus() {
               onChange={e => setDatetime(e.target.value)}
             />
           </div>
-          <div style={{ ...S.fieldBox, flex: '0 0 96px' }}>
-            <button style={{ ...S.btn('#59c2ed', busy), width: '100%' }} onClick={handleExecute} disabled={busy}>
+          <div style={{ ...S.fieldBox, flexShrink: 0 }}>
+            <button style={S.btn('#59c2ed', busy)} onClick={handleExecute} disabled={busy}>
               {busy ? 'Processando...' : 'Executar'}
             </button>
           </div>
@@ -348,7 +348,7 @@ export function SettingsSyncStatus() {
         </p>
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div style={{ ...S.fieldBox, flex: '0 0 200px' }}>
+          <div style={{ ...S.fieldBox, flex: '1 0 200px', minWidth: 200 }}>
             <label style={S.label}>Recorrência</label>
             <select style={S.select} value={preset} onChange={e => setPreset(e.target.value)}>
               {SCHEDULE_PRESETS.map(p => (
@@ -377,8 +377,8 @@ export function SettingsSyncStatus() {
               </div>
             </>
           )}
-          <div style={{ ...S.fieldBox, flex: '0 0 96px' }}>
-            <button style={{ ...S.btn('#59c2ed', saving), width: '100%' }} onClick={handleSaveSchedule} disabled={saving}>
+          <div style={{ ...S.fieldBox, flexShrink: 0 }}>
+            <button style={S.btn('#173557', saving)} onClick={handleSaveSchedule} disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
