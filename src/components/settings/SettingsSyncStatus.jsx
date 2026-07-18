@@ -27,6 +27,7 @@ function formatDateBR(d) {
 function periodToCron(n, unit) {
   if (!n || n < 1) return null
   if (unit === 'meses') return `1 3 1 */${Math.round(n)} *`
+  if (unit === 'semanas') return `1 3 */${Math.round(7 * n)} * *`
   if (unit === 'dias') return `1 3 */${Math.round(n)} * *`
   return null
 }
@@ -36,7 +37,11 @@ function parseCronToPeriod(cronExpr) {
   const m = cronExpr.match(/^1 3 1 \*\/(\d+) \*$/)
   if (m) return { n: parseInt(m[1]), unit: 'meses' }
   const d = cronExpr.match(/^1 3 \*\/(\d+) \* \*$/)
-  if (d) return { n: parseInt(d[1]), unit: 'dias' }
+  if (d) {
+    const days = parseInt(d[1])
+    if (days % 7 === 0 && days >= 7) return { n: days / 7, unit: 'semanas' }
+    return { n: days, unit: 'dias' }
+  }
   return null
 }
 
@@ -365,6 +370,7 @@ export function SettingsSyncStatus() {
               <div style={{ ...S.fieldBox, flex: '0 0 130px' }}>
                 <label style={S.label}>Período</label>
                 <select style={S.select} value={customUnit} onChange={e => setCustomUnit(e.target.value)}>
+                  <option value="semanas">Semanas</option>
                   <option value="meses">Meses</option>
                   <option value="dias">Dias</option>
                 </select>
@@ -377,6 +383,11 @@ export function SettingsSyncStatus() {
             </button>
           </div>
         </div>
+        <p style={{ fontSize: 11, color: '#888780', margin: '8px 0 0' }}>
+          As execuções ocorrem às <strong>00:01 BRT</strong> (horário de Brasília). 
+          Agendamentos mensais e trimestrais rodam no <strong>primeiro dia</strong> do período; 
+          semanais às <strong>segundas-feiras</strong>.
+        </p>
       </div>
 
       {/* ── Histórico de execuções ── */}
