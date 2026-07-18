@@ -17,7 +17,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 > **Read this first.** This block is the starting point for any agent resuming work.
 
 - **Active branch:** `main`
-- **Last deploy:** `donccx.vercel.app`
+- **Last deploy:** `donccx.vercel.app` (commit `54cd5a7`, 2026-07-18)
 - **Active phase:** All phases complete ✅
 - **SDD lifecycle stage:** Active
 
@@ -36,6 +36,11 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 - `cron.job_run_details` — tabela do `pg_cron` que registra execuções (jobid=4 = monthly-sync-job)
 - Tabela `client_usage` com colunas `id`, `client_id`, `ref_month`, `pending`, `partial_day`, `donc_snapshot`
 - Tabela `client_support` com colunas `id`, `client_id`, `ref_month`, `pending`, `freshdesk_snapshot`
+- `src/components/settings/SettingsSyncStatus.jsx` — UI de agendamento de sincronização mensal: presets, cron customizado, one-off, histórico, botão "Executar agora"
+  - `toBRT()` — compat reversa: converte cron UTC antigo (`1 0 …`) para BRT (`1 3 …`) na exibição, sem re-salvar no DB
+  - Agendamento semanal ("Semanas") no dropdown Personalizado
+  - Texto explicativo BRT abaixo do botão Salvar: "As execuções ocorrem às 00:01 BRT..."
+  - Botões Executar/Salvar: mesma cor (#59c2ed) e mesma largura (minWidth: 96)
 
 **What does NOT exist and needs to be created:**
 
@@ -381,6 +386,10 @@ Target pattern:
 - [x] **Build:** `npm run build` sem erros
 - [x] **Deploy:** Migration `20260701000002` → `sync-schedule` EF → `monthly-sync` EF v23
 - [x] **Commit+Push:** `a959371`
+- [x] `toBRT()` — backward compat for old UTC cron (`1 0 … → 1 3 …`) on display
+- [x] Weekly schedule support (`semanas` option in custom dropdown)
+- [x] BRT explanation text in schedule card
+- [x] Both buttons same color (#59c2ed) and width (minWidth: 96)
 
 #### Implementation Log (Phase 5)
 
@@ -393,6 +402,10 @@ Target pattern:
 | 2026-07-01 | `a959371` | `src/hooks/useSyncStatus.js` (mod) | Novo export `useSyncHistory({ limit })` para listar execuções passadas |
 | 2026-07-01 | `a959371` | `src/components/settings/SettingsSyncStatus.jsx` (mod) | 4 seções: status, executar agora, agendamento, histórico |
 | 2026-07-01 | `a959371` | `src/components/layout/Navbar.jsx` (mod) | Badge `AlertTriangle` no header para admin/manager quando `sync_log.status === 'failed'` |
+| 2026-07-18 | `1e5ee63` | `src/components/settings/SettingsSyncStatus.jsx` | `toBRT()` — upgrade old UTC cron to BRT at display time; remove `OLD_PRESETS` |
+| 2026-07-18 | `331edba` | `src/components/settings/SettingsSyncStatus.jsx` | Add weekly schedule (`semanas`) + BRT info text |
+| 2026-07-18 | `13de41f` | `src/components/settings/SettingsSyncStatus.jsx` | Both buttons same color (#59c2ed) and minWidth:96 |
+| 2026-07-18 | `54cd5a7` | `src/components/settings/SettingsSyncStatus.jsx` | Center text inside buttons with justifyContent |
 
 ---
 
@@ -410,6 +423,10 @@ Target pattern:
 - Histórico das últimas 15 execuções em tabela na página de Status ✅ (Phase 5)
 - Botão "Executar agora" com seletor de mês na página de Status ✅ (Phase 5)
 - Agendamento flexível (presets, custom cron, one-off datepicker) na página de Status ✅ (Phase 5)
+- `toBRT()` — DB cron `1 0 …` exibido como `00:01 BRT` sem re-save ✅
+- Schedule "Semanal" disponível no dropdown Personalizado ("Semanas") ✅
+- Texto explicativo "00:01 BRT, primeiro dia, segundas para semanal" ✅
+- Botões Executar/Salvar: mesma cor (#59c2ed) e largura (minWidth 96) ✅
 - RPC `manage_cron_job + Edge Function sync-schedule` para gerenciar cron via frontend ✅ (Phase 5)
 - `monthly-sync` auto-unschedule one-off jobs após execução ✅ (Phase 5)
 - **`pg_net` extension habilitada** — cron automático deve funcionar em 01/08/2026 ✅ (fix adicional)
@@ -457,7 +474,7 @@ When resuming this document for implementation:
 7. Update the **Checkpoint** section with the new production state.
 8. **Phase 3 requires backend changes.** Deploy migration before deploying the function. Follow the deploy sequence in AGENTS.md: migration → function deploy → Vercel deploy.
 9. **Do not modify `supabase/functions/donc-api-sync/index.ts`** — it only needs changes if error messages from it are unclear, which is handled at the frontend level by `friendlyError()`.
-10. **All phases complete.** Phase 5 included header badge, scheduling UI, history table, `sync-schedule` EF, and `manage_cron_job` RPC. See Implementation Log for details.
+10. **All phases complete.** Phase 5 included header badge, scheduling UI, history table, `sync-schedule` EF, and `manage_cron_job` RPC. Post-deployment refinements added `toBRT()` backward compat, weekly schedule ("Semanas"), BRT explanation text, and UI polish (buttons same color/width). See Implementation Log for details.
 
 ### Technical Summary Template (fill at the end of each phase)
 
