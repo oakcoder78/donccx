@@ -330,7 +330,7 @@ export function SettingsSyncStatus() {
             />
           </div>
           <div style={{ ...S.fieldBox, flexShrink: 0 }}>
-            <button style={S.btn('#59c2ed', busy)} onClick={handleExecute} disabled={busy}>
+            <button style={{ ...S.btn('#59c2ed', busy), minWidth: 96 }} onClick={handleExecute} disabled={busy}>
               {busy ? 'Processando...' : 'Executar'}
             </button>
           </div>
@@ -378,7 +378,7 @@ export function SettingsSyncStatus() {
             </>
           )}
           <div style={{ ...S.fieldBox, flexShrink: 0 }}>
-            <button style={S.btn('#173557', saving)} onClick={handleSaveSchedule} disabled={saving}>
+            <button style={{ ...S.btn('#59c2ed', saving), minWidth: 96 }} onClick={handleSaveSchedule} disabled={saving}>
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
