@@ -13,31 +13,6 @@ function formatDateTimeBR(dateString) {
   return new Date(dateString).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })
 }
 
-function nextCronDate(cronExpr) {
-  if (!cronExpr) return null
-  const now = new Date()
-
-  if (cronExpr === '1 3 1 * *') {
-    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 3, 1, 0))
-    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 1)
-    return next.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
-  }
-
-  if (cronExpr === '1 3 1 */3 *') {
-    let next = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / 3) * 3, 1, 3, 1, 0))
-    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 3)
-    return next.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
-  }
-
-  if (cronExpr === '1 3 1 1,7 *') {
-    let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() < 7 ? 0 : 6, 1, 3, 1, 0))
-    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 6)
-    return next.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
-  }
-
-  return cronExpr
-}
-
 function prevMonthValue() {
   const d = new Date()
   d.setDate(1)
@@ -45,12 +20,83 @@ function prevMonthValue() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+function formatDateBR(d) {
+  return d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+}
+
+function periodToCron(n, unit) {
+  if (!n || n < 1) return null
+  if (unit === 'meses') return `1 3 1 */${Math.round(n)} *`
+  if (unit === 'dias') return `1 3 */${Math.round(n)} * *`
+  return null
+}
+
+function parseCronToPeriod(cronExpr) {
+  if (!cronExpr) return null
+  const m = cronExpr.match(/^1 3 1 \*\/(\d+) \*$/)
+  if (m) return { n: parseInt(m[1]), unit: 'meses' }
+  const d = cronExpr.match(/^1 3 \*\/(\d+) \* \*$/)
+  if (d) return { n: parseInt(d[1]), unit: 'dias' }
+  return null
+}
+
+function nextCronDate(cronExpr) {
+  if (!cronExpr) return null
+  const now = new Date()
+
+  if (cronExpr === '1 3 1 * *') {
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 3, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 1)
+    return formatDateBR(next)
+  }
+
+  if (cronExpr === '1 3 1 */3 *') {
+    let next = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / 3) * 3, 1, 3, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 3)
+    return formatDateBR(next)
+  }
+
+  if (cronExpr === '1 3 1 1,7 *') {
+    let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() < 7 ? 0 : 6, 1, 3, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 6)
+    return formatDateBR(next)
+  }
+
+  const meses = cronExpr.match(/^1 3 1 \*\/(\d+) \*$/)
+  if (meses) {
+    const n = parseInt(meses[1])
+    let next = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / n) * n, 1, 3, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + n)
+    return formatDateBR(next)
+  }
+
+  const dias = cronExpr.match(/^1 3 \*\/(\d+) \* \*$/)
+  if (dias) {
+    const n = parseInt(dias[1])
+    let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 1, 0))
+    next.setUTCDate(Math.ceil(next.getUTCDate() / n) * n)
+    if (next <= now) next.setUTCDate(next.getUTCDate() + n)
+    return formatDateBR(next)
+  }
+
+  return null
+}
+
 const SCHEDULE_PRESETS = [
-  { label: 'Mensal (1º dia 00:01 BRT)', value: '1 3 1 * *' },
-  { label: 'Trimestral (1º dia 00:01 BRT)', value: '1 3 1 */3 *' },
-  { label: 'Semestral (1º dia 00:01 BRT)', value: '1 3 1 1,7 *' },
-  { label: 'Customizado', value: '' },
+  { label: 'Mensal', cron: '1 3 1 * *' },
+  { label: 'Trimestral', cron: '1 3 1 */3 *' },
+  { label: 'Semestral', cron: '1 3 1 1,7 *' },
+  { label: 'Personalizado', cron: null },
 ]
+
+function getScheduleLabel(cronExpr) {
+  if (!cronExpr) return 'Não configurado'
+  const preset = SCHEDULE_PRESETS.find(p => p.cron === cronExpr)
+  if (preset && preset.cron) return preset.label
+  const parsed = parseCronToPeriod(cronExpr)
+  if (parsed) return `A cada ${parsed.n} ${parsed.unit}`
+  return 'Personalizado'
+}
 
 async function callSyncSchedule(body) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -67,13 +113,6 @@ async function callSyncSchedule(body) {
   const result = await res.json()
   if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
   return result
-}
-
-function getScheduleLabel(cronExpr) {
-  if (!cronExpr) return { label: 'Não configurado', isPreset: false }
-  const preset = SCHEDULE_PRESETS.find(p => p.value === cronExpr)
-  if (preset) return { label: preset.label, isPreset: true }
-  return { label: `Customizado (${cronExpr})`, isPreset: false }
 }
 
 const S = {
@@ -95,9 +134,8 @@ const S = {
     cursor: disabled ? 'not-allowed' : 'pointer',
     backgroundColor: disabled ? '#e8e7e3' : color,
     color: disabled ? '#888780' : '#fff',
-    transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: 6,
+    transition: 'all 0.15s', display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
   }),
-  codeBox: { padding: '8px 12px', backgroundColor: '#f4f5f7', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', color: '#1a1a18', overflow: 'auto' },
   pendingBox: {
     padding: '12px 16px', marginBottom: 14, borderRadius: 7,
     backgroundColor: '#fffbeb', border: '1px solid #fde68a',
@@ -127,41 +165,64 @@ export function SettingsSyncStatus() {
   // ── Execução Manual ──
   const [month, setMonth] = useState(prevMonthValue())
   const [executing, setExecuting] = useState(false)
-  const [oneoffDatetime, setOneoffDatetime] = useState('')
-  const [schedulingOneoff, setSchedulingOneoff] = useState(false)
+  const [datetime, setDatetime] = useState('')
+  const [scheduling, setScheduling] = useState(false)
 
   // ── Agendamento Automático ──
   const [preset, setPreset] = useState('1 3 1 * *')
-  const [customCron, setCustomCron] = useState('')
+  const [customInterval, setCustomInterval] = useState(1)
+  const [customUnit, setCustomUnit] = useState('meses')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!configData?.config?.schedule) return
-    const found = SCHEDULE_PRESETS.find(p => p.value === configData.config.schedule)
-    if (found) setPreset(found.value)
+    const found = SCHEDULE_PRESETS.find(p => p.cron === configData.config.schedule)
+    if (found && found.cron) setPreset(found.cron)
     else {
+      const parsed = parseCronToPeriod(configData.config.schedule)
       setPreset('')
-      setCustomCron(configData.config.schedule)
+      if (parsed) { setCustomInterval(parsed.n); setCustomUnit(parsed.unit) }
+      else { setCustomInterval(1); setCustomUnit('meses') }
     }
   }, [configData?.config?.schedule])
 
-  async function handleRunNow() {
-    setExecuting(true)
-    try {
-      await callSyncSchedule({ action: 'run-now', month })
-      toast.success('Sincronização completa concluída')
-      refetchLatest()
-      refetchHistory()
-    } catch (e) {
-      toast.error(friendlyError(e.message))
-    } finally {
-      setExecuting(false)
+  async function handleExecute() {
+    if (datetime) {
+      setScheduling(true)
+      try {
+        await callSyncSchedule({ action: 'schedule-oneoff', datetime: new Date(datetime).toISOString() })
+        toast.success(`Execução agendada para ${new Date(datetime).toLocaleString('pt-BR')}`)
+        setDatetime('')
+        queryClient.invalidateQueries({ queryKey: ['sync-config'] })
+        refetchLatest()
+        refetchHistory()
+      } catch (e) {
+        toast.error(friendlyError(e.message))
+      } finally {
+        setScheduling(false)
+      }
+    } else {
+      setExecuting(true)
+      try {
+        await callSyncSchedule({ action: 'run-now', month })
+        toast.success('Sincronização completa concluída')
+        refetchLatest()
+        refetchHistory()
+      } catch (e) {
+        toast.error(friendlyError(e.message))
+      } finally {
+        setExecuting(false)
+      }
     }
   }
 
   async function handleSaveSchedule() {
-    const schedule = preset === '' ? customCron.trim() : preset
-    if (!schedule) { toast.error('Selecione ou digite um cron schedule'); return }
+    let schedule
+    if (preset) schedule = preset
+    else {
+      schedule = periodToCron(customInterval, customUnit)
+      if (!schedule) { toast.error('Defina o intervalo personalizado'); return }
+    }
     setSaving(true)
     try {
       await callSyncSchedule({ action: 'set-schedule', schedule })
@@ -176,24 +237,7 @@ export function SettingsSyncStatus() {
     }
   }
 
-  async function handleScheduleOneoff() {
-    if (!oneoffDatetime) { toast.error('Selecione data e hora'); return }
-    setSchedulingOneoff(true)
-    try {
-      const datetime = new Date(oneoffDatetime).toISOString()
-      await callSyncSchedule({ action: 'schedule-oneoff', datetime })
-      const d = new Date(oneoffDatetime)
-      toast.success(`Execução única agendada para ${d.toLocaleString('pt-BR')}`)
-      setOneoffDatetime('')
-      queryClient.invalidateQueries({ queryKey: ['sync-config'] })
-      refetchLatest()
-      refetchHistory()
-    } catch (e) {
-      toast.error(friendlyError(e.message))
-    } finally {
-      setSchedulingOneoff(false)
-    }
-  }
+  const busy = executing || scheduling
 
   const statusVariant = !lastRun ? 'slate' : lastRun.status === 'success' ? 'green' : 'red'
   const statusLabel = !lastRun ? 'Nunca executou' : lastRun.status === 'success' ? 'Sucesso' : 'Falha'
@@ -254,40 +298,27 @@ export function SettingsSyncStatus() {
           <p style={S.sectionTitle}>Execução Manual</p>
         </div>
         <p style={S.sectionDesc}>
-          Execute a orquestração completa imediatamente ou agende para uma data futura.
+          Execute a sincronização agora ou agende para uma data futura.
         </p>
 
-        <div style={{ display: 'flex', gap: 14, alignItems: 'stretch' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <div style={S.fieldBox}>
-              <label style={S.label}>Execução Imediata</label>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <input type="month" style={{ ...S.input, flex: 1 }} value={month} onChange={e => setMonth(e.target.value)} />
-                <button style={S.btn('#59c2ed', executing)} onClick={handleRunNow} disabled={executing}>
-                  {executing ? 'Executando...' : 'Executar'}
-                </button>
-              </div>
-            </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ ...S.fieldBox, flex: '1 0 160px', minWidth: 160 }}>
+            <label style={S.label}>Mês de referência</label>
+            <input type="month" style={S.input} value={month} onChange={e => setMonth(e.target.value)} />
           </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            <div style={S.fieldBox}>
-              <label style={S.label}>Agendar para Futuro</label>
-              <input
-                type="datetime-local"
-                style={S.input}
-                value={oneoffDatetime}
-                onChange={e => setOneoffDatetime(e.target.value)}
-              />
-              <p style={{ fontSize: 11, color: '#888780', margin: '4px 0 0' }}>
-                O job é removido automaticamente após executar.
-              </p>
-            </div>
-            <div style={{ marginTop: 'auto' }}>
-              <button style={S.btn('#b45309', schedulingOneoff || !oneoffDatetime)} onClick={handleScheduleOneoff} disabled={schedulingOneoff || !oneoffDatetime}>
-                {schedulingOneoff ? 'Agendando...' : 'Agendar'}
-              </button>
-            </div>
+          <div style={{ ...S.fieldBox, flex: '1 0 200px', minWidth: 200 }}>
+            <label style={S.label}>Data/hora (opcional)</label>
+            <input
+              type="datetime-local"
+              style={S.input}
+              value={datetime}
+              onChange={e => setDatetime(e.target.value)}
+            />
+          </div>
+          <div style={{ ...S.fieldBox, flexShrink: 0 }}>
+            <button style={S.btn('#59c2ed', busy)} onClick={handleExecute} disabled={busy}>
+              {busy ? 'Processando...' : 'Executar'}
+            </button>
           </div>
         </div>
       </div>
@@ -299,30 +330,41 @@ export function SettingsSyncStatus() {
           <p style={S.sectionTitle}>Agendamento Automático</p>
         </div>
         <p style={S.sectionDesc}>
-          Configure a recorrência da sincronização automática.
+          Configure a recorrência automática da sincronização.
         </p>
 
-        <div style={{ display: 'flex', gap: 14, alignItems: 'flex-end' }}>
-          <div style={{ ...S.fieldBox, flex: 1 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ ...S.fieldBox, flex: '1 0 200px', minWidth: 200 }}>
             <label style={S.label}>Recorrência</label>
             <select style={S.select} value={preset} onChange={e => setPreset(e.target.value)}>
               {SCHEDULE_PRESETS.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
+                <option key={p.cron || 'custom'} value={p.cron || ''}>{p.label}</option>
               ))}
             </select>
-            {preset === '' && (
-              <input
-                type="text"
-                style={{ ...S.input, marginTop: 8, fontFamily: 'monospace' }}
-                value={customCron}
-                onChange={e => setCustomCron(e.target.value)}
-                placeholder="Ex: 0 2 * * 1 (toda segunda às 02:00)"
-              />
-            )}
           </div>
+          {!preset && (
+            <>
+              <div style={{ ...S.fieldBox, flex: '0 0 80px' }}>
+                <label style={S.label}>A cada</label>
+                <input
+                  type="number" min="1" max="365"
+                  style={S.input}
+                  value={customInterval}
+                  onChange={e => setCustomInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                />
+              </div>
+              <div style={{ ...S.fieldBox, flex: '0 0 130px' }}>
+                <label style={S.label}>Período</label>
+                <select style={S.select} value={customUnit} onChange={e => setCustomUnit(e.target.value)}>
+                  <option value="meses">Meses</option>
+                  <option value="dias">Dias</option>
+                </select>
+              </div>
+            </>
+          )}
           <div style={{ ...S.fieldBox, flexShrink: 0 }}>
             <button style={S.btn('#173557', saving)} onClick={handleSaveSchedule} disabled={saving}>
-              {saving ? 'Salvando...' : 'Salvar Schedule'}
+              {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
         </div>
@@ -338,7 +380,6 @@ export function SettingsSyncStatus() {
           Últimas {history.length} execuções registradas.
         </p>
 
-        {/* ── Aguardando próxima execução ── */}
         {configLoading && (
           <div style={S.pendingBox}>
             <p style={{ margin: 0, fontSize: 12, color: '#92400e' }}>Carregando agendamento...</p>
@@ -355,7 +396,7 @@ export function SettingsSyncStatus() {
               </Badge>
             </div>
             <p style={{ margin: '2px 0', fontSize: 12, color: '#92400e' }}>
-              Recorrência: {getScheduleLabel(configData.config.schedule).label}
+              Recorrência: {getScheduleLabel(configData.config.schedule)}
             </p>
             <p style={{ margin: '2px 0', fontSize: 13, color: '#1a1a18', fontWeight: 600 }}>
               {configData?.oneoff?.schedule
