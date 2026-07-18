@@ -18,6 +18,14 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function isAuthorizedByN8nKey(req: Request): boolean {
+  const n8nAuth = Deno.env.get('N8N_AUTH_KEY') ?? ''
+  if (!n8nAuth) return false
+  const apikey = req.headers.get('apikey')
+  const bearer = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '').trim()
+  return apikey === n8nAuth || bearer === n8nAuth
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
 
@@ -33,8 +41,11 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    const { authorized } = await authorizeRequest(req, admin, ['admin', 'manager'])
-    if (!authorized) return json({ ok: false, error: 'Forbidden' }, 403)
+    const authorizedByN8n = isAuthorizedByN8nKey(req)
+    if (!authorizedByN8n) {
+      const { authorized } = await authorizeRequest(req, admin, ['admin', 'manager'])
+      if (!authorized) return json({ ok: false, error: 'Forbidden' }, 403)
+    }
 
     // ── Parse body ───────────────────────────────────────────────────────────
     const body = await req.json() as {
