@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSyncStatus, useSyncHistory } from '@/hooks/useSyncStatus'
+import { useSyncConfig } from '@/hooks/useSyncConfig'
 import { supabase } from '@/lib/supabaseClient'
 import { Icons } from '@/lib/icons'
 import { Badge } from '../ui/Badge'
@@ -11,13 +13,29 @@ function formatDateTimeBR(dateString) {
   return new Date(dateString).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })
 }
 
-function nextCronDate() {
+function nextCronDate(cronExpr) {
+  if (!cronExpr) return null
   const now = new Date()
-  const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 1, 0))
-  if (next <= now) {
-    next.setUTCMonth(next.getUTCMonth() + 1)
+
+  if (cronExpr === '1 0 1 * *') {
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 1)
+    return new Date(next.getTime()).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
   }
-  return new Date(next.getTime()).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+
+  if (cronExpr === '1 0 1 */3 *') {
+    let next = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / 3) * 3, 1, 0, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 3)
+    return new Date(next.getTime()).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  }
+
+  if (cronExpr === '1 0 1 1,7 *') {
+    let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() < 7 ? 0 : 6, 1, 0, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 6)
+    return new Date(next.getTime()).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  }
+
+  return cronExpr
 }
 
 function prevMonthValue() {
@@ -33,6 +51,30 @@ const SCHEDULE_PRESETS = [
   { label: 'Semestral (1º dia 00:01 UTC)', value: '1 0 1 1,7 *' },
   { label: 'Customizado', value: '' },
 ]
+
+async function callSyncSchedule(body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Sessão expirada')
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-schedule`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  const result = await res.json()
+  if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
+  return result
+}
+
+function getScheduleLabel(cronExpr) {
+  if (!cronExpr) return { label: 'Não configurado', isPreset: false }
+  const preset = SCHEDULE_PRESETS.find(p => p.value === cronExpr)
+  if (preset) return { label: preset.label, isPreset: true }
+  return { label: `Customizado (${cronExpr})`, isPreset: false }
+}
 
 const S = {
   section: {
@@ -73,8 +115,10 @@ function SummaryCell({ data }) {
 }
 
 export function SettingsSyncStatus() {
+  const queryClient = useQueryClient()
   const { data: lastRun, isLoading, error, refetch: refetchLatest } = useSyncStatus()
   const { data: history = [], refetch: refetchHistory } = useSyncHistory({ limit: 15, enabled: true })
+  const { data: configData, isLoading: configLoading, isError: configError } = useSyncConfig()
 
   // ── Executar agora ──
   const [month, setMonth] = useState(prevMonthValue())
@@ -91,24 +135,7 @@ export function SettingsSyncStatus() {
   async function handleRunNow() {
     setExecuting(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Sessão expirada')
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-schedule`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ action: 'run-now', month }),
-        },
-      )
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
-
+      await callSyncSchedule({ action: 'run-now', month })
       toast.success('Sincronização completa concluída')
       refetchLatest()
       refetchHistory()
@@ -125,25 +152,11 @@ export function SettingsSyncStatus() {
     if (!schedule) { toast.error('Selecione ou digite um cron schedule'); return }
     setSaving(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Sessão expirada')
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-schedule`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ action: 'set-schedule', schedule }),
-        },
-      )
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
-
+      await callSyncSchedule({ action: 'set-schedule', schedule })
       toast.success('Schedule atualizado')
+      queryClient.invalidateQueries({ queryKey: ['sync-config'] })
+      refetchLatest()
+      refetchHistory()
     } catch (e) {
       toast.error(friendlyError(e.message))
     } finally {
@@ -156,28 +169,12 @@ export function SettingsSyncStatus() {
     if (!oneoffDatetime) { toast.error('Selecione data e hora'); return }
     setSchedulingOneoff(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Sessão expirada')
-
       const datetime = new Date(oneoffDatetime).toISOString()
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/sync-schedule`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ action: 'schedule-oneoff', datetime }),
-        },
-      )
-      const result = await res.json()
-      if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
-
+      await callSyncSchedule({ action: 'schedule-oneoff', datetime })
       const d = new Date(oneoffDatetime)
       toast.success(`Execução única agendada para ${d.toLocaleString('pt-BR')}`)
       setOneoffDatetime('')
+      queryClient.invalidateQueries({ queryKey: ['sync-config'] })
       refetchLatest()
       refetchHistory()
     } catch (e) {
@@ -237,13 +234,65 @@ export function SettingsSyncStatus() {
             )}
             <div style={{ fontSize: 12, color: '#888780', borderTop: '1px solid #e8e7e3', paddingTop: 12 }}>
               <p style={{ margin: 0 }}>
-                <strong style={{ color: '#1a1a18' }}>Próxima execução automática:</strong>{' '}
-                {nextCronDate()}
+                <strong style={{ color: '#1a1a18' }}>Agendamento:</strong>{' '}
+                {configLoading ? 'Carregando...' : configData?.config?.schedule ? getScheduleLabel(configData.config.schedule).label : 'Não configurado'}
+                {configData?.config?.active === false && <span style={{ color: '#dc2626', marginLeft: 8 }}>(inativo)</span>}
               </p>
-              <p style={{ margin: '4px 0 0', fontSize: 11 }}>
-                O cron executa no 1º dia de cada mês às 00:01 UTC.
+              <p style={{ margin: '4px 0 0' }}>
+                <strong style={{ color: '#1a1a18' }}>Próxima execução:</strong>{' '}
+                {configData?.config?.schedule ? nextCronDate(configData.config.schedule) : '—'}
               </p>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Configuração Atual ── */}
+      <div style={S.section}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <Icons.Calendar size={16} style={{ color: '#173557' }} />
+          <p style={S.sectionTitle}>Configuração Atual</p>
+        </div>
+        <p style={S.sectionDesc}>
+          Schedule ativo do cron mensal e execuções únicas pendentes.
+        </p>
+
+        {configLoading && <p style={{ fontSize: 13, color: '#888780' }}>Carregando...</p>}
+        {configError && (
+          <p style={{ fontSize: 12, color: '#888780' }}>
+            Não foi possível carregar a configuração do agendamento.
+          </p>
+        )}
+        {!configLoading && !configError && !configData?.config?.schedule && (
+          <p style={{ fontSize: 13, color: '#888780' }}>Nenhum schedule configurado.</p>
+        )}
+        {!configLoading && !configError && configData?.config?.schedule && (
+          <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr', gap: '6px 16px', fontSize: 13, alignItems: 'center' }}>
+            <span style={{ color: '#888780', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Schedule</span>
+            <span style={{ color: '#1a1a18' }}>{getScheduleLabel(configData.config.schedule).label}</span>
+
+            <span style={{ color: '#888780', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Cron</span>
+            <code style={S.codeBox}>{configData.config.schedule}</code>
+
+            <span style={{ color: '#888780', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Status</span>
+            <span style={{ color: configData.config.active === false ? '#dc2626' : '#166534' }}>
+              ● {configData.config.active === false ? 'Inativo' : 'Ativo'}
+            </span>
+
+            {configData?.oneoff?.schedule && (
+              <>
+                <span style={{ color: '#888780', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>One-off</span>
+                <span style={{ color: '#b45309' }}>{nextCronDate(configData.oneoff.schedule)}</span>
+              </>
+            )}
+
+            <span style={{ color: '#888780', fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Próxima</span>
+            <span style={{ color: '#1a1a18' }}>
+              {configData?.oneoff?.schedule
+                ? `${nextCronDate(configData.oneoff.schedule)} (one-off)`
+                : nextCronDate(configData.config.schedule)
+              }
+            </span>
           </div>
         )}
       </div>
