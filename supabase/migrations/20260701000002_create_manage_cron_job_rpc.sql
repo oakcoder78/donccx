@@ -32,14 +32,22 @@ begin
     );
 
   elsif p_action = 'unschedule' then
-    perform cron.unschedule(p_job_name);
+    begin
+      perform cron.unschedule(p_job_name);
+    exception when others then
+      null;
+    end;
     return json_build_object('status', 'unscheduled', 'job_name', p_job_name);
 
   elsif p_action = 'schedule' then
     if p_schedule is null then
       raise exception 'schedule is required for action schedule';
     end if;
-    perform cron.unschedule(p_job_name);
+    begin
+      perform cron.unschedule(p_job_name);
+    exception when others then
+      null;
+    end;
     v_sql := format(
       'select net.http_post(
         url := %L,

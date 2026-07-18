@@ -21,7 +21,16 @@ serve(async (req) => {
       })
     }
 
-    const { action, schedule, month, datetime } = await req.json()
+    let body: Record<string, unknown>
+    try {
+      body = await req.json()
+    } catch (e) {
+      console.error('sync-schedule: invalid JSON body', e)
+      return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
+        status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
+      })
+    }
+    const { action, schedule, month, datetime } = body
 
     if (action === 'run-now') {
       const webhookSecret = Deno.env.get('SYNC_WEBHOOK_SECRET') ?? ''
@@ -47,14 +56,14 @@ serve(async (req) => {
     if (action === 'set-schedule') {
       if (!schedule) throw new Error('schedule is required')
 
-      const { data, error } = await admin.rpc('manage_cron_job', {
+      const rpcResult = await admin.rpc('manage_cron_job', {
         p_action: 'schedule',
         p_job_name: 'monthly-sync-job',
         p_schedule: schedule,
       })
-      if (error) throw error
+      if (rpcResult.error) throw new Error(rpcResult.error.message || JSON.stringify(rpcResult.error))
 
-      return new Response(JSON.stringify({ ok: true, config: data }), {
+      return new Response(JSON.stringify({ ok: true, config: rpcResult.data }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
@@ -67,43 +76,47 @@ serve(async (req) => {
 
       const cronExpr = `${d.getUTCMinutes()} ${d.getUTCHours()} ${d.getUTCDate()} ${d.getUTCMonth() + 1} *`
 
-      await admin.rpc('manage_cron_job', {
+      const unschedResult = await admin.rpc('manage_cron_job', {
         p_action: 'unschedule',
         p_job_name: 'monthly-sync-oneoff',
       })
+      if (unschedResult.error) console.error('unschedule oneoff error (non-critical):', unschedResult.error)
 
-      const { data, error } = await admin.rpc('manage_cron_job', {
+      const schedResult = await admin.rpc('manage_cron_job', {
         p_action: 'schedule',
         p_job_name: 'monthly-sync-oneoff',
         p_schedule: cronExpr,
       })
-      if (error) throw error
+      if (schedResult.error) throw new Error(schedResult.error.message || JSON.stringify(schedResult.error))
 
-      return new Response(JSON.stringify({ ok: true, config: data }), {
+      return new Response(JSON.stringify({ ok: true, config: schedResult.data }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
     if (action === 'get-config') {
-      const { data: config, error } = await admin.rpc('manage_cron_job', {
+      const configResult = await admin.rpc('manage_cron_job', {
         p_action: 'get_config',
         p_job_name: 'monthly-sync-job',
       })
-      if (error) throw error
+      if (configResult.error) throw new Error(configResult.error.message || JSON.stringify(configResult.error))
 
-      const { data: oneoff } = await admin.rpc('manage_cron_job', {
+      const oneoffResult = await admin.rpc('manage_cron_job', {
         p_action: 'get_config',
         p_job_name: 'monthly-sync-oneoff',
       })
+      if (oneoffResult.error) console.error('get oneoff config error (non-critical):', oneoffResult.error)
 
-      return new Response(JSON.stringify({ ok: true, config, oneoff }), {
+      return new Response(JSON.stringify({ ok: true, config: configResult.data, oneoff: oneoffResult.data }), {
         headers: { ...cors, 'Content-Type': 'application/json' },
       })
     }
 
     throw new Error(`Unknown action: ${action}`)
   } catch (err) {
-    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }), {
+    console.error('sync-schedule error:', err)
+    const message = err instanceof Error ? err.message : typeof err === 'object' && err !== null ? JSON.stringify(err) : String(err)
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...cors, 'Content-Type': 'application/json' },
     })
