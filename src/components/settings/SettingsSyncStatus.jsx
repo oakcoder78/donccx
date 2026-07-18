@@ -33,9 +33,9 @@ function periodToCron(n, unit) {
 
 function parseCronToPeriod(cronExpr) {
   if (!cronExpr) return null
-  const m = cronExpr.match(/^1 3 1 \*\/(\d+) \*$/)
+  const m = cronExpr.match(/^1 [03] 1 \*\/(\d+) \*$/)
   if (m) return { n: parseInt(m[1]), unit: 'meses' }
-  const d = cronExpr.match(/^1 3 \*\/(\d+) \* \*$/)
+  const d = cronExpr.match(/^1 [03] \*\/(\d+) \* \*$/)
   if (d) return { n: parseInt(d[1]), unit: 'dias' }
   return null
 }
@@ -62,7 +62,24 @@ function nextCronDate(cronExpr) {
     return formatDateBR(next)
   }
 
-  const meses = cronExpr.match(/^1 3 1 \*\/(\d+) \*$/)
+  /* backward compat: old UTC presets (1 0 … = 00:01 UTC → 21:01 BRT -1d) */
+  if (cronExpr === '1 0 1 * *') {
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 1)
+    return formatDateBR(next)
+  }
+  if (cronExpr === '1 0 1 */3 *') {
+    let next = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / 3) * 3, 1, 0, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 3)
+    return formatDateBR(next)
+  }
+  if (cronExpr === '1 0 1 1,7 *') {
+    let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() < 7 ? 0 : 6, 1, 0, 1, 0))
+    if (next <= now) next.setUTCMonth(next.getUTCMonth() + 6)
+    return formatDateBR(next)
+  }
+
+  const meses = cronExpr.match(/^1 [03] 1 \*\/(\d+) \*$/)
   if (meses) {
     const n = parseInt(meses[1])
     let next = new Date(Date.UTC(now.getUTCFullYear(), Math.floor(now.getUTCMonth() / n) * n, 1, 3, 1, 0))
@@ -70,7 +87,7 @@ function nextCronDate(cronExpr) {
     return formatDateBR(next)
   }
 
-  const dias = cronExpr.match(/^1 3 \*\/(\d+) \* \*$/)
+  const dias = cronExpr.match(/^1 [03] \*\/(\d+) \* \*$/)
   if (dias) {
     const n = parseInt(dias[1])
     let next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 3, 1, 0))
@@ -89,10 +106,18 @@ const SCHEDULE_PRESETS = [
   { label: 'Personalizado', cron: null },
 ]
 
+const OLD_PRESETS = [
+  { cron: '1 0 1 * *', label: 'Mensal' },
+  { cron: '1 0 1 */3 *', label: 'Trimestral' },
+  { cron: '1 0 1 1,7 *', label: 'Semestral' },
+]
+
 function getScheduleLabel(cronExpr) {
   if (!cronExpr) return 'Não configurado'
   const preset = SCHEDULE_PRESETS.find(p => p.cron === cronExpr)
   if (preset && preset.cron) return preset.label
+  const old = OLD_PRESETS.find(p => p.cron === cronExpr)
+  if (old) return old.label
   const parsed = parseCronToPeriod(cronExpr)
   if (parsed) return `A cada ${parsed.n} ${parsed.unit}`
   return 'Personalizado'
@@ -176,7 +201,8 @@ export function SettingsSyncStatus() {
 
   useEffect(() => {
     if (!configData?.config?.schedule) return
-    const found = SCHEDULE_PRESETS.find(p => p.cron === configData.config.schedule)
+    const allPresets = [...SCHEDULE_PRESETS, ...OLD_PRESETS]
+    const found = allPresets.find(p => p.cron === configData.config.schedule)
     if (found && found.cron) setPreset(found.cron)
     else {
       const parsed = parseCronToPeriod(configData.config.schedule)
@@ -387,7 +413,7 @@ export function SettingsSyncStatus() {
         )}
         {!configLoading && !configError && configData?.config?.schedule && (
           <div style={S.pendingBox}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: '#92400e', display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Icons.Clock size={14} /> Aguardando próxima execução
               </span>
@@ -395,20 +421,23 @@ export function SettingsSyncStatus() {
                 {configData.config.active === false ? 'Inativo' : 'Ativo'}
               </Badge>
             </div>
-            <p style={{ margin: '2px 0', fontSize: 12, color: '#92400e' }}>
-              Recorrência: {getScheduleLabel(configData.config.schedule)}
-            </p>
-            <p style={{ margin: '2px 0', fontSize: 13, color: '#1a1a18', fontWeight: 600 }}>
-              {configData?.oneoff?.schedule
-                ? `${nextCronDate(configData.oneoff.schedule)} (one-off)`
-                : nextCronDate(configData.config.schedule)
-              }
-            </p>
-            {configData?.oneoff?.schedule && (
-              <p style={{ margin: '2px 0', fontSize: 11, color: '#888780' }}>
-                Próxima execução automática: {nextCronDate(configData.config.schedule)}
+            {configData?.oneoff?.schedule ? (
+              <>
+                <p style={{ margin: 0, fontSize: 15, color: '#1a1a18', fontWeight: 700 }}>
+                  {nextCronDate(configData.oneoff.schedule)} <span style={{ fontSize: 11, fontWeight: 400, color: '#b45309' }}>(one-off)</span>
+                </p>
+                <p style={{ margin: '4px 0 0', fontSize: 11, color: '#888780' }}>
+                  Próxima execução automática: {nextCronDate(configData.config.schedule)}
+                </p>
+              </>
+            ) : (
+              <p style={{ margin: 0, fontSize: 15, color: '#1a1a18', fontWeight: 700 }}>
+                {nextCronDate(configData.config.schedule)}
               </p>
             )}
+            <p style={{ margin: '4px 0 0', fontSize: 11, color: '#92400e' }}>
+              {getScheduleLabel(configData.config.schedule)}
+            </p>
           </div>
         )}
         {!configLoading && !configError && !configData?.config?.schedule && (
