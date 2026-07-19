@@ -48,7 +48,7 @@ const sectionFields = {
       label: 'Usuários Ativos',
       type: 'number',
       defaultEnabled: true,
-      resolve: (data) => data.usage?.find(u => u.ref_month === data.period)?.active_users ?? null,
+      resolve: (data) => data.usageHistory?.find(u => u.ref_month === data.period)?.active_users ?? null,
     },
     {
       key: 'delta_usuarios_ativos',
@@ -56,8 +56,8 @@ const sectionFields = {
       type: 'delta',
       defaultEnabled: true,
       resolve: (data) => {
-        const cur = data.usage?.find(u => u.ref_month === data.period)?.active_users
-        const prev = data.usage?.find(u => u.ref_month === data.prevPeriod)?.active_users
+        const cur = data.usageHistory?.find(u => u.ref_month === data.period)?.active_users
+        const prev = data.usageHistory?.find(u => u.ref_month === data.prevPeriod)?.active_users
         if (cur == null || prev == null || prev === 0) return null
         return Math.round(((cur - prev) / prev) * 100)
       },

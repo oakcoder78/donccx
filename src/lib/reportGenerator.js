@@ -393,11 +393,12 @@ function extrasRow(extras) {
 
 // ── Helpers para field registry ───────────────────────────────
 
-function slideData(period, opHistory, operationalData, supportRaw) {
+function slideData(period, opHistory, operationalData, supportRaw, usageHistory) {
   const [y, m] = period.split('-').map(Number)
   const prevDt = new Date(y, m - 2, 1)
   return {
     usage: opHistory ?? [],
+    usageHistory: usageHistory ?? [],
     sup: supportRaw ?? null,
     opCurrent: operationalData?.current ?? null,
     opPrev: operationalData?.prev ?? null,
@@ -549,8 +550,8 @@ function slideCapa(client, report, csm, capaContent) {
 
 // ── Slides de seções ──────────────────────────────────────────
 
-function slideEscala(sec, opHistory, period, clientName, p, operationalData = null) {
-  const data = slideData(period, opHistory, operationalData, null)
+function slideEscala(sec, opHistory, period, clientName, p, operationalData = null, usageHistory = []) {
+  const data = slideData(period, opHistory, operationalData, null, usageHistory)
   const uf = sec.content?.fields ?? {}
 
   // KPI cards via field registry
@@ -1052,7 +1053,7 @@ function slideCustomBars(sec, clientName, period, p) {
  */
 export function generateReportHTML(client, report, csm, extraData = {}) {
   const { sections: rawSecs = [], period = '', title = 'Relatório Mensal' } = report || {}
-  const { opHistory = [], supportRaw = null, healthData = null, projects = [], operationalData = null } = extraData
+  const { opHistory = [], usageHistory = [], supportRaw = null, healthData = null, projects = [], operationalData = null } = extraData
 
   const sections   = normalizeSections(rawSecs)
   const clientName = client?.fantasy_name || client?.name || '—'
@@ -1069,7 +1070,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
     .filter(s => s.type !== 'capa' && s.enabled !== false)
     .map(s => {
       const p = pageNum++
-      if (s.type === 'escala')          return slideEscala(s, opHistory, period, clientName, p, operationalData)
+      if (s.type === 'escala')          return slideEscala(s, opHistory, period, clientName, p, operationalData, usageHistory)
       if (s.type === 'suporte')         return slideSuporte(s, supportRaw, clientName, period, p)
       if (s.type === 'projetos')        return slideProjetos(s, projects, clientName, period, p)
       if (s.type === 'health_score')    return slideHealthScore(s, healthData, clientName, period, p)

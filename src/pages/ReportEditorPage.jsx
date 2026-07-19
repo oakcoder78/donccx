@@ -217,7 +217,7 @@ export default function ReportEditorPage() {
       client,
       { ...report, sections },
       csm,
-      { opHistory, supportRaw, healthData, projects, operationalData }
+      { usageHistory, opHistory, supportRaw, healthData, projects, operationalData }
     )
   }, [client, report, sections, csm, usageHistory, supportRaw, healthData, projects, operationalData])
 
