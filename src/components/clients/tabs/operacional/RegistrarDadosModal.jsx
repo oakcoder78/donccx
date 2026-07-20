@@ -170,7 +170,7 @@ export function RegistrarDadosModal({ client, initialMonth, onClose }) {
               {errors.os && <p className="text-xs text-red-500 mt-0.5">{errors.os}</p>}
             </div>
             <div>
-              <label className="label-sm">Usuários Ativos</label>
+              <label className="label-sm">Profissionais Ativos</label>
               <input
                 type="number" value={usersVal} min="0" placeholder="—"
                 onChange={e => { setUsersVal(e.target.value); setErrors(p => ({ ...p, users: undefined })) }}

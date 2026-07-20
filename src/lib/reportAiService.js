@@ -1,108 +1,100 @@
 import { supabase } from './supabaseClient'
+import { getSectionFields, getField, formatFieldValue } from './reportFields'
+
+const FORBIDDEN_PATTERNS = [
+  /recomenda[ -]se/i,
+  /sugere[ -]se/i,
+  /é (importante|necessário|fundamental|crucial) (que|manter|ter|a)/i,
+  /exige aten[cç][aã]o/i,
+  /precisa (ser|melhorar|mudar|ser revisto|ser revista)/i,
+  /deveria(m)? (ser|estar|ter|haver)/i,
+]
+
+export function hasForbiddenTone(text) {
+  return FORBIDDEN_PATTERNS.some(r => r.test(text))
+}
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
-function dataDump(data) {
-  return Object.entries(data)
-    .filter(([, v]) => v != null && v !== '')
-    .map(([k, v]) => `${k}: ${v}`)
-    .join('\n')
-}
-
-function mountUserContent(sectionType, data, clientName, period, customContext, includeRawData) {
+function mountUserContent({ sectionType, sectionData, activeFields, activeExtras, clientName, period, customContext }) {
   const [y, m] = (period || '').split('-').map(Number)
   const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
   const periodLabel = months[m - 1] ? `${months[m - 1]} ${y}` : period
-  const fmtPct = v => v != null ? `${v}%` : 'N/D'
 
-  let summary
-  switch (sectionType) {
-    case 'escala':
-      summary = `Analise os dados de escala operacional do cliente ${clientName} em ${periodLabel}:
-- OS Criadas: ${data.os_criadas ?? 'N/D'} (${data.delta_os_criadas != null ? (data.delta_os_criadas >= 0 ? '+' : '') + data.delta_os_criadas + '%' : 'N/D'} vs anterior)
-- Usuários Ativos: ${data.usuarios_ativos ?? 'N/D'} (${data.delta_usuarios_ativos != null ? (data.delta_usuarios_ativos >= 0 ? '+' : '') + data.delta_usuarios_ativos + '%' : 'N/D'} vs anterior)
-- Produtos Montados: ${data.produtos_montados ?? 'N/D'} (${data.delta_produtos_montados != null ? (data.delta_produtos_montados >= 0 ? '+' : '') + data.delta_produtos_montados + '%' : 'N/D'} vs anterior)
-- Composição: Montagem ${fmtPct(data.pct_montagem)}, Assistência ${fmtPct(data.pct_assistencia)}
-Gere uma análise do desempenho operacional do período.`
-      break
+  const fields = getSectionFields(sectionType).filter(f => f.type !== 'delta')
 
-    case 'qualidade_operacao':
-      summary = `Analise a qualidade operacional do cliente ${clientName} em ${periodLabel}:
-- Execução limpa: ${fmtPct(data.taxa_sucesso)}
-- OS finalizadas sem ocorrência: ${data.total_sucesso ?? 'N/D'}
-- OS com ocorrência: ${data.relatos_imprevistos ?? 'N/D'} (${data.delta_imprevistos != null ? (data.delta_imprevistos >= 0 ? '+' : '') + data.delta_imprevistos + '%' : 'N/D'} vs anterior)
-- Pontualidade: ${fmtPct(data.pontualidade)} (atraso médio ${data.atraso_medio_dias ?? 'N/D'} dias)
-Gere uma análise focada em qualidade e oportunidades de melhoria.`
-      break
+  const sectionLabel = {
+    escala: 'Escala da Operação',
+    qualidade_operacao: 'Qualidade da Operação',
+    indicadores_operacionais: 'Indicadores Operacionais',
+    categorias_ocorrencia: 'Categorias de Ocorrência',
+    desempenho_operacional: 'Desempenho Operacional',
+    suporte: 'Suporte',
+  }[sectionType] || sectionType
 
-    case 'indicadores_operacionais':
-      summary = `Analise os indicadores operacionais do cliente ${clientName} em ${periodLabel}:
-- Tempo médio de execução: ${data.tempo_execucao != null ? Math.round(data.tempo_execucao * 60) + ' min' : 'N/D'} (${data.delta_tempo_execucao != null ? (data.delta_tempo_execucao >= 0 ? '+' : '') + data.delta_tempo_execucao + '%' : 'N/D'} vs anterior)
-- Tempo em trânsito: ${data.tempo_transito != null ? Math.round(data.tempo_transito * 60) + ' min' : 'N/D'}
-Gere uma análise sobre eficiência operacional dos profissionais.`
-      break
-
-    case 'categorias_ocorrencia':
-      summary = `Analise as categorias de ocorrência do cliente ${clientName} em ${periodLabel}:
-Gere uma análise identificando padrões e oportunidades de ação com base nos dados disponíveis.`
-      break
-
-    case 'desempenho_operacional':
-      summary = `Analise o desempenho dos profissionais do cliente ${clientName} em ${periodLabel}:
-- Índice médio de produtividade: ${fmtPct(data.indice_produtividade)}
-- Total de profissionais ativos: ${data.total_profissionais ?? 'N/D'}
-Gere uma análise do desempenho geral da equipe de campo.`
-      break
-
-    case 'suporte':
-      summary = `Analise o suporte ao cliente ${clientName} em ${periodLabel}:
-- Tickets abertos: ${data.tickets_abertos ?? 'N/D'}
-- Tickets resolvidos: ${data.tickets_resolvidos ?? 'N/D'}
-- SLA primeira resposta: ${data.sla_primeira_resposta ?? 'N/D'} min
-- Taxa de resolução: ${fmtPct(data.taxa_resolucao)}
-- N1: ${fmtPct(data.n1_pct)}, N2: ${fmtPct(data.n2_pct)}, N3: ${fmtPct(data.n3_pct)}
-Gere uma análise da performance de suporte no período, destacando pontos de atenção.`
-      break
-
-    default:
-      summary = `Analise os dados operacionais do cliente ${clientName} em ${periodLabel}.`
+  const formatField = (key, raw) => {
+    const def = getField(sectionType, key)
+    if (!def) return String(raw ?? 'N/D')
+    const fmt = formatFieldValue(def, raw)
+    return fmt ?? 'N/D'
   }
 
-  let prompt
+  const linesActive = []
+
+  for (const f of fields) {
+    if (!activeFields.includes(f.key)) continue
+    const raw = sectionData[f.key]
+    if (raw == null) continue
+    const formatted = formatField(f.key, raw)
+
+    const deltaKey = `delta_${f.key}`
+    const deltaRaw = sectionData[deltaKey]
+    let deltaStr = ''
+    if (deltaRaw != null) {
+      const sign = deltaRaw > 0 ? '+' : ''
+      deltaStr = ` (${sign}${deltaRaw}% vs anterior)`
+    }
+
+    linesActive.push(`  ${f.label}: ${formatted}${deltaStr}`)
+  }
+
+  for (const ex of activeExtras) {
+    linesActive.push(`  ${ex.label}: ${ex.value}${ex.delta ? ` (${ex.delta})` : ''}`)
+  }
+
+  let prompt = `Relatório mensal — ${sectionLabel}\nCliente: ${clientName} | Período: ${periodLabel}\n`
+
+  if (linesActive.length) {
+    prompt += `\nCampos ativos:\n${linesActive.join('\n')}`
+  } else {
+    prompt += '\nNenhum campo ativo para análise.'
+  }
 
   if (customContext) {
-    prompt = customContext
-  } else {
-    prompt = summary
-  }
-
-  const shouldDump = includeRawData || customContext
-  if (shouldDump) {
-    prompt += '\n\nDados completos disponíveis:\n' + dataDump(data)
+    prompt += '\n\nObservação do analista:\n' + customContext
   }
 
   return prompt
 }
 
-export async function generateSectionAnalysis({ sectionType, sectionData, clientName, period, customContext, includeRawData }) {
+export async function generateSectionAnalysis({ sectionType, sectionData, activeFields = [], activeExtras = [], clientName, period, customContext }) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
 
-  const systemPrompt = customContext
-    ? `Você é um analista de Customer Success especializado em operações de campo.
-Analise SOMENTE o que foi solicitado pelo analista na instrução abaixo.
-Ignore qualquer métrica, KPI ou dado que não esteja diretamente relacionado ao pedido.
-Não liste dados nem justifique por que está ignorando informações — apenas responda o que foi perguntado.
-Responda sempre em português brasileiro.
-Máximo 3 frases por análise.
-Não use markdown, apenas texto corrido.`
-    : `Você é um analista de Customer Success especializado em operações de campo.
-Gere análises profissionais, concisas e orientadas a insights acionáveis.
-Responda sempre em português brasileiro.
-Máximo 3 frases por análise.
-Não use markdown, apenas texto corrido.`
+  const systemPrompt = `Você é um redator de relatórios mensais de operação para a empresa Donc.
+Descreva APENAS os fatos com base exclusivamente nos campos ativos abaixo.
+NÃO dê recomendações, sugestões ou diagnósticos.
+NÃO use linguagem consultiva ("recomenda-se", "sugere-se", "é importante que", "exige atenção").
+NÃO invente dados — se um número não estiver explícito nos campos, não o mencione.
+Evite julgar deltas como bons ou ruins. Seja descritivo, não opinativo.
 
-  const userContent = mountUserContent(sectionType, sectionData, clientName, period, customContext, includeRawData)
+ATENÇÃO: Queda de usuários ativos ou profissionais combinada com produção 
+estável ou crescente não é um sinal de alerta — é indicador de ganho de 
+produtividade (mais output com menos pessoas). Apenas descreva os números.
+
+Máximo 3 frases. Responda em português brasileiro. Não use markdown.`
+
+  const userContent = mountUserContent({ sectionType, sectionData, activeFields, activeExtras, clientName, period, customContext })
 
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`
   let lastError

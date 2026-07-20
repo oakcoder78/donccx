@@ -677,7 +677,7 @@ export default function DashboardPage() {
       if (!prevVal || prevVal === 0) return
       const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} usuários ativos`, absDelta: Math.abs(curVal - prevVal) })
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} profissionais ativos`, absDelta: Math.abs(curVal - prevVal) })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
   }, [opsByClient, clients])
@@ -694,7 +694,7 @@ export default function DashboardPage() {
       if (!prevVal || prevVal === 0) return
       const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
       const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} usuários ativos`, absDelta: Math.abs(curVal - prevVal) })
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} profissionais ativos`, absDelta: Math.abs(curVal - prevVal) })
     })
     return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
   }, [opsByClient, clients])
@@ -979,8 +979,8 @@ export default function DashboardPage() {
       },
       {
         kind: 'users',
-        title: 'Usuários ativos',
-        unit: ' usuários',
+        title: 'Profissionais ativos',
+        unit: ' profissionais',
         values: opHistoRows.map(r => r.donc_snapshot?.profissionais?.ativos ?? 0),
         color: C.green,
         colorSoft: C.greenSoft,
@@ -1279,7 +1279,7 @@ export default function DashboardPage() {
           </DRow>
         )
       })
-      return <DrawerListContent kind="Operacional" title="Usuários ativos · variação mensal" subtitle={`${opUsersAll.length} clientes com dados`} rows={rows} />
+      return <DrawerListContent kind="Operacional" title="Profissionais ativos · variação mensal" subtitle={`${opUsersAll.length} clientes com dados`} rows={rows} />
     }
     if (mode === 'op-health-list') {
       const rows = opHealthAll.list.map((x) => {
@@ -1661,9 +1661,9 @@ export default function DashboardPage() {
                 <SeeAll onClick={() => openDrawer('op-os-list', {})}>ver todos →</SeeAll>
               </Panel>
 
-              {/* Usuários ativos */}
+              {/* Profissionais ativos */}
               <Panel>
-                <PanelHead title="Usuários ativos · variação mensal" meta="top 5" />
+                <PanelHead title="Profissionais ativos · variação mensal" meta="top 5" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {opUsersList.map((x, i) => {
                     const up = x.delta >= 0

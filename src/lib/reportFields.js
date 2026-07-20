@@ -45,14 +45,15 @@ const sectionFields = {
     },
     {
       key: 'usuarios_ativos',
-      label: 'Usuários Ativos',
+      label: 'Profissionais Ativos',
       type: 'number',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => data.usageHistory?.find(u => u.ref_month === data.period)?.active_users ?? null,
     },
     {
       key: 'delta_usuarios_ativos',
-      label: '↕ Usuários Ativos (delta)',
+      label: '↕ Profissionais Ativos (delta)',
       type: 'delta',
       defaultEnabled: true,
       resolve: (data) => {
@@ -64,7 +65,7 @@ const sectionFields = {
     },
     {
       key: 'produtos_montados',
-      label: 'Produtos Montados',
+      label: 'Produtos Processados',
       type: 'number',
       defaultEnabled: true,
       resolve: (data) => {
@@ -75,7 +76,7 @@ const sectionFields = {
     },
     {
       key: 'delta_produtos_montados',
-      label: '↕ Produtos Montados (delta)',
+      label: '↕ Produtos Processados (delta)',
       type: 'delta',
       defaultEnabled: true,
       resolve: (data) => {
@@ -96,7 +97,9 @@ const sectionFields = {
         const porTipo = data.opCurrent?.data_os?.sumario?.por_tipo
         if (!porTipo) return null
         const getVal = (v) => typeof v === 'number' ? v : v?.total_os ?? 0
-        const montagem = getVal(porTipo.Montagem)
+        const montagem = Object.entries(porTipo)
+          .filter(([k]) => k.startsWith('Montagem'))
+          .reduce((s, [, v]) => s + getVal(v), 0)
         const total = Object.values(porTipo).reduce((s, v) => s + getVal(v), 0)
         if (total === 0) return null
         return Math.round((montagem / total) * 100)
@@ -107,11 +110,14 @@ const sectionFields = {
       label: '% Assistência',
       type: 'percent',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => {
         const porTipo = data.opCurrent?.data_os?.sumario?.por_tipo
         if (!porTipo) return null
         const getVal = (v) => typeof v === 'number' ? v : v?.total_os ?? 0
-        const assist = getVal(porTipo.Assistência)
+        const assist = Object.entries(porTipo)
+          .filter(([k]) => k.startsWith('Assistência'))
+          .reduce((s, [, v]) => s + getVal(v), 0)
         const total = Object.values(porTipo).reduce((s, v) => s + getVal(v), 0)
         if (total === 0) return null
         return Math.round((assist / total) * 100)
@@ -128,7 +134,7 @@ const sectionFields = {
       key: 'delta_valor_total_notas',
       label: '↕ Valor Total Notas (delta)',
       type: 'delta',
-      defaultEnabled: false,
+      defaultEnabled: true,
       resolve: (data) => {
         const cur = data.opCurrent?.data_os?.sumario?.valor_total_notas
         const prev = data.opPrev?.data_os?.sumario?.valor_total_notas
@@ -140,14 +146,14 @@ const sectionFields = {
       key: 'taxa_sucesso_geral',
       label: 'Taxa de Sucesso',
       type: 'percent',
-      defaultEnabled: false,
+      defaultEnabled: true,
       resolve: (data) => data.opCurrent?.data_os?.sumario?.taxa_sucesso ?? null,
     },
     {
       key: 'delta_taxa_sucesso_geral',
       label: '↕ Taxa de Sucesso (delta pp)',
       type: 'delta',
-      defaultEnabled: false,
+      defaultEnabled: true,
       format: (v) => `${v >= 0 ? '+' : ''}${v} pp`,
       resolve: (data) => {
         const cur = data.opCurrent?.data_os?.sumario?.taxa_sucesso
@@ -193,6 +199,7 @@ const sectionFields = {
       label: 'OS com Ocorrência',
       type: 'number',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.total_ocorrencias
         ?? data.opCurrent?.data_os?.sumario?.sub_status?.ocorrencia?.total ?? null,
     },
@@ -221,7 +228,7 @@ const sectionFields = {
       key: 'delta_pontualidade',
       label: '↕ Pontualidade (delta pp)',
       type: 'delta',
-      defaultEnabled: false,
+      defaultEnabled: true,
       format: (v) => `${v >= 0 ? '+' : ''}${v} pp`,
       resolve: (data) => {
         const cur = data.opCurrent?.data_os?.tempos?.pontualidade?.percentual_pontualidade
@@ -242,6 +249,7 @@ const sectionFields = {
       label: 'OS Atrasadas',
       type: 'number',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.tempos?.pontualidade?.atrasadas ?? null,
     },
     {
@@ -249,6 +257,7 @@ const sectionFields = {
       label: 'Atraso Médio (dias)',
       type: 'number',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.tempos?.pontualidade?.atraso_medio_dias ?? null,
     },
     {
@@ -256,6 +265,7 @@ const sectionFields = {
       label: 'OS Atrasadas não Concluídas',
       type: 'number',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.atrasadas_nao_concluidas ?? null,
     },
     {
@@ -263,6 +273,7 @@ const sectionFields = {
       label: 'OS sem Início',
       type: 'number',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.os_sem_inicio ?? null,
     },
     {
@@ -270,6 +281,7 @@ const sectionFields = {
       label: 'OS Aguardando Peça',
       type: 'number',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.os_pedido_peca ?? null,
     },
     {
@@ -277,6 +289,7 @@ const sectionFields = {
       label: 'OS não Liberadas',
       type: 'number',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.total_nao_liberada
         ?? data.opCurrent?.data_os?.sumario?.sub_status?.nao_liberada?.total ?? null,
     },
@@ -285,6 +298,7 @@ const sectionFields = {
       label: 'OS Liberadas não Iniciadas',
       type: 'number',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.total_liberada_nao_iniciada
         ?? data.opCurrent?.data_os?.sumario?.sub_status?.liberada_nao_iniciada?.total ?? null,
     },
@@ -296,6 +310,7 @@ const sectionFields = {
       label: 'Tempo Médio de Execução',
       type: 'duration',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => {
         const horas = data.opCurrent?.data_os?.tempos?.tempo_medio_execucao_horas
         if (horas != null) return horas
@@ -310,6 +325,7 @@ const sectionFields = {
       type: 'delta',
       format: (v) => `${v >= 0 ? '+' : ''}${v}%`,
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => {
         const resolveH = (d) => {
           const h = d?.data_os?.tempos?.tempo_medio_execucao_horas
@@ -328,6 +344,7 @@ const sectionFields = {
       label: 'Tempo Médio de Atendimento',
       type: 'duration',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.tempos?.tempo_medio_atendimento_dias ?? null,
     },
     {
@@ -335,6 +352,7 @@ const sectionFields = {
       label: 'Tempo em Trânsito',
       type: 'duration',
       defaultEnabled: false,
+      invertDeltaColor: true,
       resolve: (data) => {
         const min = data.opCurrent?.data_produtividade?.sumario?.tempo_transito_medio_minutos
         return min != null ? min / 60 : null
@@ -372,6 +390,7 @@ const sectionFields = {
       label: 'Profissionais Ativos',
       type: 'number',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.ranking_profissionais?.length
         ?? data.opCurrent?.data_produtividade?.sumario?.total_profissionais ?? null,
     },
@@ -411,6 +430,7 @@ const sectionFields = {
       label: 'Tickets Abertos',
       type: 'number',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => data.sup?.tickets_opened ?? null,
     },
     {
@@ -425,6 +445,7 @@ const sectionFields = {
       label: 'SLA 1ª Resposta (min)',
       type: 'number',
       defaultEnabled: true,
+      invertDeltaColor: true,
       resolve: (data) => data.sup?.sla_first_response ?? null,
     },
     {

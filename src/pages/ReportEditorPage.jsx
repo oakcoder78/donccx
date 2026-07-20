@@ -21,7 +21,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Icons } from '../lib/icons'
-import { generateSectionAnalysis } from '../lib/reportAiService'
+import { generateSectionAnalysis, hasForbiddenTone } from '../lib/reportAiService'
 
 const SECTION_ICONS = {
   capa: Icons.FileText,
@@ -154,7 +154,7 @@ export default function ReportEditorPage() {
           .eq('period', period)
           .maybeSingle(),
         supabase.from('client_operational_reports')
-          .select('data_produtividade')
+          .select('data_os, data_produtividade')
           .eq('client_id', clientId)
           .eq('period', prevP)
           .maybeSingle(),
@@ -284,17 +284,26 @@ export default function ReportEditorPage() {
     try {
       const sectionData = getSectionValues(section)
       const customContext = section.content?.analysisContext || undefined
-      const includeRawData = section.content?.includeRawData ?? false
+      const activeFields = Object.entries(section.content?.fields ?? {})
+        .filter(([, v]) => v.enabled !== false)
+        .map(([k]) => k)
+      const activeExtras = (section.extras ?? [])
+        .filter(e => e.label && e.value)
       const text = await generateSectionAnalysis({
         sectionType: section.type,
         sectionData,
+        activeFields,
+        activeExtras,
         clientName: client?.fantasy_name || client?.name,
         period: report?.period,
         customContext,
-        includeRawData,
       })
       updateContent(section.id, 'callout', text)
-      toast.success('Análise gerada com sucesso')
+      if (hasForbiddenTone(text)) {
+        toast('A análise gerada contém termos de tom consultivo. Revise o texto antes de enviar.', { icon: '⚠️', duration: 6000 })
+      } else {
+        toast.success('Análise gerada com sucesso')
+      }
     } catch (e) {
       toast.error(e.message || 'Erro ao gerar análise')
     } finally {
@@ -896,15 +905,6 @@ function SectionEditor({
                   <Icons.Sparkles size={14} />
                   {generatingAnalysis ? 'Gerando análise...' : 'Gerar análise'}
                 </button>
-                <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={sec.content?.includeRawData ?? false}
-                    onChange={e => onContent('includeRawData', e.target.checked)}
-                    className="rounded"
-                  />
-                  Incluir dados brutos (chart, arrays)
-                </label>
                 <textarea
                   value={sec.content?.analysisContext ?? ''}
                   onChange={e => onContent('analysisContext', e.target.value)}

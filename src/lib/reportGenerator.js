@@ -445,7 +445,11 @@ function renderFieldCards(sec, type, data, accentMap = {}) {
           if (deltaRaw != null) {
             deltaStr = dopts.deltaText || formatFieldValue(deltaField, deltaRaw)
             deltaType = fopts.deltaType || (deltaRaw > 0 ? 'up' : deltaRaw < 0 ? 'down' : 'neutral')
-            deltaColor = fopts.deltaColor || (deltaType === 'up' ? 'red' : deltaType === 'down' ? 'green' : 'gray')
+            deltaColor = fopts.deltaColor || (
+              f.invertDeltaColor
+                ? (deltaType === 'up' ? 'red' : deltaType === 'down' ? 'green' : 'gray')
+                : (deltaType === 'up' ? 'green' : deltaType === 'down' ? 'red' : 'gray')
+            )
           }
         }
       }

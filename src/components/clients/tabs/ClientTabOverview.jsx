@@ -350,7 +350,7 @@ function SyncModal({ step, result, client, onClose }) {
               {result.usage?.after && (
                 <>
                   <Delta before={result.usage.before?.os_created ?? null} after={result.usage.after?.os_created ?? null} label="OS Criadas" />
-                  <Delta before={result.usage.before?.active_users ?? null} after={result.usage.after?.active_users ?? null} label="Usuários Ativos" />
+                  <Delta before={result.usage.before?.active_users ?? null} after={result.usage.after?.active_users ?? null} label="Profissionais Ativos" />
                 </>
               )}
 
@@ -678,7 +678,7 @@ export function ClientTabOverview({ client }) {
 
         {/* Usuários ativos */}
         <MetricCard
-          label="Usuários Ativos"
+          label="Profissionais Ativos"
           value={curUsage ? fmtNum(curUsage.active_users) : '—'}
           delta={userVar}
           sparkData={usageLast6.map(u => u.active_users ?? 0)}

@@ -61,7 +61,7 @@ export function ClientSubUso({ client, onEdit }) {
         pointBackgroundColor: '#59c2ed',
       },
       {
-        label: 'Usuários Ativos',
+        label: 'Profissionais Ativos',
         data: chartData6.map(u => u.active_users ?? null),
         borderColor: '#1D9E75',
         backgroundColor: 'rgba(29,158,117,0.06)',
