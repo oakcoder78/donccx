@@ -285,6 +285,22 @@ const sectionFields = {
       resolve: (data) => data.opCurrent?.data_os?.operacional?.os_pedido_peca ?? null,
     },
     {
+      key: 'os_canceladas',
+      label: 'OS Canceladas',
+      type: 'number',
+      defaultEnabled: false,
+      invertDeltaColor: true,
+      resolve: (data) => data.opCurrent?.data_os?.sumario?.sub_status?.cancelado?.total ?? null,
+    },
+    {
+      key: 'os_iniciadas_nao_concluidas',
+      label: 'OS Iniciadas não Concluídas',
+      type: 'number',
+      defaultEnabled: false,
+      invertDeltaColor: true,
+      resolve: (data) => data.opCurrent?.data_os?.sumario?.sub_status?.iniciada_nao_concluida?.total ?? null,
+    },
+    {
       key: 'nao_liberadas',
       label: 'OS não Liberadas',
       type: 'number',
