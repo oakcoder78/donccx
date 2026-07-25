@@ -1056,8 +1056,8 @@ function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, del
 
 function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaState, deltaAuto, deltaDisplay, onChange, onClose }) {
   const [draft, setDraft] = useState({
-    label: state.label ?? '',
-    sublabel: state.sublabel ?? '',
+    label: state.label ?? f.label ?? '',
+    sublabel: state.sublabel ?? f.sublabel ?? '',
     override: state.override ?? '',
     accentColor: state.accentColor ?? '',
     deltaEnabled: state.deltaEnabled !== false,
