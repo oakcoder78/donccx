@@ -1055,17 +1055,19 @@ function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, del
 }
 
 function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaState, deltaAuto, deltaDisplay, onChange, onClose }) {
+  console.log({ fKey: f.key, stateOverride: state.override, autoValue, autoType: typeof autoValue })
   const [draft, setDraft] = useState({
     label: state.label ?? f.label ?? '',
     sublabel: state.sublabel ?? f.sublabel ?? '',
-    override: state.override ?? (autoValue != null ? String(autoValue) : ''),
+    override: (state.override ?? '') !== '' ? state.override : (autoValue != null ? String(autoValue) : ''),
     accentColor: state.accentColor ?? '',
     deltaEnabled: state.deltaEnabled !== false,
     deltaText: state.deltaText ?? '',
     deltaType: state.deltaType ?? '',
     deltaColor: state.deltaColor ?? '',
   })
-  const [deltaOverride, setDeltaOverride] = useState(deltaState?.override ?? (deltaAuto != null ? String(deltaAuto) : ''))
+  const autoDelta = deltaAuto != null ? String(deltaAuto) : ''
+  const [deltaOverride, setDeltaOverride] = useState((deltaState?.override ?? '') !== '' ? deltaState.override : autoDelta)
 
   function save() {
     onChange(f.key, {
