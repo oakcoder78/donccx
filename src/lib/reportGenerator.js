@@ -941,7 +941,12 @@ function slideDesempenhoOperacional(sec, operationalData, clientName, period, p)
       <div style="font-size:12px;font-weight:700;color:${isWorst ? C.red : C.green};margin-bottom:8px;">
         ${isWorst ? '⚠️' : '⭐'} ${title}
       </div>
-      <table style="width:100%;border-collapse:collapse;">
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed;">
+        <colgroup>
+          <col style="width:auto" />
+          <col style="width:60px" />
+          <col style="width:100px" />
+        </colgroup>
         <thead>
           <tr style="border-bottom:2px solid ${C.border};">
             <th style="text-align:left;padding:6px 6px 6px 0;font-size:10px;font-weight:700;color:${C.textLight};text-transform:uppercase;">Profissional</th>
