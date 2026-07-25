@@ -590,4 +590,30 @@ export function formatFieldValue(field, raw) {
   }
 }
 
+export function parseFieldValue(field, formatted) {
+  if (formatted == null || formatted === '') return null
+  switch (field.type) {
+    case 'duration': {
+      const m = formatted.match(/^(\d+(?:[.,]\d+)?)\s*h(?:(\d+))?$/i)
+      if (m) return Number(m[1].replace(',', '.')) + (m[2] ? Number(m[2]) / 60 : 0)
+      const n = formatted.match(/^(\d+)\s*min/i)
+      if (n) return Number(n[1]) / 60
+      const raw = Number(formatted.replace(',', '.'))
+      return isNaN(raw) ? null : raw
+    }
+    case 'percent':
+    case 'delta':
+      return Number(formatted.replace(/[+%\s]/g, '').replace(',', '.')) || null
+    case 'number':
+      return Number(formatted.replace(/\./g, '').replace(',', '.')) || null
+    case 'currency': {
+      const cleaned = formatted.replace(/[R$\s]/g, '').replace(/\./g, '').replace(',', '.').trim()
+      const n = Number(cleaned)
+      return isNaN(n) ? null : n
+    }
+    default:
+      return formatted
+  }
+}
+
 export default sectionFields

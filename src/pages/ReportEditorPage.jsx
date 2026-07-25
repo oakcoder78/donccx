@@ -5,7 +5,7 @@ import { useClient } from '../hooks/useClient'
 import { useProfiles } from '../hooks/useProfiles'
 import { useProjects } from '../hooks/useProjects'
 import { generateReportHTML, periodLabel, normalizeSections, defaultSections, ensureFields } from '../lib/reportGenerator'
-import { getSectionFields, resolveField, resolveAllFields, formatFieldValue } from '../lib/reportFields'
+import { getSectionFields, resolveField, resolveAllFields, formatFieldValue, parseFieldValue } from '../lib/reportFields'
 import { supabase } from '../lib/supabaseClient'
 import { useDonkie } from '../hooks/useDonkie'
 import { EmailComposerModal } from '../components/email/EmailComposerModal'
@@ -1055,33 +1055,59 @@ function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, del
 }
 
 function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaState, deltaAuto, deltaDisplay, onChange, onClose }) {
-  console.log({ fKey: f.key, stateOverride: state.override, autoValue, autoType: typeof autoValue })
+  const autoDeltaDisplay = deltaDisplay ?? ''
+  const deltaInit = deltaField && (deltaState?.override ?? '') !== ''
+    ? formatFieldValue(deltaField, deltaState.override)
+    : autoDeltaDisplay
+
+  const autoDeltaType = deltaAuto != null
+    ? (deltaAuto > 0 ? 'up' : deltaAuto < 0 ? 'down' : 'neutral')
+    : ''
+  const autoDeltaColor = deltaAuto != null
+    ? (deltaAuto > 0
+      ? (f.invertDeltaColor ? 'red' : 'green')
+      : deltaAuto < 0
+        ? (f.invertDeltaColor ? 'green' : 'red')
+        : 'gray')
+    : ''
+
   const [draft, setDraft] = useState({
     label: state.label ?? f.label ?? '',
     sublabel: state.sublabel ?? f.sublabel ?? '',
-    override: (state.override ?? '') !== '' ? state.override : (autoValue != null ? String(autoValue) : ''),
+    override: (state.override ?? '') !== ''
+      ? formatFieldValue(f, state.override)
+      : (displayValue != null ? displayValue : ''),
     accentColor: state.accentColor ?? '',
     deltaEnabled: state.deltaEnabled !== false,
     deltaText: state.deltaText ?? '',
-    deltaType: state.deltaType ?? '',
-    deltaColor: state.deltaColor ?? '',
+    deltaType: (state.deltaType ?? '') !== '' ? state.deltaType : autoDeltaType,
+    deltaColor: (state.deltaColor ?? '') !== '' ? state.deltaColor : autoDeltaColor,
   })
-  const autoDelta = deltaAuto != null ? String(deltaAuto) : ''
-  const [deltaOverride, setDeltaOverride] = useState((deltaState?.override ?? '') !== '' ? deltaState.override : autoDelta)
+  const [deltaOverride, setDeltaOverride] = useState(deltaInit)
 
   function save() {
+    const rawOverride = draft.override === ''
+      ? null
+      : (displayValue != null && draft.override === displayValue) ? null
+      : parseFieldValue(f, draft.override)
+
+    const rawDelta = deltaOverride === ''
+      ? null
+      : (autoDeltaDisplay !== '' && deltaOverride === autoDeltaDisplay) ? null
+      : deltaField ? parseFieldValue(deltaField, deltaOverride) : null
+
     onChange(f.key, {
       label: draft.label || null,
       sublabel: draft.sublabel || null,
-      override: draft.override === '' ? null : draft.override,
+      override: rawOverride,
       accentColor: draft.accentColor || null,
       deltaEnabled: draft.deltaEnabled,
       deltaText: draft.deltaText || null,
       deltaType: draft.deltaType || null,
       deltaColor: draft.deltaColor || null,
     })
-    if (deltaField) {
-      onChange(deltaField.key, { override: deltaOverride === '' ? null : deltaOverride })
+    if (deltaField && rawDelta !== deltaState?.override) {
+      onChange(deltaField.key, { override: rawDelta })
     }
     onClose()
   }
