@@ -85,6 +85,7 @@ export function defaultSections() {
     { id: 'destaques',      type: 'destaques',      title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
     { id: 'contexto',       type: 'contexto',       title: 'Contexto Externo',  enabled: true, content: { text: '' },   extras: [] },
     { id: 'proximos_passos',type: 'proximos_passos',title: 'Próximos Passos',   enabled: true, content: { items: [] },  extras: [] },
+    { id: 'consideracoes_finais', type: 'custom-text', title: 'Considerações Finais', enabled: false, content: { text: '' }, extras: [] },
   ]
 }
 
@@ -128,6 +129,9 @@ export function normalizeSections(raw) {
       { id: 'capa', type: 'capa', title: 'Capa', enabled: true, content: { subtitle: '', clientTeam: [] }, extras: [] },
       ...raw,
     ]
+    if (!result.some(s => s.id === 'consideracoes_finais')) {
+      result.push({ id: 'consideracoes_finais', type: 'custom-text', title: 'Considerações Finais', enabled: false, content: { text: '' }, extras: [] })
+    }
     for (const sec of result) ensureFields(sec, sec.type)
     return result
   }
@@ -472,9 +476,9 @@ function renderFieldCards(sec, type, data, accentMap = {}) {
 }
 
 // ── Slide wrapper ─────────────────────────────────────────────
-function slide(icon, title, body, clientName, period, pageNum, subtitle) {
+function slide(icon, title, body, clientName, period, pageNum, subtitle, sectionId = '') {
   return `
-  <div class="slide" style="background:${C.bg};border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow:hidden;margin-bottom:24px;break-inside:avoid;page-break-inside:avoid;">
+  <div class="slide" id="slide-${sectionId}" style="background:${C.bg};border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow:hidden;margin-bottom:24px;break-inside:avoid;page-break-inside:avoid;">
     <div style="background:${C.navyDeep};padding:14px 32px;display:flex;align-items:center;gap:12px;">
       <span style="font-size:18px;">${icon}</span>
       <div style="flex:1;">
@@ -591,7 +595,7 @@ function slideEscala(sec, opHistory, period, clientName, p, operationalData = nu
     ${calloutBlock(sec.content?.callout, C.sky)}
     ${historicoChart}`
 
-  return slide('📈', 'Escala da Operação', body, clientName, period, p, sec.subtitle)
+  return slide('📈', 'Escala da Operação', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideSuporte(sec, supportRaw, clientName, period, p) {
@@ -631,7 +635,7 @@ function slideSuporte(sec, supportRaw, clientName, period, p) {
     ${n1n2n3.length ? subTitle('Breakdown por Nível') + barH(n1n2n3) : ''}
     ${calloutBlock(sec.content?.callout, C.navy)}`
 
-  return slide('🎫', 'Suporte', body, clientName, period, p, sec.subtitle)
+  return slide('🎫', 'Suporte', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideProjetos(sec, projects, clientName, period, p) {
@@ -667,14 +671,14 @@ function slideProjetos(sec, projects, clientName, period, p) {
     ${projList}
     ${calloutBlock(sec.content?.callout, '#6366f1')}`
 
-  return slide('🗂️', 'Projetos', body, clientName, period, p, sec.subtitle)
+  return slide('🗂️', 'Projetos', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideHealthScore(sec, healthData, clientName, period, p) {
   if (!healthData?.health_total == null && !healthData) {
     return slide('💚', 'Health Score',
       `<p style="color:${C.textLight};font-style:italic;">Dados de Health Score não disponíveis.</p>`,
-      clientName, period, p, sec.subtitle)
+      clientName, period, p, sec.subtitle, sec.id)
   }
 
   const hs = healthData ?? {}
@@ -717,14 +721,14 @@ function slideHealthScore(sec, healthData, clientName, period, p) {
 
   return slide('💚', 'Health Score',
     scoreBox + calloutBlock(sec.content?.callout, C.sky),
-    clientName, period, p, sec.subtitle)
+    clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideDestaques(sec, clientName, period, p) {
   const body = `
     ${timelineList(sec.content?.items ?? [])}
     ${calloutBlock(sec.content?.callout, C.yellow)}`
-  return slide('⭐', 'Destaques do Período', body, clientName, period, p, sec.subtitle)
+  return slide('⭐', 'Destaques do Período', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideContexto(sec, clientName, period, p) {
@@ -732,7 +736,7 @@ function slideContexto(sec, clientName, period, p) {
   const body = `
     ${(sec.extras ?? []).length ? extrasRow(sec.extras) : ''}
     ${text ? `<div style="line-height:1.7;color:${C.text};font-size:14px;">${richText(text)}</div>` : `<p style="color:${C.textLight};font-style:italic;">Nenhum contexto adicionado.</p>`}`
-  return slide('🌐', 'Contexto Externo', body, clientName, period, p, sec.subtitle)
+  return slide('🌐', 'Contexto Externo', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideIndicadoresOperacionais(sec, operationalData, clientName, period, p) {
@@ -752,7 +756,7 @@ function slideIndicadoresOperacionais(sec, operationalData, clientName, period, 
     ${allCards.length ? kpiGrid(allCards, 4) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado operacional disponível para este período.</p>`}
     ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
 
-  return slide('⏱️', 'Indicadores Operacionais', body, clientName, period, p, sec.subtitle)
+  return slide('⏱️', 'Indicadores Operacionais', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
@@ -789,7 +793,7 @@ function slideQualidadeOperacao(sec, operationalData, clientName, period, p) {
     ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 1), 3)) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de qualidade disponível para este período.</p>`}
     ${calloutBlock(sec.content?.callout ?? '', C.green)}`
 
-  return slide('✅', 'Qualidade da Operação', body, clientName, period, p, subtitle)
+  return slide('✅', 'Qualidade da Operação', body, clientName, period, p, subtitle, sec.id)
 }
 
 function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) {
@@ -880,7 +884,7 @@ function slideCategoriasOcorrencia(sec, operationalData, clientName, period, p) 
     ${footerNote}
     ${calloutBlock(sec.content?.callout ?? '', C.yellow)}`
 
-  return slide('⚠️', 'Categorias de Ocorrência', body, clientName, period, p, subtitle)
+  return slide('⚠️', 'Categorias de Ocorrência', body, clientName, period, p, subtitle, sec.id)
 }
 
 function slideDesempenhoOperacional(sec, operationalData, clientName, period, p) {
@@ -972,7 +976,7 @@ function slideDesempenhoOperacional(sec, operationalData, clientName, period, p)
   const noData = showRanking && !top5.length && !worst5.length && !topProdutos.length
   if (noData && !autoCards.length) {
     const body = `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado de desempenho disponível para este período.</p>`
-    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
+    return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle, sec.id)
   }
 
   const body = `
@@ -982,19 +986,19 @@ function slideDesempenhoOperacional(sec, operationalData, clientName, period, p)
     ${produtosHTML}
     ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
 
-  return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle)
+  return slide('📊', 'Desempenho Operacional', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideProximosPassos(sec, clientName, period, p) {
   return slide('🎯', 'Próximos Passos',
     nextStepsList(sec.content?.items ?? []),
-    clientName, period, p, sec.subtitle)
+    clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideCustomText(sec, clientName, period, p) {
   const text = sec.content?.text ?? ''
   const body = `${text ? `<div style="line-height:1.7;color:${C.text};font-size:14px;">${richText(text)}</div>` : ''}${calloutBlock(sec.content?.callout, C.sky)}`
-  return slide('📄', sec.title || 'Seção', body, clientName, period, p, sec.subtitle)
+  return slide('📄', sec.title || 'Seção', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideCustomImage(sec, clientName, period, p) {
@@ -1006,7 +1010,7 @@ function slideCustomImage(sec, clientName, period, p) {
         ${caption ? `<p style="font-size:12px;color:${C.textLight};margin-top:10px;">${caption}</p>` : ''}
        </div>`
     : `<p style="color:${C.textLight};font-style:italic;">Nenhuma imagem adicionada.</p>`
-  return slide('🖼️', sec.title || 'Imagem', body, clientName, period, p, sec.subtitle)
+  return slide('🖼️', sec.title || 'Imagem', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideCustomMetrics(sec, clientName, period, p) {
@@ -1014,7 +1018,7 @@ function slideCustomMetrics(sec, clientName, period, p) {
   const body = `
     ${extras.length ? extrasRow(extras) : `<p style="color:${C.textLight};font-style:italic;">Nenhuma métrica adicionada.</p>`}
     ${calloutBlock(sec.content?.callout, C.sky)}`
-  return slide('📊', sec.title || 'Métricas', body, clientName, period, p, sec.subtitle)
+  return slide('📊', sec.title || 'Métricas', body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 function slideCustomBars(sec, clientName, period, p) {
@@ -1048,7 +1052,7 @@ function slideCustomBars(sec, clientName, period, p) {
     ${barsHTML}
     ${calloutBlock(sec.content?.callout, C.sky)}`
 
-  return slide('📊', (sec.title || 'Categorias') + headerBadge, body, clientName, period, p, sec.subtitle)
+  return slide('📊', (sec.title || 'Categorias') + headerBadge, body, clientName, period, p, sec.subtitle, sec.id)
 }
 
 // ── EXPORT PRINCIPAL ──────────────────────────────────────────
@@ -1130,6 +1134,7 @@ export function generateReportHTML(client, report, csm, extraData = {}) {
     <div style="font-size:11px;color:#94a3b8;">Gerado em ${genDate}</div>
   </div>
 </div>
+<script>window.addEventListener('message',e=>{if(e.data?.scrollTo){const el=document.getElementById('slide-'+e.data.scrollTo);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}})</script>
 </body>
 </html>`
 }

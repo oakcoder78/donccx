@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useReport, useReportMutations } from '../hooks/useClientReports'
 import { useClient } from '../hooks/useClient'
@@ -220,6 +220,16 @@ export default function ReportEditorPage() {
       { usageHistory, opHistory, supportRaw, healthData, projects, operationalData }
     )
   }, [client, report, sections, csm, usageHistory, supportRaw, healthData, projects, operationalData])
+
+  const iframeRef = useRef(null)
+
+  useEffect(() => {
+    if (!activeId || !iframeRef.current) return
+    const timer = setTimeout(() => {
+      iframeRef.current?.contentWindow?.postMessage({ scrollTo: activeId }, '*')
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [activeId])
 
   // ── Section helpers ──────────────────────────────────────
   function updateSection(id, changes) {
@@ -637,6 +647,7 @@ export default function ReportEditorPage() {
           </div>
           <div className="flex-1 overflow-auto p-4">
             <iframe
+              ref={iframeRef}
               srcDoc={html}
               title="Preview"
               className="w-full rounded-lg shadow border border-border-tertiary"
@@ -655,6 +666,15 @@ export default function ReportEditorPage() {
           <button onClick={() => setPublishBanner(false)} className="text-white/70 hover:text-white ml-2"><Icons.X className="w-4 h-4" /></button>
         </div>
       )}
+
+      {/* Botão salvar flutuante */}
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="fixed bottom-6 right-6 z-40 bg-donc-navy text-white px-5 py-2.5 rounded-xl shadow-xl text-sm font-semibold hover:bg-donc-navy/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {saving ? 'Salvando…' : 'Salvar'}
+      </button>
 
       {/* Modal nova seção */}
       {showNewModal && (
