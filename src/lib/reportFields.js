@@ -343,18 +343,62 @@ const sectionFields = {
       key: 'tempo_atendimento',
       label: 'Tempo Médio de Atendimento',
       type: 'duration',
-      defaultEnabled: false,
+      defaultEnabled: true,
       invertDeltaColor: true,
       resolve: (data) => data.opCurrent?.data_os?.tempos?.tempo_medio_atendimento_dias ?? null,
+    },
+    {
+      key: 'delta_tempo_atendimento',
+      label: '↕ Tempo Atendimento (delta)',
+      type: 'delta',
+      format: (v) => `${v >= 0 ? '+' : ''}${v}%`,
+      defaultEnabled: true,
+      invertDeltaColor: true,
+      resolve: (data) => {
+        const resolveD = (d) => d?.data_os?.tempos?.tempo_medio_atendimento_dias ?? null
+        const cur = resolveD(data.opCurrent)
+        const prev = resolveD(data.opPrev)
+        if (cur == null || prev == null || prev === 0) return null
+        return Math.round(((cur - prev) / prev) * 100)
+      },
     },
     {
       key: 'tempo_transito',
       label: 'Tempo em Trânsito',
       type: 'duration',
-      defaultEnabled: false,
+      defaultEnabled: true,
       invertDeltaColor: true,
       resolve: (data) => {
         const min = data.opCurrent?.data_produtividade?.sumario?.tempo_transito_medio_minutos
+        return min != null ? min / 60 : null
+      },
+    },
+    {
+      key: 'delta_tempo_transito',
+      label: '↕ Tempo Trânsito (delta)',
+      type: 'delta',
+      format: (v) => `${v >= 0 ? '+' : ''}${v}%`,
+      defaultEnabled: true,
+      invertDeltaColor: true,
+      resolve: (data) => {
+        const resolveT = (d) => {
+          const min = d?.data_produtividade?.sumario?.tempo_transito_medio_minutos
+          return min != null ? min / 60 : null
+        }
+        const cur = resolveT(data.opCurrent)
+        const prev = resolveT(data.opPrev)
+        if (cur == null || prev == null || prev === 0) return null
+        return Math.round(((cur - prev) / prev) * 100)
+      },
+    },
+    {
+      key: 'tempo_ocioso',
+      label: 'Tempo Ocioso Médio',
+      type: 'duration',
+      defaultEnabled: false,
+      invertDeltaColor: true,
+      resolve: (data) => {
+        const min = data.opCurrent?.data_produtividade?.sumario?.tempo_ocioso_medio_minutos
         return min != null ? min / 60 : null
       },
     },
