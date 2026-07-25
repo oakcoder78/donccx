@@ -78,14 +78,14 @@ export function defaultSections() {
     { id: 'indicadores_operacionais', type: 'indicadores_operacionais', title: 'Indicadores Operacionais', subtitle: 'Métricas de tempo dos profissionais em campo', enabled: true, content: { callout: '', fields: buildFieldDefaults('indicadores_operacionais') }, extras: [] },
     { id: 'qualidade_operacao', type: 'qualidade_operacao', title: 'Qualidade da Operação', subtitle: '', enabled: true, content: { callout: '', fields: buildFieldDefaults('qualidade_operacao') }, extras: [] },
     { id: 'categorias_ocorrencia', type: 'categorias_ocorrencia', title: 'Categorias de Ocorrência', subtitle: '', enabled: true, content: { callout: '', fields: buildFieldDefaults('categorias_ocorrencia') }, extras: [] },
-    { id: 'desempenho_operacional', type: 'desempenho_operacional', title: 'Desempenho Operacional', subtitle: 'Produtividade dos profissionais em campo', enabled: false, content: { callout: '', fields: buildFieldDefaults('desempenho_operacional') }, extras: [] },
+    { id: 'desempenho_operacional', type: 'desempenho_operacional', title: 'Desempenho Operacional', subtitle: 'Produtividade dos profissionais em campo', enabled: true, content: { callout: '', fields: buildFieldDefaults('desempenho_operacional') }, extras: [] },
     { id: 'suporte',        type: 'suporte',        title: 'Suporte',           enabled: true, content: { callout: '', fields: buildFieldDefaults('suporte') }, extras: [] },
     { id: 'projetos',       type: 'projetos',       title: 'Projetos',          enabled: true, content: { callout: '' }, extras: [] },
     { id: 'health_score',   type: 'health_score',   title: 'Health Score',      enabled: true, content: {},             extras: [] },
     { id: 'destaques',      type: 'destaques',      title: 'Destaques do Período', enabled: true, content: { items: [], callout: '' }, extras: [] },
     { id: 'contexto',       type: 'contexto',       title: 'Contexto Externo',  enabled: true, content: { text: '' },   extras: [] },
     { id: 'proximos_passos',type: 'proximos_passos',title: 'Próximos Passos',   enabled: true, content: { items: [] },  extras: [] },
-    { id: 'consideracoes_finais', type: 'custom-text', title: 'Considerações Finais', enabled: false, content: { text: '' }, extras: [] },
+    { id: 'consideracoes_finais', type: 'custom-text', title: 'Considerações Finais', enabled: true, content: { text: '' }, extras: [] },
   ]
 }
 

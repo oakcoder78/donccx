@@ -77,43 +77,70 @@ function mountUserContent({ sectionType, sectionData, activeFields, activeExtras
   return prompt
 }
 
-export async function generateSectionAnalysis({ sectionType, sectionData, activeFields = [], activeExtras = [], clientName, period, customContext }) {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
+const SECTION_FIELD_HINTS = {
+  qualidade_operacao: {
+    taxa_sucesso: 'redução indica mais OS com ocorrência',
+    total_sucesso: null,
+    relatos_imprevistos: null,
+    pontualidade: 'redução indica mais atrasos',
+    atrasadas: 'aumento indica piora na pontualidade',
+    atraso_medio_dias: 'redução indica melhora na pontualidade',
+    os_canceladas: null,
+  },
+  indicadores_operacionais: {
+    tempo_execucao: 'redução indica mais agilidade nas visitas',
+    tempo_atendimento: 'redução indica agilidade na atribuição',
+    tempo_transito: 'redução indica deslocamentos mais rápidos',
+    produtos_por_os: 'aumento indica mais itens por visita',
+  },
+  escala: {
+    usuarios_ativos: 'redução pode indicar menor demanda ou ganho de produtividade',
+    os_criadas: 'aumento indica maior volume de trabalho',
+    produtos_montados: null,
+  },
+  suporte: {
+    tickets_abertos: 'aumento indica maior demanda',
+    tickets_resolvidos: null,
+    sla_primeira_resposta: 'redução indica melhora no atendimento',
+    taxa_resolucao: null,
+  },
+}
 
-  // v0 — descritivo, sem julgamento (backup 2026-07-25)
-  // const systemPrompt = `Você é um redator de relatórios mensais de operação para a empresa Donc.
-  // Descreva APENAS os fatos com base exclusivamente nos campos ativos abaixo.
-  // NÃO dê recomendações, sugestões ou diagnósticos.
-  // NÃO use linguagem consultiva ("recomenda-se", "sugere-se", "é importante que", "exige atenção").
-  // NÃO invente dados — se um número não estiver explícito nos campos, não o mencione.
-  // Evite julgar deltas como bons ou ruins. Seja descritivo, não opinativo.
-  // 
-  // ATENÇÃO: Queda de usuários ativos ou profissionais combinada com produção 
-  // estável ou crescente não é um sinal de alerta — é indicador de ganho de 
-  // produtividade (mais output com menos pessoas). Apenas descreva os números.
-  // 
-  // Máximo 3 frases. Responda em português brasileiro. Não use markdown.`
+function buildReferenceBlock(sectionType, activeFields) {
+  const hints = SECTION_FIELD_HINTS[sectionType]
+  if (!hints) return ''
+  const labels = []
+  for (const key of activeFields) {
+    const hint = hints[key]
+    if (hint) labels.push('  ' + hint)
+  }
+  if (!labels.length) return ''
+  return '\nInterpretação dos indicadores:\n' + labels.join('\n')
+}
 
-  const systemPrompt = `Você é um redator de relatórios mensais para a Donc.
-Analise os campos ativos destacando tendências e contrastes
-entre os indicadores, em tom leve e observacional.
+function buildSystemPrompt(sectionType, activeFields) {
+  const refBlock = buildReferenceBlock(sectionType, activeFields)
 
-Referência (redução = melhoria nestes):
-- tempo de execução e tempo de atribuição: redução indica mais agilidade
-- tempo em trânsito: redução indica deslocamentos mais rápidos
-- produtos por OS: aumento indica mais itens por visita
+  return `Você é um redator de relatórios mensais para a Donc.
+Analise APENAS os campos ativos listados abaixo, destacando tendências e contrastes
+entre os indicadores fornecidos, em tom leve e observacional.${refBlock}
 
-Destaque contrastes quando houver, mas sem afirmações contundentes
+Destaque contrastes entre os campos listados, sem afirmações contundentes
 ou tom crítico/alarmista — o relatório é para o cliente sobre a
-própria operação. Ex: em vez de "rotas menos otimizadas",
-prefira "o tempo em trânsito registrou aumento no período".
+própria operação.
 
 Não use linguagem consultiva ("recomenda-se", "sugere-se",
 "é importante que", "exige atenção").
 
+Não invente ou mencione dados que não estejam explícitos nos campos fornecidos.
 Máximo 3 frases. Português brasileiro. Sem markdown.`
+}
 
+export async function generateSectionAnalysis({ sectionType, sectionData, activeFields = [], activeExtras = [], clientName, period, customContext }) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) throw new Error('Sessão expirada. Faça login novamente.')
+
+  const systemPrompt = buildSystemPrompt(sectionType, activeFields)
   const userContent = mountUserContent({ sectionType, sectionData, activeFields, activeExtras, clientName, period, customContext })
 
   const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/openrouter-proxy`

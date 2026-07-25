@@ -92,6 +92,7 @@ export default function ReportEditorPage() {
   // ── Sections (array) ────────────────────────────────────
   const [sections, setSections] = useState([])
   const [activeId, setActiveId] = useState('capa')
+  const [sectionsReady, setSectionsReady] = useState(false)
 
   // ── Dados externos ──────────────────────────────────────
   const [usageHistory, setUsageHistory] = useState([])
@@ -126,6 +127,7 @@ export default function ReportEditorPage() {
     const secs = normalizeSections(report.sections ?? [])
     setSections(secs)
     setActiveId(secs[0]?.id ?? 'capa')
+    setSectionsReady(true)
   }, [report?.id])
 
   // ── Effect: fetch usage/support/operational data ────────
@@ -229,7 +231,7 @@ export default function ReportEditorPage() {
       iframeRef.current?.contentWindow?.postMessage({ scrollTo: activeId }, '*')
     }, 100)
     return () => clearTimeout(timer)
-  }, [activeId])
+  }, [activeId, html])
 
   // ── Section helpers ──────────────────────────────────────
   function updateSection(id, changes) {
@@ -646,14 +648,18 @@ export default function ReportEditorPage() {
             <span className="text-xs text-text-tertiary">Preview em tempo real</span>
           </div>
           <div className="flex-1 overflow-auto p-4">
-            <iframe
-              ref={iframeRef}
-              srcDoc={html}
-              title="Preview"
-              className="w-full rounded-lg shadow border border-border-tertiary"
-              style={{ height: 'calc(100vh - 120px)', minHeight: 500 }}
-              sandbox="allow-scripts"
-            />
+            {sectionsReady ? (
+              <iframe
+                ref={iframeRef}
+                srcDoc={html}
+                title="Preview"
+                className="w-full rounded-lg shadow border border-border-tertiary"
+                style={{ height: 'calc(100vh - 120px)', minHeight: 500 }}
+                sandbox="allow-scripts"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-text-tertiary text-sm">Preparando preview…</div>
+            )}
           </div>
         </div>
       </div>
