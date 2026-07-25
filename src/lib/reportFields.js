@@ -392,14 +392,24 @@ const sectionFields = {
       },
     },
     {
-      key: 'tempo_ocioso',
-      label: 'Tempo Ocioso Médio',
-      type: 'duration',
-      defaultEnabled: false,
-      invertDeltaColor: true,
+      key: 'produtos_por_os',
+      label: 'Produtos por OS',
+      type: 'number',
+      defaultEnabled: true,
+      resolve: (data) => data.opCurrent?.data_os?.operacional?.media_produtos_por_os ?? null,
+    },
+    {
+      key: 'delta_produtos_por_os',
+      label: '↕ Produtos por OS (delta)',
+      type: 'delta',
+      format: (v) => `${v >= 0 ? '+' : ''}${v}%`,
+      defaultEnabled: true,
       resolve: (data) => {
-        const min = data.opCurrent?.data_produtividade?.sumario?.tempo_ocioso_medio_minutos
-        return min != null ? min / 60 : null
+        const resolveP = (d) => d?.data_os?.operacional?.media_produtos_por_os ?? null
+        const cur = resolveP(data.opCurrent)
+        const prev = resolveP(data.opPrev)
+        if (cur == null || prev == null || prev === 0) return null
+        return Math.round(((cur - prev) / prev) * 100)
       },
     },
   ],
