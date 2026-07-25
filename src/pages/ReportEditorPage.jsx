@@ -1042,6 +1042,9 @@ function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, del
           )}
         </div>
       </div>
+      {state.sublabel && (
+        <div className="text-[10px] text-text-tertiary ml-5 mt-0.5">{state.sublabel}</div>
+      )}
       {(deltaField && deltaDisplay && state.deltaEnabled !== false) && (
         <div className="flex items-center gap-1 ml-5 mt-1">
           <span className="text-[10px] text-text-tertiary">{deltaDisplay}</span>
@@ -1054,6 +1057,7 @@ function FieldViewCard({ f, state, label, displayValue, isChart, deltaField, del
 function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaState, deltaAuto, deltaDisplay, onChange, onClose }) {
   const [draft, setDraft] = useState({
     label: state.label ?? '',
+    sublabel: state.sublabel ?? '',
     override: state.override ?? '',
     accentColor: state.accentColor ?? '',
     deltaEnabled: state.deltaEnabled !== false,
@@ -1066,6 +1070,7 @@ function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaSta
   function save() {
     onChange(f.key, {
       label: draft.label || null,
+      sublabel: draft.sublabel || null,
       override: draft.override === '' ? null : draft.override,
       accentColor: draft.accentColor || null,
       deltaEnabled: draft.deltaEnabled,
@@ -1089,6 +1094,9 @@ function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaSta
       <div className="grid grid-cols-2 gap-1.5 mb-2">
         <input placeholder="Título *" value={draft.label}
           onChange={e => setDraft(d => ({ ...d, label: e.target.value }))}
+          className="input-base text-xs col-span-2" />
+        <input placeholder="Legenda" value={draft.sublabel}
+          onChange={e => setDraft(d => ({ ...d, sublabel: e.target.value }))}
           className="input-base text-xs col-span-2" />
         <input placeholder="Valor" value={draft.override}
           onChange={e => setDraft(d => ({ ...d, override: e.target.value }))}

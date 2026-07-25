@@ -455,10 +455,12 @@ function renderFieldCards(sec, type, data, accentMap = {}) {
       }
     }
 
+    const sublabel = fopts.sublabel || f.sublabel
+
     cards.push(kpiCard({
       label,
       value: formatFieldValue(f, value),
-      sublabel: undefined,
+      sublabel,
       delta: deltaStr,
       deltaType,
       deltaColor,
@@ -738,7 +740,8 @@ function slideIndicadoresOperacionais(sec, operationalData, clientName, period, 
   const autoCards = renderFieldCards(sec, 'indicadores_operacionais', data, {
     tempo_execucao: 'sky',
     tempo_atendimento: 'lime',
-    tempo_transito: 'lime',
+    tempo_transito: 'green',
+    produtos_por_os: 'navy',
     _: 'sky',
   })
   const allCards = [...autoCards, ...(sec.extras ?? []).map(e =>
@@ -746,7 +749,7 @@ function slideIndicadoresOperacionais(sec, operationalData, clientName, period, 
   )]
 
   const body = `
-    ${allCards.length ? kpiGrid(allCards, Math.min(Math.max(allCards.length, 1), 3)) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado operacional disponível para este período.</p>`}
+    ${allCards.length ? kpiGrid(allCards, 4) : `<p style="color:${C.textLight};font-style:italic;font-size:13px;">Nenhum dado operacional disponível para este período.</p>`}
     ${calloutBlock(sec.content?.callout ?? '', C.sky)}`
 
   return slide('⏱️', 'Indicadores Operacionais', body, clientName, period, p, sec.subtitle)

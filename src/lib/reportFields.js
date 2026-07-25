@@ -308,6 +308,7 @@ const sectionFields = {
     {
       key: 'tempo_execucao',
       label: 'Tempo Médio de Execução',
+      sublabel: 'Por ordem de serviço',
       type: 'duration',
       defaultEnabled: true,
       invertDeltaColor: true,
@@ -342,6 +343,7 @@ const sectionFields = {
     {
       key: 'tempo_atendimento',
       label: 'Tempo Médio de Atendimento',
+      sublabel: 'Dias para atender',
       type: 'duration',
       defaultEnabled: true,
       invertDeltaColor: true,
@@ -365,6 +367,7 @@ const sectionFields = {
     {
       key: 'tempo_transito',
       label: 'Tempo em Trânsito',
+      sublabel: 'Deslocamento médio',
       type: 'duration',
       defaultEnabled: true,
       invertDeltaColor: true,
@@ -394,6 +397,7 @@ const sectionFields = {
     {
       key: 'produtos_por_os',
       label: 'Produtos por OS',
+      sublabel: 'Média de itens por OS',
       type: 'number',
       defaultEnabled: true,
       resolve: (data) => data.opCurrent?.data_os?.operacional?.media_produtos_por_os ?? null,
