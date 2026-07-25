@@ -21,7 +21,7 @@ function mountUserContent({ sectionType, sectionData, activeFields, activeExtras
   const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
   const periodLabel = months[m - 1] ? `${months[m - 1]} ${y}` : period
 
-  const fields = getSectionFields(sectionType).filter(f => f.type !== 'delta')
+  const fields = getSectionFields(sectionType).filter(f => f.type !== 'delta' && f.type !== 'chart')
 
   const sectionLabel = {
     escala: 'Escala da Operação',
