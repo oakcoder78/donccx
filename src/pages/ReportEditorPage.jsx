@@ -1058,14 +1058,14 @@ function FieldEditForm({ f, state, autoValue, displayValue, deltaField, deltaSta
   const [draft, setDraft] = useState({
     label: state.label ?? f.label ?? '',
     sublabel: state.sublabel ?? f.sublabel ?? '',
-    override: state.override ?? '',
+    override: state.override ?? (autoValue != null ? String(autoValue) : ''),
     accentColor: state.accentColor ?? '',
     deltaEnabled: state.deltaEnabled !== false,
     deltaText: state.deltaText ?? '',
     deltaType: state.deltaType ?? '',
     deltaColor: state.deltaColor ?? '',
   })
-  const [deltaOverride, setDeltaOverride] = useState(deltaState?.override ?? '')
+  const [deltaOverride, setDeltaOverride] = useState(deltaState?.override ?? (deltaAuto != null ? String(deltaAuto) : ''))
 
   function save() {
     onChange(f.key, {
