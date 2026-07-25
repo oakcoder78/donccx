@@ -342,8 +342,8 @@ const sectionFields = {
     },
     {
       key: 'tempo_atendimento',
-      label: 'Tempo Médio de Atendimento',
-      sublabel: 'Dias para atender',
+      label: 'Tempo médio para atribuição',
+      sublabel: 'Espera por profissional',
       type: 'duration',
       defaultEnabled: true,
       invertDeltaColor: true,
@@ -351,7 +351,7 @@ const sectionFields = {
     },
     {
       key: 'delta_tempo_atendimento',
-      label: '↕ Tempo Atendimento (delta)',
+      label: '↕ Tempo Atribuição (delta)',
       type: 'delta',
       format: (v) => `${v >= 0 ? '+' : ''}${v}%`,
       defaultEnabled: true,
