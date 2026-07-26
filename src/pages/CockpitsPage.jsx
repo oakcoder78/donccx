@@ -32,6 +32,15 @@ const cockpits = [
     color: 'text-donc-purple',
     bgColor: 'bg-donc-purple/10',
   },
+  {
+    key: 'profissionais_cockpit',
+    title: 'Profissionais',
+    description: 'Faturamento por profissionais ativos, acesso e OS no mes',
+    icon: Icons.UserCheck,
+    href: '/profissionais-cockpit',
+    color: 'text-donc-verde',
+    bgColor: 'bg-donc-verde/10',
+  },
 ]
 
 export default function CockpitsPage() {

@@ -1,0 +1,55 @@
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../contexts/AuthContext'
+
+export function useProfissionaisCockpit(refMonth) {
+  const { profile } = useAuth()
+
+  // Available months for the selector dropdown
+  const monthsQuery = useQuery({
+    queryKey: ['profissionais_available_months'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_usage')
+        .select('ref_month')
+        .not('profissionais_versao', 'is', null)
+        .eq('pending', false)
+        .order('ref_month', { ascending: false })
+
+      if (error) throw error
+      return [...new Set((data || []).map(r => r.ref_month))]
+    },
+    staleTime: 10 * 60 * 1000,
+  })
+
+  const prevMonthDefault = (() => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
+
+  // Main cockpit data
+  const dataQuery = useQuery({
+    queryKey: ['profissionais_cockpit', refMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_profissionais_cockpit', {
+        p_ref_month: refMonth,
+      })
+      if (error) throw error
+      return data || []
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: !!profile && !!refMonth,
+  })
+
+  return {
+    months: monthsQuery.data || [],
+    monthsLoading: monthsQuery.isLoading,
+    data: dataQuery.data || [],
+    isLoading: dataQuery.isLoading,
+    error: dataQuery.error,
+    prevMonthDefault,
+    refetch: dataQuery.refetch,
+  }
+}
