@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, Fragment } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProfissionaisCockpit } from '@/hooks/useProfissionaisCockpit'
 import { supabase } from '@/lib/supabaseClient'
@@ -296,155 +296,198 @@ export default function ProfissionaisCockpitPage() {
 
       {/* Loading state */}
       {isLoading && (
-        <div className="mt-5 space-y-1.5">
-          {[1,2,3,4,5].map(i => (
-            <div key={i} className="bg-bg-primary border border-border-tertiary rounded-xl p-4 animate-pulse">
-              <div className="h-5 bg-bg-secondary rounded w-1/4 mb-2" />
-              <div className="h-4 bg-bg-secondary rounded w-1/3" />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && filtered.length === 0 && (
-        <div className="mt-6 text-text-tertiary text-sm">
-          {search.trim()
-            ? 'Nenhum cliente encontrado para esta busca.'
-            : `Nenhum dado de profissionais encontrado para ${monthDisplay}.`}
+        <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">Ativos</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Acesso no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">OS no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded w-2/3" /></td>
+                    <td className="px-4 py-2.5"><div className="h-5 bg-bg-secondary rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {/* Table */}
       {!isLoading && filtered.length > 0 && (
-        <div className="mt-5 space-y-1.5">
-          {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white bg-donc-navy rounded-lg">
-            <div className="w-[14px] flex-shrink-0" />
-            <div className="flex-1 min-w-0 grid grid-cols-7 gap-3 items-center">
-              <span>Cliente</span>
-              <span>Ativos</span>
-              <span>&Delta;</span>
-              <span>Acesso no mes</span>
-              <span>&Delta;</span>
-              <span>OS no mes</span>
-              <span>&Delta;</span>
-            </div>
-          </div>
-
-          {filtered.map(row => {
-            const isOpen = openSet.has(row.client_id)
-            const key = String(row.client_id)
-            const detail = detailCache[key] || { loading: false, error: null, data: null }
-
-            return (
-              <div key={row.client_id} className="bg-bg-primary border border-border-tertiary rounded-xl overflow-hidden">
-                {/* Main row */}
-                <button
-                  onClick={() => toggleRow(row.client_id)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-bg-tertiary transition-colors"
-                >
-                  <ChevronIcon open={isOpen} />
-                  <div className="flex-1 min-w-0 grid grid-cols-7 gap-3 items-center">
-                    <span className="font-semibold text-text-primary truncate">{row.client_name}</span>
-                    {[
-                      [row.ativos_cur, row.ativos_delta],
-                      [row.acesso_cur, row.acesso_delta],
-                      [row.os_cur, row.os_delta],
-                    ].map(([val, delta], i) => {
-                      const d = deltaDisplay(delta)
-                      return (
-                        <div key={i} className="flex items-center gap-1.5">
-                          <span className="text-sm text-text-primary tabular-nums">{val}</span>
-                          <span className={`text-xs tabular-nums ${d.color}`}>{d.text}{d.arrow}</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </button>
-
-                {/* Expanded detail */}
-                {isOpen && (
-                  <div className="border-t border-border-tertiary">
-                    {detail.loading && (
-                      <div className="px-4 py-6 text-center text-sm text-text-tertiary">
-                        <Icons.Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
-                        Carregando profissionais de {row.client_name}... pode levar alguns segundos
-                      </div>
-                    )}
-
-                    {detail.error && (
-                      <div className="px-4 py-4 text-sm text-donc-red">
-                        Erro ao carregar profissionais: {detail.error.message}
-                        <button
-                          onClick={() => loadDetail(row.client_id)}
-                          className="ml-2 underline hover:no-underline"
-                        >
-                          Tentar novamente
-                        </button>
-                      </div>
-                    )}
-
-                    {!detail.loading && !detail.error && detail.data && (
-                      <div>
-                        {/* Row actions */}
-                        <div className="flex items-center gap-2 px-4 py-2 border-b border-border-tertiary bg-bg-secondary/50">
-                          <button
-                            onClick={() => csvSintetico([row])}
-                            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
-                          >
-                            <Icons.FileDown className="w-3.5 h-3.5" />
-                            CSV
-                          </button>
-                          <button
-                            onClick={() => csvAnalitico([row])}
-                            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
-                          >
-                            <Icons.FileDown className="w-3.5 h-3.5" />
-                            CSV Analitico
-                          </button>
-                          <button
-                            onClick={() => exportPdf(row)}
-                            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
-                          >
-                            <Icons.Download className="w-3.5 h-3.5" />
-                            PDF
-                          </button>
-                          <span className="text-xs text-text-tertiary ml-auto">{detail.data.length} profissionais</span>
-                        </div>
-
-                        {/* Professional table */}
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="bg-donc-navy text-white">
-                                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Nome</th>
-                                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Email</th>
-                                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Ultimo Login</th>
-                                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Ultima OS</th>
-                                <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Codigo OS</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {detail.data.map((p, i) => (
-                                <tr key={i} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
-                                  <td className="px-4 py-2 text-text-primary">{p.nome}</td>
-                                  <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
-                                  <td className="px-4 py-2 text-text-secondary">{p.data_ultimo_login ? new Date(p.data_ultimo_login).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                                  <td className="px-4 py-2 text-text-secondary">{p.data_ultima_os ? new Date(p.data_ultima_os).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                                  <td className="px-4 py-2 text-text-secondary">{p.codigo_ultima_os || '—'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+        <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">Ativos</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Acesso no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">OS no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-text-tertiary text-sm px-4">
+                      {search.trim()
+                        ? 'Nenhum cliente encontrado para esta busca.'
+                        : `Nenhum dado de profissionais encontrado para ${monthDisplay}.`}
+                    </td>
+                  </tr>
                 )}
-              </div>
-            )
-          })}
+                {filtered.map(row => {
+                  const isOpen = openSet.has(row.client_id)
+                  const key = String(row.client_id)
+                  const detail = detailCache[key] || { loading: false, error: null, data: null }
+                  const dAtivos = deltaDisplay(row.ativos_delta)
+                  const dAcesso = deltaDisplay(row.acesso_delta)
+                  const dOS = deltaDisplay(row.os_delta)
+
+                  return (
+                    <Fragment key={row.client_id}>
+                      <tr
+                        onClick={() => toggleRow(row.client_id)}
+                        className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary cursor-pointer"
+                      >
+                        <td className="px-4 py-2.5">
+                          <ChevronIcon open={isOpen} />
+                        </td>
+                        <td className="px-4 py-2.5 text-text-primary font-medium truncate max-w-[200px]">
+                          {row.client_name}
+                        </td>
+                        <td className="px-4 py-2.5 text-center" style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                          {row.ativos_cur}
+                        </td>
+                        <td className={`px-4 py-2.5 text-center font-semibold ${dAtivos.color}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {dAtivos.text}{dAtivos.arrow}
+                        </td>
+                        <td className="px-4 py-2.5 text-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {row.acesso_cur}
+                        </td>
+                        <td className={`px-4 py-2.5 text-center font-semibold ${dAcesso.color}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {dAcesso.text}{dAcesso.arrow}
+                        </td>
+                        <td className="px-4 py-2.5 text-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {row.os_cur}
+                        </td>
+                        <td className={`px-4 py-2.5 text-center font-semibold ${dOS.color}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
+                          {dOS.text}{dOS.arrow}
+                        </td>
+                      </tr>
+
+                      {/* Expanded detail row */}
+                      {isOpen && (
+                        <tr>
+                          <td colSpan={8} className="p-0 border-b border-border-tertiary bg-bg-secondary/20">
+                            {detail.loading && (
+                              <div className="px-4 py-6 text-center text-sm text-text-tertiary">
+                                <Icons.Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
+                                Carregando profissionais de {row.client_name}... pode levar alguns segundos
+                              </div>
+                            )}
+
+                            {detail.error && (
+                              <div className="px-4 py-4 text-sm text-donc-red">
+                                Erro ao carregar profissionais: {detail.error.message}
+                                <button
+                                  onClick={() => loadDetail(row.client_id)}
+                                  className="ml-2 underline hover:no-underline"
+                                >
+                                  Tentar novamente
+                                </button>
+                              </div>
+                            )}
+
+                            {!detail.loading && !detail.error && detail.data && (
+                              <div>
+                                <div className="flex items-center gap-2 px-4 py-2 border-b border-border-tertiary bg-bg-secondary/50">
+                                  <button
+                                    onClick={() => csvSintetico([row])}
+                                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                  >
+                                    <Icons.FileDown className="w-3.5 h-3.5" />
+                                    CSV
+                                  </button>
+                                  <button
+                                    onClick={() => csvAnalitico([row])}
+                                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                  >
+                                    <Icons.FileDown className="w-3.5 h-3.5" />
+                                    CSV Analitico
+                                  </button>
+                                  <button
+                                    onClick={() => exportPdf(row)}
+                                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                  >
+                                    <Icons.Download className="w-3.5 h-3.5" />
+                                    PDF
+                                  </button>
+                                  <span className="text-xs text-text-tertiary ml-auto">{detail.data.length} profissionais</span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-sm">
+                                    <thead>
+                                      <tr className="bg-donc-navy text-white">
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Nome</th>
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Email</th>
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Ultimo Login</th>
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Ultima OS</th>
+                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Codigo OS</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {detail.data.map((p, i) => (
+                                        <tr key={i} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
+                                          <td className="px-4 py-2 text-text-primary">{p.nome}</td>
+                                          <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
+                                          <td className="px-4 py-2 text-text-secondary">{p.data_ultimo_login ? new Date(p.data_ultimo_login).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                                          <td className="px-4 py-2 text-text-secondary">{p.data_ultima_os ? new Date(p.data_ultima_os).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                                          <td className="px-4 py-2 text-text-secondary">{p.codigo_ultima_os || '—'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state — only when no loading and no data at all */}
+      {!isLoading && (!rows || rows.length === 0) && (
+        <div className="mt-6 text-text-tertiary text-sm">
+          Nenhum dado de profissionais encontrado para {monthDisplay}.
         </div>
       )}
     </div>
