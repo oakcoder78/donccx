@@ -35,7 +35,7 @@ RETURNS TABLE(
   os_prev bigint,
   os_delta numeric
 )
-LANGUAGE sql STABLE SECURITY DEFINER
+LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = public
 AS $$
   WITH expanded AS (
@@ -53,11 +53,6 @@ AS $$
         )
       AND cu.profissionais_versao IS NOT NULL
       AND cu.pending = false
-      AND (
-        auth.uid() IS NULL
-        OR get_user_role() IN ('admin', 'manager')
-        OR cu.client_id IN (SELECT id FROM clients WHERE csm_id = auth.uid())
-      )
   ),
   counts AS (
     SELECT
@@ -110,14 +105,9 @@ AS $$
   LEFT JOIN prev_month pm_calc ON true
   LEFT JOIN counts prv
     ON cl.id = prv.client_id AND prv.ref_month = pm_calc.pm
-  WHERE COALESCE(cur.ativos, 0) > 0
+  WHERE (COALESCE(cur.ativos, 0) > 0
     OR COALESCE(cur.acesso_mes, 0) > 0
-    OR COALESCE(cur.os_mes, 0) > 0
-    AND (
-      auth.uid() IS NULL
-      OR get_user_role() IN ('admin', 'manager')
-      OR cl.csm_id = auth.uid()
-    )
+    OR COALESCE(cur.os_mes, 0) > 0)
   ORDER BY cl.fantasy_name, cl.name;
 $$;
 
@@ -138,7 +128,7 @@ RETURNS TABLE(
   data_ultima_os text,
   codigo_ultima_os text
 )
-LANGUAGE sql STABLE SECURITY DEFINER
+LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = public
 AS $$
   SELECT
@@ -154,11 +144,6 @@ AS $$
     AND cu.ref_month = p_ref_month
     AND cu.profissionais_versao IS NOT NULL
     AND cu.pending = false
-    AND (
-      auth.uid() IS NULL
-      OR get_user_role() IN ('admin', 'manager')
-      OR cu.client_id IN (SELECT id FROM clients WHERE csm_id = auth.uid())
-    )
     AND (
       (prof->>'ativo')::boolean = true
       OR (
@@ -192,7 +177,7 @@ RETURNS TABLE(
   data_ultima_os text,
   codigo_ultima_os text
 )
-LANGUAGE sql STABLE SECURITY DEFINER
+LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = public
 AS $$
   SELECT
@@ -210,11 +195,6 @@ AS $$
   WHERE cu.ref_month = p_ref_month
     AND cu.profissionais_versao IS NOT NULL
     AND cu.pending = false
-    AND (
-      auth.uid() IS NULL
-      OR get_user_role() IN ('admin', 'manager')
-      OR cu.client_id IN (SELECT id FROM clients WHERE csm_id = auth.uid())
-    )
     AND (
       (prof->>'ativo')::boolean = true
       OR (
