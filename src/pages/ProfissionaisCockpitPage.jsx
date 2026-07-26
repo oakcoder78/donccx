@@ -58,16 +58,22 @@ function downloadFile(content, filename, mime) {
 
 export default function ProfissionaisCockpitPage() {
   const navigate = useNavigate()
-  const [selectedMonth, setSelectedMonth] = useState(null)
+
+  const prevMonthDefault = (() => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })()
+
+  const [selectedMonth, setSelectedMonth] = useState(prevMonthDefault)
   const [search, setSearch] = useState('')
   const [openSet, setOpenSet] = useState(new Set())
-  const [detailCache, setDetailCache] = useState({})  // { `${clientId}`: { loading, error, data } }
+  const [detailCache, setDetailCache] = useState({})
   const [csvDropdownOpen, setCsvDropdownOpen] = useState(false)
 
   const refMonth = selectedMonth
-  const { months, monthsLoading, data: rows, isLoading, error, prevMonthDefault } = useProfissionaisCockpit(refMonth)
-
-  const effectiveMonth = selectedMonth || prevMonthDefault
+  const { months, monthsLoading, data: rows, isLoading, error } = useProfissionaisCockpit(refMonth)
 
   // Filter by search
   const filtered = useMemo(() => {
@@ -85,7 +91,7 @@ export default function ProfissionaisCockpitPage() {
     try {
       const { data, error: rpcErr } = await supabase.rpc('get_profissionais_detalhe', {
         p_client_id: clientId,
-        p_ref_month: effectiveMonth,
+        p_ref_month: refMonth,
       })
       if (rpcErr) throw rpcErr
       setDetailCache(prev => ({ ...prev, [key]: { loading: false, error: null, data: data || [] } }))
@@ -123,7 +129,7 @@ export default function ProfissionaisCockpitPage() {
         r.os_cur, `${od.text}${od.arrow}`,
       ].join('\t'))
     })
-    downloadFile(lines.join('\n'), `profissionais-sintetico-${effectiveMonth}.csv`, 'text/csv;charset=utf-8')
+    downloadFile(lines.join('\n'), `profissionais-sintetico-${refMonth}.csv`, 'text/csv;charset=utf-8')
   }
 
   async function csvAnalitico(scopeRows) {
@@ -140,13 +146,13 @@ export default function ProfissionaisCockpitPage() {
           p.data_ultimo_login || '', p.data_ultima_os || '', p.codigo_ultima_os || '',
         ].join('\t'))
       })
-      downloadFile(lines.join('\n'), `profissionais-analitico-${scopeRows[0].client_name}-${effectiveMonth}.csv`, 'text/csv;charset=utf-8')
+      downloadFile(lines.join('\n'), `profissionais-analitico-${scopeRows[0].client_name}-${refMonth}.csv`, 'text/csv;charset=utf-8')
       return
     }
     // All clients — use RPC
     try {
       const { data, error: rpcErr } = await supabase.rpc('get_profissionais_export', {
-        p_ref_month: effectiveMonth,
+        p_ref_month: refMonth,
       })
       if (rpcErr) throw rpcErr
       const profs = data || []
@@ -158,7 +164,7 @@ export default function ProfissionaisCockpitPage() {
           p.data_ultimo_login || '', p.data_ultima_os || '', p.codigo_ultima_os || '',
         ].join('\t'))
       })
-      downloadFile(lines.join('\n'), `profissionais-analitico-${effectiveMonth}.csv`, 'text/csv;charset=utf-8')
+      downloadFile(lines.join('\n'), `profissionais-analitico-${refMonth}.csv`, 'text/csv;charset=utf-8')
     } catch (e) {
       alert('Erro ao exportar: ' + (e.message || e))
     }
@@ -187,7 +193,7 @@ export default function ProfissionaisCockpitPage() {
   @media print { .no-print { display: none; } }
 </style></head><body>
   <h1>Profissionais · ${row.client_name}</h1>
-  <h2>${monthLabel(effectiveMonth)}</h2>
+  <h2>${monthLabel(refMonth)}</h2>
   <div class="summary">
     <div class="summary-box"><div class="label">Ativos</div><div class="value">${row.ativos_cur}</div></div>
     <div class="summary-box"><div class="label">Com acesso no mes</div><div class="value">${row.acesso_cur}</div></div>
@@ -226,7 +232,7 @@ export default function ProfissionaisCockpitPage() {
     )
   }
 
-  const monthDisplay = monthLabel(effectiveMonth)
+  const monthDisplay = monthLabel(refMonth)
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -237,7 +243,7 @@ export default function ProfissionaisCockpitPage() {
       <div className="mt-5 flex items-center gap-3 flex-wrap">
         {/* Month selector */}
         <select
-          value={effectiveMonth}
+          value={refMonth}
           onChange={e => { setSelectedMonth(e.target.value); setOpenSet(new Set()); setDetailCache({}) }}
           className="text-sm border border-border-tertiary rounded-lg px-3 py-2 bg-bg-primary text-text-primary focus:outline-none focus:border-donc-purple"
         >

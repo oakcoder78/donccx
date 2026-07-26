@@ -22,13 +22,6 @@ export function useProfissionaisCockpit(refMonth) {
     staleTime: 10 * 60 * 1000,
   })
 
-  const prevMonthDefault = (() => {
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() - 1)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  })()
-
   // Main cockpit data
   const dataQuery = useQuery({
     queryKey: ['profissionais_cockpit', refMonth],
@@ -49,7 +42,6 @@ export function useProfissionaisCockpit(refMonth) {
     data: dataQuery.data || [],
     isLoading: dataQuery.isLoading,
     error: dataQuery.error,
-    prevMonthDefault,
     refetch: dataQuery.refetch,
   }
 }
