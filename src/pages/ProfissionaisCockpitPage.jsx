@@ -318,6 +318,20 @@ export default function ProfissionaisCockpitPage() {
       {/* Table */}
       {!isLoading && filtered.length > 0 && (
         <div className="mt-5 space-y-1.5">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider text-white bg-donc-navy rounded-lg">
+            <div className="w-[14px] flex-shrink-0" />
+            <div className="flex-1 min-w-0 grid grid-cols-7 gap-3 items-center">
+              <span>Cliente</span>
+              <span>Ativos</span>
+              <span>&Delta;</span>
+              <span>Acesso no mes</span>
+              <span>&Delta;</span>
+              <span>OS no mes</span>
+              <span>&Delta;</span>
+            </div>
+          </div>
+
           {filtered.map(row => {
             const isOpen = openSet.has(row.client_id)
             const key = String(row.client_id)
