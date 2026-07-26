@@ -167,6 +167,8 @@ serve(async (req) => {
           usageRow.os_canceladas          = apiData.osPorStatus?.canceladas ?? null
           usageRow.unidades               = apiData.unidades ?? null
           usageRow.os_por_tipo            = apiData.osPorTipo ?? null
+          usageRow.estabelecimentos      = apiData.estabelecimentos ?? null
+          usageRow.profissionais_versao  = apiData.profissionaisVersao ?? null
         }
 
         // Upsert com constraint composta client_id + ref_month

@@ -4,6 +4,11 @@
     "context-mode": {
       "type": "local",
       "command": ["context-mode"]
+    },
+    "supabase": {
+      "type": "remote",
+      "url": "https://supabase.com",
+      "enabled": true
     }
   },
   "plugin": ["context-mode"]
