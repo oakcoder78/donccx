@@ -39,6 +39,7 @@ LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = public
 AS $$
   WITH expanded AS (
+    -- Rows with profissionais_versao JSONB array
     SELECT
       cu.client_id,
       cu.ref_month,
@@ -52,6 +53,25 @@ AS $$
           to_char((p_ref_month || '-01')::date - interval '1 month', 'YYYY-MM')
         )
       AND cu.profissionais_versao IS NOT NULL
+      AND cu.pending = false
+
+    UNION ALL
+
+    -- Fallback: rows without profissionais_versao — use active_users as count
+    SELECT
+      cu.client_id,
+      cu.ref_month,
+      true AS ativo,
+      NULL::timestamptz AS data_ultimo_login,
+      NULL::timestamptz AS data_ultima_os
+    FROM client_usage cu
+    CROSS JOIN LATERAL generate_series(1, cu.active_users) AS n
+    WHERE cu.ref_month IN (
+          p_ref_month,
+          to_char((p_ref_month || '-01')::date - interval '1 month', 'YYYY-MM')
+        )
+      AND cu.profissionais_versao IS NULL
+      AND cu.active_users > 0
       AND cu.pending = false
   ),
   counts AS (

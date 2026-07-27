@@ -182,8 +182,13 @@ serve(async (req) => {
         // (no CSM review needed — month is closed)
         if (!isCurrentMonth && apiData) {
           usageRow.os_created             = apiData.totalOs ?? 0
-          usageRow.active_users           = apiData.profissionais?.ativos ?? 0
-          usageRow.profissionais_inativos = apiData.profissionais?.inativos ?? null
+          // Handle both old ({ profissionais: { ativos } }) and new ({ profissionaisAtivos }) formats
+          usageRow.active_users           = apiData.profissionaisAtivos
+                                         ?? apiData.profissionais?.ativos
+                                         ?? 0
+          usageRow.profissionais_inativos = apiData.profissionaisInativos
+                                         ?? apiData.profissionais?.inativos
+                                         ?? null
           usageRow.os_finalizadas         = apiData.osPorStatus?.finalizadas ?? null
           usageRow.os_abertas             = apiData.osPorStatus?.abertas ?? null
           usageRow.os_canceladas          = apiData.osPorStatus?.canceladas ?? null
