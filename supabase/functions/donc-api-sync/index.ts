@@ -190,7 +190,10 @@ serve(async (req) => {
           usageRow.unidades               = apiData.unidades ?? null
           usageRow.os_por_tipo            = apiData.osPorTipo ?? null
           usageRow.estabelecimentos      = apiData.estabelecimentos ?? null
-          usageRow.profissionais_versao  = apiData.profissionaisVersao ?? null
+          // Only overwrite profissionais_versao if the new data has it; preserve existing data otherwise
+          if (apiData.profissionaisVersao != null) {
+            usageRow.profissionais_versao = apiData.profissionaisVersao
+          }
         }
 
         // Upsert com constraint composta client_id + ref_month
@@ -213,7 +216,7 @@ serve(async (req) => {
 
         // Update sync_service_log → success
         if (logId) {
-          await admin
+          const { error: updateErr } = await admin
             .from('sync_service_log')
             .update({
               status: 'success',
@@ -221,7 +224,7 @@ serve(async (req) => {
               summary: { synced: 1, failed: 0 },
             })
             .eq('id', logId)
-            .catch(() => {})
+          if (updateErr) console.error('donc-api-sync: erro ao atualizar sync_service_log (success)', updateErr)
         }
 
       } catch (e: unknown) {
@@ -231,7 +234,7 @@ serve(async (req) => {
 
         // Update sync_service_log → failed
         if (logId) {
-          await admin
+          const { error: failUpdateErr } = await admin
             .from('sync_service_log')
             .update({
               status: 'failed',
@@ -240,7 +243,7 @@ serve(async (req) => {
               summary: { synced: 0, failed: 1 },
             })
             .eq('id', logId)
-            .catch(() => {})
+          if (failUpdateErr) console.error('donc-api-sync: erro ao atualizar sync_service_log (failed)', failUpdateErr)
         }
       }
     }
