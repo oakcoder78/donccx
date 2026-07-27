@@ -21,6 +21,69 @@
 | TD-003 | Tech Debt | Migrar RMC para dados do n8n (os_criadas, histórico) | M | Done | — |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-005 | Tech Debt | Migrar health score de active_users para profissionais_versao | H | Backlog | — |
+| TD-006 | Refactor | Tabela sync_service_log para rastreamento independente por serviço | H | Backlog | — |
+
+---
+
+## TD-006 — Tabela `sync_service_log` para rastreamento independente por serviço
+
+**Type:** Refactor
+**Priority:** H
+**Status:** Backlog
+**Origin:** 2026-07-27 — sync_log atual só rastreia o orquestrador `monthly-sync`, não cada serviço individual. Serviços podem ser executados manualmente em datas diferentes e precisam de timestamps independentes.
+**Linked SDD:** —
+**Related commits:** —
+
+### Context
+
+Cada serviço (`donc-api`, `freshdesk`, `health-recalc`) pode ser disparado manualmente (via `/configuracoes` > API DONC, Freshdesk) ou via cron (`monthly-sync` orquestrador). Hoje o `sync_log` só registra o orquestrador com um timestamp único, misturando todos os serviços. Exemplo real:
+
+```
+03/07 - Freshdesk manual         → sem registro no sync_log
+15/07 - DONC manual              → sem registro no sync_log
+01/08 - Cron dispara tudo        → sync_log: 01/08 00:01 (todos no mesmo timestamp)
+```
+
+O cockpit de profissionais precisa exibir "última sincronização da API DONC" — não do orquestrador. O `SettingsSyncStatus` também se beneficiaria de granularidade por serviço.
+
+### Proposed approach
+
+1. **Migration** — criar `sync_service_log`:
+   ```sql
+   CREATE TABLE sync_service_log (
+     id            bigint generated always as identity primary key,
+     service_name  text not null,              -- 'donc-api' | 'freshdesk' | 'health-recalc'
+     status        text not null check (status in ('running','success','failed')),
+     started_at    timestamptz not null default now(),
+     finished_at   timestamptz,
+     triggered_by  text not null default 'manual',  -- 'manual' | 'cron' | 'client-sync'
+     ref_month     text,                        -- YYYY-MM
+     summary       jsonb,                       -- { synced: N, failed: N }
+     error_message text
+   );
+   ```
+
+2. **donc-api-sync** — INSERT `{service_name:'donc-api', status:'running'}` no início, UPDATE `{status:'success'/'failed', finished_at, summary}` no fim. Aceitar parâmetros `triggered_by` e `ref_month` do chamador.
+
+3. **monthly-sync** — ao chamar cada sub-serviço, repassar `triggered_by='cron'` + `ref_month`. Cada serviço registra seu próprio log independente.
+
+4. **Frontend** — migrar `SettingsSyncStatus` + `useSyncStatus` de `sync_log` para `sync_service_log`. Cockpit de profissionais faz query `WHERE service_name='donc-api' AND ref_month=X AND status='success'`.
+
+### Files
+
+- `supabase/migrations/` (Create — tabela sync_service_log)
+- `supabase/functions/donc-api-sync/index.ts` (Modify — INSERT/UPDATE no sync_service_log)
+- `supabase/functions/monthly-sync/index.ts` (Modify — repassar triggered_by/ref_month)
+- `src/hooks/useSyncStatus.js` (Modify — query sync_service_log)
+- `src/components/settings/SettingsSyncStatus.jsx` (Modify — adaptar UI)
+- `src/pages/ProfissionaisCockpitPage.jsx` (Modify — exibir timestamp DONC)
+
+### Risks
+
+- Refatoração pesada — 3 edge functions + frontend + migration
+- `monthly-sync` precisa repassar `triggered_by` e `ref_month` corretamente para cada sub-serviço
+- Migração do `SettingsSyncStatus` pode quebrar UI existente — deploy atômico necessário
+- `sync_log` antigo deve ser mantido como fallback ou removido após migração completa
 
 ---
 
