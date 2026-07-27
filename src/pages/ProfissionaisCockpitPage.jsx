@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, Fragment } from 'react'
+import { useState, useMemo, useCallback, Fragment, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useProfissionaisCockpit } from '@/hooks/useProfissionaisCockpit'
 import { supabase } from '@/lib/supabaseClient'
@@ -54,6 +54,44 @@ function downloadFile(content, filename, mime) {
   URL.revokeObjectURL(url)
 }
 
+// ─── KPI Card ───────────────────────────────────────────────────────────────────
+
+const CARD_COLORS = {
+  neutral:  { bg: 'bg-gray-100',      text: 'text-gray-500' },
+  positive: { bg: 'bg-donc-verde/10', text: 'text-donc-verde' },
+  negative: { bg: 'bg-donc-red/10',   text: 'text-donc-red' },
+  muted:    { bg: 'bg-gray-100',      text: 'text-gray-400' },
+}
+
+function KpiCard({ icon: Icon, label, value, delta, sub, color, onClick }) {
+  return (
+    <div
+      className={`bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 ${onClick ? 'cursor-pointer hover:border-donc-purple/30 hover:shadow-sm transition-all' : ''}`}
+      onClick={onClick}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className={`w-9 h-9 rounded-lg ${color.bg} flex items-center justify-center flex-shrink-0`}>
+          <Icon className={`w-5 h-5 ${color.text}`} />
+        </div>
+        <div className="min-w-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-text-primary leading-tight tabular-nums truncate">
+              {value ?? '—'}
+            </span>
+            {delta !== null && delta !== undefined && (
+              <span className={`text-[11px] font-semibold ${delta >= 0 ? 'text-donc-verde' : 'text-donc-red'}`}>
+                {delta > 0 ? '+' : ''}{delta}%{delta >= 0 ? ' ▲' : ' ▼'}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-text-tertiary font-medium mt-0.5">{label}</div>
+          {sub && <div className="text-[11px] text-text-tertiary mt-0.5">{sub}</div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProfissionaisCockpitPage() {
@@ -82,6 +120,51 @@ export default function ProfissionaisCockpitPage() {
     const q = search.toLowerCase()
     return rows.filter(r => (r.client_name || '').toLowerCase().includes(q))
   }, [rows, search])
+
+  // ─── KPI Cards ────────────────────────────────────────────────────────────────
+
+  const highlightRef = useRef(null)
+
+  const kpiCards = useMemo(() => {
+    if (!rows || rows.length === 0) return null
+
+    const totalCur = rows.reduce((s, r) => s + r.ativos_cur, 0)
+    const totalPrev = rows.reduce((s, r) => s + r.ativos_prev, 0)
+    const totalDelta = totalPrev > 0
+      ? parseFloat(((totalCur - totalPrev) / totalPrev * 100).toFixed(1))
+      : null
+
+    const positive = rows
+      .filter(r => r.ativos_delta !== null && r.ativos_delta > 0)
+      .sort((a, b) => b.ativos_delta - a.ativos_delta)
+    const topPos = positive[0] || null
+
+    const negative = rows
+      .filter(r => r.ativos_delta !== null && r.ativos_delta < 0)
+      .sort((a, b) => a.ativos_delta - b.ativos_delta)
+    const topNeg = negative[0] || null
+
+    return { totalCur, totalPrev, totalDelta, topPos, topNeg }
+  }, [rows])
+
+  function scrollToClient(clientId) {
+    if (highlightRef.current) {
+      highlightRef.current.classList.remove('ring-2', 'ring-donc-purple', 'bg-donc-purple/5')
+    }
+    setSearch('')
+    requestAnimationFrame(() => {
+      const row = document.getElementById(`client-row-${clientId}`)
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        row.classList.add('ring-2', 'ring-donc-purple', 'bg-donc-purple/5')
+        highlightRef.current = row
+        setTimeout(() => {
+          row.classList.remove('ring-2', 'ring-donc-purple', 'bg-donc-purple/5')
+          highlightRef.current = null
+        }, 2000)
+      }
+    })
+  }
 
   // ─── Row expand / detail ─────────────────────────────────────────────────────
 
@@ -294,6 +377,53 @@ export default function ProfissionaisCockpitPage() {
         </div>
       </div>
 
+      {/* KPI Summary Cards */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+          {[1,2,3].map(i => (
+            <div key={i} className="bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 animate-pulse">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-gray-100 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="h-6 bg-bg-secondary rounded w-20 mb-1" />
+                  <div className="h-3 bg-bg-secondary rounded w-28" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!isLoading && kpiCards && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+          <KpiCard
+            icon={Icons.Users}
+            label="Profissionais Ativos (Total)"
+            value={kpiCards.totalCur.toLocaleString('pt-BR')}
+            delta={kpiCards.totalDelta}
+            sub={`em ${rows?.length || 0} cliente${rows?.length !== 1 ? 's' : ''}`}
+            color={CARD_COLORS.neutral}
+          />
+          <KpiCard
+            icon={Icons.TrendingUp}
+            label="Maior Variação Positiva"
+            value={kpiCards.topPos ? kpiCards.topPos.client_name : 'Nenhuma'}
+            delta={kpiCards.topPos?.ativos_delta ?? undefined}
+            sub={kpiCards.topPos ? `de ${kpiCards.topPos.ativos_prev} para ${kpiCards.topPos.ativos_cur} ativos` : 'variação positiva'}
+            color={kpiCards.topPos ? CARD_COLORS.positive : CARD_COLORS.muted}
+            onClick={kpiCards.topPos ? () => scrollToClient(kpiCards.topPos.client_id) : undefined}
+          />
+          <KpiCard
+            icon={Icons.TrendingDown}
+            label="Maior Variação Negativa"
+            value={kpiCards.topNeg ? kpiCards.topNeg.client_name : 'Nenhuma'}
+            delta={kpiCards.topNeg?.ativos_delta ?? undefined}
+            sub={kpiCards.topNeg ? `de ${kpiCards.topNeg.ativos_prev} para ${kpiCards.topNeg.ativos_cur} ativos` : 'variação negativa'}
+            color={kpiCards.topNeg ? CARD_COLORS.negative : CARD_COLORS.muted}
+            onClick={kpiCards.topNeg ? () => scrollToClient(kpiCards.topNeg.client_id) : undefined}
+          />
+        </div>
+      )}
+
       {/* Loading state */}
       {isLoading && (
         <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
@@ -359,6 +489,7 @@ export default function ProfissionaisCockpitPage() {
                   return (
                     <Fragment key={row.client_id}>
                       <tr
+                        id={`client-row-${row.client_id}`}
                         onClick={() => toggleRow(row.client_id)}
                         className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary cursor-pointer"
                       >
