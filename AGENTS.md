@@ -109,3 +109,8 @@ Terse, technical. No articles, filler, pleasantries. Write artifacts to files �
 - CI: GitHub Actions workflow triggers on PR/issue comments with `/oc` or `/opencode`.
 - Existing workspace may be dirty; do not revert unrelated user changes.
 - `.openclaude-profile.json` contains API credentials — do not print or commit.
+
+## Backlog
+
+- `docs/backlog.md` tracks tech debt, refactors, and future ideas.
+- **TD-005** (health score migration) — revisar em Outubro 2026 quando `profissionais_versao` tiver 3+ meses de dados.

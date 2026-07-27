@@ -20,6 +20,55 @@
 | TD-002 | Tech Debt | Desativar legacy API keys e migrar frontend para `sb_publishable_*` | H | Done | — |
 | TD-003 | Tech Debt | Migrar RMC para dados do n8n (os_criadas, histórico) | M | Done | — |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
+| TD-005 | Tech Debt | Migrar health score de active_users para profissionais_versao | H | Backlog | — |
+
+---
+
+## TD-005 — Migrar health score de `active_users` para `profissionais_versao`
+
+**Type:** Tech Debt
+**Priority:** H
+**Status:** Backlog
+**Revisitar:** Outubro 2026 (3 meses de dados populados em `profissionais_versao`)
+**Origin:** 2026-07-26 — `profissionais_versao` JSONB substituirá `active_users` como fonte canônica; health score ainda usa o campo antigo. Cockpit de profissionais já consome `profissionais_versao`.
+**Linked SDD:** —
+**Related:** `docs/superpowers/specs/2026-07-26-profissionais-cockpit-design.md`, `docs/.plans/260726-1930-profissionais-cockpit/`
+
+### Context
+
+O health score calcula a dimensão "Uso" usando `client_usage.active_users` (contagem pré-agregada de ativos). O `profissionais_versao` (JSONB) é a nova fonte canônica com dados por profissional. O cockpit de profissionais já filtra `WHERE ativo = true` no JSONB. O health score precisa migrar para a mesma fonte para manter consistência.
+
+**Riscos identificados (architect + product review 2026-07-26):**
+- Usar `.length` do array conta profissionais inativos também — precisa filtrar `ativo = true`
+- Meses anteriores à migration (jul/2026) têm `profissionais_versao = NULL` — backfill obrigatório
+- Frontend (`useHealthScore.js`, `useDonkie.jsx`) não pode transferir JSONB inteiro — precisa de coluna integer pré-computada
+- 15+ arquivos leem `active_users` (dashboard, health, relatórios, Donkie, sync)
+
+### Proposed approach
+
+1. **Migration SQL** — `ALTER TABLE client_usage ADD COLUMN profissionais_ativos integer`
+2. **donc-api-sync** — popular `profissionais_ativos` como `COUNT WHERE ativo = true` do JSONB
+3. **Backfill** — popular meses históricos a partir do `donc_snapshot.profissionais.ativos`
+4. **Fallback** — `COALESCE(profissionais_ativos, active_users)` durante 3 meses de transição
+5. **Migrar consumers** — `health-recalc/index.ts`, `healthScore.js`, `useHealthScore.js`, `useDonkie.jsx`
+6. **Verificar** — snapshot de scores de 5 clientes antes/depois para evitar regressão
+
+### Files
+
+- `supabase/migrations/` (Create — add column + backfill)
+- `supabase/functions/donc-api-sync/index.ts` (Modify — popular profissionais_ativos)
+- `supabase/functions/health-recalc/index.ts` (Modify — ler profissionais_ativos)
+- `src/lib/healthScore.js` (Modify — idem)
+- `src/hooks/useHealthScore.js` (Modify — select profissionais_ativos)
+- `src/hooks/useDonkie.jsx` (Modify — idem, 2 lugares)
+- `docs/modules/health-score.md` (Modify — documentar nova coluna)
+- `docs/sdd/health-score-dashboard-sdd.md` (Modify — atualizar spec)
+
+### Risks
+
+- Score de Uso pode mudar para dezenas de clientes na primeira recalc pós-migração
+- CSMs priorizam carteira pelo health score — ordenação pode mudar radicalmente
+- Comunicar CSMs com 1 semana de antecedência se scores mudarem >5 pts em clientes ABC-A
 | IDEA-001 | Idea | UI Pattern Library — Phase 2 (8 patterns restantes) | M | Ready | `docs/sdd/ui-patterns-phase2-sdd.md` |
 
 ---

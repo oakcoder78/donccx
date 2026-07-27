@@ -491,7 +491,7 @@ export default function ProfissionaisCockpitPage() {
                       <tr
                         id={`client-row-${row.client_id}`}
                         onClick={() => toggleRow(row.client_id)}
-                        className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary cursor-pointer"
+                        className={`border-b border-border-tertiary transition-colors hover:bg-bg-secondary cursor-pointer${row.ativos_delta != null && row.ativos_delta < -35 ? ' bg-donc-red/10' : ''}`}
                       >
                         <td className="px-4 py-2.5">
                           <ChevronIcon open={isOpen} />
