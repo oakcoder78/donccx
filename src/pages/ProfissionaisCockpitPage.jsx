@@ -303,12 +303,9 @@ export default function ProfissionaisCockpitPage() {
                 <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">Ativos</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Acesso no mes</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">OS no mes</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Ativos</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-28">Acesso no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">OS no mes</th>
                 </tr>
               </thead>
               <tbody>
@@ -317,9 +314,6 @@ export default function ProfissionaisCockpitPage() {
                     <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
                     <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded w-2/3" /></td>
                     <td className="px-4 py-2.5"><div className="h-5 bg-bg-secondary rounded" /></td>
-                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
-                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
-                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
                     <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
                     <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
                   </tr>
@@ -339,18 +333,15 @@ export default function ProfissionaisCockpitPage() {
                 <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">Ativos</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Acesso no mes</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">OS no mes</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-14">&Delta;</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Ativos</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-28">Acesso no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">OS no mes</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-text-tertiary text-sm px-4">
+                    <td colSpan={5} className="text-center py-12 text-text-tertiary text-sm px-4">
                       {search.trim()
                         ? 'Nenhum cliente encontrado para esta busca.'
                         : `Nenhum dado de profissionais encontrado para ${monthDisplay}.`}
@@ -377,30 +368,30 @@ export default function ProfissionaisCockpitPage() {
                         <td className="px-4 py-2.5 text-text-primary font-medium truncate max-w-[200px]">
                           {row.client_name}
                         </td>
-                        <td className="px-4 py-2.5 text-center" style={{ fontSize: 22, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary">
                           {row.ativos_cur}
+                          <span className={`ml-1.5 text-[11px] font-semibold ${dAtivos.color}`}>
+                            {dAtivos.text}{dAtivos.arrow}
+                          </span>
                         </td>
-                        <td className={`px-4 py-2.5 text-center font-semibold ${dAtivos.color}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {dAtivos.text}{dAtivos.arrow}
-                        </td>
-                        <td className="px-4 py-2.5 text-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary">
                           {row.acesso_cur}
+                          <span className={`ml-1.5 text-[11px] font-semibold ${dAcesso.color}`}>
+                            {dAcesso.text}{dAcesso.arrow}
+                          </span>
                         </td>
-                        <td className={`px-4 py-2.5 text-center font-semibold ${dAcesso.color}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {dAcesso.text}{dAcesso.arrow}
-                        </td>
-                        <td className="px-4 py-2.5 text-center" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary">
                           {row.os_cur}
-                        </td>
-                        <td className={`px-4 py-2.5 text-center font-semibold ${dOS.color}`} style={{ fontVariantNumeric: 'tabular-nums' }}>
-                          {dOS.text}{dOS.arrow}
+                          <span className={`ml-1.5 text-[11px] font-semibold ${dOS.color}`}>
+                            {dOS.text}{dOS.arrow}
+                          </span>
                         </td>
                       </tr>
 
                       {/* Expanded detail row */}
                       {isOpen && (
                         <tr>
-                          <td colSpan={8} className="p-0 border-b border-border-tertiary bg-bg-secondary/20">
+                          <td colSpan={5} className="p-0 border-b border-border-tertiary bg-bg-secondary/20">
                             {detail.loading && (
                               <div className="px-4 py-6 text-center text-sm text-text-tertiary">
                                 <Icons.Loader2 className="w-5 h-5 animate-spin mx-auto mb-2" />
@@ -422,39 +413,40 @@ export default function ProfissionaisCockpitPage() {
 
                             {!detail.loading && !detail.error && detail.data && (
                               <div>
-                                <div className="flex items-center gap-2 px-4 py-2 border-b border-border-tertiary bg-bg-secondary/50">
+                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border-tertiary bg-bg-tertiary/60">
+                                  <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mr-1">Exportar</span>
                                   <button
                                     onClick={() => csvSintetico([row])}
-                                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md text-text-secondary bg-bg-primary border border-border-tertiary hover:border-donc-navy/30 hover:text-donc-navy transition-colors"
                                   >
-                                    <Icons.FileDown className="w-3.5 h-3.5" />
-                                    CSV
+                                    <Icons.FileDown className="w-3 h-3" />
+                                    CSV Sintetico
                                   </button>
                                   <button
                                     onClick={() => csvAnalitico([row])}
-                                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md text-text-secondary bg-bg-primary border border-border-tertiary hover:border-donc-navy/30 hover:text-donc-navy transition-colors"
                                   >
-                                    <Icons.FileDown className="w-3.5 h-3.5" />
+                                    <Icons.FileDown className="w-3 h-3" />
                                     CSV Analitico
                                   </button>
                                   <button
                                     onClick={() => exportPdf(row)}
-                                    className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md text-text-secondary bg-bg-primary border border-border-tertiary hover:border-donc-navy/30 hover:text-donc-navy transition-colors"
                                   >
-                                    <Icons.Download className="w-3.5 h-3.5" />
+                                    <Icons.Download className="w-3 h-3" />
                                     PDF
                                   </button>
-                                  <span className="text-xs text-text-tertiary ml-auto">{detail.data.length} profissionais</span>
+                                  <span className="text-[11px] text-text-tertiary ml-auto">{detail.data.length} profissionais</span>
                                 </div>
                                 <div className="overflow-x-auto">
                                   <table className="w-full text-sm">
                                     <thead>
-                                      <tr className="bg-donc-navy text-white">
-                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Nome</th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Email</th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Ultimo Login</th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Ultima OS</th>
-                                        <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Codigo OS</th>
+                                      <tr className="bg-donc-navy/70 text-white">
+                                        <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Nome</th>
+                                        <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Email</th>
+                                        <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Ultimo Login</th>
+                                        <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Ultima OS</th>
+                                        <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Codigo OS</th>
                                       </tr>
                                     </thead>
                                     <tbody>
