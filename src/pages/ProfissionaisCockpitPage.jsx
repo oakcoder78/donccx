@@ -322,6 +322,53 @@ export default function ProfissionaisCockpitPage() {
       <BackButton navigate={navigate} />
       <PageHeader title="Profissionais · Faturamento" description={monthDisplay ? `Dados de ${monthDisplay}` : 'Dados de profissionais por cliente'} />
 
+      {/* KPI Summary Cards */}
+      {isLoading && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+          {[1,2,3].map(i => (
+            <div key={i} className="bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 animate-pulse">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-gray-100 flex-shrink-0" />
+                <div className="flex-1">
+                  <div className="h-6 bg-bg-secondary rounded w-20 mb-1" />
+                  <div className="h-3 bg-bg-secondary rounded w-28" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {!isLoading && kpiCards && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
+          <KpiCard
+            icon={Icons.Users}
+            label="Profissionais Ativos (Total)"
+            value={kpiCards.totalCur.toLocaleString('pt-BR')}
+            delta={kpiCards.totalDelta}
+            sub={`em ${rows?.length || 0} cliente${rows?.length !== 1 ? 's' : ''}`}
+            color={CARD_COLORS.neutral}
+          />
+          <KpiCard
+            icon={Icons.TrendingUp}
+            label="Maior Variação Positiva"
+            value={kpiCards.topPos ? kpiCards.topPos.client_name : 'Nenhuma'}
+            delta={kpiCards.topPos?.ativos_delta ?? undefined}
+            sub={kpiCards.topPos ? `de ${kpiCards.topPos.ativos_prev} para ${kpiCards.topPos.ativos_cur} ativos` : 'variação positiva'}
+            color={kpiCards.topPos ? CARD_COLORS.positive : CARD_COLORS.muted}
+            onClick={kpiCards.topPos ? () => scrollToClient(kpiCards.topPos.client_id) : undefined}
+          />
+          <KpiCard
+            icon={Icons.TrendingDown}
+            label="Maior Variação Negativa"
+            value={kpiCards.topNeg ? kpiCards.topNeg.client_name : 'Nenhuma'}
+            delta={kpiCards.topNeg?.ativos_delta ?? undefined}
+            sub={kpiCards.topNeg ? `de ${kpiCards.topNeg.ativos_prev} para ${kpiCards.topNeg.ativos_cur} ativos` : 'variação negativa'}
+            color={kpiCards.topNeg ? CARD_COLORS.negative : CARD_COLORS.muted}
+            onClick={kpiCards.topNeg ? () => scrollToClient(kpiCards.topNeg.client_id) : undefined}
+          />
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="mt-5 flex items-center gap-3 flex-wrap">
         {/* Month selector */}
@@ -376,53 +423,6 @@ export default function ProfissionaisCockpitPage() {
           )}
         </div>
       </div>
-
-      {/* KPI Summary Cards */}
-      {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
-          {[1,2,3].map(i => (
-            <div key={i} className="bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 animate-pulse">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg bg-gray-100 flex-shrink-0" />
-                <div className="flex-1">
-                  <div className="h-6 bg-bg-secondary rounded w-20 mb-1" />
-                  <div className="h-3 bg-bg-secondary rounded w-28" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {!isLoading && kpiCards && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5">
-          <KpiCard
-            icon={Icons.Users}
-            label="Profissionais Ativos (Total)"
-            value={kpiCards.totalCur.toLocaleString('pt-BR')}
-            delta={kpiCards.totalDelta}
-            sub={`em ${rows?.length || 0} cliente${rows?.length !== 1 ? 's' : ''}`}
-            color={CARD_COLORS.neutral}
-          />
-          <KpiCard
-            icon={Icons.TrendingUp}
-            label="Maior Variação Positiva"
-            value={kpiCards.topPos ? kpiCards.topPos.client_name : 'Nenhuma'}
-            delta={kpiCards.topPos?.ativos_delta ?? undefined}
-            sub={kpiCards.topPos ? `de ${kpiCards.topPos.ativos_prev} para ${kpiCards.topPos.ativos_cur} ativos` : 'variação positiva'}
-            color={kpiCards.topPos ? CARD_COLORS.positive : CARD_COLORS.muted}
-            onClick={kpiCards.topPos ? () => scrollToClient(kpiCards.topPos.client_id) : undefined}
-          />
-          <KpiCard
-            icon={Icons.TrendingDown}
-            label="Maior Variação Negativa"
-            value={kpiCards.topNeg ? kpiCards.topNeg.client_name : 'Nenhuma'}
-            delta={kpiCards.topNeg?.ativos_delta ?? undefined}
-            sub={kpiCards.topNeg ? `de ${kpiCards.topNeg.ativos_prev} para ${kpiCards.topNeg.ativos_cur} ativos` : 'variação negativa'}
-            color={kpiCards.topNeg ? CARD_COLORS.negative : CARD_COLORS.muted}
-            onClick={kpiCards.topNeg ? () => scrollToClient(kpiCards.topNeg.client_id) : undefined}
-          />
-        </div>
-      )}
 
       {/* Loading state */}
       {isLoading && (
