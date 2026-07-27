@@ -120,9 +120,31 @@ serve(async (req) => {
     // ── Sincronizar cada instância ────────────────────────────────────────────
     const errors: Array<{ instance_id: number; contrato_saas_id: number; label: string; error: string }> = []
     let synced = 0
+    const triggeredBy = trigger === 'cron' ? 'cron' : trigger === 'client-sync' ? 'client-sync' : 'manual'
 
     for (const inst of instances) {
       console.log(`donc-api-sync: sincronizando instância ${inst.contrato_saas_id} — ${inst.label} (client_id=${inst.client_id})`)
+
+      // Insert sync_service_log entry
+      let logId: number | null = null
+      try {
+        const { data: logEntry, error: logErr } = await admin
+          .from('sync_service_log')
+          .insert({
+            service_name: 'donc-api',
+            status: 'running',
+            triggered_by: triggeredBy,
+            ref_month: refMonth,
+            instance_id: inst.id,
+          })
+          .select('id')
+          .single()
+
+        if (logErr) console.error('donc-api-sync: erro ao inserir sync_service_log', logErr)
+        else logId = logEntry?.id ?? null
+      } catch (_) {
+        // Non-blocking: sync proceeds even if logging fails
+      }
 
       try {
         const params = new URLSearchParams({ dataInicio, dataFim })
@@ -189,10 +211,37 @@ serve(async (req) => {
         synced++
         console.log(`donc-api-sync: OK instância ${inst.contrato_saas_id} — snapshot salvo, aguardando aprovação CSM`)
 
+        // Update sync_service_log → success
+        if (logId) {
+          await admin
+            .from('sync_service_log')
+            .update({
+              status: 'success',
+              finished_at: new Date().toISOString(),
+              summary: { synced: 1, failed: 0 },
+            })
+            .eq('id', logId)
+            .catch(() => {})
+        }
+
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e)
         console.error(`donc-api-sync: ERRO instância ${inst.contrato_saas_id} — ${msg}`)
         errors.push({ instance_id: inst.id, contrato_saas_id: inst.contrato_saas_id, label: inst.label, error: msg })
+
+        // Update sync_service_log → failed
+        if (logId) {
+          await admin
+            .from('sync_service_log')
+            .update({
+              status: 'failed',
+              finished_at: new Date().toISOString(),
+              error_message: msg,
+              summary: { synced: 0, failed: 1 },
+            })
+            .eq('id', logId)
+            .catch(() => {})
+        }
       }
     }
 

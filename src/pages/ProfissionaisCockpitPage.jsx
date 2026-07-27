@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, Fragment, useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useProfissionaisCockpit } from '@/hooks/useProfissionaisCockpit'
 import { supabase } from '@/lib/supabaseClient'
@@ -197,6 +198,23 @@ export default function ProfissionaisCockpitPage() {
     })
   }
 
+  // ─── Last sync ────────────────────────────────────────────────────────────────
+
+  const { data: lastSync } = useQuery({
+    queryKey: ['last_donc_sync', refMonth],
+    queryFn: () => supabase
+      .from('sync_service_log')
+      .select('finished_at')
+      .eq('service_name', 'donc-api')
+      .eq('ref_month', refMonth)
+      .eq('status', 'success')
+      .order('finished_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    staleTime: 60_000,
+    enabled: !!refMonth,
+  })
+
   // ─── CSV export ──────────────────────────────────────────────────────────────
 
   function csvSintetico(scopeRows) {
@@ -394,6 +412,14 @@ export default function ProfissionaisCockpitPage() {
             className="w-full pl-9 pr-3 py-2 text-sm border border-border-tertiary rounded-lg bg-bg-primary text-text-primary focus:outline-none focus:border-donc-purple"
           />
         </div>
+
+        {/* Last sync timestamp */}
+        {lastSync?.finished_at && (
+          <span className="ml-auto text-xs text-text-tertiary flex items-center gap-1 flex-shrink-0">
+            <Icons.Clock className="w-3.5 h-3.5" />
+            Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}
+          </span>
+        )}
 
         {/* CSV dropdown */}
         <div className="relative">
