@@ -619,7 +619,7 @@ export default function ProfissionaisCockpitPage() {
                                       {detail.data.map((p, i) => (
                                         <tr key={i} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
                                           <td
-                                            className="px-4 py-2 text-text-primary truncate max-w-[180px]"
+                                            className="px-4 py-2 text-text-primary truncate max-w-[260px]"
                                             title={p.nome}
                                           >
                                             {p.nome}
