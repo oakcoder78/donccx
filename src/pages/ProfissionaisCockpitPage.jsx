@@ -214,7 +214,7 @@ export default function ProfissionaisCockpitPage() {
       .order('finished_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
-    staleTime: 60_000,
+    staleTime: 0,
     enabled: !!refMonth,
   })
 
