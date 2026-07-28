@@ -195,9 +195,17 @@ serve(async (req) => {
           usageRow.unidades               = apiData.unidades ?? null
           usageRow.os_por_tipo            = apiData.osPorTipo ?? null
           usageRow.estabelecimentos      = apiData.estabelecimentos ?? null
-          // Only overwrite profissionais_versao if the new data has it; preserve existing data otherwise
-          if (apiData.profissionaisVersao != null) {
-            usageRow.profissionais_versao = apiData.profissionaisVersao
+          // The DONC API returns profissionais as an array, and also top-level counts
+          usageRow.active_users           = apiData.profissionaisAtivos
+                                         ?? apiData.profissionais?.ativos
+                                         ?? (Array.isArray(apiData.profissionais) ? apiData.profissionais.length : null)
+                                         ?? 0
+          usageRow.profissionais_inativos = apiData.profissionaisInativos
+                                         ?? apiData.profissionais?.inativos
+                                         ?? null
+          // profissionais field is the array of professional objects
+          if (apiData.profissionais != null) {
+            usageRow.profissionais_versao = apiData.profissionais
           }
         }
 
