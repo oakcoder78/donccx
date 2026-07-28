@@ -618,7 +618,12 @@ export default function ProfissionaisCockpitPage() {
                                     <tbody>
                                       {detail.data.map((p, i) => (
                                         <tr key={i} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
-                                          <td className="px-4 py-2 text-text-primary">{p.nome}</td>
+                                          <td
+                                            className="px-4 py-2 text-text-primary truncate max-w-[180px]"
+                                            title={p.nome}
+                                          >
+                                            {p.nome}
+                                          </td>
                                           <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
                                           <td className="px-4 py-2 text-text-secondary">{p.data_ultimo_login ? new Date(p.data_ultimo_login).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                                           <td className="px-4 py-2 text-text-secondary">{p.data_ultima_os ? new Date(p.data_ultima_os).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
