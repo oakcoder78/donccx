@@ -94,14 +94,14 @@ O cockpit de profissionais precisa exibir "última sincronização da API DONC" 
 
 ### Known issues
 
-- **❌ Timestamp não aparece no cockpit** — query do frontend (`lastSync`) retorna vazio mesmo com dados na tabela e RLS desabilitado. Browser confirma que a tabela é acessível via `fetch` direto. Hipótese: cache do `useQuery` (`staleTime`) ou problema na integração `supabase-js` com a tabela nova.
-- **❌ Over-engineering** — criou-se uma tabela inteira para resolver um problema que poderia ser resolvido com uma coluna `synced_at` + trigger no `client_usage`.
+- ~~**❌ Timestamp não aparece no cockpit**~~ — **Resolvido em 2026-07-28** (`a685e9f` + `2f14ef5`). Causa raiz: `queryFn` retornava `{data, error}` do supabase enquanto o destructuring `const { data: lastSync }` esperava o row direto. QueryFn agora retorna `data` explicitamente, com `throw error` em caso de falha.
+- ~~**❌ Over-engineering**~~ — **Rejeitado como rejected alternative (2026-07-28).** Manter `sync_service_log` abre caminho para granularidade por `instance_id` (cockpit pode futuramente mostrar "última sync por cliente") e para a fase 2 (migrar `SettingsSyncStatus` de `sync_log` para `sync_service_log` agrupando por `service_name`).
 - **Fase 2 pendente** — migrar `SettingsSyncStatus` + `useSyncStatus` de `sync_log` para `sync_service_log`.
 
 ### Closed
 
 **Date:** 2026-07-28
-**Commits:** `f0a5ce2` (migration + EF), `8d7ecb5` (fix .catch), `9722bbc` (RLS + fallback), `606821b` (restore CSV), `6eb4a8f` (disable RLS + grant), `7c8c90a` (staleTime=0)
+**Commits:** `f0a5ce2` (migration + EF), `8d7ecb5` (fix .catch), `9722bbc` (RLS + fallback), `606821b` (restore CSV), `6eb4a8f` (disable RLS + grant), `7c8c90a` (staleTime=0), `0683cd4` (docs), `a685e9f` (never-synchronized fallback + drop PUBLIC policy), `2f14ef5` (queryFn return data), `ff6581c` (months from sync_service_log + drop YYYY-MM label), `c77815c` (truncate nome), `3c252e1` (widen nome to 260px)
 **Linked SDD:** `docs/superpowers/specs/2026-07-27-sync-service-log-design.md`
 **Linked plan:** `docs/.plans/260727-2100-sync-service-log/`
 

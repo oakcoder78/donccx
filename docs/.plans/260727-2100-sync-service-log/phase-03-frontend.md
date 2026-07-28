@@ -19,16 +19,20 @@ Exibir "Última sincronização" no cockpit de profissionais, alinhado à direit
    ```js
    const { data: lastSync } = useQuery({
      queryKey: ['last_donc_sync', refMonth],
-     queryFn: () => supabase
-       .from('sync_service_log')
-       .select('finished_at')
-       .eq('service_name', 'donc-api')
-       .eq('ref_month', refMonth)
-       .eq('status', 'success')
-       .order('finished_at', { ascending: false })
-       .limit(1)
-       .maybeSingle(),
-     staleTime: 60_000,
+     queryFn: async () => {
+       const { data, error } = await supabase
+         .from('sync_service_log')
+         .select('finished_at')
+         .eq('service_name', 'donc-api')
+         .eq('ref_month', refMonth)
+         .eq('status', 'success')
+         .order('finished_at', { ascending: false })
+         .limit(1)
+         .maybeSingle()
+       if (error) throw error
+       return data
+     },
+     staleTime: 0,
      enabled: !!refMonth,
    })
    ```
@@ -37,12 +41,14 @@ Exibir "Última sincronização" no cockpit de profissionais, alinhado à direit
 
 3. Na toolbar, entre a busca e o botão CSV, adicionar elemento alinhado à direita:
    ```jsx
-   {lastSync?.finished_at && (
-     <span className="ml-auto text-xs text-text-tertiary flex items-center gap-1">
-       <Icons.Clock className="w-3.5 h-3.5" />
-       Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}
-     </span>
-   )}
+   <span className="ml-auto text-xs text-text-tertiary flex items-center gap-1 flex-shrink-0">
+     <Icons.Clock className="w-3.5 h-3.5" />
+     {lastSync?.finished_at ? (
+       <>Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}</>
+     ) : (
+       <span className="italic">Nunca sincronizado</span>
+     )}
+   </span>
    ```
 
 4. Verify: `npm run build`
@@ -50,9 +56,10 @@ Exibir "Última sincronização" no cockpit de profissionais, alinhado à direit
 ## Acceptance Criteria
 
 - Cockpit mostra "Última sinc: DD/MM/AAAA, HH:MM:SS BRT" alinhado à direita
-- Se `lastSync` for null → elemento não renderiza (ou mostra "Nunca sincronizado")
-- `staleTime: 60s` — não re-query a cada render
+- O elemento sempre renderiza; quando `lastSync` é null/undefined, exibe "Nunca sincronizado" em itálico (`a685e9f`)
+- `staleTime: 0` — sempre revalida em refetch (escolha consciente vs. `60_000` da spec original)
 - Formato de data consistente com `SettingsSyncStatus` (BRT)
+- `queryFn` deve retornar `data` diretamente (não `{data, error}`) — ver nota em spec seção Frontend
 
 ## Verification
 

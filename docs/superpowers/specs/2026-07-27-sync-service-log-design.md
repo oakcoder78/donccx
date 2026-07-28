@@ -1,7 +1,7 @@
 # sync_service_log — Design Spec
 
 **Date:** 2026-07-27
-**Status:** draft
+**Status:** implemented (Fase 1 — 2026-07-28)
 **Backlog:** TD-006
 
 ## Purpose
@@ -42,7 +42,7 @@ CREATE POLICY "sync_service_log_update_service_role"  ON sync_service_log FOR UP
 - `ON DELETE SET NULL` — evita travar remoção de instância, log permanece como histórico
 - `GENERATED ALWAYS AS IDENTITY` — padrão do projeto (`sync_log` usa igual)
 - 3 índices: lookup (cockpit), latest (settings UI), stuck (cleanup de jobs travados)
-- RLS: `authenticated` SELECT, `service_role` INSERT/UPDATE — replica proteção do `sync_log`
+- RLS: `authenticated` SELECT, `service_role` INSERT/UPDATE — replica proteção do `sync_log`. **Estado pós-deploy:** RLS desabilitada (`20260728200000`) por simplicidade — apenas timestamps e metadados de sync, sem dados sensíveis. `GRANT SELECT` para `anon` e `authenticated`.
 - Volume esperado: ~40 linhas/mês (~25 DONC instâncias + 1 freshdesk + 1 health)
 - Coexistência com `sync_log`: ambas mantidas. `sync_log` continua servindo `SettingsSyncStatus`. Migração do frontend para `sync_service_log` na fase 2.
 
@@ -99,27 +99,40 @@ Nova query no hook `useProfissionaisCockpit` (ou inline na página):
 ```js
 const { data: lastSync } = useQuery({
   queryKey: ['last_donc_sync', refMonth],
-  queryFn: () => supabase
-    .from('sync_service_log')
-    .select('finished_at')
-    .eq('service_name', 'donc-api')
-    .eq('ref_month', refMonth)
-    .eq('status', 'success')
-    .order('finished_at', { ascending: false })
-    .limit(1)
-    .maybeSingle(),
-  staleTime: 60_000,
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from('sync_service_log')
+      .select('finished_at')
+      .eq('service_name', 'donc-api')
+      .eq('ref_month', refMonth)
+      .eq('status', 'success')
+      .order('finished_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) throw error
+    return data
+  },
+  staleTime: 0,
   enabled: !!refMonth,
 })
 ```
 
+**Atenção:** o `queryFn` deve retornar `data` diretamente, não o envelope `{data, error}` do supabase — caso contrário o destructuring `const { data: lastSync }` recebe `{data, error}` e `lastSync.finished_at` é sempre `undefined`. Esse bug existia na versão original da spec e foi corrigido em `2f14ef5`. `throw error` em caso de falha para que erros reais não sejam mascarados como "nunca sincronizado".
+
 Exibição na toolbar, alinhado à direita (na mesma linha dos filtros):
 
-```
-🕐 Última sinc: 01/08/2026, 00:02 BRT
+```jsx
+<span className="ml-auto text-xs text-text-tertiary flex items-center gap-1 flex-shrink-0">
+  <Icons.Clock className="w-3.5 h-3.5" />
+  {lastSync?.finished_at ? (
+    <>Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}</>
+  ) : (
+    <span className="italic">Nunca sincronizado</span>
+  )}
+</span>
 ```
 
-Se `lastSync === null` → exibir "Nunca sincronizado" em `text-text-tertiary`.
+O span sempre renderiza; quando `lastSync` é null/undefined, exibe o rótulo `Nunca sincronizado` em itálico (`a685e9f`).
 
 ### `SettingsSyncStatus.jsx` (fase 2, pós-deploy)
 

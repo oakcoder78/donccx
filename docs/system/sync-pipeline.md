@@ -88,7 +88,7 @@ Manual (Settings UI) ──→ donc-api-sync ──────────→ c
 | Criação | `20260701000000` | `20260727210000` |
 | Granularidade | 1 por execução do orquestrador | 1 por serviço por instância |
 | Serviços | Todos em um summary JSONB | donc-api (fase 1) |
-| RLS | Ativo (authenticated SELECT, service_role INSERT/UPDATE) | Desabilitado (GRANT SELECT) |
+| RLS | Ativo (authenticated SELECT, service_role INSERT/UPDATE) | Desabilitado (`20260728200000`); `GRANT SELECT TO anon, authenticated`. Policy `Enable read access for all users` (PUBLIC) removida em `20260728000000` como cleanup defensivo. |
 | Consumido por | SettingsSyncStatus | ProfissionaisCockpitPage |
 | Escrito por | monthly-sync | donc-api-sync |
 
@@ -96,5 +96,5 @@ Manual (Settings UI) ──→ donc-api-sync ──────────→ c
 
 ## Known Issues
 
-- **Timestamp não renderiza no cockpit** (2026-07-28): query `sync_service_log` retorna vazio via `useQuery` mesmo com dados na tabela e RLS desabilitado. Browser confirma acesso via `fetch` direto. Investigação pendente.
-- **Over-engineering**: uma coluna `synced_at` + trigger no `client_usage` teria resolvido o requisito original (exibir timestamp no cockpit) sem tabela nova, sem RLS novo, sem edge function modificada.
+- **Over-engineering** (rejected alternative): uma coluna `synced_at` + trigger no `client_usage` teria resolvido o requisito mínimo (exibir timestamp no cockpit) sem tabela nova, sem RLS novo, sem edge function modificada. Decisão (2026-07-28): manter `sync_service_log` porque a tabela abre caminho para granularidade por instância (`instance_id`) e fase 2 (migrar `SettingsSyncStatus` de `sync_log` para `sync_service_log` agrupando por `service_name`). A rejeição fica registrada para reavaliação se a fase 2 for cancelada.
+- Resolvido em 2026-07-28 (`a685e9f` + `2f14ef5`): o timestamp não renderizava porque o `queryFn` do `useQuery` retornava o envelope `{data, error}` do supabase enquanto o destructuring `const { data: lastSync }` esperava o row direto — `lastSync.finished_at` era sempre `undefined`. QueryFn agora retorna `data` explicitamente e `throw error` em caso de falha, espelhando o padrão de `useProfissionaisCockpit.js:29-31`.

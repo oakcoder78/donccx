@@ -76,8 +76,10 @@ ProfissionaisCockpitPage
 ## UI Behavior
 
 ### Cockpit de Profissionais
-- Toolbar exibe `🕐 Última sinc: 01/08/2026, 00:02 BRT` alinhado à direita
-- Se não houver sync para o mês: não renderiza o elemento (ou "Nunca sincronizado")
+- Toolbar exibe `🕐 Última sinc: 01/08/2026, 00:02 BRT` alinhado à direita (`ml-auto`)
+- O elemento sempre renderiza; quando `lastSync?.finished_at` é falsy, exibe o rótulo `Nunca sincronizado` em itálico/tertiary (`a685e9f`)
+- Dropdown de meses deriva `ref_month` distintos de `sync_service_log` (donc-api) em vez de `client_usage` (`ff6581c`) — exclui meses legados pré-API DONC. Quando o log de sync para um mês está vazio, o mês não aparece no seletor.
+- Tabela expandida do detalhe: célula `nome` truncada com `truncate max-w-[260px]` + `title` para hover (`c77815c`, `3c252e1`)
 
 ### Settings > Status da Sincronização
 - Card de status com badge (Sucesso ✓ / Falha ✗ / Nunca executou)
