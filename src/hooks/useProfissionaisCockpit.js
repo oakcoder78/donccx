@@ -6,18 +6,18 @@ export function useProfissionaisCockpit(refMonth) {
   const { profile } = useAuth()
 
   // Available months for the selector dropdown
+  // Only months targeted by donc-api-sync (any status) — reflects what the
+  // DONC API actually populated, excluding pre-API legacy data.
   const monthsQuery = useQuery({
     queryKey: ['profissionais_available_months'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('client_usage')
+        .from('sync_service_log')
         .select('ref_month')
-        .eq('pending', false)
-        .not('instance_id', 'is', null)
-        .order('ref_month', { ascending: false })
+        .eq('service_name', 'donc-api')
 
       if (error) throw error
-      return [...new Set((data || []).map(r => r.ref_month))]
+      return [...new Set((data || []).map(r => r.ref_month))].sort().reverse()
     },
     staleTime: 10 * 60 * 1000,
   })

@@ -322,9 +322,7 @@ export default function ProfissionaisCockpitPage() {
 
   // ─── Render helpers ──────────────────────────────────────────────────────────
 
-  const formatMonthOption = useCallback((m) => {
-    return monthLabel(m) + ' (' + m + ')'
-  }, [])
+  const formatMonthOption = useCallback((m) => monthLabel(m), [])
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
