@@ -21,7 +21,7 @@
 | TD-003 | Tech Debt | Migrar RMC para dados do n8n (os_criadas, histórico) | M | Done | — |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-005 | Tech Debt | Migrar health score de active_users para profissionais_versao | H | Backlog | — |
-| TD-006 | Refactor | Tabela sync_service_log para rastreamento independente por serviço | H | Backlog | — |
+| TD-006 | Refactor | Tabela sync_service_log para rastreamento independente por serviço | H | Done | `docs/superpowers/specs/2026-07-27-sync-service-log-design.md` |
 
 ---
 
@@ -84,6 +84,26 @@ O cockpit de profissionais precisa exibir "última sincronização da API DONC" 
 - `monthly-sync` precisa repassar `triggered_by` e `ref_month` corretamente para cada sub-serviço
 - Migração do `SettingsSyncStatus` pode quebrar UI existente — deploy atômico necessário
 - `sync_log` antigo deve ser mantido como fallback ou removido após migração completa
+
+### What was done (Fase 1)
+
+1. **Migration `20260727210000`** — tabela `sync_service_log` + 3 índices + RLS
+2. **donc-api-sync** — INSERT/UPDATE `sync_service_log` por instância com `triggered_by`
+3. **Cockpit** — query `sync_service_log` para exibir timestamp na toolbar
+4. **Migration `20260728200000`** — RLS desabilitada, `GRANT SELECT TO anon, authenticated`
+
+### Known issues
+
+- **❌ Timestamp não aparece no cockpit** — query do frontend (`lastSync`) retorna vazio mesmo com dados na tabela e RLS desabilitado. Browser confirma que a tabela é acessível via `fetch` direto. Hipótese: cache do `useQuery` (`staleTime`) ou problema na integração `supabase-js` com a tabela nova.
+- **❌ Over-engineering** — criou-se uma tabela inteira para resolver um problema que poderia ser resolvido com uma coluna `synced_at` + trigger no `client_usage`.
+- **Fase 2 pendente** — migrar `SettingsSyncStatus` + `useSyncStatus` de `sync_log` para `sync_service_log`.
+
+### Closed
+
+**Date:** 2026-07-28
+**Commits:** `f0a5ce2` (migration + EF), `8d7ecb5` (fix .catch), `9722bbc` (RLS + fallback), `606821b` (restore CSV), `6eb4a8f` (disable RLS + grant), `7c8c90a` (staleTime=0)
+**Linked SDD:** `docs/superpowers/specs/2026-07-27-sync-service-log-design.md`
+**Linked plan:** `docs/.plans/260727-2100-sync-service-log/`
 
 ---
 
