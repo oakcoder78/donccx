@@ -447,12 +447,14 @@ export default function ProfissionaisCockpitPage() {
         </div>
 
         {/* Last sync timestamp */}
-        {lastSync?.finished_at && (
-          <span className="ml-auto text-xs text-text-tertiary flex items-center gap-1 flex-shrink-0">
-            <Icons.Clock className="w-3.5 h-3.5" />
-            Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}
-          </span>
-        )}
+        <span className="ml-auto text-xs text-text-tertiary flex items-center gap-1 flex-shrink-0">
+          <Icons.Clock className="w-3.5 h-3.5" />
+          {lastSync?.finished_at ? (
+            <>Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}</>
+          ) : (
+            <span className="italic">Nunca sincronizado</span>
+          )}
+        </span>
       </div>
 
       {/* Loading state */}
