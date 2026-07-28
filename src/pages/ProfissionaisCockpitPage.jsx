@@ -425,34 +425,6 @@ export default function ProfissionaisCockpitPage() {
             Última sinc: {new Date(lastSync.finished_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', timeZoneName: 'short' })}
           </span>
         )}
-
-        {/* CSV dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setCsvDropdownOpen(!csvDropdownOpen)}
-            className="flex items-center gap-1.5 text-sm border border-border-tertiary rounded-lg px-3 py-2 bg-bg-primary text-text-secondary hover:bg-bg-secondary transition-colors"
-          >
-            <Icons.FileDown className="w-4 h-4" />
-            Exportar CSV
-            <ChevronIcon open={csvDropdownOpen} />
-          </button>
-          {csvDropdownOpen && (
-            <div className="absolute right-0 mt-1 w-56 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-1">
-              <button
-                onClick={() => { csvSintetico(filtered); setCsvDropdownOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
-              >
-                Sinterico (todos os clientes)
-              </button>
-              <button
-                onClick={() => { csvAnalitico(filtered); setCsvDropdownOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
-              >
-                Analitico (todos os clientes)
-              </button>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Loading state */}

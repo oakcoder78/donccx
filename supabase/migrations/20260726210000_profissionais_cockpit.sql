@@ -151,6 +151,7 @@ RETURNS TABLE(
 LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = public
 AS $$
+  -- Rows with profissionais_versao JSONB
   SELECT
     prof->>'nome' AS nome,
     prof->>'email' AS email,
@@ -177,7 +178,25 @@ AS $$
         AND (prof->>'dataUltimaOS')::timestamptz < ((p_ref_month || '-01')::date + interval '1 month')
       )
     )
-  ORDER BY prof->>'nome';
+
+  UNION ALL
+
+  -- Fallback: rows without profissionais_versao — generate from active_users count
+  SELECT
+    ('Profissional ' || n)::text AS nome,
+    NULL::text AS email,
+    true AS ativo,
+    NULL::text AS data_ultimo_login,
+    NULL::text AS data_ultima_os,
+    NULL::text AS codigo_ultima_os
+  FROM client_usage cu
+  CROSS JOIN LATERAL generate_series(1, cu.active_users) AS n
+  WHERE cu.client_id = p_client_id
+    AND cu.ref_month = p_ref_month
+    AND cu.profissionais_versao IS NULL
+    AND cu.active_users > 0
+    AND cu.pending = false
+  ORDER BY nome;
 $$;
 
 -- ============================================================================
@@ -200,6 +219,7 @@ RETURNS TABLE(
 LANGUAGE sql STABLE SECURITY INVOKER
 SET search_path = public
 AS $$
+  -- Rows with profissionais_versao JSONB
   SELECT
     cu.client_id,
     COALESCE(c.fantasy_name, c.name) AS client_name,
@@ -228,5 +248,25 @@ AS $$
         AND (prof->>'dataUltimaOS')::timestamptz < ((p_ref_month || '-01')::date + interval '1 month')
       )
     )
-  ORDER BY c.fantasy_name, c.name, prof->>'nome';
+
+  UNION ALL
+
+  -- Fallback: rows without profissionais_versao — generate from active_users count
+  SELECT
+    cu.client_id,
+    COALESCE(c.fantasy_name, c.name) AS client_name,
+    ('Profissional ' || n)::text AS nome,
+    NULL::text AS email,
+    true AS ativo,
+    NULL::text AS data_ultimo_login,
+    NULL::text AS data_ultima_os,
+    NULL::text AS codigo_ultima_os
+  FROM client_usage cu
+  JOIN clients c ON c.id = cu.client_id
+  CROSS JOIN LATERAL generate_series(1, cu.active_users) AS n
+  WHERE cu.ref_month = p_ref_month
+    AND cu.profissionais_versao IS NULL
+    AND cu.active_users > 0
+    AND cu.pending = false
+  ORDER BY client_name, nome;
 $$;

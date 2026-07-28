@@ -12,8 +12,8 @@ export function useProfissionaisCockpit(refMonth) {
       const { data, error } = await supabase
         .from('client_usage')
         .select('ref_month')
-        .not('profissionais_versao', 'is', null)
         .eq('pending', false)
+        .not('instance_id', 'is', null)
         .order('ref_month', { ascending: false })
 
       if (error) throw error
