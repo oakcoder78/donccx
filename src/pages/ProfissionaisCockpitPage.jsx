@@ -58,35 +58,38 @@ function downloadFile(content, filename, mime) {
 // ─── KPI Card ───────────────────────────────────────────────────────────────────
 
 const CARD_COLORS = {
-  neutral:  { bg: 'bg-gray-100',      text: 'text-gray-500' },
+  neutral:  { bg: 'bg-bg-secondary', text: 'text-text-secondary' },
   positive: { bg: 'bg-donc-verde/10', text: 'text-donc-verde' },
   negative: { bg: 'bg-donc-red/10',   text: 'text-donc-red' },
-  muted:    { bg: 'bg-gray-100',      text: 'text-gray-400' },
+  muted:    { bg: 'bg-bg-secondary',  text: 'text-text-tertiary' },
 }
 
-function KpiCard({ icon: Icon, label, value, delta, sub, color, onClick }) {
+function KpiCard({ icon: Icon, label, value, delta, sub, color, compact, onClick }) {
+  const colorKey = color || CARD_COLORS.neutral
+  const valueSize = compact ? 'text-sm font-semibold' : 'text-2xl font-bold'
+
   return (
     <div
       className={`bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 ${onClick ? 'cursor-pointer hover:border-donc-purple/30 hover:shadow-sm transition-all' : ''}`}
       onClick={onClick}
     >
       <div className="flex items-center gap-2.5">
-        <div className={`w-9 h-9 rounded-lg ${color.bg} flex items-center justify-center flex-shrink-0`}>
-          <Icon className={`w-5 h-5 ${color.text}`} />
+        <div className={`w-9 h-9 rounded-lg ${colorKey.bg} flex items-center justify-center flex-shrink-0`}>
+          <Icon className={`w-5 h-5 ${colorKey.text}`} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-bold text-text-primary leading-tight tabular-nums truncate">
+            <span className={`${valueSize} text-text-primary leading-tight tabular-nums truncate`}>
               {value ?? '—'}
             </span>
             {delta !== null && delta !== undefined && (
-              <span className={`text-[11px] font-semibold ${delta >= 0 ? 'text-donc-verde' : 'text-donc-red'}`}>
+              <span className={`text-[11px] font-semibold flex-shrink-0 ${delta >= 0 ? 'text-donc-verde' : 'text-donc-red'}`}>
                 {delta > 0 ? '+' : ''}{delta}%{delta >= 0 ? ' ▲' : ' ▼'}
               </span>
             )}
           </div>
-          <div className="text-xs text-text-tertiary font-medium mt-0.5">{label}</div>
-          {sub && <div className="text-[11px] text-text-tertiary mt-0.5">{sub}</div>}
+          <div className="text-xs text-text-tertiary font-medium mt-0.5 truncate">{label}</div>
+          {sub && <div className="text-xs text-text-tertiary mt-0.5 truncate">{sub}</div>}
         </div>
       </div>
     </div>
@@ -346,7 +349,7 @@ export default function ProfissionaisCockpitPage() {
           {[1,2,3].map(i => (
             <div key={i} className="bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 animate-pulse">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg bg-gray-100 flex-shrink-0" />
+                <div className="w-9 h-9 rounded-lg bg-bg-secondary flex-shrink-0" />
                 <div className="flex-1">
                   <div className="h-6 bg-bg-secondary rounded w-20 mb-1" />
                   <div className="h-3 bg-bg-secondary rounded w-28" />
@@ -373,6 +376,7 @@ export default function ProfissionaisCockpitPage() {
             delta={kpiCards.topPos?.ativos_delta ?? undefined}
             sub={kpiCards.topPos ? `de ${kpiCards.topPos.ativos_prev} para ${kpiCards.topPos.ativos_cur} ativos` : 'variação positiva'}
             color={kpiCards.topPos ? CARD_COLORS.positive : CARD_COLORS.muted}
+            compact
             onClick={kpiCards.topPos ? () => scrollToClient(kpiCards.topPos.client_id) : undefined}
           />
           <KpiCard
@@ -382,6 +386,7 @@ export default function ProfissionaisCockpitPage() {
             delta={kpiCards.topNeg?.ativos_delta ?? undefined}
             sub={kpiCards.topNeg ? `de ${kpiCards.topNeg.ativos_prev} para ${kpiCards.topNeg.ativos_cur} ativos` : 'variação negativa'}
             color={kpiCards.topNeg ? CARD_COLORS.negative : CARD_COLORS.muted}
+            compact
             onClick={kpiCards.topNeg ? () => scrollToClient(kpiCards.topNeg.client_id) : undefined}
           />
         </div>
@@ -459,9 +464,9 @@ export default function ProfissionaisCockpitPage() {
                 <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Ativos</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-28">Acesso no mes</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">OS no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-28">Ativos</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-32">Acesso no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-32">OS no mes</th>
                 </tr>
               </thead>
               <tbody>
@@ -489,9 +494,9 @@ export default function ProfissionaisCockpitPage() {
                 <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
                   <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">Ativos</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-28">Acesso no mes</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-24">OS no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-28">Ativos</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-32">Acesso no mes</th>
+                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-32">OS no mes</th>
                 </tr>
               </thead>
               <tbody>
@@ -525,21 +530,21 @@ export default function ProfissionaisCockpitPage() {
                         <td className="px-4 py-2.5 text-text-primary font-medium truncate max-w-[200px]">
                           {row.client_name}
                         </td>
-                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary">
+                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary whitespace-nowrap">
                           {row.ativos_cur}
-                          <span className={`ml-1.5 text-[11px] font-semibold ${dAtivos.color}`}>
+                          <span className={`ml-1.5 text-[11px] font-semibold flex-shrink-0 ${dAtivos.color}`}>
                             {dAtivos.text}{dAtivos.arrow}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary">
+                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary whitespace-nowrap">
                           {row.acesso_cur}
-                          <span className={`ml-1.5 text-[11px] font-semibold ${dAcesso.color}`}>
+                          <span className={`ml-1.5 text-[11px] font-semibold flex-shrink-0 ${dAcesso.color}`}>
                             {dAcesso.text}{dAcesso.arrow}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary">
+                        <td className="px-4 py-2.5 text-center font-semibold tabular-nums text-text-primary whitespace-nowrap">
                           {row.os_cur}
-                          <span className={`ml-1.5 text-[11px] font-semibold ${dOS.color}`}>
+                          <span className={`ml-1.5 text-[11px] font-semibold flex-shrink-0 ${dOS.color}`}>
                             {dOS.text}{dOS.arrow}
                           </span>
                         </td>
