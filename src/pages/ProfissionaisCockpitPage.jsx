@@ -205,15 +205,19 @@ export default function ProfissionaisCockpitPage() {
 
   const { data: lastSync } = useQuery({
     queryKey: ['last_donc_sync', refMonth],
-    queryFn: () => supabase
-      .from('sync_service_log')
-      .select('finished_at')
-      .eq('service_name', 'donc-api')
-      .eq('ref_month', refMonth)
-      .eq('status', 'success')
-      .order('finished_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sync_service_log')
+        .select('finished_at')
+        .eq('service_name', 'donc-api')
+        .eq('ref_month', refMonth)
+        .eq('status', 'success')
+        .order('finished_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw error
+      return data
+    },
     staleTime: 0,
     enabled: !!refMonth,
   })
