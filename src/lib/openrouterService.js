@@ -12,6 +12,49 @@ import { getFreshdeskConfig } from './freshdeskConfig'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
+/**
+ * Extrai um objeto JSON de uma resposta bruta de LLM.
+ * Estratégias (em ordem):
+ *   1. Bloco markdown ```json ou ``` — extrai o conteúdo do bloco
+ *   2. Primeiro objeto {...} ou array [...] válido via regex não-gulosa
+ *   3. Retorna null se nenhuma estratégia funcionar
+ */
+function extractJSON(raw) {
+  if (!raw || typeof raw !== 'string') return null
+
+  // Estratégia 1: bloco markdown
+  const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (codeBlockMatch) {
+    try {
+      const parsed = JSON.parse(codeBlockMatch[1].trim())
+      if (typeof parsed === 'object' && parsed !== null) return parsed
+    } catch { /* continua para estratégia 2 */ }
+  }
+
+  // Estratégia 2: primeiro objeto ou array JSON válido
+  const candidateRegex = /\{[\s\S]*?\}|\[\s\S]*?\]/g
+  let match
+  while ((match = candidateRegex.exec(raw)) !== null) {
+    try {
+      const parsed = JSON.parse(match[0])
+      if (typeof parsed === 'object' && parsed !== null) return parsed
+    } catch { /* continua buscando */ }
+  }
+
+  return null
+}
+
+const REQUIRED_TICKET_FIELDS = [
+  'subject', 'description', 'first_reply', 'suggested_type',
+  'suggested_priority', 'suggested_group_id', 'suggested_status',
+  'suggested_category', 'confidence', 'is_recurring_issue',
+]
+
+function validateTicketSchema(obj) {
+  if (!obj || typeof obj !== 'object') return false
+  return REQUIRED_TICKET_FIELDS.every(key => key in obj)
+}
+
 async function isDebugEnabled() {
   try {
     const cfg = await getFreshdeskConfig('debug_config')
@@ -157,26 +200,27 @@ Regras críticas:
         continue
       }
 
-      // ── Parse JSON da resposta ────────────────────────────────────────────
-      try {
-        const cleaned = raw
-          .replace(/^```json\s*/i, '')
-          .replace(/^```\s*/,      '')
-          .replace(/\s*```$/,      '')
-          .trim()
-        const result = JSON.parse(cleaned)
+      // ── Extrair e validar JSON da resposta ──────────────────────────────────
+      const extracted = extractJSON(raw)
+      if (extracted === null) {
+        lastError = new Error(`Resposta da IA não contém JSON válido. Trecho: ${raw.slice(0, 200)}`)
         if (await isDebugEnabled()) {
-          console.log('[openrouterService] modelo utilizado:', data?.model || 'desconhecido')
-          console.log('[openrouterService] resultado IA:', JSON.stringify(result, null, 2))
-        }
-        return result
-      } catch {
-        lastError = new Error(`Resposta da IA não é JSON válido. Trecho: ${raw.slice(0, 200)}`)
-        if (await isDebugEnabled()) {
-          console.warn('[openrouterService] JSON inválido, tentando próximo modelo')
+          console.warn('[openrouterService] nenhum JSON encontrado na resposta, tentando próximo modelo')
         }
         continue
       }
+      if (!validateTicketSchema(extracted)) {
+        lastError = new Error(`Resposta da IA tem campos faltando. Trecho: ${raw.slice(0, 200)}`)
+        if (await isDebugEnabled()) {
+          console.warn('[openrouterService] schema inválido, tentando próximo modelo')
+        }
+        continue
+      }
+      if (await isDebugEnabled()) {
+        console.log('[openrouterService] modelo utilizado:', data?.model || 'desconhecido')
+        console.log('[openrouterService] resultado IA:', JSON.stringify(extracted, null, 2))
+      }
+      return extracted
     }
 
     // Retry em 404 ou 5xx

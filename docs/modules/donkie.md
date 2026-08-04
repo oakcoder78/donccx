@@ -50,6 +50,14 @@ Since May 2026, every OpenRouter model call is logged to `ai_model_logs`. When a
 
 Since August 2026, `openrouter-proxy` validates that OpenRouter responses contain valid JSON with the expected structure (`choices` array with `message.content` string). Responses that pass HTTP 200 but lack valid JSON are treated as model failures and trigger automatic fallback to the next configured model. This prevents silent failures where a model returns HTML error pages or empty content with HTTP 200.
 
+#### JSON Extraction
+
+The frontend (`src/lib/openrouterService.js`) uses a multi-strategy `extractJSON()` helper to handle non-standard AI responses:
+1. Extract JSON from markdown code blocks (```json or ```), ignoring preamble/trailing text
+2. Find the first valid JSON object `{...}` or array `[...]` via non-greedy regex
+3. Validate the extracted object contains all required ticket fields (schema validation)
+4. If extraction or validation fails, automatically retry with the next configured model
+
 #### Tables
 
 | Table | Purpose | RLS |
