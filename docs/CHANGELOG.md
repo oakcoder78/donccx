@@ -7,6 +7,7 @@
 - **Fix:** `openrouter-proxy` — validates OpenRouter response structure (JSON + `choices` array with `message.content` string) before accepting as success; invalid responses trigger fallback to next model instead of forwarding `null` to frontend
 - **Fix:** `openrouterService.js` — handles `null`/empty/error proxy responses with retry logic (up to 2 extra attempts across all models) instead of throwing immediately; shows specific error messages for each failure mode
 - **Fix:** `openrouter-proxy` — model returning non-JSON body with HTTP 200 (e.g., `qwen/qwen3.7-flash`) is now detected and skipped automatically
+- **Fix:** `openrouter-proxy` — empty `content` field (string `''`) is now treated as model failure, triggering fallback to next model instead of being forwarded as success
 - **Fix:** `openrouterService.js` — added `extractJSON()` helper with multi-strategy extraction (markdown code blocks → regex brace matching → schema validation) for robust handling of non-standard AI responses
 - **Fix:** `openrouterService.js` — validates ticket schema after JSON parse; missing required fields trigger retry with next model instead of returning invalid data
 

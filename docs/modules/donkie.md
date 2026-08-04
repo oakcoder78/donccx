@@ -48,7 +48,7 @@ Since May 2026, every OpenRouter model call is logged to `ai_model_logs`. When a
 
 #### Response Validation
 
-Since August 2026, `openrouter-proxy` validates that OpenRouter responses contain valid JSON with the expected structure (`choices` array with `message.content` string). Responses that pass HTTP 200 but lack valid JSON are treated as model failures and trigger automatic fallback to the next configured model. This prevents silent failures where a model returns HTML error pages or empty content with HTTP 200.
+Since August 2026, `openrouter-proxy` validates that OpenRouter responses contain valid JSON with the expected structure (`choices` array with `message.content` string). Responses that pass HTTP 200 but lack valid JSON, or have an empty `content` field (string `''`), are treated as model failures and trigger automatic fallback to the next configured model. This prevents silent failures where a model returns HTML error pages or empty content with HTTP 200.
 
 #### JSON Extraction
 

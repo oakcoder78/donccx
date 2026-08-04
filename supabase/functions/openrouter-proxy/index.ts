@@ -306,7 +306,7 @@ try {
 
       // ── Sucesso ─────────────────────────────────────────────────────────
       const parsed = await orRes.json().catch(() => null)
-      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed?.choices) || parsed.choices.length === 0 || typeof parsed.choices[0]?.message?.content !== 'string') {
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed?.choices) || parsed.choices.length === 0 || typeof parsed.choices[0]?.message?.content !== 'string' || !parsed.choices[0].message.content.trim()) {
         const errMsg = `invalid response structure from ${model}`
         console.warn('Falha no modelo:', model, errMsg)
         modelErrors.push(`${model}: ${errMsg}`)
