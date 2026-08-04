@@ -305,11 +305,18 @@ try {
       }
 
       // ── Sucesso ─────────────────────────────────────────────────────────
+      const parsed = await orRes.json().catch(() => null)
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed?.choices) || parsed.choices.length === 0 || typeof parsed.choices[0]?.message?.content !== 'string') {
+        const errMsg = `invalid response structure from ${model}`
+        console.warn('Falha no modelo:', model, errMsg)
+        modelErrors.push(`${model}: ${errMsg}`)
+        await logModel(model, 'fail', elapsed, errMsg)
+        continue
+      }
       allFailed = false
       console.log('Modelo utilizado:', model)
       await logModel(model, 'success', elapsed)
-      const data = await orRes.json().catch(() => null)
-      return json(data, orRes.status)
+      return json(parsed, orRes.status)
     }
 
     // ── Todos os modelos falharam ────────────────────────────────────────

@@ -131,7 +131,31 @@ Regras críticas:
 
     if (res.ok) {
       const data = await res.json()
-      const raw  = data?.choices?.[0]?.message?.content ?? ''
+
+      // Proxy retornou null (modelo respondeu com body não-JSON)
+      if (data === null) {
+        lastError = new Error('Modelo de IA retornou uma resposta inválida. Tentando outro modelo...')
+        if (await isDebugEnabled()) {
+          console.warn('[openrouterService] resposta null do proxy, tentando próximo modelo')
+        }
+        continue
+      }
+
+      // Proxy retornou um erro estruturado
+      if (data?.error) {
+        throw new Error(data.error)
+      }
+
+      const raw = data?.choices?.[0]?.message?.content ?? ''
+
+      // Conteúdo vazio do modelo
+      if (!raw.trim()) {
+        lastError = new Error('Modelo de IA retornou uma resposta vazia. Tentando outro modelo...')
+        if (await isDebugEnabled()) {
+          console.warn('[openrouterService] resposta vazia do modelo, tentando próximo modelo')
+        }
+        continue
+      }
 
       // ── Parse JSON da resposta ────────────────────────────────────────────
       try {
@@ -147,7 +171,11 @@ Regras críticas:
         }
         return result
       } catch {
-        throw new Error(`Resposta da IA não é JSON válido. Trecho: ${raw.slice(0, 200)}`)
+        lastError = new Error(`Resposta da IA não é JSON válido. Trecho: ${raw.slice(0, 200)}`)
+        if (await isDebugEnabled()) {
+          console.warn('[openrouterService] JSON inválido, tentando próximo modelo')
+        }
+        continue
       }
     }
 
