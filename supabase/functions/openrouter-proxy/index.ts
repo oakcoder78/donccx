@@ -160,7 +160,7 @@ try {
     const body = await req.json()
     const { messages, max_tokens } = body
 
-    const outputMaxTokens = typeof max_tokens === 'number' && max_tokens > 0 ? max_tokens : 2000
+    const outputMaxTokens = typeof max_tokens === 'number' && max_tokens > 0 ? max_tokens : 1200
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return json({ error: '"messages" é obrigatório e deve ser um array não-vazio' }, 400)
