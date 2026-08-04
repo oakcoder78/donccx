@@ -46,6 +46,10 @@ Donkie configuration is managed via `SettingsAI.jsx` (Settings > IA & Automaçã
 
 Since May 2026, every OpenRouter model call is logged to `ai_model_logs`. When all configured models fail, an alert is raised.
 
+#### Response Validation
+
+Since August 2026, `openrouter-proxy` validates that OpenRouter responses contain valid JSON with the expected structure (`choices` array with `message.content` string). Responses that pass HTTP 200 but lack valid JSON are treated as model failures and trigger automatic fallback to the next configured model. This prevents silent failures where a model returns HTML error pages or empty content with HTTP 200.
+
 #### Tables
 
 | Table | Purpose | RLS |

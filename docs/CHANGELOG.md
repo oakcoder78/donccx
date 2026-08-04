@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-04
+
+### AI Analysis — Response Validation & Fallback
+
+- **Fix:** `openrouter-proxy` — validates OpenRouter response structure (JSON + `choices` array with `message.content` string) before accepting as success; invalid responses trigger fallback to next model instead of forwarding `null` to frontend
+- **Fix:** `openrouterService.js` — handles `null`/empty/error proxy responses with retry logic (up to 2 extra attempts across all models) instead of throwing immediately; shows specific error messages for each failure mode
+- **Fix:** `openrouter-proxy` — model returning non-JSON body with HTTP 200 (e.g., `qwen/qwen3.7-flash`) is now detected and skipped automatically
+
 ## 2026-07-18
 
 ### Sync Scheduling — BRT timezone + Weekly + UI Polish

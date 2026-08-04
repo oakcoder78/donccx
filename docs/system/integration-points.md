@@ -45,6 +45,7 @@ This document lists external integration points in the application, indicating w
 - **Purpose:** Power assisted features, text generation and intelligent automation within the application.
 - **Dependent modules:** The *Donkie* sub‑module (`src/donkie/`) contains wrappers that call the OpenRouter API; some *services* that need AI responses and *hooks* that manage the call state.
 - **Communication location:** Implemented in `src/lib/openrouterService.js` (or similar) inside the *Donkie* layer; AI services import this client.
+- **Fallback behavior:** If a model returns HTTP 200 with non‑JSON content (e.g., HTML error page, empty body), the proxy automatically tries the next configured model. The frontend also retries up to 3 attempts total across all models before showing an error.
 
 ---
 
