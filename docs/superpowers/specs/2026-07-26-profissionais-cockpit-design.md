@@ -127,7 +127,7 @@ Padrão de expand/collapse inline (`Set`-based, múltiplas rows simultâneas), i
 1. **Loading:** spinner + "Carregando profissionais de [Cliente]... pode levar alguns segundos"
 2. **Dados:** subtabela Nome | Email | Último Login | Última OS | Código OS
 3. **Erro:** mensagem + botão "Tentar novamente"
-4. **Ações:** botões "Exportar CSV" e "Exportar PDF" (visíveis só com dados carregados)
+4. **Ações:** seletor de visão `ViewToggle` (`Ativos | Acesso no mês | Geral`) + botões "CSV Sintético", "CSV Analítico" e "PDF" (visíveis só com dados carregados). Ver seção [Export](#export).
 
 A RPC `get_profissionais_detalhe` é chamada apenas no primeiro clique de expand.
 
@@ -154,9 +154,25 @@ Entrada no array `cockpits` em `CockpitsPage.jsx`:
 
 ## Export
 
+### Seletor de visão (`exportView`)
+
+Antes de exportar, o usuário escolhe a **visão** via seletor segmentado `[ Ativos | Acesso no mês | Geral ]` (componente `ViewToggle`, presente na barra "Exportar" da row expandida e no topo do dropdown "Exportar CSV" da toolbar; estado único `exportView` compartilhado, default `geral`). A visão filtra **linhas e colunas** de todos os exports:
+
+| Visão | Linhas incluídas | Colunas do analítico/PDF | Card(s) no cabeçalho do PDF |
+|-------|------------------|--------------------------|-----------------------------|
+| **Ativos** | `ativo === true` | Nome, Email, Ativo | só **Ativos** |
+| **Acesso no mês** | login no mês (`data_ultimo_login[0:7] === refMonth`) | todas (+ Último Login, Última OS, Código OS) | só **Com acesso no mês** |
+| **Geral** | todos (qualquer critério) | todas | os 3 (Ativos, Acesso, OS) |
+
+**Filtragem client-side:** o banco roda em **UTC** e `dataUltimoLogin` é armazenado com offset `+00`, então `substring(0,7)` do valor cru bate exatamente com a lógica `timestamptz` das RPCs de contagem — sem necessidade de novos parâmetros nas RPCs. Helpers `filterProfsByView(profs, view, refMonth)` e `sortByLoginAsc(profs)` em `ProfissionaisCockpitPage.jsx`.
+
+**Ordenação:** todos os exports ordenam por `data_ultimo_login` ascendente (mais antigo primeiro); `null` por último; empate/sem data → por `nome`. No export global (todos), ordena por `client_name` e depois pela data.
+
+**Observação:** a subtabela exibida na tela (row expandida) continua mostrando **todos** os profissionais — a visão afeta apenas as exportações.
+
 ### CSV
 
-Padrão: `Blob` + `URL.createObjectURL` + download via `<a>` tag (idem `BriefResponsesModal.jsx`).
+Padrão: `Blob` + `URL.createObjectURL` + download via `<a>` tag (idem `BriefResponsesModal.jsx`). Nome do arquivo inclui a visão (ex: `profissionais-analitico-ativos-2026-07.csv`).
 
 Opções disponíveis:
 
@@ -167,11 +183,13 @@ Opções disponíveis:
 | Row expandida | Individual | Sintético | Métricas daquele cliente (memória) |
 | Row expandida | Individual | Analítico | Dados já carregados no estado da row |
 
+O **Sintético** mostra apenas as colunas de contagem correspondentes à visão (`Ativos`: `Cliente, Ativos, Δ Ativos` · `Acesso`: `Cliente, Com acesso no mês, Δ Acesso` · `Geral`: todas).
+
 ### PDF
 
 Apenas individual (por cliente), via row expandida.
 
-Padrão: renderizar HTML formatado com métricas + lista de profissionais, `window.print()` + `@media print` CSS (idem `ReportPublicPage.jsx`). Zero dependências.
+Padrão: renderizar HTML formatado com métricas + lista de profissionais, `window.print()` + `@media print` CSS (idem `ReportPublicPage.jsx`). Zero dependências. Reflete a visão selecionada: cabeçalho renderiza só o(s) card(s) da visão e a tabela oculta as colunas de detalhe em `Ativos`. O subtítulo inclui o rótulo da visão (ex: "Julho/2026 · Ativos").
 
 ## Icons
 

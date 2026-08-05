@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-08-05
+
+### Profissionais Cockpit — Seletor de visão na exportação
+
+- **New:** `ProfissionaisCockpitPage` — seletor segmentado `ViewToggle` (`Ativos | Acesso no mês | Geral`) na barra "Exportar" da row expandida e no dropdown "Exportar CSV" da toolbar; estado único `exportView` (default `geral`).
+- **New:** Cada visão filtra **linhas e colunas** de todos os exports (CSV Sintético, CSV Analítico e PDF, por cliente e "todos"): `Ativos` = só `ativo=true`, sem colunas Último Login/Última OS/Código OS; `Acesso no mês` = só quem logou no mês, todas as colunas; `Geral` = todos, todas as colunas.
+- **New:** PDF reflete a visão — cabeçalho renderiza só o(s) card(s) correspondente(s) e o subtítulo inclui o rótulo da visão.
+- **New:** Ordenação de todos os exports por `data_ultimo_login` ascendente (mais antigo primeiro; `null` por último; fallback por `nome`).
+- **Chore:** Helpers `filterProfsByView()` / `sortByLoginAsc()` client-side (banco em UTC, offset `+00` → `substring(0,7)` bate com a lógica `timestamptz` das RPCs); nenhuma alteração de schema/RPC necessária.
+- **Docs:** `docs/superpowers/specs/2026-07-26-profissionais-cockpit-design.md` — seção Export atualizada com o seletor de visão.
+
 ## 2026-08-04
 
 ### AI Analysis — Response Validation & Fallback

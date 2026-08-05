@@ -55,6 +55,55 @@ function downloadFile(content, filename, mime) {
   URL.revokeObjectURL(url)
 }
 
+// \u2500\u2500\u2500 Export views \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Each view filters BOTH which professionals (rows) and which columns/cards
+// appear in exports. `cards` lists which PDF header summary boxes to render.
+const EXPORT_VIEWS = {
+  ativos: { label: 'Ativos',        showDetailCols: false, cards: ['ativos'] },
+  acesso: { label: 'Acesso no m\u00EAs', showDetailCols: true,  cards: ['acesso'] },
+  geral:  { label: 'Geral',         showDetailCols: true,  cards: ['ativos', 'acesso', 'os'] },
+}
+
+// Filter a professional list according to the selected view. DB is UTC and
+// dataUltimoLogin is stored with +00 offset, so substring(0,7) matches the SQL
+// timestamptz month logic used by the cockpit counts exactly.
+function filterProfsByView(profs, view, refMonth) {
+  if (view === 'ativos') return profs.filter(p => p.ativo === true)
+  if (view === 'acesso') return profs.filter(p => p.data_ultimo_login && String(p.data_ultimo_login).slice(0, 7) === refMonth)
+  return profs
+}
+
+// Sort by last login ascending (oldest first); nulls last, then by name.
+// ISO-ish strings with the same +00 offset sort chronologically lexicographically.
+function sortByLoginAsc(profs) {
+  return [...profs].sort((a, b) => {
+    const da = a.data_ultimo_login || ''
+    const db = b.data_ultimo_login || ''
+    if (!da && !db) return (a.nome || '').localeCompare(b.nome || '')
+    if (!da) return 1
+    if (!db) return -1
+    return da.localeCompare(db)
+  })
+}
+
+// \u2500\u2500\u2500 View toggle (segmented control) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+function ViewToggle({ value, onChange }) {
+  return (
+    <div className="inline-flex rounded-md border border-border-tertiary overflow-hidden flex-shrink-0">
+      {Object.entries(EXPORT_VIEWS).map(([v, cfg]) => (
+        <button
+          key={v}
+          onClick={() => onChange(v)}
+          className={`px-2.5 py-1 text-[11px] font-medium transition-colors ${value === v ? 'bg-donc-navy text-white' : 'bg-bg-primary text-text-secondary hover:bg-bg-secondary'}`}
+        >
+          {cfg.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 // ─── KPI Card ───────────────────────────────────────────────────────────────────
 
 const CARD_COLORS = {
@@ -113,6 +162,7 @@ export default function ProfissionaisCockpitPage() {
   const [openSet, setOpenSet] = useState(new Set())
   const [detailCache, setDetailCache] = useState({})
   const [csvDropdownOpen, setCsvDropdownOpen] = useState(false)
+  const [exportView, setExportView] = useState('geral')
 
   const refMonth = selectedMonth
   const { months, monthsLoading, data: rows, isLoading, error } = useProfissionaisCockpit(refMonth)
@@ -225,54 +275,67 @@ export default function ProfissionaisCockpitPage() {
   // ─── CSV export ──────────────────────────────────────────────────────────────
 
   function csvSintetico(scopeRows) {
-    const header = ['Cliente', 'Ativos', '\u0394 Ativos', 'Com acesso no mes', '\u0394 Acesso', 'Com OS no mes', '\u0394 OS']
+    // Columns follow the selected view: only the corresponding count columns.
+    const cards = EXPORT_VIEWS[exportView].cards
+    const header = ['Cliente']
+    if (cards.includes('ativos')) header.push('Ativos', '\u0394 Ativos')
+    if (cards.includes('acesso')) header.push('Com acesso no mes', '\u0394 Acesso')
+    if (cards.includes('os')) header.push('Com OS no mes', '\u0394 OS')
     const lines = [header.join('\t')]
     scopeRows.forEach(r => {
       const ad = deltaDisplay(r.ativos_delta)
       const acd = deltaDisplay(r.acesso_delta)
       const od = deltaDisplay(r.os_delta)
-      lines.push([
-        r.client_name, r.ativos_cur, `${ad.text}${ad.arrow}`,
-        r.acesso_cur, `${acd.text}${acd.arrow}`,
-        r.os_cur, `${od.text}${od.arrow}`,
-      ].join('\t'))
+      const cells = [r.client_name]
+      if (cards.includes('ativos')) cells.push(r.ativos_cur, `${ad.text}${ad.arrow}`)
+      if (cards.includes('acesso')) cells.push(r.acesso_cur, `${acd.text}${acd.arrow}`)
+      if (cards.includes('os')) cells.push(r.os_cur, `${od.text}${od.arrow}`)
+      lines.push(cells.join('\t'))
     })
-    downloadFile(lines.join('\n'), `profissionais-sintetico-${refMonth}.csv`, 'text/csv;charset=utf-8')
+    downloadFile(lines.join('\n'), `profissionais-sintetico-${exportView}-${refMonth}.csv`, 'text/csv;charset=utf-8')
   }
 
   async function csvAnalitico(scopeRows) {
+    const showDetail = EXPORT_VIEWS[exportView].showDetailCols
+    const header = ['Cliente', 'Nome', 'Email', 'Ativo']
+    if (showDetail) header.push('Ultimo Login', 'Ultima OS', 'Codigo OS')
+
+    const rowCells = (clientName, p) => {
+      const cells = [clientName, p.nome, p.email || '', p.ativo ? 'Sim' : 'Nao']
+      if (showDetail) cells.push(p.data_ultimo_login || '', p.data_ultima_os || '', p.codigo_ultima_os || '')
+      return cells.join('\t')
+    }
+
     // If individual client row, use cached detail data
     if (scopeRows.length === 1) {
       const key = String(scopeRows[0].client_id)
       const cached = detailCache[key]
-      const profs = cached?.data || []
-      const header = ['Cliente', 'Nome', 'Email', 'Ativo', 'Ultimo Login', 'Ultima OS', 'Codigo OS']
+      const profs = sortByLoginAsc(filterProfsByView(cached?.data || [], exportView, refMonth))
       const lines = [header.join('\t')]
-      profs.forEach(p => {
-        lines.push([
-          scopeRows[0].client_name, p.nome, p.email || '', p.ativo ? 'Sim' : 'Nao',
-          p.data_ultimo_login || '', p.data_ultima_os || '', p.codigo_ultima_os || '',
-        ].join('\t'))
-      })
-      downloadFile(lines.join('\n'), `profissionais-analitico-${scopeRows[0].client_name}-${refMonth}.csv`, 'text/csv;charset=utf-8')
+      profs.forEach(p => lines.push(rowCells(scopeRows[0].client_name, p)))
+      downloadFile(lines.join('\n'), `profissionais-analitico-${exportView}-${scopeRows[0].client_name}-${refMonth}.csv`, 'text/csv;charset=utf-8')
       return
     }
-    // All clients — use RPC
+    // All clients — use RPC, then filter/sort per client by view
     try {
       const { data, error: rpcErr } = await supabase.rpc('get_profissionais_export', {
         p_ref_month: refMonth,
       })
       if (rpcErr) throw rpcErr
-      const profs = data || []
-      const header = ['Cliente', 'Nome', 'Email', 'Ativo', 'Ultimo Login', 'Ultima OS', 'Codigo OS']
+      const profs = filterProfsByView(data || [], exportView, refMonth)
+        .sort((a, b) => {
+          const byClient = (a.client_name || '').localeCompare(b.client_name || '')
+          if (byClient !== 0) return byClient
+          const da = a.data_ultimo_login || ''
+          const db = b.data_ultimo_login || ''
+          if (!da && !db) return (a.nome || '').localeCompare(b.nome || '')
+          if (!da) return 1
+          if (!db) return -1
+          return da.localeCompare(db)
+        })
       const lines = [header.join('\t')]
-      profs.forEach(p => {
-        lines.push([
-          p.client_name, p.nome, p.email || '', p.ativo ? 'Sim' : 'Nao',
-          p.data_ultimo_login || '', p.data_ultima_os || '', p.codigo_ultima_os || '',
-        ].join('\t'))
-      })
-      downloadFile(lines.join('\n'), `profissionais-analitico-${refMonth}.csv`, 'text/csv;charset=utf-8')
+      profs.forEach(p => lines.push(rowCells(p.client_name, p)))
+      downloadFile(lines.join('\n'), `profissionais-analitico-${exportView}-${refMonth}.csv`, 'text/csv;charset=utf-8')
     } catch (e) {
       alert('Erro ao exportar: ' + (e.message || e))
     }
@@ -284,7 +347,18 @@ export default function ProfissionaisCockpitPage() {
   function exportPdf(row) {
     const key = String(row.client_id)
     const cached = detailCache[key]
-    const profs = cached?.data || []
+    const view = EXPORT_VIEWS[exportView]
+    const showDetail = view.showDetailCols
+    const profs = sortByLoginAsc(filterProfsByView(cached?.data || [], exportView, refMonth))
+
+    const cardHtml = {
+      ativos: `<div class="summary-box"><div class="label">Ativos</div><div class="value">${row.ativos_cur}</div></div>`,
+      acesso: `<div class="summary-box"><div class="label">Com acesso no mes</div><div class="value">${row.acesso_cur}</div></div>`,
+      os: `<div class="summary-box"><div class="label">Com OS no mes</div><div class="value">${row.os_cur}</div></div>`,
+    }
+    const summaryHtml = view.cards.map(c => cardHtml[c]).join('')
+    const detailHead = showDetail ? '<th>Ultimo Login</th><th>Ultima OS</th><th>Codigo OS</th>' : ''
+    const detailCells = p => showDetail ? `<td>${p.data_ultimo_login || ''}</td><td>${p.data_ultima_os || ''}</td><td>${p.codigo_ultima_os || ''}</td>` : ''
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Profissionais - ${row.client_name}</title>
 <style>
@@ -301,14 +375,12 @@ export default function ProfissionaisCockpitPage() {
   @media print { .no-print { display: none; } }
 </style></head><body>
   <h1>Profissionais · ${row.client_name}</h1>
-  <h2>${monthLabel(refMonth)}</h2>
+  <h2>${monthLabel(refMonth)} · ${view.label}</h2>
   <div class="summary">
-    <div class="summary-box"><div class="label">Ativos</div><div class="value">${row.ativos_cur}</div></div>
-    <div class="summary-box"><div class="label">Com acesso no mes</div><div class="value">${row.acesso_cur}</div></div>
-    <div class="summary-box"><div class="label">Com OS no mes</div><div class="value">${row.os_cur}</div></div>
+    ${summaryHtml}
   </div>
-  <table><thead><tr><th>Nome</th><th>Email</th><th>Ativo</th><th>Ultimo Login</th><th>Ultima OS</th><th>Codigo OS</th></tr></thead><tbody>
-    ${profs.map(p => `<tr><td>${p.nome}</td><td>${p.email || ''}</td><td>${p.ativo ? 'Sim' : 'Nao'}</td><td>${p.data_ultimo_login || ''}</td><td>${p.data_ultima_os || ''}</td><td>${p.codigo_ultima_os || ''}</td></tr>`).join('')}
+  <table><thead><tr><th>Nome</th><th>Email</th><th>Ativo</th>${detailHead}</tr></thead><tbody>
+    ${profs.map(p => `<tr><td>${p.nome}</td><td>${p.email || ''}</td><td>${p.ativo ? 'Sim' : 'Nao'}</td>${detailCells(p)}</tr>`).join('')}
   </tbody></table>
 </body></html>`
 
@@ -431,7 +503,11 @@ export default function ProfissionaisCockpitPage() {
             <ChevronIcon open={csvDropdownOpen} />
           </button>
           {csvDropdownOpen && (
-            <div className="absolute right-0 mt-1 w-56 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-1">
+            <div className="absolute right-0 mt-1 w-64 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-1">
+              <div className="px-3 py-2 border-b border-border-tertiary">
+                <div className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mb-1.5">Visão</div>
+                <ViewToggle value={exportView} onChange={setExportView} />
+              </div>
               <button
                 onClick={() => { csvSintetico(filtered); setCsvDropdownOpen(false) }}
                 className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
@@ -579,8 +655,10 @@ export default function ProfissionaisCockpitPage() {
 
                             {!detail.loading && !detail.error && detail.data && (
                               <div>
-                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border-tertiary bg-bg-tertiary/60">
-                                  <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mr-1">Exportar</span>
+                                <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border-tertiary bg-bg-tertiary/60 flex-wrap">
+                                  <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mr-1">Visão</span>
+                                  <ViewToggle value={exportView} onChange={setExportView} />
+                                  <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider mr-1 ml-2">Exportar</span>
                                   <button
                                     onClick={() => csvSintetico([row])}
                                     className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md text-text-secondary bg-bg-primary border border-border-tertiary hover:border-donc-navy/30 hover:text-donc-navy transition-colors"
