@@ -6,9 +6,8 @@
       "command": ["context-mode"]
     },
     "supabase": {
-      "type": "remote",
-      "url": "https://supabase.com",
-      "enabled": true
+      "type": "local",
+      "command": ["bash", "scripts/supabase-mcp.sh"]
     }
   },
   "plugin": ["context-mode"]
