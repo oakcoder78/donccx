@@ -97,6 +97,62 @@ function fmtMonthShort(ym) {
   return months[parseInt(m, 10) - 1]
 }
 
+function opAnchor(x) {
+  return `${fmtMonthShort(prevMonth)} ${x.curVal.toLocaleString('pt-BR')} ${x.unit} · ${fmtMonthShort(prevMonth2)} ${x.prevVal.toLocaleString('pt-BR')} ${x.unit}`
+}
+
+function opHealthAnchor(x) {
+  const prevStr = x.prev != null ? x.prev : '—'
+  return `${fmtMonthShort(prevMonth)} ${x.cur} · ${fmtMonthShort(prevMonth2)} ${prevStr}`
+}
+
+function OpDeltaBadge({ x }) {
+  if (x.state === 'new') {
+    return (
+      <span title={`${x.curVal} ${x.unit} este mês · ${x.prevVal} ${x.unit} no mês anterior`}
+        style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', textTransform: 'uppercase', padding: '3px 8px', borderRadius: 999, background: C.ink4, color: C.ink2, flexShrink: 0, whiteSpace: 'nowrap' }}>
+        Início de uso
+      </span>
+    )
+  }
+  const up = x.state === 'up'
+  const sign = up ? '+' : '-'
+  return (
+    <span
+      title={`${x.curVal} ${x.unit} este mês · ${x.prevVal} ${x.unit} no mês anterior · Δ ${sign}${x.absDelta} ${x.unit}`}
+      style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 4, color: up ? C.green : C.red, flexShrink: 0, whiteSpace: 'nowrap' }}>
+      {up ? '▲' : '▼'} {sign}{x.absDelta.toLocaleString('pt-BR')} {x.unit}
+      {x.delta != null && <span style={{ fontSize: 10, fontWeight: 600, opacity: 0.6 }}>({sign}{Math.abs(x.delta).toLocaleString('pt-BR')}%)</span>}
+    </span>
+  )
+}
+
+function buildOpCountRows(opsByClient, clients, valOf, unit) {
+  const rows = []
+  Object.entries(opsByClient).forEach(([clientId, months]) => {
+    const cur  = months[prevMonth]
+    const prev = months[prevMonth2]
+    if (!cur) return
+    const curVal  = valOf(cur)
+    const prevVal = valOf(prev)
+    if (curVal == null || prevVal == null) return
+    if (curVal === 0 && prevVal === 0) return
+    const delta = prevVal > 0 ? Math.round(((curVal - prevVal) / prevVal) * 100) : null
+    const cl = clients.find(c => c.id === Number(clientId))
+    rows.push({
+      clientId,
+      name: cl?.fantasy_name || cl?.name || clientId,
+      curVal,
+      prevVal,
+      absDelta: Math.abs(curVal - prevVal),
+      delta,
+      state: prevVal < 10 ? 'new' : (curVal - prevVal >= 0 ? 'up' : 'down'),
+      unit,
+    })
+  })
+  return rows.sort((a, b) => b.absDelta - a.absDelta)
+}
+
 function daysSince(dateStr) {
   if (!dateStr) return null
   return Math.floor((new Date() - new Date(dateStr + 'T00:00:00')) / 86400000)
@@ -568,7 +624,7 @@ export default function DashboardPage() {
       if (curScore == null) return
       const delta = prevScore != null ? curScore - prevScore : 0
       const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore })
+      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, cur: curScore, prev: prevScore })
     })
     return { list: rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)), overdueActivityClientIds }
   }, [opsByClient, clients, myTasksRaw, overdueOnboardingActivities])
@@ -633,71 +689,21 @@ export default function DashboardPage() {
 
   const hasOpsData = useMemo(() => opsRows.some(r => r.ref_month === prevMonth && r.instance_id != null), [opsRows])
 
-  const opOSList = useMemo(() => {
-    const rows = []
-    Object.entries(opsByClient).forEach(([clientId, months]) => {
-      const cur  = months[prevMonth]
-      const prev = months[prevMonth2]
-      if (!cur) return
-      const curVal  = cur.donc_snapshot?.totalOs ?? null
-      const prevVal = prev?.donc_snapshot?.totalOs ?? null
-      if (!curVal || !prevVal || prevVal === 0) return
-      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
-      const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} OS criadas`, absDelta: Math.abs(curVal - prevVal) })
-    })
-    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
-  }, [opsByClient, clients])
+  const opOSList = useMemo(() => (
+    buildOpCountRows(opsByClient, clients, m => m.donc_snapshot?.totalOs ?? null, 'OS').slice(0, 5)
+  ), [opsByClient, clients])
 
-  const opOSAll = useMemo(() => {
-    const rows = []
-    Object.entries(opsByClient).forEach(([clientId, months]) => {
-      const cur  = months[prevMonth]
-      const prev = months[prevMonth2]
-      if (!cur) return
-      const curVal  = cur.donc_snapshot?.totalOs ?? null
-      const prevVal = prev?.donc_snapshot?.totalOs ?? null
-      if (!curVal || !prevVal || prevVal === 0) return
-      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
-      const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} OS criadas`, absDelta: Math.abs(curVal - prevVal) })
-    })
-    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-  }, [opsByClient, clients])
+  const opOSAll = useMemo(() => (
+    buildOpCountRows(opsByClient, clients, m => m.donc_snapshot?.totalOs ?? null, 'OS')
+  ), [opsByClient, clients])
 
-  const opUsersList = useMemo(() => {
-    const rows = []
-    Object.entries(opsByClient).forEach(([clientId, months]) => {
-      const cur  = months[prevMonth]
-      const prev = months[prevMonth2]
-      if (!cur) return
-      const curVal  = cur.active_users ?? null
-      const prevVal = prev?.active_users ?? null
-      if (curVal === null) return
-      if (!prevVal || prevVal === 0) return
-      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
-      const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} profissionais ativos`, absDelta: Math.abs(curVal - prevVal) })
-    })
-    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5)
-  }, [opsByClient, clients])
+  const opUsersList = useMemo(() => (
+    buildOpCountRows(opsByClient, clients, m => m.active_users ?? null, 'profissionais').slice(0, 5)
+  ), [opsByClient, clients])
 
-  const opUsersAll = useMemo(() => {
-    const rows = []
-    Object.entries(opsByClient).forEach(([clientId, months]) => {
-      const cur  = months[prevMonth]
-      const prev = months[prevMonth2]
-      if (!cur) return
-      const curVal  = cur.active_users ?? null
-      const prevVal = prev?.active_users ?? null
-      if (curVal === null) return
-      if (!prevVal || prevVal === 0) return
-      const delta = Math.round(((curVal - prevVal) / prevVal) * 100)
-      const cl = clients.find(c => c.id === Number(clientId))
-      rows.push({ clientId, name: cl?.fantasy_name || cl?.name || clientId, delta, abs: `${curVal.toLocaleString('pt-BR')} profissionais ativos`, absDelta: Math.abs(curVal - prevVal) })
-    })
-    return rows.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
-  }, [opsByClient, clients])
+  const opUsersAll = useMemo(() => (
+    buildOpCountRows(opsByClient, clients, m => m.active_users ?? null, 'profissionais')
+  ), [opsByClient, clients])
 
   // Sync action
   const SUPABASE_URL     = import.meta.env.VITE_SUPABASE_URL
@@ -1248,37 +1254,27 @@ export default function DashboardPage() {
       return <DrawerListContent kind="Saúde" title="Clientes em risco" subtitle={`${riskClients.length} clientes com score < 50`} rows={rows} />
     }
     if (mode === 'op-os-list') {
-      const rows = opOSAll.map((x) => {
-        const up = x.delta >= 0
-        return (
-          <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
-              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red, flexShrink: 0 }}>
-                {x.absDelta.toLocaleString('pt-BR')} OS {up ? '▲' : '▼'}{Math.abs(x.delta)}%
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
-          </DRow>
-        )
-      })
+      const rows = opOSAll.map((x) => (
+        <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
+            <OpDeltaBadge x={x} />
+          </div>
+          <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{opAnchor(x)}</div>
+        </DRow>
+      ))
       return <DrawerListContent kind="Operacional" title="OS criadas · variação mensal" subtitle={`${opOSAll.length} clientes com dados`} rows={rows} />
     }
     if (mode === 'op-users-list') {
-      const rows = opUsersAll.map((x) => {
-        const up = x.delta >= 0
-        return (
-          <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
-              <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red, flexShrink: 0 }}>
-                {x.absDelta.toLocaleString('pt-BR')} usu. {up ? '▲' : '▼'}{Math.abs(x.delta)}%
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
-          </DRow>
-        )
-      })
+      const rows = opUsersAll.map((x) => (
+        <DRow key={x.clientId} onClick={() => { closeDrawer(); navigate(`/empresas/${x.clientId}`) }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink, letterSpacing: '-0.005em' }}>{x.name}</div>
+            <OpDeltaBadge x={x} />
+          </div>
+          <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{opAnchor(x)}</div>
+        </DRow>
+      ))
       return <DrawerListContent kind="Operacional" title="Profissionais ativos · variação mensal" subtitle={`${opUsersAll.length} clientes com dados`} rows={rows} />
     }
     if (mode === 'op-health-list') {
@@ -1292,7 +1288,7 @@ export default function DashboardPage() {
                 {up ? '▲' : '▼'} {Math.abs(x.delta)} pts
               </span>
             </div>
-            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>score {x.cur}</div>
+            <div style={{ fontSize: 11, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{opHealthAnchor(x)}</div>
           </DRow>
         )
       })
@@ -1640,23 +1636,18 @@ export default function DashboardPage() {
               <Panel>
                 <PanelHead title="OS criadas · variação mensal" meta="top 5" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {opOSList.map((x, i) => {
-                    const up = x.delta >= 0
-                    return (
-                      <div key={i} onClick={() => openDrawer('op-os', { clientId: x.clientId, clientName: x.name })}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.paddingLeft = '6px'; e.currentTarget.style.paddingRight = '6px' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
-                          <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
-                        </div>
-                        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red }}>
-                          {x.absDelta.toLocaleString('pt-BR')} OS {up ? '▲' : '▼'}{Math.abs(x.delta)}%
-                        </span>
+                  {opOSList.map((x, i) => (
+                    <div key={i} onClick={() => openDrawer('op-os', { clientId: x.clientId, clientName: x.name })}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.paddingLeft = '6px'; e.currentTarget.style.paddingRight = '6px' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
+                        <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{opAnchor(x)}</div>
                       </div>
-                    )
-                  })}
+                      <OpDeltaBadge x={x} />
+                    </div>
+                  ))}
                 </div>
                 <SeeAll onClick={() => openDrawer('op-os-list', {})}>ver todos →</SeeAll>
               </Panel>
@@ -1665,23 +1656,18 @@ export default function DashboardPage() {
               <Panel>
                 <PanelHead title="Profissionais ativos · variação mensal" meta="top 5" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  {opUsersList.map((x, i) => {
-                    const up = x.delta >= 0
-                    return (
-                      <div key={i} onClick={() => openDrawer('op-users', { clientId: x.clientId, clientName: x.name })}
-                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
-                        onMouseEnter={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.paddingLeft = '6px'; e.currentTarget.style.paddingRight = '6px' }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
-                          <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{x.abs}</div>
-                        </div>
-                        <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 2, color: up ? C.green : C.red }}>
-                          {x.absDelta.toLocaleString('pt-BR')} usu. {up ? '▲' : '▼'}{Math.abs(x.delta)}%
-                        </span>
+                  {opUsersList.map((x, i) => (
+                    <div key={i} onClick={() => openDrawer('op-users', { clientId: x.clientId, clientName: x.name })}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 0', borderBottom: `0.5px solid ${C.line}`, cursor: 'pointer', borderRadius: 6 }}
+                      onMouseEnter={e => { e.currentTarget.style.background = '#f8f9fb'; e.currentTarget.style.paddingLeft = '6px'; e.currentTarget.style.paddingRight = '6px' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
+                        <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{opAnchor(x)}</div>
                       </div>
-                    )
-                  })}
+                      <OpDeltaBadge x={x} />
+                    </div>
+                  ))}
                 </div>
                 <SeeAll onClick={() => openDrawer('op-users-list', {})}>ver todos →</SeeAll>
               </Panel>
@@ -1699,7 +1685,7 @@ export default function DashboardPage() {
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.paddingLeft = '0'; e.currentTarget.style.paddingRight = '0' }}>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{x.name}</div>
-                          <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>score {x.cur}</div>
+                          <div style={{ fontSize: 10.5, color: C.ink3, fontWeight: 500, marginTop: 1 }}>{opHealthAnchor(x)}</div>
                         </div>
                         <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '-0.01em', fontVariantNumeric: 'tabular-nums', display: 'inline-flex', alignItems: 'center', gap: 3, color: up ? C.green : C.red }}>
                           {up ? '▲' : '▼'} {Math.abs(x.delta)} pts
