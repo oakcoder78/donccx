@@ -52,8 +52,14 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
   const [attachmentFiles, setAttachmentFiles] = useState([])
   const [existingAttachments, setExistingAttachments] = useState([])
   const [showDrawer, setShowDrawer] = useState(false)
+  const [generateMeetLink, setGenerateMeetLink] = useState(false)
+  const [attendees, setAttendees] = useState([])
+  const [attendeeInput, setAttendeeInput] = useState('')
+  const [attendeeError, setAttendeeError] = useState(null)
+  const [meetTouched, setMeetTouched] = useState(false)
+  const [attendeesTouched, setAttendeesTouched] = useState(false)
 
-  const { create, update } = useActivityMutations()
+  const { create, update } = useActivityMutations({ silent: true })
   const { data: clients = [] } = useClients()
   const { data: profiles = [] } = useProfiles()
   const { data: contacts = [] } = useContacts(form.client_id ? { client_id: Number(form.client_id) } : {})
@@ -70,6 +76,33 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
     }
     loadExistingAttachments()
   }, [activity?.id])
+
+  // Prefill attendees with the selected contact's emails (session-only, editable).
+  // Once the user edits attendees manually, stop overriding their input.
+  useEffect(() => {
+    if (!form.contact_id || attendeesTouched) return
+    const contact = contacts.find(c => c.id === Number(form.contact_id))
+    const emails = (contact?.contact_emails ?? []).map(e => e.email).filter(Boolean)
+    setAttendees(emails)
+  }, [form.contact_id, contacts, attendeesTouched])
+
+  function addAttendee(value) {
+    const email = value?.trim()
+    if (!email) return
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setAttendeeError('E-mail inválido')
+      return
+    }
+    setAttendeeError(null)
+    setAttendees(prev => (prev.includes(email) ? prev : [...prev, email]))
+    setAttendeesTouched(true)
+    setAttendeeInput('')
+  }
+
+  function removeAttendee(email) {
+    setAttendees(prev => prev.filter(e => e !== email))
+    setAttendeesTouched(true)
+  }
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -127,73 +160,93 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
       }
     }
 
-    if (token && form.activity_time && syncToGoogle) {
-      if (!isGoogleConnected) {
-        onClose()
-        return
-      }
+    let syncStatus = 'none'
 
+    if (token && form.activity_time && syncToGoogle && isGoogleConnected) {
       const activityId = isEdit
         ? activity.id
         : (Array.isArray(activityResult)
           ? activityResult[0]?.id
           : activityResult?.data?.id ?? activityResult?.id)
 
-      if (!activityId) {
-        onClose()
-        return
-      }
+      const needsSync = !isEdit ||
+        !activity.google_event_id ||
+        shouldSyncWithCalendar(activity, form) ||
+        meetTouched ||
+        attendeesTouched
 
-      if (isEdit && activity.google_event_id && !shouldSyncWithCalendar(activity, form)) {
-        onClose()
-        return
-      }
-
-      const [h, m] = form.activity_time.split(':')
-      const startDate = new Date(`${form.activity_date}T${h}:${m}:00`)
-      const startISO = startDate.toISOString()
-      const endISO = new Date(startDate.getTime() + 50 * 60 * 1000).toISOString()
-      const syncPayload = {
-        summary: form.title || form.description?.slice(0, 100) || 'Atividade',
-        description: form.description,
-        start: startISO,
-        end: endISO,
-        linkedActivity: { table: 'activities', id: String(activityId) },
-      }
-
-      setSyncing(true)
-      try {
-        let res
-
-        if (isEdit && activity.google_event_id && syncToGoogle) {
-          res = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ method: 'PATCH', ...syncPayload, google_event_id: activity.google_event_id }),
-          })
-          if (res.ok) toast.success('Evento atualizado no Google Calendar!')
-        } else if (syncToGoogle) {
-          res = await fetch(EDGE_FUNCTION_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ method: 'POST', ...syncPayload }),
-          })
-          if (res.ok) toast.success('Atividade sincronizada com Google Calendar!')
+      if (activityId && needsSync) {
+        const [h, m] = form.activity_time.split(':')
+        const startDate = new Date(`${form.activity_date}T${h}:${m}:00`)
+        const startISO = startDate.toISOString()
+        const endISO = new Date(startDate.getTime() + 50 * 60 * 1000).toISOString()
+        const syncPayload = {
+          summary: form.title || form.description?.slice(0, 100) || 'Atividade',
+          description: form.description,
+          start: startISO,
+          end: endISO,
+          attendees: attendees.length ? attendees : undefined,
+          linkedActivity: { table: 'activities', id: String(activityId) },
         }
 
-        if (res && !res.ok) {
-          const err = await res.json().catch(() => ({}))
-          if (err.code === 'TOKEN_EXPIRED') {
-            toast.error('Conexão com Google Calendar expirou — isso é normal. Vá em "Minha Conta" e clique em "Conectar Google Calendar" para renovar.', { duration: 6000 })
-          } else {
-            toast.error(err.error || 'Erro ao sincronizar com Google Calendar')
+        let conferenceData
+        if (generateMeetLink) {
+          conferenceData = {
+            createRequest: {
+              requestId: crypto.randomUUID(),
+              conferenceSolutionKey: { type: 'hangoutsMeet' },
+            },
           }
+        } else if (isEdit && activity.meet_link) {
+          conferenceData = null
+        } else if (!isEdit) {
+          conferenceData = null
         }
-      } catch {
-        toast.error('Erro ao sincronizar com Google Calendar')
-      } finally {
-        setSyncing(false)
+        if (conferenceData !== undefined) syncPayload.conferenceData = conferenceData
+
+        setSyncing(true)
+        try {
+          let res
+          if (isEdit && activity.google_event_id) {
+            res = await fetch(EDGE_FUNCTION_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ method: 'PATCH', ...syncPayload, google_event_id: activity.google_event_id }),
+            })
+          } else {
+            res = await fetch(EDGE_FUNCTION_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ method: 'POST', ...syncPayload }),
+            })
+          }
+
+          if (res.ok) {
+            syncStatus = 'success'
+          } else {
+            const err = await res.json().catch(() => ({}))
+            if (err.code === 'TOKEN_EXPIRED') {
+              toast.error('Conexão com Google Calendar expirou — isso é normal. Vá em "Minha Conta" e clique em "Conectar Google Calendar" para renovar.', { duration: 6000 })
+            } else {
+              syncStatus = 'error'
+            }
+          }
+        } catch {
+          syncStatus = 'error'
+        } finally {
+          setSyncing(false)
+        }
       }
+    }
+
+    // Unified toast — the modal owns the success/error message for save+sync.
+    if (syncStatus === 'success') {
+      const meetMsg = generateMeetLink ? ' com link do Google Meet' : ''
+      toast.success(`${isEdit ? 'Atividade atualizada' : 'Atividade criada'}${meetMsg} e sincronizada com Google Calendar`)
+    } else if (syncStatus === 'error') {
+      toast.error(`${isEdit ? 'Atividade atualizada' : 'Atividade criada'}, mas falha ao sincronizar com o Google Calendar.`)
+    } else {
+      toast.success(isEdit ? 'Atividade atualizada' : 'Atividade criada')
     }
 
     onClose()
@@ -307,7 +360,7 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                 <label className="label-sm">Cliente *</label>
                 <select name="client_id" value={form.client_id} onChange={handleChange} required className="input-base w-full h-9">
                   <option value="">Selecionar cliente</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.fantasy_name || c.name}</option>)}
                 </select>
               </div>
               <div>
@@ -318,6 +371,90 @@ export function ActivityModal({ onClose, activity, defaultClientId }) {
                 </select>
               </div>
             </div>
+
+            {/* Google Meet + convidados */}
+            {isGoogleConnected && syncToGoogle && form.type === 'reuniao' && (
+              <div className="space-y-3 border-t border-border-tertiary pt-3">
+                {isEdit && activity?.meet_link ? (
+                  <div className="flex items-center justify-between gap-2 bg-bg-secondary rounded-md px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Icons.Video className="w-4 h-4 text-text-secondary flex-shrink-0" strokeWidth={1.8} />
+                      <span className="text-xs text-text-primary truncate">Google Meet vinculado</span>
+                    </div>
+                    <a
+                      href={activity.meet_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+                    >
+                      Abrir
+                    </a>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none group">
+                    <input
+                      type="checkbox"
+                      checked={generateMeetLink}
+                      onChange={e => {
+                        setGenerateMeetLink(e.target.checked)
+                        setMeetTouched(true)
+                      }}
+                      className="w-4 h-4 rounded border-border-tertiary text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-[11px] text-text-tertiary group-hover:text-blue-600 transition-colors">Gerar link do Google Meet</span>
+                  </label>
+                )}
+
+                <div>
+                  <label className="label-sm">Convidados (e-mail)</label>
+                  {attendees.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1.5">
+                      {attendees.map(email => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] bg-bg-tertiary border border-border-tertiary rounded-full"
+                        >
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => removeAttendee(email)}
+                            className="text-text-tertiary hover:text-text-primary"
+                            title="Remover convidado"
+                          >
+                            <Icons.X size={12} />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-1.5">
+                    <input
+                      type="email"
+                      value={attendeeInput}
+                      onChange={e => { setAttendeeInput(e.target.value); setAttendeeError(null) }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ',') {
+                          e.preventDefault()
+                          addAttendee(attendeeInput)
+                        }
+                      }}
+                      placeholder="email@empresa.com"
+                      className="input-base w-full h-8 text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => addAttendee(attendeeInput)}
+                      disabled={!attendeeInput.trim()}
+                    >
+                      Adicionar
+                    </Button>
+                  </div>
+                  {attendeeError && <p className="text-[11px] text-red-600 mt-1">{attendeeError}</p>}
+                </div>
+              </div>
+            )}
 
             {/* Row 3: Vencimento | Responsável */}
             <div className="grid grid-cols-2 gap-2">

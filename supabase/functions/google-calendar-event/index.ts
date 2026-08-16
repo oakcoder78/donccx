@@ -17,13 +17,14 @@
  *     "end":              string                 required for POST/PATCH (ISO 8601)
  *     "description":      string                 optional
  *     "location":         string                 optional
- *     "attendees":        string[]               optional
+ *     "attendees":        string[]               optional  sends native invites (sendUpdates=all)
+ *     "conferenceData":   object|null            optional  creates Google Meet (createRequest) or removes it (null)
  *     "timeZone":         string                 optional  default "America/Sao_Paulo"
  *     "reminders":        Reminder[]             optional
- *     "linkedActivity":   { table, id }          optional  saves/clears google_event_id
+ *     "linkedActivity":   { table, id }          optional  saves/clears google_event_id and meet_link
  *   }
  *
- * Response: { id, htmlLink, summary } or { deleted: true }
+ * Response: { id, htmlLink, summary, hangoutLink } or { deleted: true }
  */
 
 // @ts-ignore
@@ -50,6 +51,13 @@ interface DateTimeField {
   timeZone: string
 }
 
+interface ConferenceDataInput {
+  createRequest?: { requestId: string; conferenceSolutionKey: { type: 'hangoutsMeet' } }
+  status?: string
+  hangoutLink?: string
+  entryPoints?: unknown[]
+}
+
 interface CalendarEventInput {
   summary?: string
   description?: string
@@ -57,8 +65,65 @@ interface CalendarEventInput {
   start?: DateTimeField
   end?: DateTimeField
   attendees?: { email: string }[]
+  conferenceData?: ConferenceDataInput | null
   reminders?: { useDefault: boolean; overrides: { method: string; minutes: number }[] }
   timeZone?: string
+}
+
+function normalizeAttendees(raw: unknown): { email: string }[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const seen = new Set<string>()
+  const result: { email: string }[] = []
+  for (const item of raw) {
+    const email = typeof item === 'string'
+      ? item.trim()
+      : typeof item === 'object' && item !== null && (item as { email?: string }).email
+        ? (item as { email: string }).email.trim()
+        : ''
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) continue
+    const lower = email.toLowerCase()
+    if (seen.has(lower)) continue
+    seen.add(lower)
+    result.push({ email })
+  }
+  return result.length ? result : undefined
+}
+
+function buildQueryParams(event: CalendarEventInput): string {
+  const params = new URLSearchParams()
+  if (event.conferenceData !== undefined) params.set('conferenceDataVersion', '1')
+  if ((event.attendees?.length ?? 0) > 0) params.set('sendUpdates', 'all')
+  const qs = params.toString()
+  return qs ? `?${qs}` : ''
+}
+
+async function getCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  calendarId = 'primary',
+): Promise<Record<string, unknown>> {
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  )
+  const data = await res.json() as Record<string, unknown>
+  if (!res.ok) throw new Error(`Calendar API: ${res.status} — ${JSON.stringify(data)}`)
+  return data
+}
+
+async function resolveHangoutLink(
+  accessToken: string,
+  eventId: string,
+  attempts = 10,
+  delayMs = 1000,
+): Promise<string | null> {
+  for (let i = 0; i < attempts; i++) {
+    const event = await getCalendarEvent(accessToken, eventId)
+    const link = (event.hangoutLink as string) || (event.conferenceData as Record<string, unknown> | undefined)?.hangoutLink
+    if (link) return link
+    await new Promise(r => setTimeout(r, delayMs))
+  }
+  return null
 }
 
 async function refreshAccessToken(
@@ -93,7 +158,7 @@ async function insertCalendarEvent(
   calendarId = 'primary',
 ): Promise<{ id: string; htmlLink: string; summary: string }> {
   const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events${buildQueryParams(event)}`,
     {
       method: 'POST',
       headers: {
@@ -121,7 +186,7 @@ async function updateCalendarEvent(
   calendarId = 'primary',
 ): Promise<{ id: string; htmlLink: string; summary: string }> {
   const res = await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}${buildQueryParams(event)}`,
     {
       method: 'PATCH',
       headers: {
@@ -142,9 +207,15 @@ async function updateCalendarEvent(
   }
 }
 
-async function deleteCalendarEvent(accessToken: string, eventId: string, calendarId = 'primary'): Promise<void> {
+async function deleteCalendarEvent(
+  accessToken: string,
+  eventId: string,
+  calendarId = 'primary',
+  sendUpdates = false,
+): Promise<void> {
+  const qs = sendUpdates ? '?sendUpdates=all' : ''
   await fetch(
-    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}${qs}`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -249,12 +320,21 @@ serve(async (req) => {
       const googleEventId = body.google_event_id as string
       if (!googleEventId) return json({ error: 'google_event_id required for DELETE' }, 400)
 
-      await deleteCalendarEvent(accessToken, googleEventId)
+      // Fetch the event first so attendees receive the cancellation (no ghost meetings).
+      let sendUpdates = false
+      try {
+        const event = await getCalendarEvent(accessToken, googleEventId)
+        sendUpdates = Array.isArray(event.attendees) && (event.attendees as unknown[]).length > 0
+      } catch (err) {
+        console.error('google-calendar-event: GET before DELETE failed:', err)
+      }
+
+      await deleteCalendarEvent(accessToken, googleEventId, 'primary', sendUpdates)
 
       if (safeLinkedActivity) {
         await admin
           .from(safeLinkedActivity.table)
-          .update({ google_event_id: null })
+          .update({ google_event_id: null, meet_link: null })
           .eq('id', safeLinkedActivity.id)
       }
 
@@ -266,13 +346,14 @@ serve(async (req) => {
       return json({ error: '"start" and "end" ISO 8601 datetimes are required' }, 400)
     }
 
+    const attendees = normalizeAttendees(body.attendees)
+
     const eventPayload: CalendarEventInput = {
       summary: (body.summary as string) || 'doncCX Hub Event',
       description: body.description as string,
       location: body.location as string,
       start: { dateTime: body.start as string, timeZone: tz },
       end: { dateTime: body.end as string, timeZone: tz },
-      attendees: body.attendees as { email: string }[],
       reminders: body.reminders ?? {
         useDefault: false,
         overrides: [
@@ -281,26 +362,47 @@ serve(async (req) => {
         ],
       },
     }
+    if (attendees) eventPayload.attendees = attendees
+
+    // conferenceData is only included when the client explicitly sends it.
+    // null removes a conference; { createRequest } creates a Google Meet.
+    const hasConferenceData = Object.prototype.hasOwnProperty.call(body, 'conferenceData')
+    if (hasConferenceData) {
+      const conf = body.conferenceData as unknown
+      eventPayload.conferenceData = conf === null || conf === undefined
+        ? null
+        : (typeof conf === 'object' && conf !== null ? conf as ConferenceDataInput : undefined)
+    }
 
     if (method === 'PATCH') {
       const googleEventId = body.google_event_id as string
       if (!googleEventId) return json({ error: 'google_event_id required for PATCH' }, 400)
 
       const result = await updateCalendarEvent(accessToken, googleEventId, eventPayload)
-      return json(result)
+      const hangoutLink = hasConferenceData ? await resolveHangoutLink(accessToken, result.id) : null
+
+      if (safeLinkedActivity && hasConferenceData) {
+        await admin
+          .from(safeLinkedActivity.table)
+          .update({ meet_link: hangoutLink })
+          .eq('id', safeLinkedActivity.id)
+      }
+
+      return json({ ...result, hangoutLink })
     }
 
     // ── POST (create) ─────────────────────────────────────────────────────
     const result = await insertCalendarEvent(accessToken, eventPayload)
+    const hangoutLink = hasConferenceData ? await resolveHangoutLink(accessToken, result.id) : null
 
     if (safeLinkedActivity) {
       await admin
         .from(safeLinkedActivity.table)
-        .update({ google_event_id: result.id })
+        .update({ google_event_id: result.id, meet_link: hangoutLink })
         .eq('id', safeLinkedActivity.id)
     }
 
-    return json(result)
+    return json({ ...result, hangoutLink })
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

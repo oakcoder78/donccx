@@ -12,7 +12,7 @@ export function useActivities(filters = {}, options = {}) {
         .select(`
           *,
           client:clients(id,name,fantasy_name),
-          contact:contacts(id,name),
+          contact:contacts(id,name,email),
           responsible:profiles(id,name),
           activity_attachments (
             id
@@ -55,7 +55,7 @@ function sanitizeDates(payload) {
   return result
 }
 
-export function useActivityMutations() {
+export function useActivityMutations({ silent = false } = {}) {
   const qc = useQueryClient()
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['activities'] })
@@ -68,7 +68,7 @@ export function useActivityMutations() {
       if (error) throw error
       return data
     },
-    onSuccess: () => { invalidate(); toast.success('Atividade criada') },
+    onSuccess: () => { invalidate(); if (!silent) toast.success('Atividade criada') },
     onError: (e) => toast.error(e.message),
   })
 
@@ -78,7 +78,7 @@ export function useActivityMutations() {
       if (error) throw error
       return data
     },
-    onSuccess: () => { invalidate(); toast.success('Atividade atualizada') },
+    onSuccess: () => { invalidate(); if (!silent) toast.success('Atividade atualizada') },
     onError: (e) => toast.error(e.message),
   })
 

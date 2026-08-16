@@ -147,7 +147,11 @@ useEffect(() => {
             Authorization: `Bearer ${sessionToken}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ method: 'DELETE', google_event_id: a.google_event_id }),
+          body: JSON.stringify({
+            method: 'DELETE',
+            google_event_id: a.google_event_id,
+            linkedActivity: { table: 'activities', id: a.id },
+          }),
         })
         if (!delRes.ok) {
           const delData = await delRes.json().catch(() => ({}))
@@ -246,6 +250,24 @@ useEffect(() => {
           <div className="bg-bg-secondary rounded-lg p-3">
             <p className="text-sm text-text-primary whitespace-pre-wrap">{a.description}</p>
           </div>
+
+          {/* Google Meet link */}
+          {a.meet_link && (
+            <div className="flex items-center justify-between gap-2 bg-bg-secondary rounded-lg p-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <Icons.Video className="w-4 h-4 text-text-secondary flex-shrink-0" strokeWidth={1.8} />
+                <span className="text-sm text-text-primary truncate">Reunião no Google Meet</span>
+              </div>
+              <a
+                href={a.meet_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+              >
+                Entrar na reunião
+              </a>
+            </div>
+          )}
 
           {/* Meta grid */}
           <div className="grid grid-cols-2 gap-3">
