@@ -1,6 +1,28 @@
 # Changelog
 
+## 2026-08-16
+
+### Activities — Google Meet Links + Attendees Invites
+
+- **New:** `meet_link` column on `activities` and `onboarding_activities` (`20260816000000_add_activities_meet_link.sql`) — stores Google Meet `hangoutLink` URL for synced activities.
+- **New:** `google-calendar-event` — accepts `conferenceData` (object with `createRequest` for Google Meet, or `null` to remove) and `attendees` (string[] of emails). Auto-appends `?conferenceDataVersion=1` when `conferenceData` is present and `?sendUpdates=all` when attendees are non-empty. Polls `hangoutLink` up to 10 times (1s interval) after event creation/update. Persists `meet_link` on `linkedActivity` when resolved. Response now includes `hangoutLink`.
+- **New:** `google-calendar-event` DELETE — fetches existing event first to check for attendees; sends `?sendUpdates=all` on deletion when attendees exist so they receive cancellation notification. Clears both `google_event_id` and `meet_link` on `linkedActivity`.
+- **New:** `ActivityModal` — opt-in "Gerar link do Google Meet" checkbox (visible when Google Calendar sync is checked). Editable attendee chips pre-filled from selected contact's `email`. Client dropdown shows `c.fantasy_name || c.name`. Guard now covers meet/attendees changes for sync detection.
+- **New:** `ActivityDetailModal` — displays clickable Meet join link when `meet_link` exists. Passes `linkedActivity` on DELETE for proper `meet_link` clearing.
+- **New:** `useActivities` — `useActivityMutations({ silent })` parameter to suppress individual success toasts (used for unified toast in `ActivityModal`). Contacts fetched with `email` field in select.
+- **New:** `Icons.Video` — Lucide `Video` icon for Meet link display.
+- **UX:** Single unified toast replaces duplicate toasts for save + Google Calendar sync.
+- **UX:** `normalizeAttendees` — trims, deduplicates, and validates emails silently; omits empty arrays from API payload.
+
 ## 2026-08-05
+
+### Dashboard — OS/Users Monthly Variation Cards
+
+- **Refactor:** `DashboardPage` — operational cards (Faixa 4) rewritten with helper functions: `opAnchor` (builds comparison text like "mai 398 OS · jun 17 OS"), `OpDeltaBadge` (renders absolute delta badge with neutral state for new clients), `buildOpCountRows` (builds comparison rows sorted by absolute delta descending).
+- **Fix:** Guards fixed — `curVal`/`prevVal` null or both zero now correctly skipped (before: `!curVal` blocked legitimate zero values).
+- **UX:** Base-small case (`prevVal < 10`, including 0) → neutral badge "Inicio de uso" (no percentage, no color) instead of misleading large percentages.
+- **UX:** Ranking by absolute delta (not percentage) — clients with largest absolute change appear first across all 3 cards (OS, Users, Health).
+- **Refactor:** `opHealthAll` rows now include `prev` for consistency with OS/Users cards.
 
 ### Profissionais Cockpit — Seletor de visão na exportação
 

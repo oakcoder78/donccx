@@ -32,9 +32,13 @@ RLS: user can only read/write their own row (`user_id = auth.uid()`).
 ```sql
 ALTER TABLE activities ADD COLUMN google_event_id text;
 ALTER TABLE onboarding_activities ADD COLUMN google_event_id text;
+ALTER TABLE activities ADD COLUMN meet_link text;
+ALTER TABLE onboarding_activities ADD COLUMN meet_link text;
 ```
 
-`null` = not synced. Contains Google Calendar `eventId` when synced.
+`google_event_id` — `null` = not synced. Contains Google Calendar `eventId` when synced.
+
+`meet_link` — `null` = no Meet link. Contains the Google Meet `hangoutLink` URL when the activity was created/updated with `conferenceData`. Cleared on DELETE (event cancellation).
 
 ## Edge Functions
 
@@ -54,9 +58,9 @@ ALTER TABLE onboarding_activities ADD COLUMN google_event_id text;
 
 | `body.method` | Action | Response |
 |---|---|---|
-| `POST` (default) | Create event | `{ id, htmlLink, summary }` |
-| `PATCH` | Update existing event | `{ id, htmlLink, summary }` |
-| `DELETE` | Remove event + clear `google_event_id` | `{ deleted: true }` |
+| `POST` (default) | Create event | `{ id, htmlLink, summary, hangoutLink }` |
+| `PATCH` | Update existing event | `{ id, htmlLink, summary, hangoutLink }` |
+| `DELETE` | Fetch event (to notify attendees) + remove + clear `google_event_id` and `meet_link` | `{ deleted: true }` |
 
 Body fields for POST/PATCH:
 ```json
@@ -67,15 +71,42 @@ Body fields for POST/PATCH:
   "start": "2025-05-12T10:00:00.000Z",
   "end": "2025-05-12T10:50:00.000Z",
   "description": "Activity description",
-  "attendees": [{ "email": "contact@example.com" }],
+  "attendees": ["contact@example.com", "other@example.com"],
+  "conferenceData": { "createRequest": { "requestId": "...", "conferenceSolutionKey": { "type": "hangoutsMeet" } } },
   "timeZone": "America/Sao_Paulo",
   "linkedActivity": { "table": "activities", "id": "123" }
 }
 ```
 
+- `attendees` — `string[]` of email addresses. Trimmed, deduplicated, and validated before sending. Omitted from the Calendar API payload if empty. When non-empty, `?sendUpdates=all` is appended to the request so attendees receive native Google Calendar invites.
+- `conferenceData` — Object with `createRequest` to generate a Google Meet link, or `null` to remove an existing conference from the event. When present, `?conferenceDataVersion=1` is appended to the request. The response includes `hangoutLink` with the Meet URL.
+- `linkedActivity` — When provided, the function persists `google_event_id` and (on create/update with `conferenceData`) `meet_link` on the linked row. On DELETE, both are set to `null`.
+
 Event duration: **50 minutes**. Default reminders: email at 60min + popup at 15min.
 
 Token refresh is automatic when `tokenexpiry` is in the past. If the refresh token is expired or revoked, the function returns `{ error, code: 'TOKEN_EXPIRED' }` with status 401 so the frontend can show a reconnect prompt instead of a raw error.
+
+#### Attendees normalization
+
+The `attendees` string array is normalized before being sent to the Calendar API:
+1. Each entry is trimmed of whitespace.
+2. Empty strings are discarded.
+3. Duplicates are removed (case-insensitive comparison).
+4. Invalid email format is silently skipped.
+5. If the resulting array is empty, `attendees` is omitted entirely (no empty array sent to Google).
+
+#### Meet link lifecycle
+
+1. **Create:** When `conferenceData` is present, the function sends `createRequest` to Google Calendar. Google provisions the Meet link asynchronously. The function polls `getCalendarEvent` up to 10 times (1s interval) to resolve `hangoutLink`. If resolved, `meet_link` is persisted on the `linkedActivity` row alongside `google_event_id`.
+2. **Update (PATCH):** When `conferenceData` is present, same poll + persist flow. When `conferenceData` is `null`, the conference is removed from the event (Google drops the Meet link). When `conferenceData` is omitted, the existing conference is preserved.
+3. **DELETE:** The function first does a GET on the existing event to check for attendees. If attendees exist, `?sendUpdates=all` is appended to the DELETE request so they receive a cancellation notification. Both `google_event_id` and `meet_link` are set to `null` on the `linkedActivity`.
+
+#### Query parameters (auto-appended)
+
+| Parameter | Condition | Purpose |
+|---|---|---|
+| `conferenceDataVersion=1` | `conferenceData` is present in body | Required by Google API to create/modify conference data |
+| `sendUpdates=all` | `attendees` array is non-empty | Sends native Google Calendar invites/updates to attendees |
 
 ## Environment Variables
 
@@ -117,28 +148,33 @@ API must be enabled: [Google Calendar API](https://console.developers.google.com
 7. Toast "Google Calendar conectado!" fires **only on !connected → connected transition**
 8. Badge updates to "Conectado"
 
-### 2. Create activity with sync
+### 2. Create activity with sync (including Meet + attendees)
 
 1. Open `ActivityModal` → row with Date / Hour / Google Calendar checkbox
 2. Checkbox visible only when `isGoogleConnected`
 3. Checking checkbox makes hour **required** (label shows "Hora *")
-4. Submit → activity created → Edge Function `POST` called
-5. `google_event_id` saved to activity
-6. Toast "Atividade sincronizada com Google Calendar!"
+4. Checking "Gerar link do Google Meet" sub-checkbox enables attendee chip input
+5. Attendee chips are pre-filled from the selected contact's `email` field; users can add/remove emails
+6. Submit → activity created → Edge Function `POST` called with `conferenceData` and `attendees`
+7. Edge Function polls for `hangoutLink`, persists `meet_link` + `google_event_id` on activity
+8. Single unified toast: "Atividade criada e sincronizada com Google Calendar!" (no duplicate toasts)
 
 ### 3. Edit synced activity
 
 | Condition | Edge Function method |
 |---|---|
-| Checkbox active + activity has `google_event_id` | `PATCH` — updates time in Google |
-| Checkbox **unchecked** + activity has `google_event_id` | `DELETE` — removes from Google, clears `google_event_id` |
-| Checkbox active + activity has no `google_event_id` | `POST` — creates new event |
+| Checkbox active + activity has `google_event_id` | `PATCH` — updates time, attendees, Meet link in Google |
+| Checkbox **unchecked** + activity has `google_event_id` | `DELETE` — notifies attendees of cancellation, removes from Google, clears `google_event_id` and `meet_link` |
+| Checkbox active + activity has no `google_event_id` | `POST` — creates new event with Meet + attendees |
+| Meet checkbox toggled off (edit mode) | `PATCH` with `conferenceData: null` — removes conference from event |
+| Attendees changed | `PATCH` with updated `attendees` — sends updated invites via `sendUpdates=all` |
 
 ### 4. View activity details
 
 - `!google_event_id && status !== 'concluida' && isConnected` → "Sincronizar" button in footer
 - No `activity_time` → `GoogleSyncModal` opens first to capture time
 - `google_event_id` exists → green "Sincronizado" link to `calendar.google.com/r/eventedit/{id}`
+- `meet_link` exists → clickable "Entrar na reunião" link (opens Meet in new tab)
 
 ## Key Files
 
@@ -153,6 +189,7 @@ API must be enabled: [Google Calendar API](https://console.developers.google.com
 | `supabase/functions/google-calendar-callback/index.ts` | OAuth code exchange, token storage |
 | `supabase/functions/google-calendar-event/index.ts` | CRUD operations on Google Calendar events |
 | `supabase/migrations/20260512120000_user_google_configs.sql` | DB schema: tables and RLS |
+| `supabase/migrations/20260816000000_add_activities_meet_link.sql` | Adds `meet_link` column to activities and onboarding_activities |
 | `supabase/config.toml` | `verify_jwt = false` for both Edge Functions |
 
 ## Gotchas
@@ -167,9 +204,15 @@ API must be enabled: [Google Calendar API](https://console.developers.google.com
 - **`isExpired` removed from hook:** the boolean `isExpired` was removed from the hook return object as it was not consumed anywhere. Token expiry is still checked internally.
 - **GCP OAuth app must be "In production":** Apps in "Testing" mode issue refresh tokens with a 7-day TTL. After the TTL, any Calendar API call fails with "Token refresh failed: Bad Request". Fix: GCP Console → OAuth consent screen → Publishing status → "In production". Done 2026-06-11.
 - **`TOKEN_EXPIRED` response code:** any failure in the refresh token exchange returns `{ error, code: 'TOKEN_EXPIRED' }` (HTTP 401) instead of a raw 500, so the frontend can show a reconnect prompt. The outer catch also maps `invalid_grant`, `401`, `expired`, and `revoked` error strings to the same code.
+- **`conferenceDataVersion=1` is required:** Google Calendar API ignores `conferenceData` entirely if `conferenceDataVersion` is not set in the query string. The edge function auto-appends `?conferenceDataVersion=1` whenever `conferenceData` is present in the body.
+- **`null` conferenceData removes the conference:** Sending `conferenceData: null` on PATCH tells Google to remove the Meet link from the event. This is distinct from simply omitting `conferenceData`, which preserves the existing conference (preservation by omission).
+- **Attendees normalization is silent:** Invalid emails, empty strings, and duplicates are dropped without error. If all entries are invalid, `attendees` is omitted entirely — no empty array is sent to Google.
+- **Meet link polling is async:** Google provisions `hangoutLink` asynchronously after event creation. The edge function polls up to 10 times (1s interval). If the link is not resolved after 10 attempts, `meet_link` is saved as `null` and the frontend shows no Meet link. This is rare in practice.
+- **DELETE notifies attendees:** The edge function fetches the existing event before deletion to check for attendees. If attendees exist, `?sendUpdates=all` is appended to the DELETE request so they receive a cancellation notification. If the GET fails, the delete proceeds without `sendUpdates` (best-effort).
 
 ## Recent Changes
 
+- **2026-08-16 (commit `33af50c`):** Google Meet links + attendees invites — edge function now accepts `conferenceData` (createRequest for Meet) and `attendees` (string[]), appends `conferenceDataVersion=1` and `sendUpdates=all` query params, polls async `hangoutLink`, persists/clears `meet_link` on `linkedActivity`. DELETE does GET first to notify attendees of cancellation. `ActivityModal` adds opt-in "Gerar link do Google Meet" checkbox with editable attendee chips prefilled from contact emails. `ActivityDetailModal` shows Meet join link. Unified toast replaces duplicate toasts.
 - **2026-06-11 (commit `33e08eb`):** `google-calendar-event` — token refresh failure now returns `{ code: 'TOKEN_EXPIRED' }` (HTTP 401) instead of raw 500; outer catch also maps `invalid_grant`/`expired`/`revoked` to same code. GCP OAuth app moved to "In production" to eliminate 7-day refresh token TTL.
 - **2026-05-13 (commit `6a3bd88`):** Fixed Google Calendar sync integration — `ActivityModal` now only syncs on relevant field changes (type=reuniao, title, activity_date, activity_time); `ActivityDetailModal` guards `handleSyncToGoogleCalendar` with `if (!isConnected) return`; `useGoogleCalendarStatus` handles empty config gracefully; `isExpired` removed from hook return.
 - **2026-05-13 (commit `1641ccf`):** `Icons.Calendar` replaces direct lucide-react import in `ActivityDetailModal`.

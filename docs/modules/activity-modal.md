@@ -39,6 +39,11 @@ Fields are organized by priority:
 4. **Context** — Relationships
    - `Cliente`, `Contato`, `Vencimento`, `Responsável`
 
+5. **Google Calendar** — Sync & Meet (visible only when Google Calendar is connected)
+   - `Sincronizar com Google Calendar` (checkbox)
+   - `Gerar link do Google Meet` (sub-checkbox, visible when sync is checked)
+   - `Participantes` (editable chips, visible when Meet is checked; pre-filled from contact email)
+
 ## UX Decisions
 
 ### Why a drawer instead of a fixed multi-column layout?
@@ -55,6 +60,7 @@ Fields are organized by priority:
 - Tipo, Data, Hora, Status are filled quickly and don't need prominent space
 - Compact presentation keeps them accessible without distracting from writing
 - Consistent use of grids and gaps maintains readability
+- Google Calendar sync, Meet checkbox, and attendee chips are grouped below metadata to keep them accessible but not competing with the primary writing flow
 
 ### Why group notes and attachments together?
 - Both are secondary content added after the primary activity is described
@@ -125,3 +131,11 @@ On failure:
 ### Google Calendar Sync
 
 Early returns in `syncToGoogle` block (`!isGoogleConnected`, missing `activityId`, `!shouldSyncWithCalendar`) close the modal normally. Attachments are already uploaded at this point so the early return is safe.
+
+### Unified Toast
+
+The modal uses a single unified toast for save + sync feedback instead of separate toasts for activity creation and calendar sync. The mutation hooks are called with `{ silent: true }` to suppress their individual success toasts. The modal itself fires one toast after all operations (mutation + attachment upload + calendar sync) complete.
+
+### Meet Toggle (Edit Mode)
+
+When editing an activity that already has a `meet_link`, the Meet checkbox is checked and the link is shown as a read-only clickable link. Unchecking the Meet checkbox sends `conferenceData: null` on the next PATCH to remove the conference from the Google event. The `meet_link` is cleared by the edge function on PATCH with `conferenceData: null` only when `linkedActivity` is provided.

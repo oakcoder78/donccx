@@ -30,6 +30,24 @@ The **Pages** module groups the top‑level UI screens of the application. Each 
 ## UI Architecture
 Pages are plain React components that import shared UI primitives (`Spinner`, `ActivityDetailModal`, form fields, icons) and layout utilities. Navigation is handled by `react‑router‑dom`; each page is rendered at a distinct route path (e.g., `/dashboard`, `/login`). Pages compose higher‑level components (cards, tables, step wizards) and manage their own local state with React hooks. Protected pages guard their content by checking `useAuth()` for a valid Supabase session.
 
+### Dashboard Layout (`Dashboard.jsx`)
+
+The dashboard is organized into **4 visual strips (faixas)**:
+
+| Strip | Background | Content |
+|-------|-----------|---------|
+| **1 — Pulso** | Dark navy | User identity + greeting, MRR display (R$ X.Xk/mes + ARR + Em atraso), counter cards (Sem interacao, Onboardings atrasados, Temperaturas vencidas) |
+| **2 — Urgencias** | Gray | Alertas prioritarios (top 5 urgency-scored clients) + Proximas atividades (7 dias) |
+| **3 — Portfolio** | White | Saude rankeada (top 10 with score bars) + Saude por dimensao (5 dimension progress bars) + Sem interacao recente |
+| **4 — Operacional** | Gray | OS criadas / Profissionais ativos / Health score — variacao mensal (top 5 clients each) + Sincronizacao de dados |
+
+**Operational cards** (Faixa 4) use helper functions:
+- `opAnchor(x)` — builds anchor text: "mai 398 OS · jun 17 OS"
+- `OpDeltaBadge({x})` — renders delta badge: absolute delta ("▲ +381 OS") with neutral state for new clients ("Inicio de uso" when prevVal < 10)
+- `buildOpCountRows(opsByClient, clients, valOf, unit)` — builds comparison rows sorted by absolute delta descending
+
+An **overlay drawer** (`DrawerClientContent`) renders client details when a client is clicked from any strip. ESC or overlay click closes it.
+
 ## Data Flow
 - **Loading**: Pages use `react‑query` (`useQuery`) or custom hooks (`useClients`, `useActivities`, `useHealthConfig`, etc.) to fetch data from Supabase tables or Edge Functions.
 - **Mutation**: Actions such as ticket creation (`AtendimentoPage`) or health recalculation (`Dashboard`) call Supabase RPCs or fetch Edge Functions, then update local caches or write back to tables.

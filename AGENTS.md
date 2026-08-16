@@ -35,6 +35,8 @@ FRESHDESK_DOMAIN          # Local scripts + Edge Function
 FRESHDESK_API_KEY         # Local scripts + Edge Function
 RESEND_API_KEY            # Edge Function (send-email)
 ANTHROPIC_API_KEY         # Edge Function (donkie-chat)
+GOOGLE_CLIENT_ID          # Edge Function (google-calendar-event) + frontend (VITE_GOOGLE_CLIENT_ID)
+GOOGLE_CLIENT_SECRET      # Edge Function (google-calendar-event)
 ```
 
 Supabase client (`src/lib/supabaseClient.js`) throws immediately if env vars missing.
@@ -52,7 +54,7 @@ Feature flags: `useFeatureFlags` hook controls feature availability per role (e.
 ## Supabase & Backend
 
 - Migrations: `supabase/migrations/` (sequential numbered SQL files). Deploy with `supabase db push --include-all`.
-- Edge Functions: `supabase/functions/*` (13 functions). Deploy with `supabase functions deploy <name>`. Several have `verify_jwt = false` in `config.toml` but perform their own bearer-token + role checks in code.
+- Edge Functions: `supabase/functions/*` (14 functions + `_shared`). Deploy with `supabase functions deploy <name>`. Several have `verify_jwt = false` in `config.toml` but perform their own bearer-token + role checks in code.
 - Storage: Manual bucket setup (`company-logos`, `user-avatars`). See `STORAGE_SETUP.md`.
 - No Docker — all changes go directly to production, no local Supabase stack.
 

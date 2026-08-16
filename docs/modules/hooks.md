@@ -10,7 +10,7 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - Standardize cache invalidation, toast feedback.
 
 ## Module Structure
-- `useActivities.js` — fetch, create, update, delete activities.
+- `useActivities.js` — fetch, create, update, delete activities. `useActivityMutations` accepts `{ silent }` option to suppress success toasts (used by `ActivityModal` for unified toast). Contacts are fetched with `email` field in the select.
 - `useAuditLog.js` — read audit log entries.
 - `useCatalog.js` — fetch static catalog tables.
 - `useClient.js` — single client CRUD. Fetches extended client data including operational, health, catalog, onboarding, and activity data. Not all fetched data is always displayed; some modules depend on lifecycle_stage to determine whether data should be used.
@@ -48,11 +48,11 @@ Hooks use `useQuery` for reads, `useMutation` for writes. Query keys combine ent
 ## Main Usage Patterns
 ```js
 const {data, isLoading}=useActivities(filter);
-const {create}=useActivityMutations();
+const {create}=useActivityMutations({ silent: true });
 create(payload);
 // createFasesFromTemplate propagates: evidence_required, allows_attachments
 ```
-Hooks expose reactive data; component re‑renders on cache updates.
+Hooks expose reactive data; component re‑renders on cache updates. The `silent` option suppresses individual success toasts from create/update/remove — used when the caller (e.g., `ActivityModal`) handles its own unified toast.
 
 ## State Management
 Internal react‑query cache stores fetched rows. Loading and error flags derived from query state. Mutations trigger toast feedback and cache invalidation on success.

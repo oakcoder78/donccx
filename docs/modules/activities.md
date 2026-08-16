@@ -11,13 +11,15 @@ The Activities module provides a task‑oriented workspace where users can creat
 - Persist activity data (create, update, delete) via Supabase mutation hooks.
 - Manage activity attachments (upload, preview, download, soft‑delete).
 - Display status badges (pendente, concluída, atrasada) and attachment counters.
+- Optionally generate **Google Meet links** and send **attendee invites** when syncing to Google Calendar.
+- Display Meet join link in activity detail view.
 
 ## Module Structure
 | File | Responsibility / UI role |
 |------|--------------------------|
 | `ActivitiesPage.jsx` | Page component that fetches activities, clients, and profiles; provides filtering UI; renders activity list; opens creation and detail modals. |
-| `ActivityModal.jsx` | Modal dialog for **creating** or **editing** an activity. Handles form state, validation, submission, and attachment upload. |
-| `ActivityDetailModal.jsx` | Modal dialog for **viewing** activity details, toggling status, deleting the activity, and managing attachments (preview, download, soft‑delete). Also allows switching to edit mode via `ActivityModal`. |
+| `ActivityModal.jsx` | Modal dialog for **creating** or **editing** an activity. Handles form state, validation, submission, attachment upload, and Google Calendar sync (including Meet link and attendee invites). |
+| `ActivityDetailModal.jsx` | Modal dialog for **viewing** activity details, toggling status, deleting the activity, managing attachments (preview, download, soft‑delete), and displaying the Meet join link. Also allows switching to edit mode via `ActivityModal`. |
 
 ## UI Architecture
 - **ActivitiesPage** renders the page header, a search input, tab bar (type filters), and dropdown filters for client and responsible. Below it displays:
@@ -33,19 +35,19 @@ The Activities module provides a task‑oriented workspace where users can creat
 1. **Fetching** – `useActivities()` loads all activities; `useClients()` and `useProfiles()` load supporting data for filters and selects.
 2. **Filtering** – `useMemo` derives a filtered list based on selected tab, search term, status, client, and responsible filters.
 3. **Grouping** – Pending activities are displayed directly; completed activities are grouped by month using `groupByMonth` and formatted with `formatMonth`.
-4. **Create/Edit** – `ActivityModal` builds a payload from local form state and calls `create.mutateAsync` or `update.mutateAsync` from `useActivityMutations`. After the mutation, any selected attachment files are uploaded via `saveActivityAttachments` — this runs **before** the Google Calendar sync block to avoid early-return skipping. On upload failure, a toast shows the real error and the modal stays open.
+4. **Create/Edit** – `ActivityModal` builds a payload from local form state and calls `create.mutateAsync` or `update.mutateAsync` from `useActivityMutations` (with `{ silent: true }` to suppress individual success toasts). After the mutation, any selected attachment files are uploaded via `saveActivityAttachments` — this runs **before** the Google Calendar sync block to avoid early-return skipping. On upload failure, a toast shows the real error and the modal stays open. A single unified toast is shown on success (combining save + sync feedback).
 5. **View** – `ActivityDetailModal` receives the selected activity as a prop, loads its attachments with `getActivityAttachments`, and displays full details.
 6. **Status toggle** – Clicking the *Concluir/Reabrir* button calls `update.mutateAsync` to flip `status` and closes the modal.
 7. **Delete** – Clicking *Excluir* invokes `remove.mutateAsync` from the mutation hook and closes the modal.
 8. **Attachment actions** – Preview/download use Supabase storage signed URLs; delete uses `softDeleteActivityAttachment` after permission checks.
 
 ## Dependencies
-- **Hooks**: `useActivities`, `useActivityMutations`, `useClients`, `useProfiles`, `useContacts`.
+- **Hooks**: `useActivities`, `useActivityMutations`, `useClients`, `useProfiles`, `useContacts`, `useGoogleCalendarStatus`, `useSessionToken`.
 - **Services**: `saveActivityAttachments`, `getActivityAttachments`, `softDeleteActivityAttachment`.
 - **UI Components**: `Modal`, `Button`, `Badge`, `PageHeader`, `PageSpinner`, `AttachmentInput`.
-- **Icons**: `ActivityIcons`, `ActivityIconBackgrounds`, `DefaultActivityIcon`, `ActionIcons` (search/attachment), plus Lucide icons used in the detail modal.
+- **Icons**: `ActivityIcons`, `ActivityIconBackgrounds`, `DefaultActivityIcon`, `ActionIcons` (search/attachment), `Video` (Meet link), plus Lucide icons used in the detail modal.
 - **Supabase client** (`supabase`) for storage and auth calls.
-- **Toast** (`react-hot-toast`) for user feedback on attachment deletion.
+- **Toast** (`react-hot-toast`) for user feedback on attachment deletion and unified save+sync feedback.
 
 ## Integration Points
 - **Clients** – activities reference a `client_id`; client list is used for filtering and selection.
@@ -58,9 +60,12 @@ The Activities module provides a task‑oriented workspace where users can creat
 1. User clicks **+ Nova Atividade** button on `ActivitiesPage`.
 2. `ActivityModal` opens in create mode.
 3. User fills required fields (type, date, title/description, client, etc.) and optionally adds attachments.
-4. User clicks **Criar Atividade**.
-5. `create.mutateAsync` sends payload to Supabase; on success, any attachments are uploaded via `saveActivityAttachments`.
-6. Modal closes; activities list refreshes to include the new entry.
+4. If Google Calendar is connected, user can check "Gerar link do Google Meet" to opt in to Meet link generation.
+5. When Meet is opted in, editable attendee chips appear, pre-filled from the selected contact's email. Users can add/remove email addresses.
+6. User clicks **Criar Atividade**.
+7. `create.mutateAsync` sends payload to Supabase (silent mutation); on success, attachments are uploaded, then the Edge Function is called with `conferenceData` and `attendees` if Meet/attendees were requested.
+8. Single unified toast: "Atividade criada e sincronizada com Google Calendar!"
+9. Modal closes; activities list refreshes to include the new entry.
 
 ### Flow: Visualizar atividade
 1. User clicks an activity row (`ActivityItem`).
@@ -76,7 +81,7 @@ The Activities module provides a task‑oriented workspace where users can creat
 
 ### Flow: Excluir atividade
 1. In `ActivityDetailModal`, user clicks **Excluir**.
-2. Confirmation dialog appears; on confirm, `remove.mutateAsync` deletes the activity.
+2. Confirmation dialog appears; on confirm, `remove.mutateAsync` deletes the activity. If the activity has a `google_event_id`, the Edge Function is called with `DELETE` (which fetches the event first to notify attendees of cancellation). The `linkedActivity` is passed so `google_event_id` and `meet_link` are cleared.
 3. Modal closes; list refreshes.
 
 ### Flow: Gerenciar anexos (detail view)
@@ -108,6 +113,8 @@ The Activities module provides a task‑oriented workspace where users can creat
 - Deleting an activity does not confirm that related attachments are also cleaned up (soft delete only for attachments).
 - Hard‑coded type list (`TYPES`) may become out‑of‑sync with backend if new activity types are added.
 - Direct `window.confirm` calls block UI and are not customizable.
+- Meet link polling (up to 10s) can delay the unified toast; if Google is slow to provision the link, `meet_link` may be `null` even though the event was created.
+- Attendee email validation is silent — invalid emails are dropped without user feedback.
 
 ## Future Improvements
 - Implement pagination or infinite scroll for the activities list.
@@ -122,3 +129,6 @@ The Activities module provides a task‑oriented workspace where users can creat
 - `src/components/activities/ActivitiesPage.jsx`
 - `src/components/activities/ActivityModal.jsx`
 - `src/components/activities/ActivityDetailModal.jsx`
+- `src/hooks/useActivities.js`
+- `supabase/functions/google-calendar-event/index.ts`
+- `supabase/migrations/20260816000000_add_activities_meet_link.sql`
