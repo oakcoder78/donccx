@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-08-17
+
+### Empresas — Busca por nome fantasia
+
+- **Fix:** busca em `/empresas` agora casa com `name` (razão social) **ou** `fantasy_name`, via filtro OR ilike em `buildClientsQuery` (`src/hooks/useClients.js`) — antes só buscava razão social. Cobre empresas ativas e inativas.
+
 ## 2026-08-16
 
 ### Activities — Google Meet Links + Attendees Invites

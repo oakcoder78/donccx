@@ -4,7 +4,7 @@
 The Clients module provides the primary user interface for managing customer records. It lets users list, create, edit, and view detailed information about clients, as well as perform operational actions (onboarding, reporting, support, usage tracking) through a set of tabbed views. It sits under `src/components/clients/` and is routed from the main app (`src/App.jsx`), acting as the frontend entry point for all client‑related data stored in Supabase.
 
 ## Responsibilities
-- Render a searchable list of clients.
+- Render a searchable list of clients (search matches `name` or `fantasy_name`).
 - Open a detailed view for a selected client.
 - Offer create and edit forms for client records.
 - Organize client information into top‑level tabs (Overview, Activities, Contacts, Health, Operacional).
