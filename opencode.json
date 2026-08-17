@@ -8,6 +8,10 @@
     "supabase": {
       "type": "local",
       "command": ["bash", "scripts/supabase-mcp.sh"]
+    },
+    "github": {
+      "type": "local",
+      "command": ["bash", "scripts/github-mcp.sh"]
     }
   },
   "plugin": ["context-mode"]

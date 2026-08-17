@@ -37,6 +37,7 @@ RESEND_API_KEY            # Edge Function (send-email)
 ANTHROPIC_API_KEY         # Edge Function (donkie-chat)
 GOOGLE_CLIENT_ID          # Edge Function (google-calendar-event) + frontend (VITE_GOOGLE_CLIENT_ID)
 GOOGLE_CLIENT_SECRET      # Edge Function (google-calendar-event)
+GITHUB_PERSONAL_ACCESS_TOKEN # scripts/github-mcp.sh (GitHub MCP server) — .env.local only
 ```
 
 Supabase client (`src/lib/supabaseClient.js`) throws immediately if env vars missing.
@@ -73,6 +74,7 @@ No local Supabase. Sequence:
 - `node scripts/freshdesk-map-companies.js [--apply]` — maps Freshdesk companies.
 - `node scripts/freshdesk-sync.js YYYY-MM [--dry-run]` — syncs monthly Freshdesk data.
 - These parse `.env.local` directly; require service-role and Freshdesk secrets. All testing is production-only via live API calls.
+- `scripts/github-mcp.sh` — GitHub MCP server (reads `GITHUB_PERSONAL_ACCESS_TOKEN` from `.env.local`).
 
 ## Context-Mode Routing (plugin: `context-mode`)
 
