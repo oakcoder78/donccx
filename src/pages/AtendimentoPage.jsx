@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { analyzeWhatsApp } from '../lib/openrouterService'
 import { getFreshdeskConfig } from '../lib/freshdeskConfig'
 import { getAsanaConfig, createAsanaTask } from '../lib/asanaConfig'
+import { Modal } from '../components/ui/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -29,6 +30,45 @@ const PRIORITIES = [
   { value: 'high',   label: 'Alta',    fd: 3 },
   { value: 'urgent', label: 'Urgente', fd: 4 },
 ]
+
+// ── Status ────────────────────────────────────────────────────────────────────
+const STATUS_LABELS = { 2: 'Aberto', 3: 'Pendente', 4: 'Resolvido', 5: 'Fechado' }
+
+// ── Monta o rascunho da tarefa Asana (nome + corpo) seguindo o padrão manual ──
+function buildAsanaDraft({ form, ticket, clientName, contactName, groups, agents }) {
+  const subject  = form.subject?.trim() || 'Atendimento WhatsApp'
+  const priority = PRIORITIES.find(p => p.value === form.priority)?.label || '—'
+  const status   = STATUS_LABELS[form.status] || '—'
+  const group    = groups.find(g => String(g.id) === String(form.group_id))
+  const agent    = agents.find(a => String(a.id) === String(form.agent_id))
+
+  const fields = [
+    `Ticket Freshdesk: #${ticket.id}`,
+    `Link: https://donc.freshdesk.com/a/tickets/${ticket.id}`,
+    clientName && `Cliente: ${clientName}`,
+    contactName && `Contato: ${contactName}`,
+    form.email?.trim() && `E-mail: ${form.email.trim()}`,
+    'Origem: WhatsApp',
+    form.type && `Tipo: ${form.type}`,
+    form.category && `Categoria: ${form.category}`,
+    `Prioridade: ${priority}`,
+    `Status: ${status}`,
+    group && `Grupo: ${group.name}`,
+    agent && `Agente: ${agent.contact?.name || agent.name}`,
+  ].filter(Boolean)
+
+  const notes = [
+    form.description?.trim(),
+    form.first_reply?.trim() && `Resposta registrada:\n${form.first_reply.trim()}`,
+    '---',
+    ...fields,
+  ].filter(Boolean).join('\n\n')
+
+  return {
+    name:  `[${clientName || 'Cliente'}] ${subject} [#${ticket.id}]`,
+    notes: notes || '—',
+  }
+}
 
 // ── Estilos base reutilizados ─────────────────────────────────────────────────
 const S = {
@@ -808,6 +848,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   const [asanaCreating, setAsanaCreating] = useState(false)
   const [asanaTask,     setAsanaTask]     = useState(null)
   const [asanaError,    setAsanaError]    = useState(null)
+  const [asanaDraft,    setAsanaDraft]    = useState(null)
 
   // Refs para ler/atualizar o form que vive no Step3Fields (estado local isolado)
   const formRef  = useRef({})
@@ -939,8 +980,18 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   }
 
   // ── Cria tarefa no Asana para o ticket recém-criado ────────────────────────
-  async function handleCreateAsana() {
+  function handleOpenAsana() {
     if (!createdTicket?.id) return
+    const form       = formRef.current
+    const clientName = data.client?.fantasy_name || data.client?.name || ''
+    const contactName = data.contact?.name || data.uncatContact?.name || ''
+    const draft = buildAsanaDraft({ form, ticket: createdTicket, clientName, contactName, groups, agents })
+    setAsanaError(null)
+    setAsanaDraft(draft)
+  }
+
+  async function handleCreateAsana(draft) {
+    if (!createdTicket?.id || !draft?.name) return
     setAsanaCreating(true)
     setAsanaError(null)
     try {
@@ -950,13 +1001,9 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         return
       }
 
-      const form       = formRef.current
-      const clientName = data.client?.fantasy_name || data.client?.name || ''
-      const ticketUrl  = `https://donc.freshdesk.com/a/tickets/${createdTicket.id}`
-
       const payload = {
-        name:      `[Ticket #${createdTicket.id}] ${form.subject?.trim() || 'Atendimento WhatsApp'}`,
-        notes:     `Ticket Freshdesk #${createdTicket.id}\nCliente: ${clientName}\nLink: ${ticketUrl}\n\n${form.description?.trim() || ''}`.trim(),
+        name:      draft.name,
+        notes:     draft.notes || '—',
         projects:  [cfg.project_gid],
         assignee:  'me',
       }
@@ -966,6 +1013,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       if (!task?.gid) throw new Error('Asana não retornou a tarefa criada')
 
       setAsanaTask(task)
+      setAsanaDraft(null)
 
       if (whatsappTicketIdRef.current) {
         supabase
@@ -1016,63 +1064,108 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   // ── Tela de sucesso ─────────────────────────────────────────────────────
   if (createdTicket) {
     return (
-      <div style={{ maxWidth: 480, textAlign: 'center', padding: '48px 0', margin: '0 auto' }}>
-        <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
-        <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1D9E75', marginBottom: 8 }}>Ticket criado!</h2>
-        <p style={{ fontSize: 14, color: '#888780', marginBottom: 6 }}>
-          Ticket <strong style={{ color: '#173557' }}>#{createdTicket.id}</strong> registrado no Freshdesk.
-        </p>
-        {createdTicket.subject && (
-          <p style={{ fontSize: 13, color: '#888780', marginBottom: 28, fontStyle: 'italic' }}>"{createdTicket.subject}"</p>
-        )}
+      <>
+        <div style={{ maxWidth: 480, textAlign: 'center', padding: '48px 0', margin: '0 auto' }}>
+          <div style={{ fontSize: 52, marginBottom: 16 }}>✅</div>
+          <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1D9E75', marginBottom: 8 }}>Ticket criado!</h2>
+          <p style={{ fontSize: 14, color: '#888780', marginBottom: 6 }}>
+            Ticket <strong style={{ color: '#173557' }}>#{createdTicket.id}</strong> registrado no Freshdesk.
+          </p>
+          {createdTicket.subject && (
+            <p style={{ fontSize: 13, color: '#888780', marginBottom: 28, fontStyle: 'italic' }}>"{createdTicket.subject}"</p>
+          )}
 
-        {asanaEnabled && (
-          <div style={{ marginBottom: 24 }}>
-            {asanaTask ? (
-              <div style={{ fontSize: 13, color: '#888780', marginBottom: 16 }}>
-                <p style={{ marginBottom: 8 }}>Tarefa criada no Asana.</p>
-                {asanaTask.permalink_url && (
-                  <a
-                    href={asanaTask.permalink_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: '#59c2ed', fontWeight: 600, textDecoration: 'underline' }}
+          {asanaEnabled && (
+            <div style={{ marginBottom: 24 }}>
+              {asanaTask ? (
+                <div style={{ fontSize: 13, color: '#888780', marginBottom: 16 }}>
+                  <p style={{ marginBottom: 8 }}>Tarefa criada no Asana.</p>
+                  {asanaTask.permalink_url && (
+                    <a
+                      href={asanaTask.permalink_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#59c2ed', fontWeight: 600, textDecoration: 'underline' }}
+                    >
+                      Ver no Asana
+                    </a>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p style={{ fontSize: 13, color: '#888780', marginBottom: 12 }}>
+                    Deseja registrar este atendimento também no Asana?
+                  </p>
+                  <button
+                    onClick={handleOpenAsana}
+                    disabled={asanaCreating}
+                    style={{
+                      padding: '10px 24px', borderRadius: 7, fontSize: 14, fontWeight: 600, border: 'none',
+                      cursor: asanaCreating ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
+                      backgroundColor: asanaCreating ? '#e8e7e3' : '#173557',
+                      color: asanaCreating ? '#888780' : '#fff',
+                    }}
                   >
-                    Ver no Asana
-                  </a>
-                )}
-              </div>
-            ) : (
-              <div>
-                <p style={{ fontSize: 13, color: '#888780', marginBottom: 12 }}>
-                  Deseja registrar este atendimento também no Asana?
-                </p>
-                <button
-                  onClick={handleCreateAsana}
-                  disabled={asanaCreating}
-                  style={{
-                    padding: '10px 24px', borderRadius: 7, fontSize: 14, fontWeight: 600, border: 'none',
-                    cursor: asanaCreating ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
-                    backgroundColor: asanaCreating ? '#e8e7e3' : '#173557',
-                    color: asanaCreating ? '#888780' : '#fff',
-                  }}
-                >
-                  {asanaCreating ? 'Registrando no Asana…' : 'Registrar no Asana'}
-                </button>
-                {asanaError && (
-                  <p style={{ fontSize: 12, color: '#b91c1c', marginTop: 10 }}>❌ {asanaError}</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+                    {asanaCreating ? 'Registrando no Asana…' : 'Registrar no Asana'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
-        <button onClick={onSuccess} style={{ ...S.btnPrimary(false), fontSize: 14 }}>
-          Registrar novo atendimento
+          <button onClick={onSuccess} style={{ ...S.btnPrimary(false), fontSize: 14 }}>
+            Registrar novo atendimento
+          </button>
+        </div>
+
+      {/* Modal de revisão/edição da tarefa Asana */}
+      {asanaDraft && (
+        <AsanaReviewModal
+          draft={asanaDraft}
+          creating={asanaCreating}
+          error={asanaError}
+          onClose={() => { if (!asanaCreating) setAsanaDraft(null) }}
+          onCreate={handleCreateAsana}
+        />
+      )}
+    </>
+  )
+}
+
+// ── Modal de revisão/edição da tarefa Asana ─────────────────────────────────
+function AsanaReviewModal({ draft, creating, error, onClose, onCreate }) {
+  const [name,  setName]  = useState(draft.name)
+  const [notes, setNotes] = useState(draft.notes)
+
+  return (
+    <Modal isOpen onClose={onClose} title="Registrar no Asana" maxWidth="max-w-2xl">
+      <Field label="Nome da tarefa">
+        <input value={name} onChange={e => setName(e.target.value)} style={S.input} />
+      </Field>
+      <Field label="Corpo">
+        <textarea
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          rows={16}
+          style={{ ...S.input, resize: 'vertical', fontFamily: 'monospace', fontSize: 12, lineHeight: 1.5 }}
+        />
+      </Field>
+      {error && (
+        <p style={{ fontSize: 12, color: '#b91c1c', marginTop: 10 }}>❌ {error}</p>
+      )}
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
+        <button onClick={onClose} disabled={creating} style={S.btnSecondary}>Cancelar</button>
+        <button
+          onClick={() => onCreate({ name: name.trim(), notes })}
+          disabled={creating || !name.trim()}
+          style={S.btnPrimary(creating || !name.trim())}
+        >
+          {creating ? 'Criando tarefa…' : 'Criar tarefa no Asana'}
         </button>
       </div>
-    )
-  }
+    </Modal>
+  )
+}
 
   const summary = {
     client:  data.client?.fantasy_name || data.client?.name || '',
