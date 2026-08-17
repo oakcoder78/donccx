@@ -22,6 +22,7 @@
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-005 | Tech Debt | Migrar health score de active_users para profissionais_versao | H | Backlog | — |
 | TD-006 | Refactor | Tabela sync_service_log para rastreamento independente por serviço | H | Done | `docs/superpowers/specs/2026-07-27-sync-service-log-design.md` |
+| TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 
 ---
 
@@ -104,6 +105,43 @@ O cockpit de profissionais precisa exibir "última sincronização da API DONC" 
 **Commits:** `f0a5ce2` (migration + EF), `8d7ecb5` (fix .catch), `9722bbc` (RLS + fallback), `606821b` (restore CSV), `6eb4a8f` (disable RLS + grant), `7c8c90a` (staleTime=0), `0683cd4` (docs), `a685e9f` (never-synchronized fallback + drop PUBLIC policy), `2f14ef5` (queryFn return data), `ff6581c` (months from sync_service_log + drop YYYY-MM label), `c77815c` (truncate nome), `3c252e1` (widen nome to 260px)
 **Linked SDD:** `docs/superpowers/specs/2026-07-27-sync-service-log-design.md`
 **Linked plan:** `docs/.plans/260727-2100-sync-service-log/`
+
+---
+
+## TD-007 — Investigar provisionamento legado do `oak-donc-reports`
+
+**Type:** Tech Debt
+**Priority:** L
+**Status:** Backlog
+**Origin:** 2026-08-16 — auditoria identificou seis registros em `clients` cujos IDs coincidem com `contrato_saas_id`. O código versionado do `operational-report-sync` não cria clientes, mas o serviço externo `oak-donc-reports` participa da coleta e pode ter criado esses dados em uma versão legada.
+**Linked SDD:** —
+**Related:** `client_id_reconciliation`, `docs/system/integration-points.md`
+
+### Context
+
+O fluxo externo é:
+
+```text
+oak-donc-reports / n8n → coleta e parser dos CSVs → operational-report-sync → client_operational_reports
+```
+
+Os registros suspeitos foram criados em lote, sem `audit_logs`, e alguns relatórios foram gravados neles logo depois. A origem exata da criação precisa ser confirmada no código e nos logs da VPS que executa `oak-donc-reports`.
+
+### Scope
+
+- Revisar o endpoint `/clients` e rotinas antigas de provisionamento.
+- Verificar se `saas_id` já foi usado como `clients.id` ou como fallback de criação.
+- Correlacionar logs da VPS com os horários dos seis registros.
+- Confirmar se o serviço ainda possui comportamento legado em produção.
+- Corrigir o serviço externo se ainda houver criação indevida.
+- Documentar o contrato correto: `saas_id` identifica `client_donc_instances`, nunca `clients.id`.
+
+### Acceptance
+
+- Origem dos seis registros classificada com evidência de código ou log.
+- Nenhum caminho externo cria cliente a partir de contrato SaaS.
+- Serviço externo trata `404`/`409` da Edge Function sem criar fallback indevido.
+- Contrato de integração e procedimento de recuperação documentados.
 
 ---
 
