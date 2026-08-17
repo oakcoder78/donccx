@@ -650,8 +650,18 @@ export default function BriefPublicPage() {
     }
   }, [token])
 
+  async function refreshCover() {
+    if (!session?.email) return
+    try {
+      const data = await callBrief({ action: 'validate', token, email: session.email })
+      const sess = { email: session.email, ...data }
+      sessionStorage.setItem(sessionKey, JSON.stringify(sess))
+      setSession(sess)
+    } catch { /* keep cached cover on failure */ }
+  }
+
   useEffect(() => {
-    if (stored) loadBrief(stored.email)
+    if (stored) { loadBrief(stored.email); refreshCover() }
   }, []) // eslint-disable-line
 
   async function handleValidate(e) {
@@ -859,7 +869,7 @@ export default function BriefPublicPage() {
         }}>
           {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-            <button onClick={() => { setCoverOverlay(true); setCoverLeaving(false) }} style={{ background: 'transparent', border: '1px solid rgba(15,34,58,0.08)', borderRadius: 8, padding: '6px 10px', fontSize: 11.5, fontWeight: 500, color: 'rgba(23,53,87,0.7)', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
+            <button onClick={() => { setCoverOverlay(true); setCoverLeaving(false); refreshCover() }} style={{ background: 'transparent', border: '1px solid rgba(15,34,58,0.08)', borderRadius: 8, padding: '6px 10px', fontSize: 11.5, fontWeight: 500, color: 'rgba(23,53,87,0.7)', display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>
               <Icons.FileQuestion size={11} />Capa
             </button>
             <div style={{ width: 40, height: 40, background: LIME, borderRadius: 9, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: 20, color: NAVY, letterSpacing: '-0.04em', boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.06)', flexShrink: 0 }}>d</div>
