@@ -152,11 +152,11 @@ Public page without Supabase JWT. Email-authenticated access:
 2. On success: shows **Cover Page** (fullscreen dark gradient) before loading the form
    - Cover data from `validate`: `client_name`, `client_logo_url` (public URL, company-logos bucket), `csm_name`, `operation_capabilities` (`[{name, color}]`), `sent_at` (falls back to `created_at`)
    - Cover card: 720px centered, dark navy gradient background with radial sky+lime overlays, gradient top bar, client logo 64×64px circular (fallback: initials on `#0c1626`, lime text), `dl` metadata grid, lime CTA button
-   - If session stored (page reload): cover skipped, goes straight to form
+   - If session stored (page reload): cover skipped, goes straight to form; `refreshCover()` re-runs `validate` on mount to keep cover data (e.g. `operation_capabilities`) in sync with project changes
 3. User clicks "Iniciar preenchimento" → calls `get` action, loads responses + attachments + client_questions + csm_notes
 4. Auto-save with 1500ms debounce per question (`save_response` action)
 5. Status triggers: `sent → in_progress` only for contacts, **not** for internal Hub users
-6. **Cover overlay** within form: "Capa" button in appbar re-shows cover on top of the app (fade transition via `coverLeaving` state). Completed state shows "Brief enviado" banner instead of CTA.
+6. **Cover overlay** within form: "Capa" button in appbar re-shows cover on top of the app (fade transition via `coverLeaving` state), calling `refreshCover()` so capabilities reflect live project state. Completed state shows "Brief enviado" banner instead of CTA.
 7. **Rail (280px):** section list with SVG circular progress rings (32×32, same geometry as BriefResponsesModal); section sub-label from `audience` field; X/Y badge; "Salvo automaticamente" pill; "Fale com a Donc" link → opens **QuestionDrawer** (slide panel inside rail)
 8. **Appbar:** 3-column grid — Left (Capa btn + DONC logo 40×40 lime + breadcrumb), Center (segmented progress bar per section), Right (Baixar PDF → window.print(), Help → toast)
 9. **Section header:** eyebrow + step dots (14×3px bars, sky_deep=current, green=done, muted=rest) + h1 (26px/700) + deliverable block (sky border-left 3px, sky soft bg) + persona pill (dashed, audience field)
