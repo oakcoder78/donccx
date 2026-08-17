@@ -114,6 +114,7 @@ Terse, technical. No articles, filler, pleasantries. Write artifacts to files â€
 - CI: GitHub Actions workflow triggers on PR/issue comments with `/oc` or `/opencode`.
 - Existing workspace may be dirty; do not revert unrelated user changes.
 - `.openclaude-profile.json` contains API credentials â€” do not print or commit.
+- Asana tasks follow the manual convention: name `[<Cliente>] <Assunto> [#<id_freshdesk>]`, body with all Freshdesk ticket fields + link. `AtendimentoPage` builds it via `buildAsanaDraft` and shows `AsanaReviewModal` (editable name+body) before creating. Config in `freshdesk_config` key `asana_config`.
 
 ## Backlog
 

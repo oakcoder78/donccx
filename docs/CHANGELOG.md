@@ -7,8 +7,11 @@
 - **New:** `asana-proxy` Edge Function — proxy para a API do Asana (`https://app.asana.com/api/1.0`) sem expor o PAT no frontend. Requer secret `ASANA_PAT` (conta bot dedicada). Rota via body `{ path, method, body, params }`, com auth JWT própria, rate limit e role check (admin/manager/analyst) — mesmo padrão do `freshdesk-proxy`.
 - **New:** `src/lib/asanaConfig.js` — helpers `getAsanaConfig`/`saveAsanaConfig` (persistem em `freshdesk_config` key `asana_config`), `listAsanaWorkspaces`, `listAsanaProjects`, `listAsanaSections`, `createAsanaTask`.
 - **New:** painel `SettingsAsana` em Configurações → Integrações → Asana (flag `asana`): toggle de ativação + seletores de workspace, projeto e seção (quadro).
-- **New:** opção "Registrar no Asana" na tela de sucesso de criação de ticket em `/atendimento` — cria tarefa no projeto/seção configurados com `[Ticket #N]` no nome, cliente + link do Freshdesk na descrição; grava `asana_task_gid`/`asana_task_url` em `whatsapp_tickets` e exibe link "Ver no Asana".
+- **New:** opção "Registrar no Asana" na tela de sucesso de criação de ticket em `/atendimento` — cria tarefa no projeto/seção configurados; grava `asana_task_gid`/`asana_task_url` em `whatsapp_tickets` e exibe link "Ver no Asana".
+- **New:** modal de revisão/edição da tarefa Asana (`AsanaReviewModal`) — antes de criar, o analista valida/altera o nome e o corpo da tarefa.
+- **Pattern:** padrão da task Asana segue o formato manual — nome `[<Cliente>] <Assunto> [#<id_freshdesk>]`; corpo com descrição + resposta registrada + todos os campos do ticket (link do Freshdesk, cliente, contato, e-mail, origem, tipo, categoria, prioridade, status, grupo, agente). Mapeamento no nome da task; sem custom fields do Asana.
 - **DB:** colunas `asana_task_gid` e `asana_task_url` em `whatsapp_tickets` (`20260817100000_add_asana_integration.sql`).
+- **Ops:** `asana_config` ativado em produção (`freshdesk_config`): workspace `1206742108937129`, projeto **Tickets Asana** (`1211665468744296`), seção **Aguardando Avaliação Técnica** (`1212767430279917`).
 
 ### Empresas — Busca por nome fantasia
 

@@ -87,7 +87,7 @@ Primary actions must be placed in the header using the `actions` property. Examp
 
 ## Integration Points
 - **Freshdesk** – credentials and routing settings stored via the `SettingsFreshdesk` component. The Mapping section is now displayed as a dedicated card inside the synchronization layout, replacing the previous tab-based navigation (Sync / Mapping).
-- **Asana** – integration settings stored via the `SettingsAsana` component (workspace/project/section selectors + enable toggle), backed by the `asana-proxy` Edge Function and the `ASANA_PAT` secret.
+- **Asana** – integration settings stored via the `SettingsAsana` component (workspace/project/section selectors + enable toggle), backed by the `asana-proxy` Edge Function and the `ASANA_PAT` secret. Task pattern follows manual convention — name `[<Cliente>] <Assunto> [#<id_freshdesk>]`, body with all Freshdesk ticket fields + link, reviewed/edited in `AsanaReviewModal` before creation. Active in production (project "Tickets Asana", section "Aguardando Avaliação Técnica").
 
 ### Freshdesk Mapping Refactor
 The previous tab-based structure in SettingsFreshdesk was replaced with a unified card-based layout. Benefits include:
