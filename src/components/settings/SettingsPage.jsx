@@ -6,6 +6,7 @@ import { SettingsStages } from './SettingsStages'
 import { SettingsUsers } from './SettingsUsers'
 import { SettingsLogs } from './SettingsLogs'
 import { SettingsFreshdesk } from './SettingsFreshdesk'
+import { SettingsAsana } from './SettingsAsana'
 import { SettingsAI } from './SettingsAI'
 import { SettingsDoncAPI } from './SettingsDoncAPI'
 import { SettingsSyncStatus } from './SettingsSyncStatus'
@@ -25,6 +26,7 @@ const SETTINGS_MENU_ICONS = {
   users: Icons.Users,
   logs: Icons.ClipboardList,
   freshdesk: Icons.Headphones,
+  asana: Icons.FolderKanban,
   donkie: Icons.Bot,
   'donc-api': Icons.Plug,
   features: Icons.Flag,
@@ -67,6 +69,7 @@ const MENU_GROUPS = [
   ]},
   { label: 'Integrações', items: [
     { key: 'freshdesk', label: 'Freshdesk', featureFlag: 'freshdesk' },
+    { key: 'asana',     label: 'Asana',     featureFlag: 'asana' },
     { key: 'donc-api',  label: 'API DONC',   managerOnly: true },
     { key: 'sync-status', label: 'Status da Sincronização', managerOnly: true },
   ]},
@@ -110,6 +113,7 @@ export default function SettingsPage() {
       case 'users':    return isEnabled('users', profile?.role) && <SettingsUsers />
       case 'logs':     return isEnabled('logs', profile?.role) && <SettingsLogs />
       case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
+      case 'asana':     return isEnabled('asana', profile?.role) && <SettingsAsana />
       case 'donkie':   return isEnabled('ai', profile?.role) && <SettingsAI />
       case 'donc-api': return isManager && <SettingsDoncAPI />
       case 'sync-status': return isManager && <SettingsSyncStatus />

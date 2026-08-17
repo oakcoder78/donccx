@@ -11,7 +11,7 @@ The Settings module is the administrative hub of the application. It centralises
 - **User management** – create, edit, delete users and assign roles.  
 - **Segment & stage management** – define business segments and workflow stages used throughout the platform.  
 - **Health‑Score configuration** – set thresholds, dimension weights and stage‑specific weighting rules.  
-- **Integration configuration** – store and edit credentials / settings for Freshdesk, DONC API, Donkie, and AI services.  
+- **Integration configuration** – store and edit credentials / settings for Freshdesk, Asana, DONC API, Donkie, and AI services.  
 - **Feature‑flag control** – enable or disable optional functionality at runtime.  
 - **Catalog configuration** – manage catalogue‑related data used by other parts of the app.  
 - **Audit‑log viewing** – expose system‑wide activity logs to privileged users.  
@@ -28,6 +28,7 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsUsers.jsx** | UI for admin‑level user management (list, edit, role assignment). |
 | **SettingsLogs.jsx** | UI for privileged audit‑log inspection. |
 | **SettingsFreshdesk.jsx** | UI for configuring Freshdesk integration credentials and options. |
+| **SettingsAsana.jsx** | UI for the Asana integration: enable toggle + workspace/project/section selectors, persisted in `freshdesk_config` key `asana_config`. |
 | **SettingsFaseTypes.jsx** | UI for managing onboarding phase types. |
 | **SettingsActivityTypes.jsx** | UI for managing onboarding activity types. |
 | **SettingsProjectTemplates.jsx** | UI for managing project templates with phases and activities. |
@@ -86,6 +87,7 @@ Primary actions must be placed in the header using the `actions` property. Examp
 
 ## Integration Points
 - **Freshdesk** – credentials and routing settings stored via the `SettingsFreshdesk` component. The Mapping section is now displayed as a dedicated card inside the synchronization layout, replacing the previous tab-based navigation (Sync / Mapping).
+- **Asana** – integration settings stored via the `SettingsAsana` component (workspace/project/section selectors + enable toggle), backed by the `asana-proxy` Edge Function and the `ASANA_PAT` secret.
 
 ### Freshdesk Mapping Refactor
 The previous tab-based structure in SettingsFreshdesk was replaced with a unified card-based layout. Benefits include:

@@ -2,6 +2,14 @@
 
 ## 2026-08-17
 
+### Asana — Registrar tickets de atendimento como tarefas
+
+- **New:** `asana-proxy` Edge Function — proxy para a API do Asana (`https://app.asana.com/api/1.0`) sem expor o PAT no frontend. Requer secret `ASANA_PAT` (conta bot dedicada). Rota via body `{ path, method, body, params }`, com auth JWT própria, rate limit e role check (admin/manager/analyst) — mesmo padrão do `freshdesk-proxy`.
+- **New:** `src/lib/asanaConfig.js` — helpers `getAsanaConfig`/`saveAsanaConfig` (persistem em `freshdesk_config` key `asana_config`), `listAsanaWorkspaces`, `listAsanaProjects`, `listAsanaSections`, `createAsanaTask`.
+- **New:** painel `SettingsAsana` em Configurações → Integrações → Asana (flag `asana`): toggle de ativação + seletores de workspace, projeto e seção (quadro).
+- **New:** opção "Registrar no Asana" na tela de sucesso de criação de ticket em `/atendimento` — cria tarefa no projeto/seção configurados com `[Ticket #N]` no nome, cliente + link do Freshdesk na descrição; grava `asana_task_gid`/`asana_task_url` em `whatsapp_tickets` e exibe link "Ver no Asana".
+- **DB:** colunas `asana_task_gid` e `asana_task_url` em `whatsapp_tickets` (`20260817100000_add_asana_integration.sql`).
+
 ### Empresas — Busca por nome fantasia
 
 - **Fix:** busca em `/empresas` agora casa com `name` (razão social) **ou** `fantasy_name`, via filtro OR ilike em `buildClientsQuery` (`src/hooks/useClients.js`) — antes só buscava razão social. Cobre empresas ativas e inativas.

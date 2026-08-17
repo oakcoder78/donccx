@@ -33,6 +33,7 @@ SUPABASE_SERVICE_ROLE_KEY # Local scripts only — never expose to frontend
 SUPABASE_ACCESS_TOKEN     # scripts/fix-supabase-urls.js (Management API) — .env.local only
 FRESHDESK_DOMAIN          # Local scripts + Edge Function
 FRESHDESK_API_KEY         # Local scripts + Edge Function
+ASANA_PAT                 # Edge Function (asana-proxy) — Personal Access Token de conta bot dedicada
 RESEND_API_KEY            # Edge Function (send-email)
 ANTHROPIC_API_KEY         # Edge Function (donkie-chat)
 GOOGLE_CLIENT_ID          # Edge Function (google-calendar-event) + frontend (VITE_GOOGLE_CLIENT_ID)
@@ -50,7 +51,7 @@ Centralized in `src/App.jsx`:
 - `AuthRedirect` — redirects active users away from login.
 - `AuthContext` (`src/contexts/AuthContext.jsx`) — single context provider for auth state.
 
-Feature flags: `useFeatureFlags` hook controls feature availability per role (e.g., `donkie`, `whatsapp_atendimento`, `settings_menu`, `api_donc`, `freshdesk`).
+Feature flags: `useFeatureFlags` hook controls feature availability per role (e.g., `donkie`, `whatsapp_atendimento`, `settings_menu`, `api_donc`, `freshdesk`, `asana`).
 
 ## Supabase & Backend
 

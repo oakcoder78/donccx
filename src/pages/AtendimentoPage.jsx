@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { analyzeWhatsApp } from '../lib/openrouterService'
 import { getFreshdeskConfig } from '../lib/freshdeskConfig'
+import { getAsanaConfig, createAsanaTask } from '../lib/asanaConfig'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -803,10 +804,15 @@ function Step3({ data, onChange, onBack, onSuccess }) {
   const [regenerating,  setRegenerating]  = useState(false)
   const [createdTicket, setCreatedTicket] = useState(null)
   const [ticketError,   setTicketError]   = useState(null)
+  const [asanaEnabled,  setAsanaEnabled]  = useState(false)
+  const [asanaCreating, setAsanaCreating] = useState(false)
+  const [asanaTask,     setAsanaTask]     = useState(null)
+  const [asanaError,    setAsanaError]    = useState(null)
 
   // Refs para ler/atualizar o form que vive no Step3Fields (estado local isolado)
   const formRef  = useRef({})
   const patchRef = useRef(null)
+  const whatsappTicketIdRef = useRef(null)
 
   const ai = data.aiResult || {}
 
@@ -832,6 +838,12 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       setGroups(Array.isArray(g) ? g : [])
       setAgents(Array.isArray(a) ? a : [])
     }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    getAsanaConfig()
+      .then(cfg => setAsanaEnabled(cfg?.enabled === true))
+      .catch(() => setAsanaEnabled(false))
   }, [])
 
   async function handleCreate() {
@@ -911,7 +923,8 @@ function Step3({ data, onChange, onBack, onSuccess }) {
             ref_month:           refMonth,
           }
           if (data.contact?.id) ticketRow.contact_id = data.contact.id
-          await supabase.from('whatsapp_tickets').insert(ticketRow)
+          const { data: inserted } = await supabase.from('whatsapp_tickets').insert(ticketRow).select('id')
+          if (inserted?.[0]?.id) whatsappTicketIdRef.current = inserted[0].id
         }
       } catch (_) {
         // Falha silenciosa — não bloqueia o fluxo principal
@@ -922,6 +935,52 @@ function Step3({ data, onChange, onBack, onSuccess }) {
       setTicketError(e.message || 'Erro ao criar ticket')
     } finally {
       setCreating(false)
+    }
+  }
+
+  // ── Cria tarefa no Asana para o ticket recém-criado ────────────────────────
+  async function handleCreateAsana() {
+    if (!createdTicket?.id) return
+    setAsanaCreating(true)
+    setAsanaError(null)
+    try {
+      const cfg = await getAsanaConfig()
+      if (!cfg?.enabled || !cfg?.project_gid) {
+        setAsanaError('Integração Asana não configurada. Peça ao administrador para configurá-la em Configurações.')
+        return
+      }
+
+      const form       = formRef.current
+      const clientName = data.client?.fantasy_name || data.client?.name || ''
+      const ticketUrl  = `https://donc.freshdesk.com/a/tickets/${createdTicket.id}`
+
+      const payload = {
+        name:      `[Ticket #${createdTicket.id}] ${form.subject?.trim() || 'Atendimento WhatsApp'}`,
+        notes:     `Ticket Freshdesk #${createdTicket.id}\nCliente: ${clientName}\nLink: ${ticketUrl}\n\n${form.description?.trim() || ''}`.trim(),
+        projects:  [cfg.project_gid],
+        assignee:  'me',
+      }
+      if (cfg.section_gid) payload.memberships = [{ project: cfg.project_gid, section: cfg.section_gid }]
+
+      const task = await createAsanaTask(payload)
+      if (!task?.gid) throw new Error('Asana não retornou a tarefa criada')
+
+      setAsanaTask(task)
+
+      if (whatsappTicketIdRef.current) {
+        supabase
+          .from('whatsapp_tickets')
+          .update({ asana_task_gid: task.gid, asana_task_url: task.permalink_url || null })
+          .eq('id', whatsappTicketIdRef.current)
+          .then(() => {})
+          .catch(() => {})
+      }
+
+      toast.success('Tarefa criada no Asana')
+    } catch (e) {
+      setAsanaError(e.message || 'Erro ao criar tarefa no Asana')
+    } finally {
+      setAsanaCreating(false)
     }
   }
 
@@ -966,6 +1025,48 @@ function Step3({ data, onChange, onBack, onSuccess }) {
         {createdTicket.subject && (
           <p style={{ fontSize: 13, color: '#888780', marginBottom: 28, fontStyle: 'italic' }}>"{createdTicket.subject}"</p>
         )}
+
+        {asanaEnabled && (
+          <div style={{ marginBottom: 24 }}>
+            {asanaTask ? (
+              <div style={{ fontSize: 13, color: '#888780', marginBottom: 16 }}>
+                <p style={{ marginBottom: 8 }}>Tarefa criada no Asana.</p>
+                {asanaTask.permalink_url && (
+                  <a
+                    href={asanaTask.permalink_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#59c2ed', fontWeight: 600, textDecoration: 'underline' }}
+                  >
+                    Ver no Asana
+                  </a>
+                )}
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: 13, color: '#888780', marginBottom: 12 }}>
+                  Deseja registrar este atendimento também no Asana?
+                </p>
+                <button
+                  onClick={handleCreateAsana}
+                  disabled={asanaCreating}
+                  style={{
+                    padding: '10px 24px', borderRadius: 7, fontSize: 14, fontWeight: 600, border: 'none',
+                    cursor: asanaCreating ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
+                    backgroundColor: asanaCreating ? '#e8e7e3' : '#173557',
+                    color: asanaCreating ? '#888780' : '#fff',
+                  }}
+                >
+                  {asanaCreating ? 'Registrando no Asana…' : 'Registrar no Asana'}
+                </button>
+                {asanaError && (
+                  <p style={{ fontSize: 12, color: '#b91c1c', marginTop: 10 }}>❌ {asanaError}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         <button onClick={onSuccess} style={{ ...S.btnPrimary(false), fontSize: 14 }}>
           Registrar novo atendimento
         </button>
