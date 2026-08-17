@@ -14,6 +14,14 @@
 - **UX:** Single unified toast replaces duplicate toasts for save + Google Calendar sync.
 - **UX:** `normalizeAttendees` — trims, deduplicates, and validates emails silently; omits empty arrays from API payload.
 
+### DONC Integration — Legacy SaaS ID Reconciliation
+
+- **Audit:** Identified six legacy `clients` rows whose IDs match external `contrato_saas_id` values. The canonical ownership is recorded in `client_id_reconciliation`; no legacy row was deleted.
+- **Fix:** `operational-report-sync` now validates positive SaaS IDs and valid `YYYY-MM` periods, rejects ambiguous contract mappings with HTTP 409, and no longer uses arbitrary `.limit(1)` resolution.
+- **Guard:** `client_donc_instances.contrato_saas_id` is now globally unique and must be positive, preventing the same external contract from being assigned to multiple CRM clients.
+- **Validation:** Settings screens now reject non-positive or non-integer contract IDs before saving.
+- **Safety:** Historical `client_operational_reports` were not copied automatically because source and canonical periods contain different data; migration remains pending review rather than silently overwriting metrics.
+
 ## 2026-08-05
 
 ### Dashboard — OS/Users Monthly Variation Cards

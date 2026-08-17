@@ -58,24 +58,27 @@ serve(async (req) => {
 
     const { saas_id, period, data_os, data_problemas, data_produtividade } = body
 
-    if (!saas_id || !period) {
+    if (!Number.isInteger(saas_id) || saas_id <= 0 || !period) {
       return json({ ok: false, error: 'saas_id and period are required' }, 400)
     }
 
-    if (!/^\d{4}-\d{2}$/.test(period)) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(period)) {
       return json({ ok: false, error: `Invalid period format: "${period}". Use YYYY-MM.` }, 400)
     }
 
     // ── Resolver client_id a partir do saas_id ───────────────────────────────
     const { data: instances, error: instErr } = await admin
       .from('client_donc_instances')
-      .select('client_id')
+      .select('id, client_id, contrato_saas_id, label')
       .eq('contrato_saas_id', saas_id)
-      .limit(1)
 
     if (instErr) throw new Error(`Error looking up instance: ${instErr.message}`)
     if (!instances || instances.length === 0) {
       return json({ ok: false, error: `Client not found for saas_id ${saas_id}` }, 404)
+    }
+    if (instances.length > 1) {
+      console.error(`[operational-report-sync] ambiguous saas_id=${saas_id}`, instances)
+      return json({ ok: false, error: `Multiple clients found for saas_id ${saas_id}; mapping must be corrected` }, 409)
     }
 
     const clientId = instances[0].client_id

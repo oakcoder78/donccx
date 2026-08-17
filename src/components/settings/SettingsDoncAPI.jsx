@@ -56,11 +56,15 @@ function InstanceCard({ inst, onSave, onRemove }) {
 
   async function handleSave() {
     if (!form.label.trim())           { toast.error('Label obrigatório');           return }
-    if (!form.contrato_saas_id)       { toast.error('Contrato SaaS ID obrigatório'); return }
+    const contratoSaasId = Number(form.contrato_saas_id)
+    if (!Number.isInteger(contratoSaasId) || contratoSaasId <= 0) {
+      toast.error('Contrato SaaS ID deve ser um número inteiro positivo')
+      return
+    }
     const w = parseFloat(form.weight)
     if (isNaN(w) || w < 0 || w > 1)  { toast.error('Weight deve ser entre 0 e 1'); return }
     setSaving(true)
-    await onSave({ ...inst, ...form, contrato_saas_id: Number(form.contrato_saas_id), weight: w })
+    await onSave({ ...inst, ...form, contrato_saas_id: contratoSaasId, weight: w })
     setSaving(false)
   }
 

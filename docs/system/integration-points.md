@@ -35,7 +35,10 @@ This document lists external integration points in the application, indicating w
 - **Purpose:** Receive monthly operational data synced from DONC webhub (OS, problemas, produtividade) and upsert into `client_operational_reports`.
 - **Dependent modules:** Edge Function `operational-report-sync` decodes the payload, resolves `client_id` via `client_donc_instances.contrato_saas_id`, and upserts into `client_operational_reports`.
 - **Communication location:** POST → `https://etfeqblaeuhaobefxilp.supabase.co/functions/v1/operational-report-sync` with header `x-webhook-secret: <SYNC_WEBHOOK_SECRET>` (dedicated webhook secret; the service_role key is no longer accepted). Body: `{ saas_id, period, data_os, data_problemas, data_produtividade }`.
+- **Identity rule:** `saas_id` is an external contract identifier, never a `clients.id`. Resolution must return exactly one `client_donc_instances` row; missing or ambiguous mappings are rejected instead of selecting an arbitrary row.
+- **Legacy reconciliation:** `client_id_reconciliation` tracks historical rows created from SaaS IDs and their canonical CRM client. Legacy rows remain preserved until their dependent data is reviewed and migrated.
 - **Migration:** `20260528000000_client_operational_reports.sql`
+- **Reconciliation migration:** `20260816210000_reconcile_legacy_saas_client_ids.sql`
 
 ---
 
