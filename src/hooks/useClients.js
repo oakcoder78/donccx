@@ -15,7 +15,7 @@ function buildClientsQuery(filters) {
   let q = supabase.from('clients').select(CLIENT_SELECT).order('name')
   if (filters.csm_id)   q = q.eq('csm_id', filters.csm_id)
   if (filters.stage_id) q = q.eq('stage_id', filters.stage_id)
-  if (filters.search)   q = q.ilike('name', `%${filters.search}%`)
+  if (filters.search)   q = q.or(`name.ilike.%${filters.search}%,fantasy_name.ilike.%${filters.search}%`)
   if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
   if (filters.lifecycle_stage) q = q.eq('lifecycle_stage', filters.lifecycle_stage)
   return q
