@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 
 export function useFeatureFlags() {
-  const { data: flags = [] } = useQuery({
+  const { data: flags = [], isPending } = useQuery({
     queryKey: ['feature_flags'],
     queryFn: async () => {
       const { data } = await supabase.from('feature_flags').select('*')
@@ -22,5 +22,5 @@ export function useFeatureFlags() {
     return (flag.allowed_roles ?? []).includes(userRole)
   }
 
-  return { flags, isEnabled }
+  return { flags, isEnabled, loading: isPending }
 }

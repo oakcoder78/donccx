@@ -77,8 +77,8 @@ function AppLayout({ googleOAuthSignal }) {
 function PrivateRoute() {
   const { user, profile, loading } = useAuth()
   const location = useLocation()
-  const { isEnabled } = useFeatureFlags()
-  if (loading) return null
+  const { isEnabled, loading: flagsLoading } = useFeatureFlags()
+  if (loading || flagsLoading) return null
   if (!user) return <Navigate to="/login" replace />
 
   if (!profile) return <Navigate to="/primeiro-acesso" replace />
@@ -106,7 +106,8 @@ function PrivateRoute() {
 
 function AdminRoute() {
   const { profile } = useAuth()
-  const { isEnabled } = useFeatureFlags()
+  const { isEnabled, loading: flagsLoading } = useFeatureFlags()
+  if (flagsLoading) return null
   if (profile?.role !== 'admin' && profile?.role !== 'manager') return <Navigate to="/dashboard" replace />
   if (profile?.role === 'manager') {
     if (!isEnabled('settings_menu', profile?.role)) return <Navigate to="/dashboard" replace />

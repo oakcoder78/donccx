@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-18
+
+### Brief público — Erro ao salvar respostas (HTTP 400)
+
+- **Fix:** validação zod do `brief-public` (introduzida na remediação de segurança Phases 0-3, commit `c21a03a`) exigia os campos aninhados em `payload`, mas o frontend (`BriefPublicPage`, `saveBriefAttachment`) envia tudo no nível raiz — o contrato original. Resultado: toda ação de escrita falhava com 400 "Requisição inválida"; apenas `validate`/`get`/`complete`/`get_client_questions` (sem `payload` no schema) funcionavam, então a página abria mas as respostas nunca eram salvas.
+- **Fix:** o schema agora valida os campos planos no topo, alinhado ao contrato do frontend e aos tipos reais do banco — `question_id` é `text` (ids do tipo `q_...`) e `attachment_id` é `uuid`. `question_id` é `nullable` em `submit_question`/`upload_attachment` (dúvida geral envia `null`); `response_text` aceita string vazia (debounce salva também campo limpo). Handlers inalterados.
+- **Ops:** redeploy de `brief-public` (v47) via `supabase functions deploy brief-public`; sem mudanças no frontend. Validado end-to-end (save, dúvidas, anexos upload/preview/delete) com cleanup dos dados de teste.
+
+### Navegação — Refresh em `/atendimento` caindo em `/module-unavailable`
+
+- **Fix:** corrida entre o carregamento assíncrono das feature flags e as decisões de roteamento. No refresh, o cache do TanStack Query é zerado e `isEnabled()` retorna `false` enquanto as flags carregam (comportamento "false por segurança" do hook); `PrivateRoute` então redirecionava `/atendimento` → `/module-unavailable`. Para role `analyst` a linha de forçar `/atendimento` autocorrigia; para as demais roles o usuário ficava preso até clicar no menu.
+- **Fix:** `useFeatureFlags` agora expõe `loading` (`isPending` do TanStack Query v5); `PrivateRoute` e `AdminRoute` aguardam as flags carregarem antes de avaliar redirects — mesmo padrão já usado com `useAuth().loading`. Corrige também a mesma corrida para managers em `/configuracoes`.
+- **Files:** `src/hooks/useFeatureFlags.js`, `src/App.jsx`. Só frontend; Vercel deploya no push.
+
 ## 2026-08-17
 
 ### Asana — Registrar tickets de atendimento como tarefas
