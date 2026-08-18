@@ -11,41 +11,31 @@ const BriefPublicSchema = z.object({
   z.object({ action: z.literal('get') }),
   z.object({
     action: z.literal('submit_question'),
-    payload: z.object({
-      question_id: z.number().int().positive().optional(),
-      note: z.string().min(1),
-    }),
+    question_id: z.string().min(1).nullable(),
+    note: z.string().min(1),
   }),
   z.object({ action: z.literal('get_client_questions') }),
   z.object({
     action: z.literal('save_response'),
-    payload: z.object({
-      question_id: z.number().int().positive(),
-      response_text: z.string().min(1),
-    }),
+    question_id: z.string().min(1),
+    response_text: z.string(),
   }),
   z.object({ action: z.literal('complete') }),
   z.object({
     action: z.literal('get_attachment_urls'),
-    payload: z.object({
-      paths: z.array(z.string().min(1)).min(1),
-    }),
+    paths: z.array(z.string().min(1)).min(1),
   }),
   z.object({
     action: z.literal('upload_attachment'),
-    payload: z.object({
-      question_id: z.number().int().positive().optional(),
-      file_name: z.string().min(1),
-      file_size: z.number().positive().max(10 * 1024 * 1024),
-      file_type: z.string().min(1),
-      data_base64: z.string().min(1),
-    }),
+    question_id: z.string().min(1).nullable(),
+    file_name: z.string().min(1),
+    file_size: z.number().positive().max(10 * 1024 * 1024),
+    file_type: z.string().min(1),
+    data_base64: z.string().min(1),
   }),
   z.object({
     action: z.literal('delete_attachment'),
-    payload: z.object({
-      attachment_id: z.number().int().positive(),
-    }),
+    attachment_id: z.string().uuid(),
   }),
 ]))
 
