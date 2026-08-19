@@ -68,7 +68,8 @@ function OverviewSection({ preflight, onTabChange }) {
   const totalCount    = preflight?.totalCount ?? 0
   const pendingCount  = preflight?.pendingCount ?? 0
   const blockedCount  = preflight?.blockedCount ?? 0
-  const lastSync      = preflight?.lastConfigSync
+  const lastSync      = preflight?.lastSyncStartedAt
+  const lastSyncLabel = preflight?.lastSyncLabel ?? 'Última sync'
 
   const state = (() => {
     if (!preflight) return { label: 'Carregando…', variant: 'slate', icon: Icons.Clock }
@@ -93,7 +94,7 @@ function OverviewSection({ preflight, onTabChange }) {
         <StateIcon size={16} className={state.variant === 'green' ? 'text-green-600' : state.variant === 'amber' ? 'text-amber-600' : state.variant === 'red' ? 'text-red-600' : 'text-text-tertiary'} />
         <Badge variant={state.variant}>{state.label}</Badge>
         {lastSync && (
-          <span className="text-xs text-text-tertiary">Última config: {formatDateTimeBR(lastSync)}</span>
+          <span className="text-xs text-text-tertiary">{lastSyncLabel}: {formatDateTimeBR(lastSync)}</span>
         )}
       </div>
 
@@ -112,7 +113,7 @@ function OverviewSection({ preflight, onTabChange }) {
         </div>
         <div className="bg-bg-secondary rounded-lg p-3">
           <p className="text-xs text-text-tertiary">Última sync</p>
-          <p className="text-xs font-medium text-text-primary mt-1">{preflight?.lastDataSync ? formatDateTimeBR(preflight.lastDataSync) : '—'}</p>
+          <p className="text-xs font-medium text-text-primary mt-1">{preflight?.lastSyncStartedAt ? formatDateTimeBR(preflight.lastSyncStartedAt) : '—'}</p>
         </div>
       </div>
 
@@ -133,7 +134,8 @@ function OverviewSection({ preflight, onTabChange }) {
 }
 
 // ── Preflight: checklist persistente sem escrita ──────────────────────────────
-function PreflightSection({ checks, loading }) {
+function PreflightSection({ checks, loading, onTabChange }) {
+  const tabForCheck = { connection: 'import', metadata: 'import', mapping: 'mapping', concurrency: 'import', pending: 'review' }
   if (loading) return <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4"><PageSpinner /></div>
   if (!checks || checks.length === 0) return null
 
@@ -142,21 +144,32 @@ function PreflightSection({ checks, loading }) {
       <div className="flex items-center gap-2">
         <Icons.CheckSquare size={16} className="text-donc-navy" />
         <p className="text-sm font-medium text-text-primary">Pré-voo</p>
-        <span className="text-xs text-text-tertiary">— verificações antes de importar</span>
+        <span className="text-xs text-text-tertiary">— verificações antes de importar (clique no blocker para resolver)</span>
       </div>
       <div className="space-y-2">
         {checks.map(check => {
           const Icon = check.status === 'pass' ? Icons.CheckCircle : check.status === 'warning' ? Icons.AlertTriangle : Icons.XCircle
           const color = check.status === 'pass' ? 'text-green-600' : check.status === 'warning' ? 'text-amber-600' : 'text-red-600'
           const bg = check.status === 'pass' ? 'bg-green-50 border-green-200' : check.status === 'warning' ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+          const clickable = check.status !== 'pass' && !!tabForCheck[check.id] && !!onTabChange
           return (
-            <div key={check.id} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 ${bg}`}>
+            <div
+              key={check.id}
+              onClick={clickable ? () => onTabChange(tabForCheck[check.id]) : undefined}
+              className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 ${bg} ${clickable ? 'cursor-pointer hover:brightness-95 hover:shadow-sm' : ''}`}
+              role={clickable ? 'button' : undefined}
+              tabIndex={clickable ? 0 : undefined}
+              onKeyDown={clickable ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTabChange(tabForCheck[check.id]) } } : undefined}
+            >
               <Icon size={16} className={`${color} mt-0.5 shrink-0`} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text-primary">{check.label}</p>
                 <p className="text-xs text-text-secondary mt-0.5">{check.detail}</p>
                 {check.action && (
-                  <p className="text-xs text-text-tertiary mt-1">Ação: {check.action}</p>
+                  <p className="text-xs mt-1 flex items-center gap-1">
+                    <span className="text-text-tertiary">Ação: {check.action}</span>
+                    {clickable && <Icons.ChevronRight size={12} className="text-text-tertiary" />}
+                  </p>
                 )}
               </div>
               {check.count != null && (
@@ -333,6 +346,8 @@ function usePreflight() {
       pendingCount: pending ?? 0,
       lastConfigSync: configData?.last_sync?.synced_at ?? null,
       lastDataSync: configData?.last_data_sync?.synced_at ?? null,
+      lastSyncStartedAt: lastRun?.started_at ?? configData?.last_data_sync?.synced_at ?? null,
+      lastSyncLabel: lastRun?.started_at ? 'Última execução' : 'Última sync',
       notConfigured,
       failed,
     },
@@ -397,6 +412,34 @@ function MappingSection() {
     toast('Sugestão adiada — permanece pendente', { icon: '⏳' })
   }
 
+  async function resolveBlocked(clientId, keepId) {
+    const client = clients.find(c => c.id === clientId)
+    const before = { freshdesk_company_id: client?.freshdesk_company_id, freshdesk_company_ids: client?.freshdesk_company_ids }
+    setSaving(p => ({ ...p, [clientId]: true }))
+    const { error } = await supabase
+      .from('clients')
+      .update({ freshdesk_company_id: keepId, freshdesk_company_ids: [keepId] })
+      .eq('id', clientId)
+    if (error) {
+      toast.error(friendlyError(error.message))
+    } else {
+      setClients(p => p.map(c => c.id === clientId ? { ...c, freshdesk_company_id: keepId, freshdesk_company_ids: [keepId] } : c))
+      toast.success(`Mapeamento corrigido para ${keepId}`)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from('audit_logs').insert({
+          user_id: user?.id ?? null,
+          user_name: user?.email ?? null,
+          action: 'freshdesk_blocked_resolved',
+          entity_type: 'client',
+          entity_id: String(clientId),
+          details: { before, after: { freshdesk_company_id: keepId, freshdesk_company_ids: [keepId] }, kept_id: keepId },
+        })
+      } catch { /* best-effort */ }
+    }
+    setSaving(p => { const n = { ...p }; delete n[clientId]; return n })
+  }
+
   async function saveClientMapping(clientId) {
     const raw = edits[clientId]
     const value = raw === '' ? null : Number(raw)
@@ -406,8 +449,8 @@ function MappingSection() {
     }
     // Bloqueio: múltiplos IDs como estado — não permitir salvar sem classificação
     const client = clients.find(c => c.id === clientId)
-    if (client?.freshdesk_company_ids?.length > 1 && value) {
-      toast.error('Cliente com múltiplos IDs requer classificação (duplicidade vs separação). Use a Fase 3 para mapear por instância.')
+    if (client?.freshdesk_company_ids?.length > 1) {
+      toast.error('Cliente bloqueado — use os botões "Manter" para classificar o ID correto.')
       return
     }
     const before = client?.freshdesk_company_id ?? null
@@ -485,7 +528,22 @@ function MappingSection() {
                     </td>
                     <td className="px-3 py-2.5">
                       {isBlocked ? (
-                        <span className="text-xs text-amber-700" title={multiIds.join(', ')}>{multiIds.join(', ')} · requer classificação</span>
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-amber-700">{multiIds.join(', ')} · requer classificação</span>
+                          <div className="flex gap-1 flex-wrap">
+                            {multiIds.map(id => (
+                              <button
+                                key={id}
+                                onClick={() => resolveBlocked(c.id, id)}
+                                disabled={saving[c.id]}
+                                className="text-xs px-2 py-1 rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-40"
+                                title={`Manter apenas ${id}`}
+                              >
+                                Manter {id}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ) : (
                         <input
                           type="number"
@@ -814,7 +872,7 @@ export function SettingsFreshdesk() {
 
       <div id="panel-preflight" role="tabpanel" aria-labelledby="tab-preflight" hidden={activeTab !== 'preflight'}>
         <div className="space-y-4">
-          <PreflightSection checks={checks} loading={preflightLoading} />
+          <PreflightSection checks={checks} loading={preflightLoading} onTabChange={setActiveTab} />
         </div>
       </div>
 
