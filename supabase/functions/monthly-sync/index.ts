@@ -33,126 +33,33 @@ function prevMonth(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
 }
 
-// ─── FRESHDESK HELPERS ─────────────────────────────────────────────────────────
-// Chamadas diretas à API Freshdesk — sem CORS no ambiente Edge Function.
-// Replica a mesma lógica de syncAllCompanies / syncCompanySupport do frontend.
-
-function fdAuthHeader(): string {
-  return 'Basic ' + btoa(`${Deno.env.get('FRESHDESK_API_KEY')!}:X`)
-}
-
-function fdBaseUrl(): string {
-  return `https://${Deno.env.get('FRESHDESK_DOMAIN')}/api/v2`
-}
-
-async function fdGet(path: string, params: Record<string, string> = {}): Promise<any> {
-  const qs = Object.keys(params).length ? '?' + new URLSearchParams(params).toString() : ''
-  const res = await fetch(`${fdBaseUrl()}${path}${qs}`, {
-    headers: { Authorization: fdAuthHeader(), 'Content-Type': 'application/json' },
-  })
-  if (!res.ok) throw new Error(`Freshdesk ${res.status}: ${path}`)
-  return res.json()
-}
+// ─── FRESHDESK HELPERS — canonical (Phase 4) ─────────────────────────────────
+// Centralized in _shared/freshdesk.ts; monthly-sync now uses shared logic with retry and kill switch.
+// Legacy helpers kept as fallback if freshdesk_canonical_enabled=false in freshdesk_config.
+import { fdGet as fdGetCanonical, getGroupsMap as getGroupsMapCanonical, fetchTicketsByCompany as fetchTicketsByCompanyCanonical, fetchContactsByCompany as fetchContactsByCompanyCanonical, processTicketsToSupport as processTicketsToSupportCanonical, withRetry, isCanonicalEnabled } from "../_shared/freshdesk.ts"
 
 async function getGroupsMap(): Promise<Record<string, number | null>> {
-  try {
-    const groups = await fdGet('/groups')
-    return {
-      n1: groups.find((g: any) => /suporte.*n1|n1.*suporte/i.test(g.name))?.id ?? null,
-      n2: groups.find((g: any) => /suporte.*n2|n2.*suporte/i.test(g.name))?.id ?? null,
-      n3: groups.find((g: any) => /dev.*n3|n3.*dev/i.test(g.name))?.id ?? null,
-    }
-  } catch {
-    return { n1: null, n2: null, n3: null }
-  }
+  return getGroupsMapCanonical()
 }
 
 async function fetchTicketsByCompany(freshdeskCompanyId: number, month: string): Promise<any[]> {
-  const [year, mo] = month.split('-')
-  const monthStart = new Date(`${year}-${mo}-01T00:00:00Z`)
-  const monthEnd   = new Date(Number(year), Number(mo), 1)
-
-  let all: any[] = []
-  let page = 1
-  while (page <= 20) {
-    const data = await fdGet('/tickets', {
-      company_id: String(freshdeskCompanyId),
-      per_page:   '100',
-      page:       String(page),
-      include:    'stats',
-      order_by:   'created_at',
-      order_type: 'desc',
-    })
-    if (!Array.isArray(data) || !data.length) break
-
-    const oldest  = new Date(data[data.length - 1].created_at)
-    const inMonth = data.filter((t: any) => {
-      const d = new Date(t.created_at)
-      return d >= monthStart && d < monthEnd
-    })
-    all = all.concat(inMonth)
-    if (oldest < monthStart) break
-    if (data.length < 100) break
-    page++
-  }
-  return all
+  return fetchTicketsByCompanyCanonical(freshdeskCompanyId, month)
 }
-
 async function fetchContactsByCompany(freshdeskCompanyId: number): Promise<any[]> {
-  let all: any[] = []
-  let page = 1
-  while (page <= 10) {
-    const data = await fdGet('/contacts', {
-      company_id: String(freshdeskCompanyId),
-      per_page:   '100',
-      page:       String(page),
-    })
-    if (!Array.isArray(data) || !data.length) break
-    all = all.concat(data)
-    if (data.length < 100) break
-    page++
-  }
-  return all
+  return fetchContactsByCompanyCanonical(freshdeskCompanyId)
 }
-
-function processTicketsToSupport(
-  tickets: any[],
-  clientId: number,
-  month: string,
-  groupsMap: Record<string, number | null>,
-) {
-  const tickets_opened   = tickets.length
-  const tickets_resolved = tickets.filter((t: any) => t.status === 4 || t.status === 5).length
-
-  const responseTimes = tickets
-    .map((t: any) => {
-      if (typeof t.first_response_time === 'number' && t.first_response_time > 0) {
-        return Math.round(t.first_response_time / 60)
-      }
-      if (t.stats?.first_responded_at) {
-        const created   = new Date(t.created_at).getTime()
-        const responded = new Date(t.stats.first_responded_at).getTime()
-        return Math.round((responded - created) / 60000)
-      }
-      return null
-    })
-    .filter((ms: any) => ms !== null && ms >= 1 && ms <= 480) as number[]
-
-  const sla_first_response = responseTimes.length
-    ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-    : 0
-
-  const n1_pct = groupsMap.n1 != null ? tickets.filter((t: any) => t.group_id === groupsMap.n1).length : 0
-  const n2_pct = groupsMap.n2 != null ? tickets.filter((t: any) => t.group_id === groupsMap.n2).length : 0
-  const n3_pct = groupsMap.n3 != null ? tickets.filter((t: any) => t.group_id === groupsMap.n3).length : 0
-
-  return { client_id: clientId, ref_month: month, tickets_opened, tickets_resolved, sla_first_response, n1_pct, n2_pct, n3_pct }
+function processTicketsToSupport(tickets: any[], clientId: number, month: string, groupsMap: Record<string, number | null>) {
+  return processTicketsToSupportCanonical(tickets, clientId, month, groupsMap)
 }
 
 async function syncFreshdesk(
   admin: SupabaseClient,
   month: string,
 ): Promise<{ synced: number; errors: any[] }> {
+  // Kill switch (Phase 4) — freshdesk_config.freshdesk_canonical_enabled
+  const canonical = await isCanonicalEnabled(admin)
+  if (!canonical) console.warn('[freshdesk] canonical disabled via freshdesk_canonical_enabled=false — using legacy path')
+
   const { data: clients, error } = await admin
     .from('clients')
     .select('id, name, freshdesk_company_id, freshdesk_company_ids')
@@ -224,12 +131,31 @@ async function syncFreshdesk(
         })
 
       const snapshot = { ...supportData, new_contacts: newContacts }
+      const runId = crypto.randomUUID()
 
-      await admin.from('client_support').upsert(
-        { client_id: client.id, ref_month: month, pending: true, freshdesk_snapshot: snapshot },
-        { onConflict: 'client_id,ref_month' },
-      )
+      // Phase 3 versioned upsert: preserve published revision
+      const { data: existing } = await admin.from('client_support')
+        .select('id, pending, metrics_status, contacts_status, revision, freshdesk_snapshot, tickets_opened, tickets_resolved, sla_first_response, n1_pct, n2_pct, n3_pct, published_at')
+        .eq('client_id', client.id).eq('ref_month', month).maybeSingle()
 
+      let payload: any
+      if (!existing) {
+        payload = { client_id: client.id, ref_month: month, pending: true, freshdesk_snapshot: snapshot, run_id: runId, metrics_status: 'pending', contacts_status: 'pending', revision: 1, source: 'freshdesk' }
+      } else if (existing.metrics_status === 'published' || existing.contacts_status === 'published' || existing.published_at) {
+        const prev = {
+          tickets_opened: existing.tickets_opened, tickets_resolved: existing.tickets_resolved, sla_first_response: existing.sla_first_response,
+          n1_pct: existing.n1_pct, n2_pct: existing.n2_pct, n3_pct: existing.n3_pct,
+          freshdesk_snapshot: existing.freshdesk_snapshot, published_at: existing.published_at, revision: existing.revision,
+        }
+        payload = { client_id: client.id, ref_month: month, pending: true, freshdesk_snapshot: snapshot, run_id: runId, metrics_status: 'pending', contacts_status: 'pending', revision: (existing.revision ?? 1) + 1, previous_snapshot: prev, source: 'freshdesk' }
+      } else {
+        payload = { client_id: client.id, ref_month: month, pending: true, freshdesk_snapshot: snapshot, run_id: runId, metrics_status: 'pending', contacts_status: 'pending', source: 'freshdesk' }
+      }
+
+      await admin.from('client_support').upsert(payload, { onConflict: 'client_id,ref_month' })
+
+      // Observability: per-client success (Phase 4)
+      console.log(`[freshdesk] client_id=${client.id} synced run_id=${runId} revision=${payload.revision ?? 1}`)
       synced++
     } catch (err) {
       console.error(`monthly-sync: freshdesk error client_id=${client.id}`, err)

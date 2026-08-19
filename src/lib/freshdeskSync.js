@@ -18,26 +18,42 @@ import { supabase } from './supabaseClient'
 const SUPABASE_URL      = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// ── Proxy helper ──────────────────────────────────────────────────────────────
-async function fdGet(path, params = {}) {
-  const { data: { session } } = await supabase.auth.getSession()
-  const token = session?.access_token ?? ''
-
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/freshdesk-proxy`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'apikey': SUPABASE_ANON_KEY,
-    },
-    body: JSON.stringify({ path, params }),
-  })
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.error ?? `HTTP ${res.status}`)
+// ── Proxy helper with retry (Phase 4 canonical) ─────────────────────────────────
+async function withRetry(fn, retries = 2) {
+  let lastErr = null
+  for (let i = 0; i <= retries; i++) {
+    try { return await fn() } catch (e) {
+      lastErr = e
+      const retryable = /429|500|502|503|504|fetch failed|Too many/i.test(e.message ?? '')
+      if (i === retries || !retryable) throw e
+      const backoff = 800 * Math.pow(2, i) + Math.random() * 200
+      await new Promise(r => setTimeout(r, backoff))
+    }
   }
-  return res.json()
+  throw lastErr
+}
+
+async function fdGet(path, params = {}) {
+  return withRetry(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    const token = session?.access_token ?? ''
+
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/freshdesk-proxy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ path, params }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.error ?? `HTTP ${res.status}`)
+    }
+    return res.json()
+  })
 }
 
 // ── Cache de grupos ───────────────────────────────────────────────────────────

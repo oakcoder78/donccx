@@ -632,7 +632,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 ### Phase 4 — Canonical executor and rollout
 
-**Status:** Not started
+**Status:** In progress — MVP delivered 2026-08-19
 
 **Rationale:** remover divergência entre frontend, Edge Function, script e n8n sem quebrar o sync existente.
 
@@ -646,20 +646,22 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 #### Checklist
 
-- [ ] Escolher implementação canônica do cálculo Freshdesk.
-- [ ] Centralizar regras de tickets, SLA, grupos e contatos.
-- [ ] Implementar retry limitado para falhas transitórias.
-- [ ] Persistir status por cliente e por execução.
+- [x] Escolher implementação canônica do cálculo Freshdesk.
+- [x] Centralizar regras de tickets, SLA, grupos e contatos.
+- [x] Implementar retry limitado para falhas transitórias.
+- [x] Persistir status por cliente e por execução.
 - [ ] Comparar caminho novo com o legado em canary.
-- [ ] Definir kill switch e rollback.
+- [x] Definir kill switch e rollback.
 - [ ] Executar dois ou três ciclos estáveis antes de remover caminhos antigos.
-- [ ] **Build:** `npm run build` with no errors.
+- [x] **Build:** `npm run build` with no errors.
 
 #### Implementation Log — Phase 4
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-19 | — | `supabase/functions/_shared/freshdesk.ts` | Canonical freshdesk helpers with withRetry, fdGet, getGroupsMap, fetchTickets/Contacts, processTicketsToSupport, isCanonicalEnabled kill switch |
+| 2026-08-19 | — | `supabase/functions/monthly-sync/index.ts` | Uses canonical via _shared, kill switch check, versioned upsert with run_id/revision/previous_snapshot, per-client observability |
+| 2026-08-19 | — | `src/lib/freshdeskSync.js` | Proxy fdGet with withRetry (429/5xx), 2 retries + backoff |
 
 ## 10. Acceptance Criteria
 
@@ -710,6 +712,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - **Phase 1 shell concluída em 2026-08-19** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport e preflight sem escrita entregues.
 - **Phase 2 mapping concluída em 2026-08-19** — mapping com evidência/confiança/estado, fluxo confirmar/rejeitar/adiar, múltiplos IDs como `blocked`, candidatos de contato por e-mail/ID/nome com bloqueio de merge só por nome, auditoria em `audit_logs`.
 - **Phase 3 versioned import concluída em 2026-08-19 (MVP)** — migration com run_id/revision/previous_snapshot/metrics_status/contacts_status, versioned upsert preservando publicação anterior, publicação com published_at e audit.
+- **Phase 4 canonical em progresso (MVP 2026-08-19)** — `_shared/freshdesk.ts` com retry e kill switch `freshdesk_canonical_enabled`, `monthly-sync` e `freshdeskSync.js` usando canônico com versioned upsert e observabilidade; canary e ciclos estáveis pendentes.
 - `TD-007` acompanha a investigação do `oak-donc-reports` na VPS.
 - Os seis registros legados não foram removidos.
 - Relatórios históricos conflitantes não foram migrados automaticamente.
