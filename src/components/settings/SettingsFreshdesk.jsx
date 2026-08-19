@@ -68,8 +68,8 @@ function OverviewSection({ preflight, onTabChange }) {
   const totalCount    = preflight?.totalCount ?? 0
   const pendingCount  = preflight?.pendingCount ?? 0
   const blockedCount  = preflight?.blockedCount ?? 0
-  const lastSync      = preflight?.lastSyncStartedAt
-  const lastSyncLabel = preflight?.lastSyncLabel ?? 'Última sync'
+  const lastExecution = preflight?.lastSyncStartedAt
+  const lastTicketSync = preflight?.lastDataSync
 
   const state = (() => {
     if (!preflight) return { label: 'Carregando…', variant: 'slate', icon: Icons.Clock }
@@ -90,11 +90,14 @@ function OverviewSection({ preflight, onTabChange }) {
 
   return (
     <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4" data-testid="freshdesk-overview">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <StateIcon size={16} className={state.variant === 'green' ? 'text-green-600' : state.variant === 'amber' ? 'text-amber-600' : state.variant === 'red' ? 'text-red-600' : 'text-text-tertiary'} />
         <Badge variant={state.variant}>{state.label}</Badge>
-        {lastSync && (
-          <span className="text-xs text-text-tertiary">{lastSyncLabel}: {formatDateTimeBR(lastSync)}</span>
+        {lastExecution && (
+          <span className="text-xs text-text-tertiary">Última execução (cron): {formatDateTimeBR(lastExecution)}</span>
+        )}
+        {lastTicketSync && (
+          <span className="text-xs text-text-tertiary">· Tickets: {formatDateTimeBR(lastTicketSync)}</span>
         )}
       </div>
 
@@ -112,8 +115,9 @@ function OverviewSection({ preflight, onTabChange }) {
           <p className={`text-lg font-semibold ${pendingCount > 0 ? 'text-amber-600' : 'text-text-primary'}`}>{pendingCount}</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-3">
-          <p className="text-xs text-text-tertiary">Última sync</p>
-          <p className="text-xs font-medium text-text-primary mt-1">{preflight?.lastSyncStartedAt ? formatDateTimeBR(preflight.lastSyncStartedAt) : '—'}</p>
+          <p className="text-xs text-text-tertiary">Última sync tickets</p>
+          <p className="text-xs font-medium text-text-primary mt-1">{lastTicketSync ? formatDateTimeBR(lastTicketSync) : '—'}</p>
+          {lastExecution && <p className="text-[11px] text-text-tertiary mt-0.5">Cron: {formatDateTimeBR(lastExecution)}</p>}
         </div>
       </div>
 
@@ -194,7 +198,8 @@ function HistorySection() {
     <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3" data-testid="freshdesk-history">
       <div className="flex items-center gap-2">
         <Icons.Clock size={16} className="text-donc-navy" />
-        <p className="text-sm font-medium text-text-primary">Histórico</p>
+        <p className="text-sm font-medium text-text-primary">Histórico (cron mensal)</p>
+        <span className="text-xs text-text-tertiary">— syncs manuais de tickets em Visão Geral</span>
       </div>
       {lastRun && (
         <div className="flex items-center gap-2 text-xs">
