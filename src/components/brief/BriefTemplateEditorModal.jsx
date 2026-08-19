@@ -9,6 +9,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Icons } from '@/lib/icons'
 import { Button } from '../ui/Button'
 import { useCatalog } from '@/hooks/useCatalog'
+import { normalizeSupportUrl } from '@/lib/briefSupportUrl'
 import toast from 'react-hot-toast'
 
 const NAVY = '#173557'
@@ -72,6 +73,11 @@ function SortableQuestionCard({ question, index, onUpdate, onDuplicate, onRemove
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: question.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }
   const [showNote, setShowNote] = useState(!!question.note)
+  const [showSupport, setShowSupport] = useState(!!question.support_url)
+  const [supportTouched, setSupportTouched] = useState(false)
+
+  const supportRes = normalizeSupportUrl(question.support_url)
+  const supportError = supportTouched && !supportRes.valid ? supportRes.error : null
 
   return (
     <div ref={setNodeRef} style={style} className="bg-bg-primary border border-border-tertiary rounded-lg p-3 mb-2 group">
@@ -151,6 +157,17 @@ function SortableQuestionCard({ question, index, onUpdate, onDuplicate, onRemove
             Orientação
           </button>
         )}
+
+        {!showSupport && (
+          <button
+            type="button"
+            onClick={() => setShowSupport(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-full text-xs text-text-tertiary border border-dashed border-border-tertiary hover:border-[#59c2ed] hover:text-[#59c2ed] transition-colors"
+          >
+            <Icons.Plus size={10} />
+            Material de apoio
+          </button>
+        )}
       </div>
 
       {/* Note row */}
@@ -168,6 +185,37 @@ function SortableQuestionCard({ question, index, onUpdate, onDuplicate, onRemove
           <button
             type="button"
             onClick={() => { onUpdate('note', ''); setShowNote(false) }}
+            className="flex-shrink-0 text-text-tertiary hover:text-text-primary"
+          >
+            <Icons.X size={12} />
+          </button>
+        </div>
+      )}
+
+      {/* Support URL row */}
+      {(showSupport || question.support_url) && (
+        <div className="mt-2 ml-[52px] flex items-start gap-2 rounded-md px-2.5 py-1.5 border border-dashed"
+          style={{ background: `${NAVY}06`, borderColor: `${NAVY}30` }}>
+          <Icons.Link size={14} className="flex-shrink-0 mt-0.5" style={{ color: NAVY }} />
+          <div className="flex-1 min-w-0">
+            <input
+              value={question.support_url || ''}
+              onChange={e => onUpdate('support_url', e.target.value)}
+              onBlur={() => setSupportTouched(true)}
+              className="w-full bg-transparent border-none outline-none text-xs text-text-secondary placeholder-text-tertiary"
+              placeholder="https://… (planilha, vídeo, PDF, apresentação)"
+              autoFocus={showSupport && !question.support_url}
+            />
+            {supportError && (
+              <p className="text-[11px] mt-1" style={{ color: '#c44' }}>{supportError}</p>
+            )}
+            <p className="text-[11px] mt-0.5 text-text-tertiary">
+              Material externo aberto em nova aba como “Abrir material de apoio”.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { onUpdate('support_url', ''); setShowSupport(false); setSupportTouched(false) }}
             className="flex-shrink-0 text-text-tertiary hover:text-text-primary"
           >
             <Icons.X size={12} />
@@ -294,11 +342,34 @@ export function BriefTemplateEditorModal({ template, onClose, onSave, isSaving }
   const handleSave = (publish) => {
     if (!name.trim()) { toast.error('Informe o nome do template'); return }
     if (sections.length === 0) { toast.error('Adicione pelo menos uma seção'); return }
+
+    for (const sec of sections) {
+      for (const q of sec.questions || []) {
+        if (q.support_url && q.support_url.trim()) {
+          const res = normalizeSupportUrl(q.support_url)
+          if (!res.valid) {
+            toast.error(`URL de apoio inválida em “${q.text || 'Pergunta sem texto'}”`)
+            return
+          }
+        }
+      }
+    }
+
     const structure = {
       sections: sections.map((sec, si) => ({
         ...sec,
         order: si + 1,
-        questions: (sec.questions || []).map((q, qi) => ({ ...q, order: qi + 1 })),
+        questions: (sec.questions || []).map((q, qi) => {
+          const cleaned = { ...q, order: qi + 1 }
+          if ('support_url' in cleaned) {
+            if (cleaned.support_url && cleaned.support_url.trim()) {
+              cleaned.support_url = normalizeSupportUrl(cleaned.support_url).url
+            } else {
+              delete cleaned.support_url
+            }
+          }
+          return cleaned
+        }),
       })),
     }
     onSave({ id: template?.id, name: name.trim(), operation_type: operationType, structure, is_active: publish })

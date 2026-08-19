@@ -4,6 +4,7 @@ import { useBriefResponses, useBriefCsmNotes } from '@/hooks/useBrief'
 import { Icons } from '@/lib/icons'
 import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabaseClient'
+import { normalizeSupportUrl } from '@/lib/briefSupportUrl'
 import toast from 'react-hot-toast'
 
 const NAVY = '#173557'
@@ -425,6 +426,9 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
   const textRef = useRef(null)
   const noteRef = useRef(null)
 
+  const support = normalizeSupportUrl(question.support_url)
+  const supportLink = support.valid && support.url ? support : null
+
   useEffect(() => { if (editingText && textRef.current) textRef.current.focus() }, [editingText])
   useEffect(() => { if (editingNote && noteRef.current) noteRef.current.focus() }, [editingNote])
 
@@ -554,6 +558,23 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
               <Icons.Plus size={11} />
               Adicionar orientação
             </button>
+          )}
+
+          {supportLink && (
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md"
+              style={{ background: `${NAVY}0a`, border: `1px solid ${NAVY}25` }}>
+              <Icons.Link size={12} className="flex-shrink-0" style={{ color: NAVY }} />
+              <a
+                href={supportLink.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                referrerPolicy="no-referrer"
+                className="text-[#0a6a96] hover:underline truncate"
+              >
+                Abrir material de apoio
+              </a>
+              <span className="text-text-tertiary flex-shrink-0 truncate">{supportLink.hostname}</span>
+            </div>
           )}
         </div>
       </div>

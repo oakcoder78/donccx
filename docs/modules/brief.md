@@ -72,13 +72,16 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
           "type": "text | textarea | select | multiselect | date | boolean",
           "required": true,
           "note": "Help text for the respondent (optional)",
-          "allow_attachment": false
+          "allow_attachment": false,
+          "support_url": "https://external-hosted-support-material.example (optional)"
         }
       ]
     }
   ]
 }
 ```
+
+`support_url` is an optional external link per question to help the client fill it in (spreadsheet, video, PDF, presentation). It is configured in the template editor and frozen into `structure_snapshot` when a brief is created. Only `https://` URLs are accepted (validated in the editor and re-validated before rendering); the link opens in a new tab with a fixed label ("Abrir material de apoio") plus the hostname. Existing briefs created before a template change keep their own snapshot.
 
 `structure_snapshot` in `brief_instances` is a frozen copy of the template at creation time — preserves the brief content even if the template is later edited or deleted.
 

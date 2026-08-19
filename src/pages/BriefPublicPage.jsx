@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { saveBriefAttachment, deleteBriefAttachment } from '../services/briefAttachments/saveBriefAttachment'
 import { Icons } from '../lib/icons'
 import { supabase } from '../lib/supabaseClient'
+import { normalizeSupportUrl } from '../lib/briefSupportUrl'
 import toast from 'react-hot-toast'
 
 const NAVY    = '#173557'
@@ -355,6 +356,9 @@ function QuestionCard({
   const [focused, setFocused] = useState(false)
   const [touched, setTouched] = useState(false)
 
+  const support = normalizeSupportUrl(question.support_url)
+  const supportLink = support.valid && support.url ? support : null
+
   const isAnswered = !!(value && value.trim())
   const isMissing  = required && !isAnswered && touched
   const isTextarea = type !== 'date'
@@ -409,6 +413,25 @@ function QuestionCard({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 7, margin: '0 0 10px 38px', padding: '7px 10px', background: 'rgba(89,194,237,0.06)', border: '1px solid rgba(89,194,237,0.16)', borderRadius: 7, color: 'rgba(23,53,87,0.7)', fontSize: 12, lineHeight: 1.5 }}>
           <Icons.Info size={12} color={SKY_D} style={{ flexShrink: 0, marginTop: 1 }} />
           <div>{note}</div>
+        </div>
+      )}
+
+      {/* Support link */}
+      {supportLink && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, margin: '0 0 10px 38px', padding: '7px 10px', background: 'rgba(89,194,237,0.06)', border: '1px solid rgba(89,194,237,0.16)', borderRadius: 7, fontSize: 12 }}>
+          <Icons.Link size={12} color={SKY_D} style={{ flexShrink: 0 }} />
+          <a
+            href={supportLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            referrerPolicy="no-referrer"
+            style={{ color: SKY_D, fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 2 }}
+          >
+            Abrir material de apoio
+          </a>
+          <span style={{ color: 'rgba(23,53,87,0.45)', fontSize: 11 }}>
+            {supportLink.hostname} · abre em nova aba
+          </span>
         </div>
       )}
 
