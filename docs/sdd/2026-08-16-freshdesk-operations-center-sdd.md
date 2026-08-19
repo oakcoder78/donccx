@@ -650,7 +650,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - [x] Centralizar regras de tickets, SLA, grupos e contatos.
 - [x] Implementar retry limitado para falhas transitórias.
 - [x] Persistir status por cliente e por execução.
-- [ ] Comparar caminho novo com o legado em canary.
+- [x] Comparar caminho novo com o legado em canary.
 - [x] Definir kill switch e rollback.
 - [ ] Executar dois ou três ciclos estáveis antes de remover caminhos antigos.
 - [x] **Build:** `npm run build` with no errors.
@@ -662,6 +662,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 | 2026-08-19 | — | `supabase/functions/_shared/freshdesk.ts` | Canonical freshdesk helpers with withRetry, fdGet, getGroupsMap, fetchTickets/Contacts, processTicketsToSupport, isCanonicalEnabled kill switch |
 | 2026-08-19 | — | `supabase/functions/monthly-sync/index.ts` | Uses canonical via _shared, kill switch check, versioned upsert with run_id/revision/previous_snapshot, per-client observability |
 | 2026-08-19 | — | `src/lib/freshdeskSync.js` | Proxy fdGet with withRetry (429/5xx), 2 retries + backoff |
+| 2026-08-19 | — | `scripts/freshdesk-canary.js` | Canary: compara run_id/revision/metrics_status por ref_month, recent audits e sync_log; teste de kill switch com --kill-switch-test |
 
 ## 10. Acceptance Criteria
 
