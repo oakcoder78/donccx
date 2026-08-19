@@ -438,7 +438,8 @@ function MappingSection() {
           action: 'freshdesk_blocked_resolved',
           entity_type: 'client',
           entity_id: String(clientId),
-          details: { before, after: { freshdesk_company_id: keepId, freshdesk_company_ids: [keepId] }, kept_id: keepId },
+          old_value: before,
+          new_value: { freshdesk_company_id: keepId, freshdesk_company_ids: [keepId], kept_id: keepId },
         })
       } catch { /* best-effort */ }
     }
@@ -481,7 +482,8 @@ function MappingSection() {
           action: 'freshdesk_mapping_saved',
           entity_type: 'client',
           entity_id: String(clientId),
-          details: { before, after: value, evidence: suggestions[clientId]?.evidence ?? null },
+          old_value: before,
+          new_value: { after: value, evidence: suggestions[clientId]?.evidence ?? null },
         })
       } catch { /* audit é best-effort */ }
     }

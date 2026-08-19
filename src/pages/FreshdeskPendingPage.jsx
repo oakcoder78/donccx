@@ -687,7 +687,8 @@ export default function FreshdeskPendingPage() {
         action: `freshdesk_${action}`,
         entity_type: 'client_support',
         entity_id: String(record.id),
-        details: { client_id: record.client_id, ref_month: record.ref_month, ...details },
+        old_value: { client_id: record.client_id, ref_month: record.ref_month },
+        new_value: details,
       })
     } catch { /* audit best-effort */ }
   }
