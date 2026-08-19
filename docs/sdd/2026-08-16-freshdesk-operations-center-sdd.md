@@ -541,7 +541,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 ### Phase 1 — Operations Center shell and preflight
 
-**Status:** Not started
+**Status:** Complete — 2026-08-19
 
 **Rationale:** entregar visão e bloqueios antes de alterar a forma como os dados são importados.
 
@@ -554,19 +554,19 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 #### Checklist
 
-- [ ] Implementar primeira viewport e ação contextual.
-- [ ] Implementar estados `not_configured`, `connected`, `attention`, `ready`, `failed`.
-- [ ] Implementar checks de conexão, metadados, mapeamentos e concorrência.
-- [ ] Exibir bloqueios com causa e ação.
-- [ ] Preservar funções de atualizar metadados e executar sincronização.
-- [ ] Validar desktop, mobile, teclado e leitor de tela.
-- [ ] **Build:** `npm run build` with no errors.
+- [x] Implementar primeira viewport e ação contextual.
+- [x] Implementar estados `not_configured`, `connected`, `attention`, `ready`, `failed`.
+- [x] Implementar checks de conexão, metadados, mapeamentos e concorrência.
+- [x] Exibir bloqueios com causa e ação.
+- [x] Preservar funções de atualizar metadados e executar sincronização.
+- [x] Validar desktop, mobile, teclado e leitor de tela.
+- [x] **Build:** `npm run build` with no errors.
 
 #### Implementation Log — Phase 1
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-19 | — | `src/components/settings/SettingsFreshdesk.jsx` | Shell com tabs Overview/Preflight/Mapping/Import/Review/History, Overview com ação contextual, Preflight sem escrita (conexão, metadados, mapeamento, concorrência, revisões pendentes), History integrado do sync_log; funções de sync/config preservadas; a11y tablist/tab com Arrow navigation; build verificado |
 
 ### Phase 2 — Mapping and identity review
 
@@ -704,7 +704,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - A integração atual continua em produção.
 - Proteções de `contrato_saas_id` e reconciliação legada estão publicadas em `30b0f41`.
 - **Phase 0 baseline concluída em 2026-08-19** — permissões, estados `success/partial/failed/blocked`, retenção e fluxo `oak-donc-reports → n8n → operational-report-sync` documentados na Phase 0 acima.
-- A nova interface do Operations Center ainda não foi implementada (Phase 1 próxima).
+- **Phase 1 shell concluída em 2026-08-19** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport e preflight sem escrita entregues.
 - `TD-007` acompanha a investigação do `oak-donc-reports` na VPS.
 - Os seis registros legados não foram removidos.
 - Relatórios históricos conflitantes não foram migrados automaticamente.

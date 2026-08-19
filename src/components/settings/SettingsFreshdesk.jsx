@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { Icons } from '@/lib/icons'
 import { supabase } from '@/lib/supabaseClient'
 import { fetchCompaniesFreshdesk, syncAllCompanies } from '@/lib/freshdeskSync'
 import { fetchAndSaveFreshdeskConfig, getFreshdeskConfig } from '@/lib/freshdeskConfig'
+import { useSyncStatus, useSyncHistory } from '@/hooks/useSyncStatus'
 import { Button } from '../ui/Button'
 import { PageSpinner } from '../ui/Spinner'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
+import { Badge } from '../ui/Badge'
 import toast from 'react-hot-toast'
 import { friendlyError } from '@/lib/syncErrors'
 
@@ -55,6 +58,285 @@ function computeSuggestion(client, fdCompanies) {
     if (score > bestScore) { bestScore = score; best = { fdId: fd.id, fdName: fd.name, score } }
   }
   return best && bestScore >= 70 ? best : null
+}
+
+// ── Overview: primeira viewport + ação contextual ──────────────────────────────
+function OverviewSection({ preflight, onTabChange }) {
+  const mappedCount   = preflight?.mappedCount ?? 0
+  const totalCount    = preflight?.totalCount ?? 0
+  const pendingCount  = preflight?.pendingCount ?? 0
+  const blockedCount  = preflight?.blockedCount ?? 0
+  const lastSync      = preflight?.lastConfigSync
+
+  const state = (() => {
+    if (!preflight) return { label: 'Carregando…', variant: 'slate', icon: Icons.Clock }
+    if (preflight.notConfigured) return { label: 'Não configurado', variant: 'slate', icon: Icons.AlertCircle }
+    if (blockedCount > 0) return { label: 'Atenção', variant: 'amber', icon: Icons.AlertTriangle }
+    if (preflight.failed) return { label: 'Falha', variant: 'red', icon: Icons.XCircle }
+    return { label: 'Conectado', variant: 'green', icon: Icons.CheckCircle }
+  })()
+  const StateIcon = state.icon
+
+  const cta = (() => {
+    if (!preflight) return null
+    if (preflight.notConfigured) return { label: 'Verificar integração', tab: 'preflight', icon: Icons.Search }
+    if (blockedCount > 0) return { label: 'Resolver pendências', tab: 'preflight', icon: Icons.AlertTriangle }
+    if (pendingCount > 0) return { label: 'Revisar importações', tab: 'review', icon: Icons.ClipboardList }
+    return { label: 'Iniciar importação', tab: 'import', icon: Icons.Download }
+  })()
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4" data-testid="freshdesk-overview">
+      <div className="flex items-center gap-2">
+        <StateIcon size={16} className={state.variant === 'green' ? 'text-green-600' : state.variant === 'amber' ? 'text-amber-600' : state.variant === 'red' ? 'text-red-600' : 'text-text-tertiary'} />
+        <Badge variant={state.variant}>{state.label}</Badge>
+        {lastSync && (
+          <span className="text-xs text-text-tertiary">Última config: {formatDateTimeBR(lastSync)}</span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <div className="bg-bg-secondary rounded-lg p-3">
+          <p className="text-xs text-text-tertiary">Clientes mapeados</p>
+          <p className="text-lg font-semibold text-text-primary">{mappedCount}/{totalCount}</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-3">
+          <p className="text-xs text-text-tertiary">Bloqueados</p>
+          <p className={`text-lg font-semibold ${blockedCount > 0 ? 'text-amber-600' : 'text-text-primary'}`}>{blockedCount}</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-3">
+          <p className="text-xs text-text-tertiary">Revisões pendentes</p>
+          <p className={`text-lg font-semibold ${pendingCount > 0 ? 'text-amber-600' : 'text-text-primary'}`}>{pendingCount}</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-3">
+          <p className="text-xs text-text-tertiary">Última sync</p>
+          <p className="text-xs font-medium text-text-primary mt-1">{preflight?.lastDataSync ? formatDateTimeBR(preflight.lastDataSync) : '—'}</p>
+        </div>
+      </div>
+
+      {cta && (
+        <Button onClick={() => onTabChange(cta.tab)} variant="primary" size="md">
+          <cta.icon size={14} />
+          {cta.label}
+        </Button>
+      )}
+
+      {blockedCount > 0 && (
+        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Existem bloqueios que impedem a importação. Veja o Pré-voo para detalhes.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ── Preflight: checklist persistente sem escrita ──────────────────────────────
+function PreflightSection({ checks, loading }) {
+  if (loading) return <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4"><PageSpinner /></div>
+  if (!checks || checks.length === 0) return null
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3" data-testid="freshdesk-preflight">
+      <div className="flex items-center gap-2">
+        <Icons.CheckSquare size={16} className="text-donc-navy" />
+        <p className="text-sm font-medium text-text-primary">Pré-voo</p>
+        <span className="text-xs text-text-tertiary">— verificações antes de importar</span>
+      </div>
+      <div className="space-y-2">
+        {checks.map(check => {
+          const Icon = check.status === 'pass' ? Icons.CheckCircle : check.status === 'warning' ? Icons.AlertTriangle : Icons.XCircle
+          const color = check.status === 'pass' ? 'text-green-600' : check.status === 'warning' ? 'text-amber-600' : 'text-red-600'
+          const bg = check.status === 'pass' ? 'bg-green-50 border-green-200' : check.status === 'warning' ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'
+          return (
+            <div key={check.id} className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 ${bg}`}>
+              <Icon size={16} className={`${color} mt-0.5 shrink-0`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-text-primary">{check.label}</p>
+                <p className="text-xs text-text-secondary mt-0.5">{check.detail}</p>
+                {check.action && (
+                  <p className="text-xs text-text-tertiary mt-1">Ação: {check.action}</p>
+                )}
+              </div>
+              {check.count != null && (
+                <span className="text-xs font-semibold text-text-primary shrink-0">{check.count}</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── History: últimas execuções (read-only, integrado do sync_log) ───────────
+function HistorySection() {
+  const { data: history = [], isLoading } = useSyncHistory({ limit: 8, enabled: true })
+  const { data: lastRun } = useSyncStatus()
+
+  if (isLoading) return <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4"><PageSpinner /></div>
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3" data-testid="freshdesk-history">
+      <div className="flex items-center gap-2">
+        <Icons.Clock size={16} className="text-donc-navy" />
+        <p className="text-sm font-medium text-text-primary">Histórico</p>
+      </div>
+      {lastRun && (
+        <div className="flex items-center gap-2 text-xs">
+          <Badge variant={lastRun.status === 'success' ? 'green' : 'red'}>{lastRun.status === 'success' ? 'Sucesso' : 'Falha'}</Badge>
+          <span className="text-text-tertiary">Última: {formatDateTimeBR(lastRun.started_at)}</span>
+        </div>
+      )}
+      {history.length === 0 ? (
+        <p className="text-sm text-text-tertiary">Nenhuma execução registrada.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border-tertiary">
+                <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Início</th>
+                <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Status</th>
+                <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Resumo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map(row => (
+                <tr key={row.id} className="border-t border-border-tertiary">
+                  <td className="px-2 py-1.5 text-xs">{formatDateTimeBR(row.started_at)}</td>
+                  <td className="px-2 py-1.5"><Badge variant={row.status === 'success' ? 'green' : 'red'}>{row.status}</Badge></td>
+                  <td className="px-2 py-1.5 text-xs text-text-secondary">
+                    {row.summary ? `${row.summary?.freshdesk?.synced ?? '?'} empresas` : row.error_message ? friendlyError(row.error_message) : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-xs text-text-tertiary">
+        Histórico completo em <span className="font-medium">Status da Sincronização</span> → agendamento e execuções manuais.
+      </p>
+    </div>
+  )
+}
+
+// ── Hook: preflight checks (read-only) ──────────────────────────────────────
+function usePreflight() {
+  const { data: freshdeskConfig, isLoading: configLoading } = useQuery({
+    queryKey: ['freshdesk_preflight_config'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('freshdesk_config').select('key, updated_at')
+      if (error) throw error
+      return data ?? []
+    },
+    staleTime: 60_000,
+  })
+
+  const { data: clients, isLoading: clientsLoading } = useQuery({
+    queryKey: ['freshdesk_preflight_clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('clients').select('id, name, freshdesk_company_id, freshdesk_company_ids')
+      if (error) throw error
+      return data ?? []
+    },
+    staleTime: 60_000,
+  })
+
+  const { data: pending, isLoading: pendingLoading } = useQuery({
+    queryKey: ['freshdesk_preflight_pending'],
+    queryFn: async () => {
+      const { count, error } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).eq('pending', true)
+      if (error) throw error
+      return count ?? 0
+    },
+    staleTime: 30_000,
+  })
+
+  const { data: lastRun } = useSyncStatus()
+
+  const { data: configData } = useQuery({
+    queryKey: ['freshdesk_config_last_sync'],
+    queryFn: async () => {
+      const g = await getFreshdeskConfig('groups')
+      const a = await getFreshdeskConfig('agents')
+      const f = await getFreshdeskConfig('ticket_fields')
+      const ls = await getFreshdeskConfig('last_sync')
+      const ldsRes = await supabase.from('freshdesk_config').select('data').eq('key', 'last_data_sync').maybeSingle()
+      return { groups: g, agents: a, ticket_fields: f, last_sync: ls, last_data_sync: ldsRes.data?.data ?? null }
+    },
+    staleTime: 60_000,
+  })
+
+  const loading = configLoading || clientsLoading || pendingLoading
+
+  const mappedCount = clients ? clients.filter(c => c.freshdesk_company_id || (c.freshdesk_company_ids?.length) ).length : 0
+  const totalCount = clients?.length ?? 0
+  const unmappedCount = totalCount - mappedCount
+  const blockedCount = clients ? clients.filter(c => c.freshdesk_company_ids?.length > 1).length : 0
+  const hasGroups = !!configData?.groups
+  const hasAgents = !!configData?.agents
+  const notConfigured = !hasGroups && !hasAgents && !configData?.last_sync
+  const failed = lastRun?.status === 'failed'
+  const isRunning = lastRun?.status === 'running'
+
+  const checks = [
+    {
+      id: 'connection',
+      label: 'Conexão Freshdesk',
+      status: notConfigured ? 'blocker' : failed ? 'blocker' : 'pass',
+      detail: notConfigured ? 'Metadados não carregados. Clique em Atualizar Configurações na aba Importação.' : failed ? `Última execução falhou: ${friendlyError(lastRun?.error_message ?? '')}` : 'Conexão validada via metadados em cache.',
+      count: null,
+      action: notConfigured || failed ? 'Verifique FRESHDESK_DOMAIN/API_KEY e atualize a configuração.' : null,
+    },
+    {
+      id: 'metadata',
+      label: 'Metadados (grupos, agentes, campos)',
+      status: hasGroups && hasAgents ? 'pass' : 'warning',
+      detail: hasGroups && hasAgents ? 'Grupos e agentes carregados.' : 'Grupos ou agentes ausentes. A sincronização pode classificar N1/N2/N3 incorretamente.',
+      count: null,
+      action: !hasGroups || !hasAgents ? 'Atualize as configurações do Freshdesk.' : null,
+    },
+    {
+      id: 'mapping',
+      label: 'Mapeamento de empresas',
+      status: unmappedCount === 0 ? 'pass' : blockedCount > 0 ? 'blocker' : 'warning',
+      detail: blockedCount > 0 ? `${blockedCount} cliente(s) com múltiplos IDs Freshdesk — requer classificação.` : unmappedCount > 0 ? `${unmappedCount} cliente(s) sem vínculo Freshdesk.` : `${mappedCount}/${totalCount} clientes mapeados.`,
+      count: unmappedCount,
+      action: blockedCount > 0 ? 'Classifique duplicidade vs separação intencional na aba Mapeamento.' : unmappedCount > 0 ? 'Mapeie clientes na aba Mapeamento.' : null,
+    },
+    {
+      id: 'concurrency',
+      label: 'Execução concorrente',
+      status: isRunning ? 'blocker' : 'pass',
+      detail: isRunning ? 'Uma sincronização está em execução no momento.' : 'Nenhuma execução concorrente detectada.',
+      count: null,
+      action: isRunning ? 'Aguarde a conclusão antes de iniciar nova importação.' : null,
+    },
+    {
+      id: 'pending',
+      label: 'Revisões pendentes',
+      status: (pending ?? 0) === 0 ? 'pass' : 'warning',
+      detail: (pending ?? 0) === 0 ? 'Nenhuma revisão pendente.' : `${pending} revisão(ões) aguardando aprovação.`,
+      count: pending,
+      action: (pending ?? 0) > 0 ? 'Revise em Revisão antes de nova importação do mesmo período.' : null,
+    },
+  ]
+
+  return {
+    data: {
+      mappedCount,
+      totalCount,
+      unmappedCount,
+      blockedCount,
+      pendingCount: pending ?? 0,
+      lastConfigSync: configData?.last_sync?.synced_at ?? null,
+      lastDataSync: configData?.last_data_sync?.synced_at ?? null,
+      notConfigured,
+      failed,
+    },
+    checks,
+    loading,
+  }
 }
 
 // ── Seção Mapeamento ──────────────────────────────────────────────────────────
@@ -402,38 +684,127 @@ function SyncSection() {
   )
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
+// ── Componente principal: Freshdesk Operations Center ────────────────────────
 export function SettingsFreshdesk() {
   const FreshdeskIcon = Icons.Headphones
-  const MappingIcon = Icons.Link
+  const [activeTab, setActiveTab] = useState('overview')
+  const { data: preflight, checks, loading: preflightLoading } = usePreflight()
+
+  const TABS = [
+    { id: 'overview',  label: 'Visão Geral',  icon: Icons.LayoutList },
+    { id: 'preflight', label: 'Pré-voo',      icon: Icons.CheckSquare },
+    { id: 'mapping',   label: 'Mapeamento',   icon: Icons.Link },
+    { id: 'import',    label: 'Importação',   icon: Icons.Download },
+    { id: 'review',    label: 'Revisão',      icon: Icons.ClipboardList },
+    { id: 'history',   label: 'Histórico',    icon: Icons.Clock },
+  ]
 
   return (
     <div className="max-w-6xl space-y-4">
-
       <SettingsSectionHeader
         icon={FreshdeskIcon}
-        title="Integração Freshdesk"
-        subtitle="Mapeie empresas do Freshdesk para clientes do doncCX e sincronize dados de suporte mensalmente."
+        title="Freshdesk Operations Center"
+        subtitle="Centro operacional Freshdesk — verifique a integração, valide mapeamentos, importe o período, revise, publique e acompanhe o histórico."
       />
 
-      <SyncSection />
-
-      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <MappingIcon className="w-4 h-4 text-donc-navy" />
-          <p className="text-sm font-medium text-text-primary">
-            Mapeamento de Empresas
-          </p>
+      {/* Tab navigation — a11y: tablist/tab */}
+      <div className="border-b border-border-tertiary overflow-x-auto" role="tablist" aria-label="Seções do Operations Center">
+        <div className="flex gap-1 min-w-max">
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.id
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={`panel-${tab.id}`}
+                id={`tab-${tab.id}`}
+                onClick={() => setActiveTab(tab.id)}
+                onKeyDown={e => {
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                    e.preventDefault()
+                    const idx = TABS.findIndex(t => t.id === activeTab)
+                    const next = e.key === 'ArrowRight' ? (idx + 1) % TABS.length : (idx - 1 + TABS.length) % TABS.length
+                    setActiveTab(TABS[next].id)
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
+                  ${isActive ? 'border-donc-navy text-donc-navy' : 'border-transparent text-text-tertiary hover:text-text-primary hover:border-border-tertiary'}`}
+              >
+                <Icon size={14} />
+                {tab.label}
+              </button>
+            )
+          })}
         </div>
-
-        <p className="text-sm text-text-secondary">
-          Relaciona empresas do doncCX Hub com empresas do Freshdesk.
-        </p>
-
-        <MappingSection />
-
       </div>
 
+      {/* Panels */}
+      <div id="panel-overview" role="tabpanel" aria-labelledby="tab-overview" hidden={activeTab !== 'overview'}>
+        <div className="space-y-4">
+          <OverviewSection preflight={preflight} onTabChange={setActiveTab} />
+        </div>
+      </div>
+
+      <div id="panel-preflight" role="tabpanel" aria-labelledby="tab-preflight" hidden={activeTab !== 'preflight'}>
+        <div className="space-y-4">
+          <PreflightSection checks={checks} loading={preflightLoading} />
+        </div>
+      </div>
+
+      <div id="panel-mapping" role="tabpanel" aria-labelledby="tab-mapping" hidden={activeTab !== 'mapping'}>
+        <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Icons.Link size={16} className="text-donc-navy" />
+            <p className="text-sm font-medium text-text-primary">Mapeamento de Empresas</p>
+          </div>
+          <p className="text-sm text-text-secondary">Relaciona empresas do doncCX Hub com empresas do Freshdesk. IDs de empresas Freshdesk — não um único campo.</p>
+          <MappingSection />
+        </div>
+      </div>
+
+      <div id="panel-import" role="tabpanel" aria-labelledby="tab-import" hidden={activeTab !== 'import'}>
+        <SyncSection />
+      </div>
+
+      <div id="panel-review" role="tabpanel" aria-labelledby="tab-review" hidden={activeTab !== 'review'}>
+        <ReviewSection />
+      </div>
+
+      <div id="panel-history" role="tabpanel" aria-labelledby="tab-history" hidden={activeTab !== 'history'}>
+        <HistorySection />
+      </div>
+    </div>
+  )
+}
+
+// ── Review section (Phase 1: link to pending page, Phase 3: inline review) ──
+function ReviewSection() {
+  const navigate = useNavigate()
+  const { data: pendingCount } = useQuery({
+    queryKey: ['freshdesk_review_pending_count'],
+    queryFn: async () => {
+      const { count } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).eq('pending', true)
+      return count ?? 0
+    },
+    staleTime: 30_000,
+  })
+
+  return (
+    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <Icons.ClipboardList size={16} className="text-donc-navy" />
+        <p className="text-sm font-medium text-text-primary">Revisão</p>
+        {pendingCount > 0 && <Badge variant="amber">{pendingCount} pendente(s)</Badge>}
+      </div>
+      <p className="text-sm text-text-secondary">
+        Revise os dados importados antes de confirmar a atualização dos indicadores. Métricas e contatos terão decisões independentes a partir da Fase 3.
+      </p>
+      <Button onClick={() => navigate('/config/freshdesk/pendentes')}>
+        Revisar importações pendentes
+      </Button>
+      <p className="text-xs text-text-tertiary">Histórico e auditoria detalhados estarão na aba Histórico a partir da Fase 3.</p>
     </div>
   )
 }
