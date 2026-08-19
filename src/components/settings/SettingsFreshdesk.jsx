@@ -626,9 +626,7 @@ function MappingSection() {
 
 // ── Seção Sincronização ───────────────────────────────────────────────────────
 function SyncSection() {
-  const navigate = useNavigate()
   const SyncIcon = Icons.RefreshCw
-  const LogsIcon = Icons.ClipboardList
   const RefreshCwIcon = Icons.RefreshCw
   const now          = new Date()
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -638,6 +636,24 @@ function SyncSection() {
   const [updatingConfig, setUpdatingConfig] = useState(false)
   const [lastDataSync, setLastDataSync] = useState(null)
   const [lastConfigSync, setLastConfigSync] = useState(null)
+  const [configSummary, setConfigSummary] = useState(null)
+
+  async function loadConfigSummary() {
+    try {
+      const [groups, agents, fields] = await Promise.all([
+        getFreshdeskConfig('groups'),
+        getFreshdeskConfig('agents'),
+        getFreshdeskConfig('ticket_fields'),
+      ])
+      if (groups || agents || fields) {
+        setConfigSummary({
+          groups: Array.isArray(groups) ? groups.length : null,
+          agents: Array.isArray(agents) ? agents.length : null,
+          fields: Array.isArray(fields) ? fields.length : null,
+        })
+      }
+    } catch { /* ignore */ }
+  }
 
   useEffect(() => {
     async function loadLastDataSync() {
@@ -669,13 +685,26 @@ function SyncSection() {
       }
     }
     loadLastConfigSync()
+    loadConfigSummary()
   }, [])
 
   async function handleUpdateConfig() {
     setUpdatingConfig(true)
     try {
       await fetchAndSaveFreshdeskConfig()
-      toast.success('Configurações do Freshdesk atualizadas (grupos, agentes e campos de ticket)')
+      const [groups, agents, fields] = await Promise.all([
+        getFreshdeskConfig('groups'),
+        getFreshdeskConfig('agents'),
+        getFreshdeskConfig('ticket_fields'),
+      ])
+      const gLen = Array.isArray(groups) ? groups.length : 0
+      const aLen = Array.isArray(agents) ? agents.length : 0
+      const fLen = Array.isArray(fields) ? fields.length : 0
+      setConfigSummary({ groups: gLen, agents: aLen, fields: fLen })
+      const [freshGroups] = await Promise.all([getFreshdeskConfig('last_sync')])
+      if (freshGroups?.synced_at) setLastConfigSync(freshGroups.synced_at)
+      else setLastConfigSync(new Date().toISOString())
+      toast.success(`Configurações atualizadas — ${gLen} grupos, ${aLen} agentes, ${fLen} campos`)
     } catch (e) {
       toast.error(friendlyError(e.message) || 'Erro ao atualizar configurações do Freshdesk')
     } finally {
@@ -772,21 +801,7 @@ function SyncSection() {
         )}
       </div>
 
-      {/* Card 2: Revisão de Importações */}
-      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <LogsIcon className="w-4 h-4 text-donc-navy" />
-          <p className="text-sm font-medium text-text-primary">Revisão de Importações</p>
-        </div>
-        <p className="text-sm text-text-secondary">
-          Revise os dados importados antes de confirmar a atualização dos indicadores.
-        </p>
-        <Button onClick={() => navigate('/config/freshdesk/pendentes')}>
-          Revisar importações pendentes
-        </Button>
-      </div>
-
-      {/* Card 3: Configurações do Freshdesk */}
+      {/* Card 2: Configurações do Freshdesk */}
       <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
         <div className="flex items-center gap-2">
           <SyncIcon className="w-4 h-4 text-donc-navy" />
@@ -807,6 +822,16 @@ function SyncSection() {
         >
           {updatingConfig ? '⏳ Atualizando…' : <span className="flex items-center gap-1.5"><RefreshCwIcon className="w-3.5 h-3.5" /> Atualizar Configurações</span>}
         </Button>
+        {configSummary && (
+          <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-xs space-y-1">
+            <p className="font-medium text-green-800">
+              {configSummary.groups ?? '—'} grupos · {configSummary.agents ?? '—'} agentes · {configSummary.fields ?? '—'} campos
+            </p>
+            <p className="text-green-700">
+              {configSummary.groups != null && configSummary.agents != null ? 'Valide em Pré-voo → Metadados' : 'Nada para sincronizar — dados já atualizados'}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -910,7 +935,7 @@ export function SettingsFreshdesk() {
 // ── Review section (Phase 1: link to pending page, Phase 3: inline review) ──
 function ReviewSection() {
   const navigate = useNavigate()
-  const { data: pendingCount } = useQuery({
+  const { data: pendingCount, isLoading } = useQuery({
     queryKey: ['freshdesk_review_pending_count'],
     queryFn: async () => {
       const { count } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).eq('pending', true)
@@ -919,20 +944,37 @@ function ReviewSection() {
     staleTime: 30_000,
   })
 
+  const hasPending = (pendingCount ?? 0) > 0
+
   return (
     <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-4">
       <div className="flex items-center gap-2">
-        <Icons.ClipboardList size={16} className="text-donc-navy" />
+        <Icons.ClipboardList size={16} className={hasPending ? 'text-amber-600' : 'text-green-600'} />
         <p className="text-sm font-medium text-text-primary">Revisão</p>
-        {pendingCount > 0 && <Badge variant="amber">{pendingCount} pendente(s)</Badge>}
+        {isLoading ? (
+          <Badge variant="slate">carregando…</Badge>
+        ) : hasPending ? (
+          <Badge variant="amber">{pendingCount} pendente(s)</Badge>
+        ) : (
+          <Badge variant="green">nenhuma pendência</Badge>
+        )}
       </div>
-      <p className="text-sm text-text-secondary">
-        Revise os dados importados antes de confirmar a atualização dos indicadores. Métricas e contatos terão decisões independentes a partir da Fase 3.
-      </p>
-      <Button onClick={() => navigate('/config/freshdesk/pendentes')}>
-        Revisar importações pendentes
+      {isLoading ? (
+        <p className="text-sm text-text-tertiary">Verificando pendências…</p>
+      ) : hasPending ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <p className="text-sm font-medium text-amber-800">⚠️ {pendingCount} revisão(ões) aguardando</p>
+          <p className="text-xs text-amber-700 mt-0.5">Revise os dados importados antes de confirmar a atualização dos indicadores.</p>
+        </div>
+      ) : (
+        <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          <p className="text-sm font-medium text-green-800">✅ Nenhuma revisão pendente</p>
+          <p className="text-xs text-green-700 mt-0.5">Todos os dados importados foram revisados.</p>
+        </div>
+      )}
+      <Button onClick={() => navigate('/config/freshdesk/pendentes')} disabled={!hasPending && !isLoading} variant={hasPending ? 'primary' : 'secondary'}>
+        {hasPending ? 'Revisar importações pendentes' : 'Ver revisões'}
       </Button>
-      <p className="text-xs text-text-tertiary">Histórico e auditoria detalhados estarão na aba Histórico a partir da Fase 3.</p>
     </div>
   )
 }
