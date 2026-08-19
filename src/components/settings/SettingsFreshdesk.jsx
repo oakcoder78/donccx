@@ -42,22 +42,24 @@ function computeSuggestion(client, fdCompanies) {
     ? client.site.replace(/^https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').toLowerCase()
     : null
 
-  let best = null; let bestScore = 0
+  let best = null; let bestScore = 0; let bestEvidence = ''
 
   for (const fd of fdCompanies) {
     const fdName    = normalize(fd.name)
     const fdDomains = (fd.domains ?? []).map(d => d.toLowerCase())
-    let score = 0
+    let score = 0; let evidence = ''
 
-    if (cNames.some(n => n === fdName && n.length > 2)) score = 100
+    if (cNames.some(n => n === fdName && n.length > 2)) { score = 100; evidence = 'Nome exato' }
     else if (cSite && fdDomains.some(d =>
       d === cSite || (cSite.length > 4 && cSite.includes(d)) || (d.length > 4 && d.includes(cSite))
-    )) score = 90
-    else if (cNames.some(n => n.length > 4 && fdName.length > 4 && (fdName.includes(n) || n.includes(fdName)))) score = 70
+    )) { score = 90; evidence = 'Domínio compatível' }
+    else if (cNames.some(n => n.length > 4 && fdName.length > 4 && (fdName.includes(n) || n.includes(fdName)))) { score = 70; evidence = 'Nome parcialmente compatível' }
 
-    if (score > bestScore) { bestScore = score; best = { fdId: fd.id, fdName: fd.name, score } }
+    if (score > bestScore) { bestScore = score; bestEvidence = evidence; best = { fdId: fd.id, fdName: fd.name, score, evidence } }
   }
-  return best && bestScore >= 70 ? best : null
+  if (!best || bestScore < 70) return null
+  const confidence = bestScore === 100 ? 'alta' : bestScore >= 90 ? 'média' : 'baixa'
+  return { ...best, evidence: bestEvidence, confidence }
 }
 
 // ── Overview: primeira viewport + ação contextual ──────────────────────────────
@@ -348,11 +350,12 @@ function MappingSection() {
   const [loading, setLoading]         = useState(true)
   const [fetching, setFetching]       = useState(false)
   const [saving, setSaving]           = useState({})
+  const [dismissed, setDismissed]     = useState({})         // { clientId: 'rejected' | 'deferred' }
 
   useEffect(() => {
     supabase
       .from('clients')
-      .select('id, name, fantasy_name, site, freshdesk_company_id')
+      .select('id, name, fantasy_name, site, freshdesk_company_id, freshdesk_company_ids')
       .order('name')
       .then(({ data }) => { setClients(data ?? []); setLoading(false) })
   }, [])
@@ -383,6 +386,17 @@ function MappingSection() {
     setEdits(p => ({ ...p, [clientId]: String(fdId) }))
   }
 
+  function rejectSuggestion(clientId) {
+    setSuggestions(p => { const n = { ...p }; delete n[clientId]; return n })
+    setDismissed(p => ({ ...p, [clientId]: 'rejected' }))
+    toast('Sugestão rejeitada', { icon: '—' })
+  }
+
+  function deferSuggestion(clientId) {
+    setDismissed(p => ({ ...p, [clientId]: 'deferred' }))
+    toast('Sugestão adiada — permanece pendente', { icon: '⏳' })
+  }
+
   async function saveClientMapping(clientId) {
     const raw = edits[clientId]
     const value = raw === '' ? null : Number(raw)
@@ -390,6 +404,13 @@ function MappingSection() {
       toast.error('ID inválido — deve ser número')
       return
     }
+    // Bloqueio: múltiplos IDs como estado — não permitir salvar sem classificação
+    const client = clients.find(c => c.id === clientId)
+    if (client?.freshdesk_company_ids?.length > 1 && value) {
+      toast.error('Cliente com múltiplos IDs requer classificação (duplicidade vs separação). Use a Fase 3 para mapear por instância.')
+      return
+    }
+    const before = client?.freshdesk_company_id ?? null
     setSaving(p => ({ ...p, [clientId]: true }))
     const { error } = await supabase
       .from('clients')
@@ -401,95 +422,139 @@ function MappingSection() {
       setClients(p => p.map(c => c.id === clientId ? { ...c, freshdesk_company_id: value } : c))
       setEdits(p => { const n = { ...p }; delete n[clientId]; return n })
       setSuggestions(p => { const n = { ...p }; delete n[clientId]; return n })
+      setDismissed(p => { const n = { ...p }; delete n[clientId]; return n })
       toast.success('Mapeamento salvo')
+      // Auditoria — best-effort, não bloqueia o fluxo
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        await supabase.from('audit_logs').insert({
+          user_id: user?.id ?? null,
+          user_name: user?.email ?? null,
+          action: 'freshdesk_mapping_saved',
+          entity_type: 'client',
+          entity_id: String(clientId),
+          details: { before, after: value, evidence: suggestions[clientId]?.evidence ?? null },
+        })
+      } catch { /* audit é best-effort */ }
     }
     setSaving(p => { const n = { ...p }; delete n[clientId]; return n })
   }
 
   if (loading) return <PageSpinner />
 
-  const mapped   = clients.filter(c => c.freshdesk_company_id || edits[c.id] !== undefined)
-  const unmapped = clients.filter(c => !c.freshdesk_company_id && edits[c.id] === undefined)
-
   return (
     <div className="space-y-3">
       <p className="text-sm text-text-tertiary">
         {clients.filter(c => c.freshdesk_company_id).length} de {clients.length} clientes mapeados
+        {clients.some(c => c.freshdesk_company_ids?.length > 1) && (
+          <span className="ml-2 text-amber-600">· {clients.filter(c => c.freshdesk_company_ids?.length > 1).length} bloqueado(s) por múltiplos IDs</span>
+        )}
       </p>
 
       <div className="bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border-tertiary bg-donc-navy text-white">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Cliente</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Freshdesk ID</th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Sugestão</th>
-              <th className="px-4 py-2.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {clients.map(c => {
-              const currentId = c.freshdesk_company_id
-              const editVal   = edits[c.id]
-              const isDirty   = editVal !== undefined
-              const sug       = suggestions[c.id]
-              const displayVal = isDirty ? editVal : (currentId ?? '')
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border-tertiary bg-donc-navy text-white">
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Cliente</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Empresas Freshdesk</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Evidência</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Confiança</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider">Estado</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-white uppercase tracking-wider">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clients.map(c => {
+                const currentId = c.freshdesk_company_id
+                const multiIds = c.freshdesk_company_ids
+                const isBlocked = multiIds?.length > 1
+                const editVal   = edits[c.id]
+                const isDirty   = editVal !== undefined
+                const sug       = suggestions[c.id]
+                const dismissedState = dismissed[c.id]
+                const displayVal = isDirty ? editVal : (currentId ?? '')
+                const estado = isBlocked ? 'bloqueado' : currentId ? 'mapeado' : sug ? 'sugestão' : 'pendente'
 
-              return (
-                <tr key={c.id} className="border-t border-border-tertiary hover:bg-bg-secondary">
-                  <td className="px-4 py-2.5">
-                    <span className="font-medium text-text-primary">{c.name}</span>
-                    {currentId && (
-                      <span className="ml-2 text-xs text-donc-verde">✓ mapeado</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="number"
-                      value={displayVal}
-                      onChange={e => setEdits(p => ({ ...p, [c.id]: e.target.value }))}
-                      placeholder="ID numérico"
-                      className="input-base w-40 text-sm"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5 text-text-tertiary text-xs">
-                    {sug ? (
-                      <button
-                        onClick={() => applySuggestion(c.id, sug.fdId)}
-                        className="text-donc-sky hover:underline text-left"
-                        title={`ID ${sug.fdId}`}
-                      >
-                        {sug.fdName} (ID {sug.fdId})
-                      </button>
-                    ) : currentId ? '—' : (
-                      <span className="text-text-tertiary/50">nenhuma</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
-                    {isDirty && (
-                      <button
-                        onClick={() => saveClientMapping(c.id)}
-                        disabled={saving[c.id]}
-                        className="p-1.5 text-donc-navy hover:text-donc-navy/80 rounded disabled:opacity-40"
-                        title={saving[c.id] ? 'Salvando...' : 'Salvar'}
-                      >
-                        {saving[c.id] ? (
-                          <span className="text-xs">…</span>
-                        ) : (
-                          <Icons.Save size={14} />
+                return (
+                  <tr key={c.id} className={`border-t border-border-tertiary hover:bg-bg-secondary ${isBlocked ? 'bg-amber-50/50' : ''}`}>
+                    <td className="px-3 py-2.5">
+                      <span className="font-medium text-text-primary">{c.name}</span>
+                      {isBlocked && <Badge variant="amber" className="ml-2">bloqueado</Badge>}
+                      {!isBlocked && currentId && <span className="ml-2 text-xs text-donc-verde">✓</span>}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {isBlocked ? (
+                        <span className="text-xs text-amber-700" title={multiIds.join(', ')}>{multiIds.join(', ')} · requer classificação</span>
+                      ) : (
+                        <input
+                          type="number"
+                          value={displayVal}
+                          onChange={e => setEdits(p => ({ ...p, [c.id]: e.target.value }))}
+                          placeholder="ID numérico"
+                          className="input-base w-32 text-sm"
+                        />
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs">
+                      {sug && !dismissedState ? (
+                        <span className="text-text-secondary">{sug.evidence}</span>
+                      ) : dismissedState === 'rejected' ? (
+                        <span className="text-text-tertiary/50">rejeitada</span>
+                      ) : dismissedState === 'deferred' ? (
+                        <span className="text-text-tertiary/50">adiada</span>
+                      ) : currentId ? '—' : (
+                        <span className="text-text-tertiary/50">nenhuma</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      {sug && !dismissedState ? (
+                        <Badge variant={sug.confidence === 'alta' ? 'green' : sug.confidence === 'média' ? 'amber' : 'slate'}>{sug.confidence}</Badge>
+                      ) : (
+                        <span className="text-text-tertiary/50 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <Badge variant={estado === 'mapeado' ? 'green' : estado === 'bloqueado' ? 'red' : estado === 'sugestão' ? 'amber' : 'slate'}>{estado}</Badge>
+                    </td>
+                    <td className="px-3 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {sug && !dismissedState && !isBlocked && (
+                          <>
+                            <button onClick={() => applySuggestion(c.id, sug.fdId)} className="text-xs px-2 py-1 rounded bg-donc-navy text-white hover:bg-donc-navy/90" title={`Aplicar ${sug.fdName} (ID ${sug.fdId})`}>
+                              Confirmar
+                            </button>
+                            <button onClick={() => rejectSuggestion(c.id)} className="text-xs px-2 py-1 rounded border border-border-tertiary text-text-secondary hover:bg-bg-tertiary" title="Rejeitar sugestão">
+                              Rejeitar
+                            </button>
+                            <button onClick={() => deferSuggestion(c.id)} className="text-xs px-2 py-1 rounded border border-border-tertiary text-text-secondary hover:bg-bg-tertiary" title="Adiar — mantém pendente">
+                              Adiar
+                            </button>
+                          </>
                         )}
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-        <div className="p-4 border-t border-border-tertiary">
+                        {isDirty && (
+                          <button
+                            onClick={() => saveClientMapping(c.id)}
+                            disabled={saving[c.id] || isBlocked}
+                            className="p-1.5 text-donc-navy hover:text-donc-navy/80 rounded disabled:opacity-40 ml-1"
+                            title={saving[c.id] ? 'Salvando...' : isBlocked ? 'Bloqueado — classifique antes' : 'Salvar'}
+                          >
+                            {saving[c.id] ? <span className="text-xs">…</span> : <Icons.Save size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div className="p-4 border-t border-border-tertiary flex items-center gap-3 flex-wrap">
           <Button onClick={handleFetchSuggestions} disabled={fetching}>
             {fetching ? 'Buscando…' : <span className="flex items-center gap-1.5"><SearchIcon className="w-3.5 h-3.5" /> Buscar sugestões do Freshdesk</span>}
           </Button>
+          <span className="text-xs text-text-tertiary">Sugestões exigem confirmação humana antes de salvar.</span>
         </div>
       </div>
     </div>

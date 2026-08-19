@@ -570,7 +570,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 ### Phase 2 — Mapping and identity review
 
-**Status:** Not started
+**Status:** Complete — 2026-08-19
 
 **Rationale:** impedir que importações avancem com identidade de empresa ou contato ambígua.
 
@@ -583,19 +583,20 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 #### Checklist
 
-- [ ] Criar fluxo de confirmar/rejeitar/adiar sugestão de empresa.
-- [ ] Exibir evidência e confiança do match.
-- [ ] Suportar múltiplos IDs como estado de classificação, não como campo silencioso.
-- [ ] Implementar candidatos de contato por e-mail, ID externo e nome.
-- [ ] Bloquear merge automático somente por nome.
-- [ ] Adicionar auditoria das decisões.
-- [ ] **Build:** `npm run build` with no errors.
+- [x] Criar fluxo de confirmar/rejeitar/adiar sugestão de empresa.
+- [x] Exibir evidência e confiança do match.
+- [x] Suportar múltiplos IDs como estado de classificação, não como campo silencioso.
+- [x] Implementar candidatos de contato por e-mail, ID externo e nome.
+- [x] Bloquear merge automático somente por nome.
+- [x] Adicionar auditoria das decisões.
+- [x] **Build:** `npm run build` with no errors.
 
 #### Implementation Log — Phase 2
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-19 | — | `src/components/settings/SettingsFreshdesk.jsx` | Mapping com evidência (Nome exato/Domínio/Nome parcial), confiança alta/média/baixa, estado mapeado/bloqueado/pendente/sugestão, ações Confirmar/Rejeitar/Adiar + Salvar, múltiplos IDs como `blocked` com aviso e bloqueio de save, fetch de `freshdesk_company_ids`, audit em `audit_logs` |
+| 2026-08-19 | — | `src/pages/FreshdeskPendingPage.jsx` | Candidatos por e-mail + ID externo (`fd_id`) + nome, scoring 100 (e-mail/ID) / 60 (nome+domínio) / 0 (nome só), bloqueio de merge só por nome, audit de approve/merge/reject em `audit_logs` |
 
 ### Phase 3 — Versioned import and independent review
 
@@ -705,6 +706,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - Proteções de `contrato_saas_id` e reconciliação legada estão publicadas em `30b0f41`.
 - **Phase 0 baseline concluída em 2026-08-19** — permissões, estados `success/partial/failed/blocked`, retenção e fluxo `oak-donc-reports → n8n → operational-report-sync` documentados na Phase 0 acima.
 - **Phase 1 shell concluída em 2026-08-19** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport e preflight sem escrita entregues.
+- **Phase 2 mapping concluída em 2026-08-19** — mapping com evidência/confiança/estado, fluxo confirmar/rejeitar/adiar, múltiplos IDs como `blocked`, candidatos de contato por e-mail/ID/nome com bloqueio de merge só por nome, auditoria em `audit_logs`.
 - `TD-007` acompanha a investigação do `oak-donc-reports` na VPS.
 - Os seis registros legados não foram removidos.
 - Relatórios históricos conflitantes não foram migrados automaticamente.

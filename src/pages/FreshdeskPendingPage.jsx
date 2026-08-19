@@ -65,6 +65,8 @@ function contactSimilarityScore(a, b) {
   const ea = a.email?.toLowerCase() ?? ''
   const eb = b.email?.toLowerCase() ?? ''
 
+  // Mesmo ID externo Freshdesk → duplicata definitiva
+  if (a.fd_id && b.fd_id && a.fd_id === b.fd_id) return 100
   // Mesmo e-mail completo → duplicata definitiva
   if (ea && eb && ea === eb) return 100
 
@@ -670,6 +672,20 @@ export default function FreshdeskPendingPage() {
 
   useEffect(() => { load() }, [load])
 
+  async function logAudit(action, record, details = {}) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      await supabase.from('audit_logs').insert({
+        user_id: user?.id ?? null,
+        user_name: user?.email ?? null,
+        action: `freshdesk_${action}`,
+        entity_type: 'client_support',
+        entity_id: String(record.id),
+        details: { client_id: record.client_id, ref_month: record.ref_month, ...details },
+      })
+    } catch { /* audit best-effort */ }
+  }
+
   async function handleAction(record, action, resolvedContacts) {
     const snap = record.freshdesk_snapshot ?? {}
 
@@ -679,10 +695,13 @@ export default function FreshdeskPendingPage() {
         .update({ pending: false, freshdesk_snapshot: null })
         .eq('id', record.id)
       if (error) { toast.error(error.message); return }
+      await logAudit('rejected', record, { reason: 'manual_reject' })
       toast.success('Dados rejeitados')
     }
 
     if (action === 'approve') {
+      // Guard: bloquear aprovação se houver duplicata não resolvida já é feita no PendingCard.act,
+      // mas reforçamos aqui: nome sem e-mail nunca gera merge automático (score 0)
       const { error } = await supabase
         .from('client_support')
         .update({
@@ -698,6 +717,7 @@ export default function FreshdeskPendingPage() {
         .eq('id', record.id)
       if (error) { toast.error(error.message); return }
       await approveContacts(record.client_id, resolvedContacts)
+      await logAudit('approved', record, { contacts_approved: resolvedContacts?.length ?? 0 })
       toast.success('Dados aprovados')
     }
 
@@ -717,6 +737,7 @@ export default function FreshdeskPendingPage() {
         .eq('id', record.id)
       if (error) { toast.error(error.message); return }
       await approveContacts(record.client_id, resolvedContacts)
+      await logAudit('merged', record, { contacts_approved: resolvedContacts?.length ?? 0 })
       toast.success('Dados mesclados')
     }
 
