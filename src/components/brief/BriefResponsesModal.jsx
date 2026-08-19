@@ -423,14 +423,22 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
   const [draftText, setDraftText] = useState(question.text)
   const [editingNote, setEditingNote] = useState(false)
   const [draftNote, setDraftNote] = useState(question.note || '')
+  const [editingSupport, setEditingSupport] = useState(false)
+  const [draftSupport, setDraftSupport] = useState(question.support_url || '')
+  const [supportTouched, setSupportTouched] = useState(false)
   const textRef = useRef(null)
   const noteRef = useRef(null)
+  const supportRef = useRef(null)
 
   const support = normalizeSupportUrl(question.support_url)
   const supportLink = support.valid && support.url ? support : null
+  const draftSupportRes = normalizeSupportUrl(draftSupport)
+  const draftSupportError = supportTouched && !draftSupportRes.valid ? draftSupportRes.error : null
 
   useEffect(() => { if (editingText && textRef.current) textRef.current.focus() }, [editingText])
   useEffect(() => { if (editingNote && noteRef.current) noteRef.current.focus() }, [editingNote])
+  useEffect(() => { if (editingSupport && supportRef.current) supportRef.current.focus() }, [editingSupport])
+  useEffect(() => { setDraftSupport(question.support_url || '') }, [question.support_url])
 
   const handleDownload = useCallback(async (att) => {
     const { data, error } = await supabase.storage
@@ -453,6 +461,26 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
       onUpdateQuestion({ note: val })
     }
     setEditingNote(false)
+  }
+
+  const saveSupport = () => {
+    const raw = draftSupport.trim()
+    if (!raw) {
+      if (question.support_url) onUpdateQuestion({ support_url: null })
+      setEditingSupport(false)
+      setSupportTouched(false)
+      return
+    }
+    const res = normalizeSupportUrl(raw)
+    if (!res.valid) {
+      toast.error(res.error)
+      return
+    }
+    if (res.url !== question.support_url) {
+      onUpdateQuestion({ support_url: res.url })
+    }
+    setEditingSupport(false)
+    setSupportTouched(false)
   }
 
   return (
@@ -560,21 +588,64 @@ function QuestionCard({ question, idx, response, attachments, savedNote, onSaveN
             </button>
           )}
 
-          {supportLink && (
-            <div className="mt-1.5 flex items-center gap-1.5 text-xs px-2 py-1.5 rounded-md"
+          {(supportLink || editingSupport) && (
+            <div className="mt-1.5 flex items-start gap-1.5 text-xs px-2 py-1.5 rounded-md"
               style={{ background: `${NAVY}0a`, border: `1px solid ${NAVY}25` }}>
-              <Icons.Link size={12} className="flex-shrink-0" style={{ color: NAVY }} />
-              <a
-                href={supportLink.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                referrerPolicy="no-referrer"
-                className="text-[#0a6a96] hover:underline truncate"
-              >
-                Abrir material de apoio
-              </a>
-              <span className="text-text-tertiary flex-shrink-0 truncate">{supportLink.hostname}</span>
+              <Icons.Link size={12} className="flex-shrink-0 mt-0.5" style={{ color: NAVY }} />
+              {editingSupport ? (
+                <div className="flex-1 min-w-0">
+                  <input
+                    ref={supportRef}
+                    value={draftSupport}
+                    onChange={e => setDraftSupport(e.target.value)}
+                    onBlur={() => { setSupportTouched(true); saveSupport() }}
+                    onKeyDown={e => { if (e.key === 'Enter') saveSupport(); if (e.key === 'Escape') { setDraftSupport(question.support_url || ''); setEditingSupport(false); setSupportTouched(false) } }}
+                    className="w-full bg-transparent border-b-2 outline-none px-0 py-0 text-xs"
+                    style={{ borderColor: SKY, color: NAVY }}
+                    placeholder="https://… (planilha, vídeo, PDF)"
+                  />
+                  {draftSupportError && (
+                    <p className="text-[11px] mt-1" style={{ color: '#c44' }}>{draftSupportError}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <a
+                    href={supportLink.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    referrerPolicy="no-referrer"
+                    className="text-[#0a6a96] hover:underline truncate flex-1 min-w-0"
+                  >
+                    Abrir material de apoio
+                  </a>
+                  <span className="text-text-tertiary flex-shrink-0 truncate hidden sm:inline">{supportLink.hostname}</span>
+                  <button
+                    onClick={() => { setDraftSupport(question.support_url || ''); setEditingSupport(true); setSupportTouched(false) }}
+                    className="flex-shrink-0 p-1 text-text-tertiary hover:text-[#0a6a96] transition-colors"
+                    title="Editar material de apoio"
+                  >
+                    <Icons.Pencil size={11} />
+                  </button>
+                  <button
+                    onClick={() => onUpdateQuestion({ support_url: null })}
+                    className="flex-shrink-0 p-1 text-text-tertiary hover:text-red-500 transition-colors"
+                    title="Remover material de apoio"
+                  >
+                    <Icons.X size={11} />
+                  </button>
+                </>
+              )}
             </div>
+          )}
+          {!supportLink && !editingSupport && (
+            <button
+              onClick={() => { setDraftSupport(''); setEditingSupport(true); setSupportTouched(false) }}
+              className="mt-1 text-[11px] text-text-tertiary hover:text-[#0a6a96] transition-colors flex items-center gap-1"
+            >
+              <Icons.Plus size={11} />
+              Adicionar material de apoio
+            </button>
           )}
         </div>
       </div>
@@ -1018,9 +1089,14 @@ export function BriefResponsesModal({ instance, onClose }) {
       i === activeSectionIdx
         ? {
             ...sec,
-            questions: (sec.questions || []).map(q =>
-              q.id === qId ? { ...q, ...updates } : q
-            ),
+            questions: (sec.questions || []).map(q => {
+              if (q.id !== qId) return q
+              const next = { ...q, ...updates }
+              if ('support_url' in next && (next.support_url == null || (typeof next.support_url === 'string' && !next.support_url.trim()))) {
+                delete next.support_url
+              }
+              return next
+            }),
           }
         : sec
     ))
