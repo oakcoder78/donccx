@@ -542,6 +542,12 @@ function PendingCard({ record, onAction }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, color: '#fff', fontSize: 14 }}>{record.client?.fantasy_name || record.client?.name}</span>
             <span style={{ fontSize: 11, backgroundColor: '#59c2ed', color: '#173557', fontWeight: 700, padding: '2px 8px', borderRadius: 4, flexShrink: 0 }}>{fmtMonth(record.ref_month)}</span>
+            {record.revision > 1 && (
+              <span style={{ fontSize: 11, backgroundColor: '#f59e0b', color: '#fff', fontWeight: 700, padding: '2px 8px', borderRadius: 4, flexShrink: 0 }}>Rev. {record.revision}</span>
+            )}
+            {record.previous_snapshot && (
+              <span style={{ fontSize: 11, backgroundColor: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: 4, padding: '2px 8px', flexShrink: 0 }} title="Reimportação de mês já publicado — anterior preservado">reimportação</span>
+            )}
             {totalNew > 0 && (
               <span style={{ fontSize: 11, backgroundColor: 'rgba(89,194,237,0.25)', color: '#fff', borderRadius: 4, padding: '2px 8px', flexShrink: 0 }}>
                 +{totalNew} contato{totalNew !== 1 ? 's' : ''}{dupLabel}
@@ -692,7 +698,7 @@ export default function FreshdeskPendingPage() {
     if (action === 'reject') {
       const { error } = await supabase
         .from('client_support')
-        .update({ pending: false, freshdesk_snapshot: null })
+        .update({ pending: false, metrics_status: 'rejected', contacts_status: 'rejected', freshdesk_snapshot: null })
         .eq('id', record.id)
       if (error) { toast.error(error.message); return }
       await logAudit('rejected', record, { reason: 'manual_reject' })
@@ -700,8 +706,7 @@ export default function FreshdeskPendingPage() {
     }
 
     if (action === 'approve') {
-      // Guard: bloquear aprovação se houver duplicata não resolvida já é feita no PendingCard.act,
-      // mas reforçamos aqui: nome sem e-mail nunca gera merge automático (score 0)
+      // Phase 3: publica métricas e contatos independentemente (MVP: ambos juntos)
       const { error } = await supabase
         .from('client_support')
         .update({
@@ -712,12 +717,15 @@ export default function FreshdeskPendingPage() {
           n2_pct:             snap.n2_pct  ?? record.n2_pct,
           n3_pct:             snap.n3_pct  ?? record.n3_pct,
           pending:            false,
+          metrics_status:     'published',
+          contacts_status:    'published',
+          published_at:       new Date().toISOString(),
           freshdesk_snapshot: null,
         })
         .eq('id', record.id)
       if (error) { toast.error(error.message); return }
       await approveContacts(record.client_id, resolvedContacts)
-      await logAudit('approved', record, { contacts_approved: resolvedContacts?.length ?? 0 })
+      await logAudit('approved', record, { contacts_approved: resolvedContacts?.length ?? 0, revision: record.revision })
       toast.success('Dados aprovados')
     }
 
@@ -732,12 +740,15 @@ export default function FreshdeskPendingPage() {
           n2_pct:             record.n2_pct || snap.n2_pct || 0,
           n3_pct:             record.n3_pct || snap.n3_pct || 0,
           pending:            false,
+          metrics_status:     'published',
+          contacts_status:    'published',
+          published_at:       new Date().toISOString(),
           freshdesk_snapshot: null,
         })
         .eq('id', record.id)
       if (error) { toast.error(error.message); return }
       await approveContacts(record.client_id, resolvedContacts)
-      await logAudit('merged', record, { contacts_approved: resolvedContacts?.length ?? 0 })
+      await logAudit('merged', record, { contacts_approved: resolvedContacts?.length ?? 0, revision: record.revision })
       toast.success('Dados mesclados')
     }
 

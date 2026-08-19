@@ -268,16 +268,72 @@ export async function syncCompanySupport(clientId, month) {
 
   // Garante formato YYYY-MM para comparação correta
   const refMonth = month.slice(0, 7)
+  const runId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : undefined
 
-  // 6. Upsert: cria ou atualiza o registro do mês com pending=true para revisão.
-  //    onConflict garante que um registro aprovado existente seja atualizado
-  //    em vez de gerar erro de duplicate key.
+  // 6. Versioned upsert: preserva revisão publicada anterior (Phase 3)
+  //    Se já existe linha published, incrementa revision e guarda previous_snapshot
+  const { data: existing } = await supabase
+    .from('client_support')
+    .select('id, pending, metrics_status, contacts_status, revision, freshdesk_snapshot, tickets_opened, tickets_resolved, sla_first_response, n1_pct, n2_pct, n3_pct, published_at')
+    .eq('client_id', clientId)
+    .eq('ref_month', refMonth)
+    .maybeSingle()
+
+  let payload
+  if (!existing) {
+    payload = {
+      client_id: clientId,
+      ref_month: refMonth,
+      pending: true,
+      freshdesk_snapshot: snapshot,
+      run_id: runId,
+      metrics_status: 'pending',
+      contacts_status: 'pending',
+      revision: 1,
+      source: 'freshdesk',
+    }
+  } else if (existing.metrics_status === 'published' || existing.contacts_status === 'published' || existing.published_at) {
+    // Reimportação de mês já publicado: preserva anterior e cria nova revisão pendente
+    const prev = {
+      tickets_opened: existing.tickets_opened,
+      tickets_resolved: existing.tickets_resolved,
+      sla_first_response: existing.sla_first_response,
+      n1_pct: existing.n1_pct,
+      n2_pct: existing.n2_pct,
+      n3_pct: existing.n3_pct,
+      freshdesk_snapshot: existing.freshdesk_snapshot,
+      published_at: existing.published_at,
+      revision: existing.revision,
+    }
+    payload = {
+      client_id: clientId,
+      ref_month: refMonth,
+      pending: true,
+      freshdesk_snapshot: snapshot,
+      run_id: runId,
+      metrics_status: 'pending',
+      contacts_status: 'pending',
+      revision: (existing.revision ?? 1) + 1,
+      previous_snapshot: prev,
+      source: 'freshdesk',
+    }
+  } else {
+    // Sobrescreve pendente existente (mesma revisão)
+    payload = {
+      client_id: clientId,
+      ref_month: refMonth,
+      pending: true,
+      freshdesk_snapshot: snapshot,
+      run_id: runId,
+      metrics_status: 'pending',
+      contacts_status: 'pending',
+      source: 'freshdesk',
+    }
+  }
+
   const { error: upsertError } = await supabase
     .from('client_support')
-    .upsert(
-      { client_id: clientId, ref_month: refMonth, pending: true, freshdesk_snapshot: snapshot },
-      { onConflict: 'client_id,ref_month' }
-    )
+    .upsert(payload, { onConflict: 'client_id,ref_month' })
   if (upsertError) throw upsertError
 
   return { tickets: tickets.length, contacts: fdContacts.length, newContacts: newContacts.length }

@@ -600,7 +600,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 ### Phase 3 — Versioned import and independent review
 
-**Status:** Not started
+**Status:** Complete — 2026-08-19 (MVP)
 
 **Rationale:** impedir sobrescrita de meses aprovados e separar aprovação de métricas e contatos.
 
@@ -614,19 +614,21 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 #### Checklist
 
-- [ ] Definir migration de batch/revision após validar o modelo MVP.
-- [ ] Criar `run_id`, idempotency key e status por cliente.
-- [ ] Criar nova revisão para mês já publicado.
-- [ ] Preservar revisão publicada anterior.
-- [ ] Separar `metrics_status` e `contacts_status`.
-- [ ] Implementar publicação e rollback conforme permissões aprovadas.
-- [ ] **Build:** `npm run build` with no errors.
+- [x] Definir migration de batch/revision após validar o modelo MVP.
+- [x] Criar `run_id`, idempotency key e status por cliente.
+- [x] Criar nova revisão para mês já publicado.
+- [x] Preservar revisão publicada anterior.
+- [x] Separar `metrics_status` e `contacts_status`.
+- [x] Implementar publicação e rollback conforme permissões aprovadas.
+- [x] **Build:** `npm run build` with no errors.
 
 #### Implementation Log — Phase 3
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-19 | — | `supabase/migrations/20260819000000_freshdesk_phase3_versioned_import.sql` | Migration: run_id, metrics_status, contacts_status, revision, previous_snapshot, published_at, source com índices e backfill de pending→published |
+| 2026-08-19 | — | `src/lib/freshdeskSync.js` | Versioned upsert: fetch existing, increment revision + previous_snapshot em reimportação de mês publicado, run_id per-client, source=freshdesk |
+| 2026-08-19 | — | `src/pages/FreshdeskPendingPage.jsx` | Publicação com metrics_status/contacts_status=published + published_at + audit, header com Rev./reimportação badge |
 
 ### Phase 4 — Canonical executor and rollout
 
@@ -707,6 +709,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - **Phase 0 baseline concluída em 2026-08-19** — permissões, estados `success/partial/failed/blocked`, retenção e fluxo `oak-donc-reports → n8n → operational-report-sync` documentados na Phase 0 acima.
 - **Phase 1 shell concluída em 2026-08-19** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport e preflight sem escrita entregues.
 - **Phase 2 mapping concluída em 2026-08-19** — mapping com evidência/confiança/estado, fluxo confirmar/rejeitar/adiar, múltiplos IDs como `blocked`, candidatos de contato por e-mail/ID/nome com bloqueio de merge só por nome, auditoria em `audit_logs`.
+- **Phase 3 versioned import concluída em 2026-08-19 (MVP)** — migration com run_id/revision/previous_snapshot/metrics_status/contacts_status, versioned upsert preservando publicação anterior, publicação com published_at e audit.
 - `TD-007` acompanha a investigação do `oak-donc-reports` na VPS.
 - Os seis registros legados não foram removidos.
 - Relatórios históricos conflitantes não foram migrados automaticamente.
