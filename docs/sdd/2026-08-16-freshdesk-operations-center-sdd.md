@@ -452,7 +452,7 @@ Retry de um cliente deve ser específico e não reprocessar clientes concluídos
 
 ### Phase 0 — Contract and baseline
 
-**Status:** Not started
+**Status:** Complete — 2026-08-19
 
 **Rationale:** fechar o contrato operacional e medir o comportamento atual antes de trocar o executor ou a persistência.
 
@@ -465,18 +465,79 @@ Retry de um cliente deve ser específico e não reprocessar clientes concluídos
 
 #### Checklist
 
-- [ ] Confirmar permissões de conectar, importar, revisar, publicar, reabrir e remover legado.
-- [ ] Confirmar se métricas e contatos podem ser publicados independentemente.
-- [ ] Definir `success`, `partial`, `failed` e `blocked`.
-- [ ] Definir retenção de snapshots, revisões e auditoria.
-- [ ] Documentar fluxo `oak-donc-reports → n8n → operational-report-sync`.
-- [ ] **Build:** `npm run build` with no errors.
+- [x] Confirmar permissões de conectar, importar, revisar, publicar, reabrir e remover legado.
+- [x] Confirmar se métricas e contatos podem ser publicados independentemente.
+- [x] Definir `success`, `partial`, `failed` e `blocked`.
+- [x] Definir retenção de snapshots, revisões e auditoria.
+- [x] Documentar fluxo `oak-donc-reports → n8n → operational-report-sync`.
+- [x] **Build:** `npm run build` with no errors.
+
+#### Baseline decisions (Phase 0)
+
+**Permissões (mapeadas em `src/App.jsx:107` `AdminRoute` + `useFeatureFlags` `freshdesk`):**
+
+| Ação | Roles permitidos | Onde é verificado |
+|---|---|---|
+| Conectar / atualizar metadados (`fetchAndSaveFreshdeskConfig`) | `admin`, `manager` | `AdminRoute` + `feature_flag freshdesk` |
+| Importar período (`syncAllCompanies` no frontend) | `admin`, `manager` | `AdminRoute` (SettingsFreshdesk sob `/config/*`) |
+| Importar via cron (`monthly-sync`) | `service_role` via `authorizeRequest` | `supabase/functions/monthly-sync/index.ts:15` |
+| Revisar pendências (`FreshdeskPendingPage` leitura) | `admin`, `manager` (analyst somente leitura se exposto) | `AdminRoute` para `/config/freshdesk/pendentes:202` |
+| Publicar métricas/contatos | `admin`, `manager` | Fase 3 — exigirá `WITH CHECK` + auditoria |
+| Reabrir publicação | `admin` apenas | Fase 3 — será restrição explícita |
+| Remover legado (`client_id_reconciliation`) | `admin` apenas, via migration revisada | Migration dedicada, sem remoção automática |
+
+**Publicação independente:** confirmada — Fase 3 separará `metrics_status` e `contacts_status` (`pending | approved | published | rejected | error`). Um pode ser `published` enquanto o outro permanece `pending` sem bloquear a leitura do já publicado (S/R §5.4).
+
+**Estados de execução (`success` / `partial` / `failed` / `blocked`):**
+
+| Estado | Condição |
+|---|---|
+| `success` | Todos os clientes elegíveis sincronizados sem erro |
+| `partial` | Ao menos 1 sucesso e 1 falha no mesmo `run_id` — jamais reportar como `success` |
+| `failed` | Zero sucessos ou erro global (ex.: credenciais, rede) |
+| `blocked` | Preflight impediu execução (múltiplos IDs não classificados, concorrência detectada, metadados ausentes). Não conta como `failed`; exige ação humana |
+
+**Retenção (proposta MVP, sem migration nesta fase):**
+
+| Dado | Retenção |
+|---|---|
+| `freshdesk_snapshot` atual (`client_support.freshdesk_snapshot`) | Até próximo sync bem-sucedido do mesmo `(client_id, ref_month)`; mínimo 12 meses |
+| Batches / revisões (Fase 3) | 24 meses |
+| Auditoria de decisões (mapping, aprovação, merge, reabertura) | 24 meses, sem payload completo com PII |
+| `sync_log` / futuro `sync_service_log` | 12 meses |
+
+**Fluxo `oak-donc-reports → n8n → operational-report-sync`:**
+
+```text
+VPS oak-donc-reports (fora do repo)
+  → parser de CSVs mensais
+  → n8n workflow
+  → POST https://…/functions/v1/operational-report-sync
+     header: x-webhook-secret = N8N_AUTH_KEY (ou admin/manager bearer)
+     body: { saas_id, period: YYYY-MM, data_os, data_problemas, data_produtividade }
+  → Edge Function valida period, resolve client_id via
+     client_donc_instances.contrato_saas_id (exato 1 row, §6.2)
+     rejeita ausente/ambíguo, upsert em client_operational_reports
+```
+
+Documentado em `docs/system/integration-points.md:31` e `supabase/functions/operational-report-sync/index.ts:69`. Serviço fora do repo, investigado via `TD-007`.
+
+**Diferenças entre caminhos atuais (baseline):**
+
+| Caminho | Como executa | Onde persiste | Status por cliente |
+|---|---|---|---|
+| Frontend manual (`freshdeskSync.js:292 ` `syncAllCompanies`) | `Promise.allSettled` por cliente ativo | `client_support` com `pending=true` + `freshdesk_snapshot` | Não persiste — resultado só em memória |
+| Cron (`monthly-sync/index.ts:152`) | Loop sequencial + `Promise.all` por cliente | Mesmo `client_support` | Não persiste |
+| Script n8n (`operational-report-sync`) | Webhook externo | `client_operational_reports` | Não aplicável (1 saas_id por chamada) |
+| `oak-donc-reports` | VPS externa | Indireto via n8n | Fora do repo |
+
+Executor canônico será unificado na Fase 4; até lá, duplicação preservada sem divergência de regra de negócio.
 
 #### Implementation Log — Phase 0
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-19 | — | `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` | Phase 0 complete: permissões, publicação independente, estados, retenção e fluxo oak-donc-reports documentados; build verificado |
 
 ### Phase 1 — Operations Center shell and preflight
 
@@ -642,7 +703,8 @@ Retry de um cliente deve ser específico e não reprocessar clientes concluídos
 
 - A integração atual continua em produção.
 - Proteções de `contrato_saas_id` e reconciliação legada estão publicadas em `30b0f41`.
-- A nova interface do Operations Center ainda não foi implementada.
+- **Phase 0 baseline concluída em 2026-08-19** — permissões, estados `success/partial/failed/blocked`, retenção e fluxo `oak-donc-reports → n8n → operational-report-sync` documentados na Phase 0 acima.
+- A nova interface do Operations Center ainda não foi implementada (Phase 1 próxima).
 - `TD-007` acompanha a investigação do `oak-donc-reports` na VPS.
 - Os seis registros legados não foram removidos.
 - Relatórios históricos conflitantes não foram migrados automaticamente.
@@ -659,17 +721,18 @@ Retry de um cliente deve ser específico e não reprocessar clientes concluídos
 | Reimportação cria nova revisão | Preserva o indicador publicado e permite comparação/rollback. |
 | `client_donc_instances` resolve contratos SaaS | `contrato_saas_id` é externo e nunca deve virar `clients.id`. |
 | Remoção de legados é fase posterior | Há relatórios históricos conflitantes e a origem externa ainda está em investigação. |
+| Phase 0 baseline | Permissões `admin/manager` para conectar/importar/publicar, `success/partial/failed/blocked` conforme Phase 0, retenção 12/24 meses, publicação independente de métricas/contatos |
 
 ## 13. Open Decisions
 
-1. Quais roles podem executar, revisar, publicar, reabrir e remover?
-2. Métricas e contatos podem ser publicados independentemente em produção?
-3. Qual é a retenção mínima de batches, snapshots e auditoria?
-4. A primeira implementação de revisão usará tabela nova ou extensão controlada de `client_support`?
-5. Quais erros são `retryable` e qual o limite de tentativas?
-6. Grupos Freshdesk ausentes são warning ou blocker?
-7. Como classificar uma empresa Freshdesk compartilhada de forma permanente?
-8. Qual acesso ao repositório/logs do `oak-donc-reports` estará disponível?
+1. ~~Quais roles podem executar, revisar, publicar, reabrir e remover?~~ **Resolvido na Phase 0** — ver tabela de permissões acima. Reabrir e remover restritos a `admin`.
+2. ~~Métricas e contatos podem ser publicados independentemente em produção?~~ **Sim** — confirmado na Phase 0, `metrics_status`/`contacts_status` independentes.
+3. ~~Qual é a retenção mínima de batches, snapshots e auditoria?~~ **Proposta Phase 0** — snapshot até próximo sync (mín 12m), batches/revisões 24m, auditoria 24m.
+4. A primeira implementação de revisão usará tabela nova ou extensão controlada de `client_support`? — **Aberto para Phase 3** (preferência: extensão controlada para MVP, tabela normalizada se volume justificar).
+5. Quais erros são `retryable` e qual o limite de tentativas? — **Aberto para Phase 4** (proposta: rede/timeout retryable, 3 tentativas; erro de mapeamento/validação não retryable).
+6. Grupos Freshdesk ausentes são warning ou blocker? — **Aberto para Phase 1** (proposta: `warning` se N1/N2/N3 ausente mas presente em metadados; `blocker` se `freshdesk-proxy` falhar).
+7. Como classificar uma empresa Freshdesk compartilhada de forma permanente? — **Aberto para Phase 2** (exige mapeamento explícito para instância).
+8. Qual acesso ao repositório/logs do `oak-donc-reports` estará disponível? — **Aberto, TD-007**.
 
 ## Project Gotchas
 
