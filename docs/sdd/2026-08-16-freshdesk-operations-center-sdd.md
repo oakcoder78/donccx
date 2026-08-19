@@ -20,7 +20,7 @@ Este documento descreve o estado desejado e serve como contrato para implementa�
 
 ## 0. Current System State
 
-**Lifecycle:** Draft
+**Lifecycle:** In Progress — Phases 0–3 complete, Phase 4 MVP delivered (2026-08-19), stabilization pending
 
 **Branch:** `main`
 
@@ -28,17 +28,30 @@ Este documento descreve o estado desejado e serve como contrato para implementa�
 
 - `30b0f41` — proteção e reconciliação de IDs SaaS legados.
 - `cec0f60` — item `TD-007` para investigar `oak-donc-reports`.
+- `eb2019d` — Phase 0 baseline (permissões, estados, retenção, fluxo oak-donc-reports).
+- `dac0fec` — Phase 1 shell (Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History).
+- `e353729` — Phase 2 mapping e review de identidade (sugestões, múltiplos IDs, candidatos de contato).
+- `73d4c8b` — Phase 3 versioned import (`run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`).
+- `7c4e93e` — Phase 4 canonical executor MVP (`_shared/freshdesk.ts`, retry, kill switch).
+- `628caa1` / `27903d0` / `c85f53a` — ajustes de UX do Operations Center (clareza de sync manual vs cron, origem de `last_sync`).
+- `8372666` — `scripts/freshdesk-canary.js` para comparação canário (run_id/revision por ref_month).
+- `34e3124` — pending count alinhado a `metrics_status`/`contacts_status`.
+- `2ad42aa` — correção de `audit_logs` (`details` → `old_value`/`new_value`).
 
 **Production facts:**
 
-- A aba atual está em `src/components/settings/SettingsFreshdesk.jsx`.
+- O Centro Operacional está em `src/components/settings/SettingsFreshdesk.jsx` com tabs Overview/Preflight/Mapping/Import/Review/History, Overview com ação contextual e Preflight com 5 checks (conexão, metadados, mapeamento, concorrência, revisões pendentes), sem escrita no pré-voo.
 - O acesso publicado exige autenticação; a rota pública redireciona para login sem sessão.
 - O Freshdesk usa secrets server-side (`FRESHDESK_DOMAIN`, `FRESHDESK_API_KEY`); a tela não configura credenciais diretamente.
-- A sincronização manual usa `src/lib/freshdeskSync.js`.
-- A sincronização mensal usa `supabase/functions/monthly-sync/index.ts`.
-- A revisão usa `src/pages/FreshdeskPendingPage.jsx`.
-- O status/agendamento global usa `src/components/settings/SettingsSyncStatus.jsx`.
+- A sincronização manual usa `src/lib/freshdeskSync.js` (via `freshdesk-proxy`, com `withRetry` em 429/5xx e versioned upsert com `run_id`/`revision`/`previous_snapshot`).
+- A sincronização mensal usa `supabase/functions/monthly-sync/index.ts` via `supabase/functions/_shared/freshdesk.ts` (executor canônico, kill switch `freshdesk_canonical_enabled`, versioned upsert, log por cliente).
+- O executor canônico é `supabase/functions/_shared/freshdesk.ts` (`withRetry`, `fdGet`, `getGroupsMap`, `fetchTicketsByCompany`, `fetchContactsByCompany`, `processTicketsToSupport`, `isCanonicalEnabled`).
+- A revisão usa `src/pages/FreshdeskPendingPage.jsx` com fila por `pending`/`metrics_status`/`contacts_status`, comparação de métricas (`FIELDS`), `new_contacts` com scoring 100 (e-mail/`fd_id`) / 60 (nome+domínio) / 0 (nome só), bloqueio de approve/merge com duplicatas não resolvidas, publicação com `published_at` e `audit_logs` (`old_value`/`new_value`), badges `Rev.` e `reimportação`.
+- O mapeamento usa `clients.freshdesk_company_id` + `freshdesk_company_ids[]` com sugestão `Nome exato`/`Domínio compatível`/`Nome parcialmente compatível`, confiança `alta`/`média`/`baixa`, estado `mapeado`/`bloqueado`/`sugestão`/`pendente` e classificação de múltiplos IDs via “Manter <id>”.
+- `client_support` estendido pela migration `20260819000000` com `run_id`, `metrics_status`/`contacts_status`, `revision`, `previous_snapshot`, `published_at`, `source` e índices em `pending`/`metrics_status`/`contacts_status`/`run_id`.
+- O status/agendamento global usa `src/components/settings/SettingsSyncStatus.jsx` (History integrado read-only a partir de `sync_log`; migração completa para `sync_service_log` pendente — TD-006 Fase 2).
 - O n8n envia relatórios operacionais para `operational-report-sync`, mas os workflows e o serviço `oak-donc-reports` ficam fora deste repositório.
+- Canário `scripts/freshdesk-canary.js` valida `run_id`/`revision`/`metrics_status` por `ref_month`, `sync_log` e `audit_logs` recentes.
 
 **Already shipped protections:**
 
@@ -63,16 +76,18 @@ Este documento descreve o estado desejado e serve como contrato para implementa�
 
 | File | Change type | Status |
 |---|---|---|
-| `src/components/settings/SettingsFreshdesk.jsx` | Modify — replace fragmented layout with operations center | Planned |
-| `src/components/settings/SettingsSyncStatus.jsx` | Modify — integrate status/history or extract shared operations | Planned |
-| `src/pages/FreshdeskPendingPage.jsx` | Modify — independent metric/contact review | Planned |
-| `src/lib/freshdeskSync.js` | Modify — canonical sync client or deprecate duplicated rules | Planned |
-| `src/lib/freshdeskConfig.js` | Modify — preflight/metadata result contract | Planned |
-| `supabase/functions/monthly-sync/index.ts` | Modify — explicit partial/blocked status and canonical execution | Planned |
+| `src/components/settings/SettingsFreshdesk.jsx` | Modify — replace fragmented layout with operations center | Complete — Overview/Preflight/Mapping/Import/Review/History shell, ação contextual, 5 checks, blocked resolvable (2ad42aa, 34e3124) |
+| `src/components/settings/SettingsSyncStatus.jsx` | Modify — integrate status/history or extract shared operations | Partially complete — History read-only integrado do `sync_log` no Operations Center; migração para `sync_service_log` pendente (TD-006) |
+| `src/pages/FreshdeskPendingPage.jsx` | Modify — independent metric/contact review | Complete — fila por `metrics_status`/`contacts_status`, scoring 100/60/0, `merge_contacts`/`secondary_emails`, bloqueio de merge só por nome, badges Rev./reimportação, audit `old_value`/`new_value` (2ad42aa) |
+| `src/lib/freshdeskSync.js` | Modify — canonical sync client or deprecate duplicated rules | Complete — `fdGet` via `freshdesk-proxy` com `withRetry` (429/5xx, 2 retries), `getGroupsMap`/`fetchTicketsByCompany`/`fetchContactsByCompany`/`processTicketsToSupport` centralizados, versioned upsert (`run_id`/`revision`/`previous_snapshot`/`source`) |
+| `src/lib/freshdeskConfig.js` | Modify — preflight/metadata result contract | Complete — `fetchAndSaveFreshdeskConfig` (groups/agents/ticket_fields → `freshdesk_config`), `getFreshdeskConfig`, Preflight consome `groups`/`agents`/`last_sync`/`last_data_sync` |
+| `supabase/functions/monthly-sync/index.ts` | Modify — explicit partial/blocked status and canonical execution | Complete — importa `_shared/freshdesk.ts`, kill switch `freshdesk_canonical_enabled`, versioned upsert com `run_id`/`revision`/`previous_snapshot`, log por cliente |
 | `supabase/functions/operational-report-sync/index.ts` | Complete guard already shipped; future observability integration | Partially complete |
-| `supabase/functions/freshdesk-proxy/index.ts` | Modify — endpoint/method allowlist and error normalization | Planned |
-| `supabase/migrations/` | Create — batches, revisions, mappings and audit as phases require | Planned |
-| `docs/system/integration-points.md` | Updated with current identity rule | Complete |
+| `supabase/functions/freshdesk-proxy/index.ts` | Modify — endpoint/method allowlist and error normalization | Complete — auth via `profiles.role` (`admin/manager/analyst`), rate-limit 30/min, `verify_jwt=false` com validação em código, forward `{ path, params, method, body }` |
+| `supabase/functions/_shared/freshdesk.ts` | Create — canonical executor | Complete — `withRetry`, `fdGet`, `getGroupsMap`, `fetchTickets/Contacts`, `processTicketsToSupport`, `isCanonicalEnabled` (Phase 4) |
+| `supabase/migrations/` | Create — batches, revisions, mappings and audit as phases require | Complete — `20260819000000_freshdesk_phase3_versioned_import.sql` (`run_id`, `metrics_status`/`contacts_status`, `revision`, `previous_snapshot`, `published_at`, `source`, backfill, índices) |
+| `scripts/freshdesk-canary.js` | Create — canary comparison for stabilization | Complete — compara `run_id`/`revision`/`metrics_status` por `ref_month`, `audit_logs` e `sync_log` recentes; flag `--kill-switch-test` |
+| `docs/system/integration-points.md` | Updated with current identity rule | Complete — canônico + versioned import documentados |
 | `docs/backlog.md` | Updated with `TD-007` for `oak-donc-reports` | Complete |
 
 ## 1. Product and Domain Definitions
@@ -626,9 +641,11 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-19 | — | `supabase/migrations/20260819000000_freshdesk_phase3_versioned_import.sql` | Migration: run_id, metrics_status, contacts_status, revision, previous_snapshot, published_at, source com índices e backfill de pending→published |
-| 2026-08-19 | — | `src/lib/freshdeskSync.js` | Versioned upsert: fetch existing, increment revision + previous_snapshot em reimportação de mês publicado, run_id per-client, source=freshdesk |
-| 2026-08-19 | — | `src/pages/FreshdeskPendingPage.jsx` | Publicação com metrics_status/contacts_status=published + published_at + audit, header com Rev./reimportação badge |
+| 2026-08-19 | `73d4c8b` | `supabase/migrations/20260819000000_freshdesk_phase3_versioned_import.sql` | Migration: run_id, metrics_status, contacts_status, revision, previous_snapshot, published_at, source com índices e backfill de pending→published |
+| 2026-08-19 | `73d4c8b` | `src/lib/freshdeskSync.js` | Versioned upsert: fetch existing, increment revision + previous_snapshot em reimportação de mês publicado, run_id per-client, source=freshdesk |
+| 2026-08-19 | `73d4c8b` | `src/pages/FreshdeskPendingPage.jsx` | Publicação com metrics_status/contacts_status=published + published_at + audit, header com Rev./reimportação badge |
+| 2026-08-19 | `34e3124` | `src/components/settings/SettingsFreshdesk.jsx`, `src/pages/FreshdeskPendingPage.jsx` | Alinha contagem pendente a `metrics_status`/`contacts_status` (or), não só `pending`; Review mostra “nenhuma pendência” consistente |
+| 2026-08-19 | `2ad42aa` | `src/components/settings/SettingsFreshdesk.jsx`, `src/pages/FreshdeskPendingPage.jsx` | Corrige `audit_logs` inserts (`details` → `old_value`/`new_value`), elimina 400 em `freshdesk_mapping_saved`/`blocked_resolved`/`approved`/`merged`/`rejected` |
 
 ### Phase 4 — Canonical executor and rollout
 
@@ -659,10 +676,13 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-19 | — | `supabase/functions/_shared/freshdesk.ts` | Canonical freshdesk helpers with withRetry, fdGet, getGroupsMap, fetchTickets/Contacts, processTicketsToSupport, isCanonicalEnabled kill switch |
-| 2026-08-19 | — | `supabase/functions/monthly-sync/index.ts` | Uses canonical via _shared, kill switch check, versioned upsert with run_id/revision/previous_snapshot, per-client observability |
-| 2026-08-19 | — | `src/lib/freshdeskSync.js` | Proxy fdGet with withRetry (429/5xx), 2 retries + backoff |
-| 2026-08-19 | — | `scripts/freshdesk-canary.js` | Canary: compara run_id/revision/metrics_status por ref_month, recent audits e sync_log; teste de kill switch com --kill-switch-test |
+| 2026-08-19 | `7c4e93e` | `supabase/functions/_shared/freshdesk.ts` | Canonical freshdesk helpers with withRetry, fdGet, getGroupsMap, fetchTickets/Contacts, processTicketsToSupport, isCanonicalEnabled kill switch (`freshdesk_canonical_enabled`) |
+| 2026-08-19 | `7c4e93e` | `supabase/functions/monthly-sync/index.ts` | Uses canonical via _shared, kill switch check, versioned upsert with run_id/revision/previous_snapshot, per-client observability (`client_id=… run_id=… revision=…`) |
+| 2026-08-19 | `7c4e93e` | `src/lib/freshdeskSync.js` | Proxy fdGet with withRetry (429/5xx), 2 retries + exponential backoff |
+| 2026-08-19 | `8372666` | `scripts/freshdesk-canary.js` | Canary: compara run_id/revision/metrics_status por ref_month, recent audits e sync_log; flag `--kill-switch-test` para validar `freshdesk_canonical_enabled=false` |
+| 2026-08-19 | `628caa1` | `src/components/settings/SettingsFreshdesk.jsx` | Clareza UX: “Sincronizar todos” vs cron, `last_data_sync` vs `last_sync`, aviso de dois tipos de sync |
+| 2026-08-19 | `c85f53a` / `27903d0` | `src/components/settings/SettingsFreshdesk.jsx` | Corrige origem de `lastSync` em Overview (cron `sync_log` + `last_data_sync`), torna `blocked` resolvível via “Manter <id>” |
+| 2026-08-19 | `2ad42aa` | `src/components/settings/SettingsFreshdesk.jsx`, `src/pages/FreshdeskPendingPage.jsx` | Audit fix compartilhado com Phase 3 — canônico preservado |
 
 ## 10. Acceptance Criteria
 
@@ -708,13 +728,13 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 ### Production state
 
 - A integração atual continua em produção.
-- Proteções de `contrato_saas_id` e reconciliação legada estão publicadas em `30b0f41`.
-- **Phase 0 baseline concluída em 2026-08-19** — permissões, estados `success/partial/failed/blocked`, retenção e fluxo `oak-donc-reports → n8n → operational-report-sync` documentados na Phase 0 acima.
-- **Phase 1 shell concluída em 2026-08-19** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport e preflight sem escrita entregues.
-- **Phase 2 mapping concluída em 2026-08-19** — mapping com evidência/confiança/estado, fluxo confirmar/rejeitar/adiar, múltiplos IDs como `blocked`, candidatos de contato por e-mail/ID/nome com bloqueio de merge só por nome, auditoria em `audit_logs`.
-- **Phase 3 versioned import concluída em 2026-08-19 (MVP)** — migration com run_id/revision/previous_snapshot/metrics_status/contacts_status, versioned upsert preservando publicação anterior, publicação com published_at e audit.
-- **Phase 4 canonical em progresso (MVP 2026-08-19)** — `_shared/freshdesk.ts` com retry e kill switch `freshdesk_canonical_enabled`, `monthly-sync` e `freshdeskSync.js` usando canônico com versioned upsert e observabilidade; canary e ciclos estáveis pendentes.
-- `TD-007` acompanha a investigação do `oak-donc-reports` na VPS.
+- Proteções de `contrato_saas_id` e reconciliação legada estão publicadas em `30b0f41` (`20260816210000_reconcile_legacy_saas_client_ids.sql`).
+- **Phase 0 baseline concluída em 2026-08-19 (`eb2019d`)** — permissões `admin/manager`/`service_role`, estados `success/partial/failed/blocked`, retenção 12/24 meses, publicação independente `metrics_status`/`contacts_status`, fluxo `oak-donc-reports → n8n → operational-report-sync` documentados na Phase 0 acima.
+- **Phase 1 shell concluída em 2026-08-19 (`dac0fec`)** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport com ação contextual, 5 checks de pré-voo sem escrita, History integrado de `sync_log`; a11y `tablist`/`tab` com navegação por setas.
+- **Phase 2 mapping concluída em 2026-08-19 (`e353729`) + estabilização `c85f53a`/`2ad42aa`** — mapping com evidência (`Nome exato`/`Domínio`/`Nome parcial`), confiança `alta`/`média`/`baixa`, estado `mapeado`/`bloqueado`/`sugestão`/`pendente`, fluxo confirmar/rejeitar/adiar + salvar, múltiplos IDs como `blocked` resolvível via “Manter <id>”, candidatos de contato por e-mail/ID externo (`fd_id`)/nome com scoring 100/60/0 e bloqueio de merge só por nome, auditoria em `audit_logs` (`old_value`/`new_value`).
+- **Phase 3 versioned import concluída em 2026-08-19 (`73d4c8b`) + fixes `34e3124`/`2ad42aa`** — migration `20260819000000` com `run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`/`published_at`/`source` + backfill + índices; versioned upsert em `freshdeskSync.js` e `monthly-sync` preservando publicação anterior em `previous_snapshot`; fila de revisão por `metrics_status`/`contacts_status` (`34e3124`) e publicação com `published_at` + audit corrigido (`2ad42aa`); header com badges `Rev.` e `reimportação`.
+- **Phase 4 canonical MVP entregue 2026-08-19 (`7c4e93e`) + estabilização `8372666`/`628caa1`/`27903d0`/`34e3124`/`2ad42aa`** — `_shared/freshdesk.ts` centraliza `withRetry`/`fdGet`/`getGroupsMap`/`fetchTicketsByCompany`/`fetchContactsByCompany`/`processTicketsToSupport`/`isCanonicalEnabled` (kill switch `freshdesk_canonical_enabled`, default true, `2` retries + backoff exponencial); `monthly-sync` e `freshdeskSync.js` já usam o canônico com versioned upsert e log por cliente (`run_id`/`revision`); `freshdesk-proxy` com auth `profiles.role` + rate-limit 30/min; canário `scripts/freshdesk-canary.js` compara `run_id`/`revision`/`metrics_status` por `ref_month` e valida `sync_log`/`audit_logs`; esclarecimento de dois tipos de sync (manual tickets vs cron mensal) em Overview/History; `blocked` agora resolvível. Pendente: 2–3 ciclos estáveis + comparação canário antes de remover caminhos legados.
+- `TD-007` acompanha a investigação do `oak-donc-reports` na VPS (fora do repo).
 - Os seis registros legados não foram removidos.
 - Relatórios históricos conflitantes não foram migrados automaticamente.
 
@@ -737,10 +757,10 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 1. ~~Quais roles podem executar, revisar, publicar, reabrir e remover?~~ **Resolvido na Phase 0** — ver tabela de permissões acima. Reabrir e remover restritos a `admin`.
 2. ~~Métricas e contatos podem ser publicados independentemente em produção?~~ **Sim** — confirmado na Phase 0, `metrics_status`/`contacts_status` independentes.
 3. ~~Qual é a retenção mínima de batches, snapshots e auditoria?~~ **Proposta Phase 0** — snapshot até próximo sync (mín 12m), batches/revisões 24m, auditoria 24m.
-4. A primeira implementação de revisão usará tabela nova ou extensão controlada de `client_support`? — **Aberto para Phase 3** (preferência: extensão controlada para MVP, tabela normalizada se volume justificar).
-5. Quais erros são `retryable` e qual o limite de tentativas? — **Aberto para Phase 4** (proposta: rede/timeout retryable, 3 tentativas; erro de mapeamento/validação não retryable).
-6. Grupos Freshdesk ausentes são warning ou blocker? — **Aberto para Phase 1** (proposta: `warning` se N1/N2/N3 ausente mas presente em metadados; `blocker` se `freshdesk-proxy` falhar).
-7. Como classificar uma empresa Freshdesk compartilhada de forma permanente? — **Aberto para Phase 2** (exige mapeamento explícito para instância).
+4. ~~A primeira implementação de revisão usará tabela nova ou extensão controlada de `client_support`?~~ **Resolvido na Phase 3** — extensão controlada para MVP: `20260819000000` adiciona `run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`/`published_at`/`source` mantendo `UNIQUE(client_id, ref_month)`; tabela normalizada (`freshdesk_import_batches` etc.) avaliada se volume/governança justificar.
+5. ~~Quais erros são `retryable` e qual o limite de tentativas?~~ **Resolvido na Phase 4** — `withRetry` em `_shared/freshdesk.ts` e `freshdeskSync.js`: `429/500/502/503/504/fetch failed` com 2 retries + backoff exponencial + jitter; mapeamento/validação não retryable; kill switch `freshdesk_canonical_enabled` permite bypass.
+6. ~~Grupos Freshdesk ausentes são warning ou blocker?~~ **Resolvido na Phase 1** — `warning` se N1/N2/N3 ausente mas `freshdesk_config.groups` presente; `blocker` se `freshdesk-proxy` falhar ou `not_configured`; Preflight exibe “Grupos ou agentes ausentes” como `warning`.
+7. Como classificar uma empresa Freshdesk compartilhada de forma permanente? — **Aberto para Phase 2** (exige mapeamento explícito para instância; múltiplos IDs hoje bloqueiam até classificação humana).
 8. Qual acesso ao repositório/logs do `oak-donc-reports` estará disponível? — **Aberto, TD-007**.
 
 ## Project Gotchas
@@ -769,26 +789,41 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 9. Atualize o Implementation Log e o Current Checkpoint com commit, arquivos e gaps.
 10. Para retomar o trabalho, não trate sugestões como decisões: consulte a Seção 13 e peça confirmação quando uma regra continuar aberta.
 
-### Technical Summary — Current State
+### Technical Summary — Current State (2026-08-19)
 
-**Commits:** `30b0f41`, `cec0f60`
+**Commits:** `30b0f41`, `cec0f60`, `eb2019d`, `dac0fec`, `e353729`, `73d4c8b`, `7c4e93e`, `c85f53a`, `27903d0`, `628caa1`, `8372666`, `34e3124`, `2ad42aa`
 
 **Files created:**
 
 - `supabase/migrations/20260816210000_reconcile_legacy_saas_client_ids.sql`
+- `supabase/migrations/20260819000000_freshdesk_phase3_versioned_import.sql`
+- `supabase/functions/_shared/freshdesk.ts`
+- `scripts/freshdesk-canary.js`
 
 **Files modified:**
 
 - `supabase/functions/operational-report-sync/index.ts`
+- `supabase/functions/monthly-sync/index.ts`
+- `supabase/functions/freshdesk-proxy/index.ts`
+- `src/lib/freshdeskSync.js`
+- `src/lib/freshdeskConfig.js`
+- `src/components/settings/SettingsFreshdesk.jsx`
+- `src/pages/FreshdeskPendingPage.jsx`
 - `src/components/settings/SettingsDoncAPI.jsx`
 - `src/components/clients/tabs/operacional/ClientSubDados.jsx`
 - `docs/system/integration-points.md`
+- `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md`
 - `docs/backlog.md`
 
 **Decisions:**
 
-- Proteção contra novo uso de SaaS ID como cliente.
-- Reconciliação legada sem exclusão ou cópia automática conflitante.
+- Proteção contra novo uso de SaaS ID como cliente; `contrato_saas_id` resolve exclusivamente via `client_donc_instances` (exato 1 row).
+- Reconciliação legada sem exclusão ou cópia automática conflitante (6 rows em `client_id_reconciliation`).
+- Operations Center em seção única com tabs + Preflight sem escrita + History read-only (Phase 1).
+- Mapeamento por `freshdesk_company_id` + `freshdesk_company_ids[]` com sugestão confirmável; múltiplos IDs bloqueiam importação (Phase 2).
+- Versioned import via extensão de `client_support` (`run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`/`published_at`/`source`) — reimportação de mês publicado cria nova revisão preservando anterior (Phase 3).
+- Executor canônico único em `_shared/freshdesk.ts` com retry (429/5xx) + kill switch `freshdesk_canonical_enabled` + observabilidade por cliente; canário para estabilização (Phase 4 MVP).
+- Correção de auditoria (`old_value`/`new_value`) e alinhamento de contagem pendente a `metrics_status`/`contacts_status`.
 - Investigação do `oak-donc-reports` registrada como `TD-007`.
 
 **Issues found:**
@@ -796,10 +831,12 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - Seis registros legados com IDs iguais a contratos SaaS.
 - Relatórios históricos em IDs legados com conteúdo diferente dos destinos canônicos.
 - Origem exata de criação fora do repositório, provavelmente no serviço da VPS.
+- `audit_logs` usava coluna `details` inexistente — corrigido para `old_value`/`new_value` (`2ad42aa`).
+- Contagem pendente usava `pending` singular — corrigida para `metrics_status`/`contacts_status` (`34e3124`).
 
 **Pending items:**
 
-- Implementar o Operations Center.
-- Definir permissões, retenção, retry e publicação parcial.
-- Revisar/migrar relatórios históricos conflitantes.
-- Investigar `oak-donc-reports` conforme `TD-007`.
+- Executar 2–3 ciclos estáveis com canário (`scripts/freshdesk-canary.js`) antes de remover caminhos legados (Phase 4).
+- Migrar `SettingsSyncStatus` de `sync_log` para `sync_service_log` por `service_name` (TD-006 Fase 2).
+- Revisar/migrar relatórios históricos conflitantes quando `TD-007` avançar.
+- Investigar `oak-donc-reports` conforme `TD-007` (acesso VPS/logs pendente).

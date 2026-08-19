@@ -81,7 +81,7 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
 }
 ```
 
-`support_url` is an optional external link per question to help the client fill it in (spreadsheet, video, PDF, presentation). It is configured in the template editor and frozen into `structure_snapshot` when a brief is created. Only `https://` URLs are accepted (validated in the editor and re-validated before rendering); the link opens in a new tab with a fixed label ("Abrir material de apoio") plus the hostname. Existing briefs created before a template change keep their own snapshot.
+`support_url` is an optional external link per question to help the client fill it in (spreadsheet, video, PDF, presentation). It is configured in the template editor (`BriefTemplateEditorModal`) and frozen into `structure_snapshot` when a brief is created. For briefs already `in_progress` (or `draft`), the CSM can also add/edit/remove `support_url` directly in `BriefResponsesModal` without recreating the brief — inline edit on the question card, persisted via `structure_snapshot` update (`Salvar alterações`, `updateStructureMutation`) with `hasChanges` flag; empty input deletes the key. Validation is centralized in `src/lib/briefSupportUrl.js` (`normalizeSupportUrl(raw): { valid, url, hostname, error }`): trimmed empty is valid (optional → `url: null`), max 2000 chars, must parse as `new URL(value)`, only `https:` allowed, no embedded credentials (`username`/`password`), requires `hostname`; valid returns normalized `parsed.href` + `hostname` for display. The value is validated on save in the template editor (blocks save with toast naming the question) and on blur/Enter in `BriefResponsesModal` (inline `#c44` error + toast), and re-validated before rendering in `BriefPublicPage` and `BriefResponsesModal`; the link opens in a new tab (`target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"`) with a fixed label ("Abrir material de apoio") plus the hostname. Existing briefs keep their own snapshot.
 
 `structure_snapshot` in `brief_instances` is a frozen copy of the template at creation time — preserves the brief content even if the template is later edited or deleted.
 
@@ -121,14 +121,15 @@ Wide (max 1000px) two-column modal — Hub CSM view with internal notes layer:
   - Section title inline edit: pencil icon → input field → Enter/blur saves, Escape cancels (`editingSectionTitle` state)
   - Section deliverable ("Entregável") inline edit: same pattern as title, pencil → input → save
   - Section delete: Trash2 icon → confirm if section has any responses, otherwise removes immediately; `handleRemoveSection` checks `getResponse(q.id)` per question
-  - Question text inline edit: pencil on question label → input → blur/Enter saves to `question.text` in `structure` state; `handleUpdateQuestion(sIdx, qIdx, { text: ... })`
-  - Question note inline edit: pencil on hint box → input → blur/Enter saves to `question.note`; inline (doesn't expand note area)
-  - **Pre-fill answers:** CSM can type directly in the response textarea when no client response exists (checked via `responded_by_email !== 'csm'`). Auto-saves with 1.2s debounce via `upsertResponse` mutation → `brief_responses` with `responded_by_email: 'csm'`. On the public page, client sees pre-fill as editable and can overwrite.
-  - hint box (sky, if `question.note`)
-  - client response (read-only)
-  - attachments with signed URL download
-  - **client doubts indicator:** amber box + `Icons.MessageCircle` below response if `clientQuestions` has entries for that `question_id`; clicking navigates to doubts view scrolled to that question's doubt
-  - CSM note area
+   - Question text inline edit: pencil on question label → input → blur/Enter saves to `question.text` in `structure` state; `handleUpdateQuestion(sIdx, qIdx, { text: ... })`
+   - Question note inline edit: pencil on hint box → input → blur/Enter saves to `question.note`; inline (doesn't expand note area)
+   - **Material de apoio (`support_url`) inline edit:** when `support_url` present shows navy row (`Icons.Link`, `background: ${NAVY}0a`, `border: ${NAVY}25`) with `supportLink` (`normalizeSupportUrl` re-validated) — "Abrir material de apoio" link + `hostname` (hidden on `sm`), pencil (`Icons.Pencil`, title "Editar material de apoio") toggles inline input (`ref=supportRef`, `placeholder "https://… (planilha, vídeo, PDF)"`, `borderColor: SKY`), X (`Icons.X`, title "Remover material de apoio") deletes via `onUpdateQuestion({ support_url: null })` (key deleted in `updateQuestion`); when absent shows ghost "+ Adicionar material de apoio" button (`Icons.Plus`, `11px`, `hover:text-[#0a6a96]`); editing state `editingSupport`/`draftSupport`/`supportTouched`, focus on open, sync via `useEffect` on `question.support_url`; validation on blur/Enter via `normalizeSupportUrl(draftSupport)` — inline `#c44` error when `supportTouched && !valid`, toast on invalid (`toast.error(res.error)`), Escape cancels; empty input deletes key; changes set `hasChanges=true` → persist via `updateStructureMutation` (`supabase.from('brief_instances').update({ structure_snapshot: { sections } })`) on "Salvar alterações"
+   - **Pre-fill answers:** CSM can type directly in the response textarea when no client response exists (checked via `responded_by_email !== 'csm'`). Auto-saves with 1.2s debounce via `upsertResponse` mutation → `brief_responses` with `responded_by_email: 'csm'`. On the public page, client sees pre-fill as editable and can overwrite.
+   - hint box (sky, if `question.note`)
+   - client response (read-only)
+   - attachments with signed URL download
+   - **client doubts indicator:** amber box + `Icons.MessageCircle` below response if `clientQuestions` has entries for that `question_id`; clicking navigates to doubts view scrolled to that question's doubt
+   - CSM note area
 - **Right panel — doubts view (`activeView='doubts'`):** sticky header "Dúvidas do cliente"; `ClientDoubtsPanel` component:
   - Empty state: `Icons.MessageCircle` large, gray text
   - Each doubt card: contact name + date + badge (amber=awaiting, green=replied+visible, gray=replied+internal); doubt text; linked question tag (first 64 chars); reply area
@@ -163,7 +164,7 @@ Public page without Supabase JWT. Email-authenticated access:
 7. **Rail (280px):** section list with SVG circular progress rings (32×32, same geometry as BriefResponsesModal); section sub-label from `audience` field; X/Y badge; "Salvo automaticamente" pill; "Fale com a Donc" link → opens **QuestionDrawer** (slide panel inside rail)
 8. **Appbar:** 3-column grid — Left (Capa btn + DONC logo 40×40 lime + breadcrumb), Center (segmented progress bar per section), Right (Baixar PDF → window.print(), Help → toast)
 9. **Section header:** eyebrow + step dots (14×3px bars, sky_deep=current, green=done, muted=rest) + h1 (26px/700) + deliverable block (sky border-left 3px, sky soft bg) + persona pill (dashed, audience field)
-10. **Question cards:** grid `26px 1fr auto` — num badge (color by state), label+asterisk, "Respondida" badge; helper box (Info icon, sky bg) when `note`; textarea/input (13.5px); save indicator; attach chip (compact, dashed→solid when files present); "Dúvida?" ghost button
+10. **Question cards:** grid `26px 1fr auto` — num badge (color by state), label+asterisk, "Respondida" badge; helper box (Info icon, sky bg) when `note`; **support link row** (`normalizeSupportUrl(question.support_url)` re-validated, `supportLink` null skips rendering, otherwise navy-sky row `background: rgba(89,194,237,0.06)` `border: rgba(89,194,237,0.16)` with `Icons.Link` sky_deep, link "Abrir material de apoio" `href={supportLink.url}` `target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer"` + hostname `· abre em nova aba`); textarea/input (13.5px); save indicator; attach chip (compact, dashed→solid when files present); "Dúvida?" ghost button
 11. **Per-question doubt:** clicking "Dúvida?" expands inline textarea → `submit_question` action with `question_id`; shows existing client_questions + CSM replies; auto-closes after 2s
 12. **QuestionDrawer:** slide panel inside rail for general questions (question_id: null); shows history with CSM replies
 13. **CSM notes visible to client:** box with navy left border (3px), "Nota da equipe Donc" label, sourced from `csm_notes` (origin=csm, is_visible=true) from `get` action
@@ -197,10 +198,11 @@ Accessible to admin/manager only:
   - **Basics row:** name input (required) + operation_type select (fed from `catalog_items` where `type='servico'`, via `useCatalog` hook — not hardcoded)
   - **Left rail (260px):** sortable section list via `@dnd-kit/sortable`; each item shows index badge, title, question count; active item has sky border
   - **Right editor panel:** sticky section header (inline title input, question count, duplicate/remove buttons), deliverable inline input (sky tinted row), sortable question cards
-  - **Question card controls:** select (Texto curto/Texto longo), pill toggles for Obrigatória (navy) and Anexo (sky), "+ Orientação" button expands note row (Info icon, sky dashed border); duplicate/remove buttons
-  - **Add question dock:** dashed border, "+ Adicionar pergunta", quick-type shortcuts "Texto curto" / "Texto longo"
-  - **Footer:** relative updated_at timestamp (left), Cancel / Salvar rascunho / Publicar template buttons (right)
+   - **Question card controls:** select (Texto curto/Texto longo), pill toggles for Obrigatória (navy) and Anexo (sky), "+ Orientação" button expands note row (`Icons.Info`, sky dashed `background: ${SKY}08`, `borderColor: ${SKY}40`, placeholder "Orientação opcional para o cliente…"); "+ Material de apoio" button expands URL row (`Icons.Link`, navy dashed `background: ${NAVY}06`, `borderColor: ${NAVY}30`, input `placeholder "https://… (planilha, vídeo, PDF, apresentação)"`, `onBlur` sets `supportTouched=true`, inline `#c44` error when `!supportRes.valid`, hint "Material externo aberto em nova aba como “Abrir material de apoio”"); duplicate (`Icons.Copy`)/remove (`Icons.X`) buttons; per-question `showNote`/`showSupport` + `supportTouched` state, `normalizeSupportUrl(question.support_url)` for display
+   - **Add question dock:** dashed border, "+ Adicionar pergunta", quick-type shortcuts "Texto curto" / "Texto longo"
+   - **Footer:** relative updated_at timestamp (left), Cancel / Salvar rascunho / Publicar template buttons (right)
 - **Draft vs Publish:** "Salvar rascunho" → `is_active: false`; "Publicar template" → `is_active: true`
+- **Validation on save (`handleSave`):** name required, at least one section, each `support_url` re-validated via `normalizeSupportUrl(q.support_url)` — invalid shows `toast.error('URL de apoio inválida em “${q.text || 'Pergunta sem texto'}”')` and blocks save; valid URLs normalized to `parsed.href` (`cleaned.support_url = normalizeSupportUrl(...).url`), empty trimmed values have key deleted (`delete cleaned.support_url`); structure rebuilt with `order: si+1` / `qi+1`
 - DnD: sections (rail) and questions (editor) each have their own `DndContext` — reuses `@dnd-kit` already installed for `ReportEditorPage`
 
 ---

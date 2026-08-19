@@ -3,9 +3,10 @@
 ## 1. Contexto
 
 O sistema de auditoria registra ações dos usuários na tabela `public.audit_logs`.
-Atualmente cobre 26 ações distribuídas entre clients, users, onboarding, projetos
-e questionários. É acessível via `/configuracoes` → Auditoria (roteada por
-`AdminRoute` + feature flag `logs`).
+Atualmente cobre 31 ações (26 base + 5 Freshdesk) distribuídas entre clients,
+users, onboarding, projetos, questionários e Freshdesk Operations Center
+(mapping + pending approvals). É acessível via `/configuracoes` → Auditoria
+(roteada por `AdminRoute` + feature flag `logs`).
 
 ## 2. Arquitetura Atual
 
@@ -22,6 +23,18 @@ Banco (Postgres):
               entity_name, old_value, new_value, created_at)
   RLS: audit_logs_insert → FOR INSERT TO authenticated WITH CHECK (true)
        audit_logs_select → FOR SELECT TO authenticated USING (true)
+
+  Contrato canônico: toda escrita usa `old_value`/`new_value` (JSONB). A coluna
+  `details` não existe no schema — inserts com `details` falham silenciosamente
+  (best-effort catch). Hook de referência: `src/hooks/useAuditLog.js:logAction`
+  insere `old_value`/`new_value`.
+
+  Ações Freshdesk auditadas (fix `2ad42aa` — `details` → `old_value`/`new_value`):
+  - `src/components/settings/SettingsFreshdesk.jsx` — `freshdesk_mapping_saved`
+    (`old_value: before`, `new_value: { after, evidence }`) e
+    `freshdesk_blocked_resolved` (`old_value: before`, `new_value: { freshdesk_company_id, freshdesk_company_ids, kept_id }`)
+  - `src/pages/FreshdeskPendingPage.jsx:logAudit` — `freshdesk_approved`,
+    `freshdesk_merged`, `freshdesk_rejected` (`old_value: { client_id, ref_month }`, `new_value: details`)
 ```
 
 ## 3. Aderência vs Gaps
@@ -31,11 +44,12 @@ Banco (Postgres):
 | Requisito | Status |
 |-----------|--------|
 | Schema completo (snapshots old/new) | ✅ |
-| 26 ações trackeadas (clientes, onboarding, usuários) | ✅ |
+| 26 ações base + 5 Freshdesk (mapping/pending) trackeadas | ✅ |
 | INSERT acessível a qualquer authenticated user | ✅ |
 | Feature flag controlando visibilidade do menu | ✅ |
 | Filtros por entidade + data | ✅ |
 | Acesso admin/manager via AdminRoute | ✅ |
+| Freshdesk mapping/pending usam `old_value`/`new_value` (sem `details`) | ✅ |
 
 ### ❌ Gaps
 
@@ -45,7 +59,7 @@ Banco (Postgres):
 | G2 | `useProjects.js` faz INSERT sem `user_id`/`user_name` | 🔴 Alta | 1 |
 | G3 | Flag `logs` não existe no banco — menu oculto | 🟡 Média | 1 |
 | G4 | Limite fixo de 200 registros sem paginação | 🟡 Média | 2 |
-| G5 | 9 módulos sem auditoria (activities, contacts, feature flags, etc.) | 🟡 Média | 2 |
+| G5 | 9 módulos sem auditoria (activities, contacts, feature flags, etc.) — Freshdesk mapping/pending já coberto em `2ad42aa` | 🟡 Média | 2 |
 | G6 | Sem tracking de login/logout | 🟢 Baixa | 3 |
 | G7 | Sem busca textual nos logs | 🟢 Baixa | 3 |
 | G8 | Sem export CSV | 🟢 Baixa | 3 |
