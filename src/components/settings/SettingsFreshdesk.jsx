@@ -265,7 +265,7 @@ function usePreflight() {
   const { data: pending, isLoading: pendingLoading } = useQuery({
     queryKey: ['freshdesk_preflight_pending'],
     queryFn: async () => {
-      const { count, error } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).eq('pending', true)
+      const { count, error } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).or('metrics_status.eq.pending,contacts_status.eq.pending')
       if (error) throw error
       return count ?? 0
     },
@@ -938,7 +938,8 @@ function ReviewSection() {
   const { data: pendingCount, isLoading } = useQuery({
     queryKey: ['freshdesk_review_pending_count'],
     queryFn: async () => {
-      const { count } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).eq('pending', true)
+      // Phase 3: source of truth is metrics_status/contacts_status, not pending
+      const { count } = await supabase.from('client_support').select('id', { count: 'exact', head: true }).or('metrics_status.eq.pending,contacts_status.eq.pending')
       return count ?? 0
     },
     staleTime: 30_000,
@@ -972,6 +973,9 @@ function ReviewSection() {
           <p className="text-xs text-green-700 mt-0.5">Todos os dados importados foram revisados.</p>
         </div>
       )}
+      <p className="text-xs text-text-tertiary">
+        Contagem considera clientes sob sua responsabilidade (RLS). Para visão completa (service_role): <code>node scripts/freshdesk-canary.js 2026-07</code>
+      </p>
       <Button onClick={() => navigate('/config/freshdesk/pendentes')} disabled={!hasPending && !isLoading} variant={hasPending ? 'primary' : 'secondary'}>
         {hasPending ? 'Revisar importações pendentes' : 'Ver revisões'}
       </Button>
