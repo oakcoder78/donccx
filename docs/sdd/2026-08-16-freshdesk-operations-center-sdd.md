@@ -20,7 +20,7 @@ Este documento descreve o estado desejado e serve como contrato para implementa�
 
 ## 0. Current System State
 
-**Lifecycle:** In Progress — Phases 0–3 complete, Phase 4 MVP delivered (2026-08-19), stabilization pending
+**Lifecycle:** Done — 2026-08-20 — Phases 0–4 complete (0 baseline, 1 shell, 2 mapping, 3 versioned import, 4 canonical + 4.6/4.7 Review/History), validated in prod via canary + Vercel
 
 **Branch:** `main`
 
@@ -737,6 +737,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - **Phase 2 mapping concluída em 2026-08-19 (`e353729`) + estabilização `c85f53a`/`2ad42aa`** — mapping com evidência (`Nome exato`/`Domínio`/`Nome parcial`), confiança `alta`/`média`/`baixa`, estado `mapeado`/`bloqueado`/`sugestão`/`pendente`, fluxo confirmar/rejeitar/adiar + salvar, múltiplos IDs como `blocked` resolvível via “Manter <id>”, candidatos de contato por e-mail/ID externo (`fd_id`)/nome com scoring 100/60/0 e bloqueio de merge só por nome, auditoria em `audit_logs` (`old_value`/`new_value`).
 - **Phase 3 versioned import concluída em 2026-08-19 (`73d4c8b`) + fixes `34e3124`/`2ad42aa`** — migration `20260819000000` com `run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`/`published_at`/`source` + backfill + índices; versioned upsert em `freshdeskSync.js` e `monthly-sync` preservando publicação anterior em `previous_snapshot`; fila de revisão por `metrics_status`/`contacts_status` (`34e3124`) e publicação com `published_at` + audit corrigido (`2ad42aa`); header com badges `Rev.` e `reimportação`.
 - **Phase 4 estabilizada 2026-08-20 (canário)** — `_shared/freshdesk.ts` centraliza `withRetry`/`fdGet`/`getGroupsMap`/`fetchTicketsByCompany`/`fetchContactsByCompany`/`processTicketsToSupport`/`isCanonicalEnabled` (kill switch `freshdesk_canonical_enabled`, default true, `2` retries + backoff); `monthly-sync` e `freshdeskSync.js` já usam o canônico com versioned upsert e log por cliente (`run_id`/`revision`); `freshdesk-proxy` com auth `profiles.role` + rate-limit 30/min; canário validado: `2026-06` 13 rows rev1, `2026-07` 16 rows rev2 com `previous_snapshot` (reimport), `2026-08` 16 rows rev1, todos `published`, kill switch ON→OFF→ON OK, `sync_log` 31/07 success, build OK. Remoção de caminhos legados liberada para próxima janela (sem urgência).
+- **§4.6/§4.7 concluídos 2026-08-20 (`90b6972`) + validação 2026-08-20** — Review com delta abs/% + origem/timestamp + 6 ações independentes (Aprovar tudo/métricas/contatos, Mesclar, Rejeitar, Manter pendente); History 3 blocos (cron Execuções, Revisões por mês, Decisões) validado em Vercel via screenshot (Execuções 31/07 success 13 empresas·donc19·health17, Revisões 2026-08 Rev1 16/16 → 2026-04 2/2, Decisões 8× approved por jorge.carvalho@donc.com.br).
 - `TD-007` externo — fora do escopo deste SDD, mantido em `docs/backlog.md:111` (VPS/n8n só via EF).
 - Os seis registros legados não foram removidos (preservados em `client_id_reconciliation`).
 - Relatórios históricos conflitantes não foram migrados automaticamente (revisitar só se `TD-007` justificar).
