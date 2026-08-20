@@ -23,6 +23,7 @@
 | TD-005 | Tech Debt | Migrar health score de active_users para profissionais_versao | H | Backlog | — |
 | TD-006 | Refactor | Tabela sync_service_log para rastreamento independente por serviço | H | Done | `docs/superpowers/specs/2026-07-27-sync-service-log-design.md` |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
+| TD-008 | Tech Debt | Fechamento Phase 4 — remover wrappers legados em monthly-sync | M | Backlog | `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` |
 
 ---
 
@@ -142,6 +143,54 @@ Os registros suspeitos foram criados em lote, sem `audit_logs`, e alguns relató
 - Nenhum caminho externo cria cliente a partir de contrato SaaS.
 - Serviço externo trata `404`/`409` da Edge Function sem criar fallback indevido.
 - Contrato de integração e procedimento de recuperação documentados.
+
+---
+
+## TD-008 — Fechamento Phase 4 — remover wrappers legados em monthly-sync
+
+**Type:** Tech Debt
+**Priority:** M
+**Status:** Backlog
+**Origin:** 2026-08-20 — `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` marcado `Done` com §4.6/§4.7 100% e Phase 4 estabilizada (canários 2026-06/07/08). Resta limpeza cosmética: `supabase/functions/monthly-sync/index.ts:41-53` mantém 4 wrappers que só delegam para `supabase/functions/_shared/freshdesk.ts`.
+**Linked SDD:** `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` (Phase 4, Implementation Log)
+**Related:** `supabase/functions/_shared/freshdesk.ts`, `supabase/functions/monthly-sync/index.ts`, `scripts/freshdesk-canary.js`, commits `7c4e93e`/`90b6972`/`87c59cb`
+
+### Context
+
+`monthly-sync` importa canônico com alias (`fdGetCanonical`, `getGroupsMapCanonical`…) e expõe 4 wrappers idênticos (`getGroupsMap`, `fetchTicketsByCompany`, `fetchContactsByCompany`, `processTicketsToSupport`) apenas para preservar fallback legado via `isCanonicalEnabled`. Pós-estabilização, fallback não é mais necessário como código — kill switch `freshdesk_config.freshdesk_canonical_enabled` permanece como rollback de dados, não de código. `src/lib/freshdeskSync.js` é canônico próprio via `freshdesk-proxy` e não deve ser tocado (Deno vs Vite).
+
+### Scope
+
+- [ ] Aguardar cron `01/09 00:01 UTC` (pg_cron → `monthly-sync`) sem disparo manual.
+- [ ] Validar: `node scripts/freshdesk-canary.js 2026-09` (Rev.1, `source=freshdesk`, `run_id` novo, `published`), `2026-08` sem regressão, `2026-07` Rev.2 preservado, `History` mostra `01/09 success: 13 empresas · donc · health`, `sync_log` sem `failed`/`running` preso.
+- [ ] Remover `supabase/functions/monthly-sync/index.ts:41-53` (4 wrappers) e trocar import para `import { getGroupsMap, fetchTicketsByCompany, fetchContactsByCompany, processTicketsToSupport, isCanonicalEnabled } from "../_shared/freshdesk.ts"` direto.
+- [ ] Manter `isCanonicalEnabled` + `freshdesk_config.freshdesk_canonical_enabled` até `01/10` como kill switch de rollback (reverter commit se falhar).
+- [ ] `npm run build` + `node_modules/.bin/supabase functions deploy monthly-sync` (única função alterada).
+- [ ] Atualizar `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` Implementation Log com `Removal: Done` e `docs/backlog.md` → Done.
+
+### Non-scope
+
+- Não alterar `src/lib/freshdeskSync.js` (duplicação intencional frontend vs Edge).
+- Não remover `isCanonicalEnabled`/kill switch antes de 01/10.
+- Não tocar `donc-api-sync`/`health-recalc` (fora do SDD).
+
+### Acceptance
+
+- `monthly-sync` sem wrappers (`grep -n "getGroupsMapCanonical" ` retorna 0).
+- `npm run build` OK, `supabase functions deploy monthly-sync` OK, canário `2026-09` OK pós-deploy.
+- Rollback documentado: reverter commit + `upsert freshdesk_canonical_enabled=false` se necessário.
+- SDD Implementation Log e backlog marcados Done.
+
+### Files
+
+- `supabase/functions/monthly-sync/index.ts` (Modify — remover wrappers, importar direto de `_shared/freshdesk.ts`)
+- `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` (Modify — log `Removal: Done`)
+- `docs/backlog.md` (Modify — TD-008 → Done)
+
+### Risks
+
+- Se Freshdesk mudar grupos/N3 entre 20/08 e 01/09, `getGroupsMap` pode quebrar — coberto por `withRetry` 429/5xx, mas manter kill switch até 01/10.
+- Deploy esquecido após edit → usar `node_modules/.bin/supabase` (WSL) conforme `Project Gotchas`.
 
 ---
 

@@ -1,0 +1,25 @@
+--- /tmp/orig.ts	2026-08-20 19:07:57.339793258 -0300
++++ /tmp/new.ts	2026-08-20 19:07:57.343793257 -0300
+@@ -36,21 +36,7 @@
+ // ─── FRESHDESK HELPERS — canonical (Phase 4) ─────────────────────────────────
+ // Centralized in _shared/freshdesk.ts; monthly-sync now uses shared logic with retry and kill switch.
+ // Legacy helpers kept as fallback if freshdesk_canonical_enabled=false in freshdesk_config.
+-import { fdGet as fdGetCanonical, getGroupsMap as getGroupsMapCanonical, fetchTicketsByCompany as fetchTicketsByCompanyCanonical, fetchContactsByCompany as fetchContactsByCompanyCanonical, processTicketsToSupport as processTicketsToSupportCanonical, withRetry, isCanonicalEnabled } from "../_shared/freshdesk.ts"
+-
+-async function getGroupsMap(): Promise<Record<string, number | null>> {
+-  return getGroupsMapCanonical()
+-}
+-
+-async function fetchTicketsByCompany(freshdeskCompanyId: number, month: string): Promise<any[]> {
+-  return fetchTicketsByCompanyCanonical(freshdeskCompanyId, month)
+-}
+-async function fetchContactsByCompany(freshdeskCompanyId: number): Promise<any[]> {
+-  return fetchContactsByCompanyCanonical(freshdeskCompanyId)
+-}
+-function processTicketsToSupport(tickets: any[], clientId: number, month: string, groupsMap: Record<string, number | null>) {
+-  return processTicketsToSupportCanonical(tickets, clientId, month, groupsMap)
+-}
++import { getGroupsMap, fetchTicketsByCompany, fetchContactsByCompany, processTicketsToSupport, isCanonicalEnabled } from "../_shared/freshdesk.ts"
+ 
+ async function syncFreshdesk(
+   admin: SupabaseClient,
