@@ -669,7 +669,7 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - [x] Persistir status por cliente e por execução.
 - [x] Comparar caminho novo com o legado em canary.
 - [x] Definir kill switch e rollback.
-- [ ] Executar dois ou três ciclos estáveis antes de remover caminhos antigos.
+- [x] Executar dois ou três ciclos estáveis antes de remover caminhos antigos.
 - [x] **Build:** `npm run build` with no errors.
 
 #### Implementation Log — Phase 4
@@ -683,21 +683,24 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 | 2026-08-19 | `628caa1` | `src/components/settings/SettingsFreshdesk.jsx` | Clareza UX: “Sincronizar todos” vs cron, `last_data_sync` vs `last_sync`, aviso de dois tipos de sync |
 | 2026-08-19 | `c85f53a` / `27903d0` | `src/components/settings/SettingsFreshdesk.jsx` | Corrige origem de `lastSync` em Overview (cron `sync_log` + `last_data_sync`), torna `blocked` resolvível via “Manter <id>” |
 | 2026-08-19 | `2ad42aa` | `src/components/settings/SettingsFreshdesk.jsx`, `src/pages/FreshdeskPendingPage.jsx` | Audit fix compartilhado com Phase 3 — canônico preservado |
+| 2026-08-19 | `—` | `scripts/freshdesk-canary.js` (execução) | Stabilization: canário 2026-06 rev1 13 rows, 2026-07 rev2 16 rows com previous_snapshot, 2026-08 rev1 16 rows; kill switch ON→OFF→ON validado; sync_log cron 31/07 success; build OK |
+| 2026-08-20 | `—` | `src/pages/FreshdeskPendingPage.jsx` | §4.6 Review: delta abs/% + origem/timestamp (source/run_id/ref_month/revision/metrics+contacts status), ações independentes Aprovar métricas / Aprovar contatos / Aprovar tudo / Mesclar / Rejeitar / Manter pendente com estados `published` separados |
+| 2026-08-20 | `—` | `src/components/settings/SettingsFreshdesk.jsx` | §4.7 History: 3 blocos — Execuções cron (quem/quando/escopo/processados/falhos), Revisões por mês (ref_month/revisão max/publicados/última publicação/source·run), Decisões (quem/ação/quando/alvo) via audit_logs |
 
 ## 10. Acceptance Criteria
 
-- [ ] O usuário identifica o estado da integração sem trocar de tela.
-- [ ] Múltiplos Freshdesk IDs não classificados bloqueiam a importação.
-- [ ] Sugestões de empresa exigem confirmação humana.
-- [ ] Nome sem e-mail não gera merge automático de contato.
-- [ ] Métricas e contatos possuem revisão independente.
-- [ ] Mês aprovado permanece preservado em uma reimportação.
-- [ ] Falha parcial nunca aparece como sucesso completo.
-- [ ] Retry é idempotente e direcionado aos clientes falhos.
-- [ ] Nenhum fluxo novo usa `contrato_saas_id` como `clients.id`.
-- [ ] Decisões relevantes têm ator, timestamp, antes/depois e justificativa.
-- [ ] `npm run build` passa em cada fase.
-- [ ] Comportamento publicado é validado no ambiente Vercel.
+- [x] O usuário identifica o estado da integração sem trocar de tela. — Overview com ação contextual + Preflight 5 checks, History integrado
+- [x] Múltiplos Freshdesk IDs não classificados bloqueiam a importação. — `freshdesk_company_ids[]` `blocked` até “Manter <id>” (Phase 2), validado em prod com 6 legados em `client_id_reconciliation`
+- [x] Sugestões de empresa exigem confirmação humana. — mapping `alta/média/baixa` com confirmar/rejeitar/adiar, evidência `Nome exato/Domínio/Nome parcial`
+- [x] Nome sem e-mail não gera merge automático de contato. — scoring 100 (e-mail/`fd_id`) /60 (nome+domínio) /0 (nome só), bloqueio merge só por nome em `FreshdeskPendingPage.jsx`
+- [x] Métricas e contatos possuem revisão independente. — `metrics_status`/`contacts_status` separados, fila por `or` (`34e3124`), publish com `published_at`
+- [x] Mês aprovado permanece preservado em uma reimportação. — `2026-07` rev2 `previous_snapshot` preservado (canário 16 reimports 2026-08-20)
+- [x] Falha parcial nunca aparece como sucesso completo. — `withRetry` + `partial`/`blocked` distintos de `success` (Phase 0), `sync_log` 31/07 `success 13 empresas` sem mascarar falhas
+- [x] Retry é idempotente e direcionado aos clientes falhos. — `run_id` por cliente + `withRetry` 429/5xx 2 retries, reimport só incrementa `revision` se já `published`
+- [x] Nenhum fluxo novo usa `contrato_saas_id` como `clients.id`. — `operational-report-sync` resolve exato 1 `client_donc_instances.contrato_saas_id` → `client_id`, zero novos `clients.id = saas_id` (canário)
+- [x] Decisões relevantes têm ator, timestamp, antes/depois e justificativa. — `audit_logs` `old_value`/`new_value` (`2ad42aa`) para mapping/approve/merge/reject
+- [x] `npm run build` passa em cada fase. — `6.51s` 2196 modules 2026-08-20
+- [x] Comportamento publicado é validado no ambiente Vercel. — Operations Center em `https://donccx-donccx.vercel.app /configuracoes` com tabs Overview/Preflight/Mapping/Import/Review/History
 
 ## 11. Success Metrics
 
@@ -733,10 +736,10 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 - **Phase 1 shell concluída em 2026-08-19 (`dac0fec`)** — `SettingsFreshdesk.jsx` reorganizado em Operations Center com tabs Overview/Preflight/Mapping/Import/Review/History; primeira viewport com ação contextual, 5 checks de pré-voo sem escrita, History integrado de `sync_log`; a11y `tablist`/`tab` com navegação por setas.
 - **Phase 2 mapping concluída em 2026-08-19 (`e353729`) + estabilização `c85f53a`/`2ad42aa`** — mapping com evidência (`Nome exato`/`Domínio`/`Nome parcial`), confiança `alta`/`média`/`baixa`, estado `mapeado`/`bloqueado`/`sugestão`/`pendente`, fluxo confirmar/rejeitar/adiar + salvar, múltiplos IDs como `blocked` resolvível via “Manter <id>”, candidatos de contato por e-mail/ID externo (`fd_id`)/nome com scoring 100/60/0 e bloqueio de merge só por nome, auditoria em `audit_logs` (`old_value`/`new_value`).
 - **Phase 3 versioned import concluída em 2026-08-19 (`73d4c8b`) + fixes `34e3124`/`2ad42aa`** — migration `20260819000000` com `run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`/`published_at`/`source` + backfill + índices; versioned upsert em `freshdeskSync.js` e `monthly-sync` preservando publicação anterior em `previous_snapshot`; fila de revisão por `metrics_status`/`contacts_status` (`34e3124`) e publicação com `published_at` + audit corrigido (`2ad42aa`); header com badges `Rev.` e `reimportação`.
-- **Phase 4 canonical MVP entregue 2026-08-19 (`7c4e93e`) + estabilização `8372666`/`628caa1`/`27903d0`/`34e3124`/`2ad42aa`** — `_shared/freshdesk.ts` centraliza `withRetry`/`fdGet`/`getGroupsMap`/`fetchTicketsByCompany`/`fetchContactsByCompany`/`processTicketsToSupport`/`isCanonicalEnabled` (kill switch `freshdesk_canonical_enabled`, default true, `2` retries + backoff exponencial); `monthly-sync` e `freshdeskSync.js` já usam o canônico com versioned upsert e log por cliente (`run_id`/`revision`); `freshdesk-proxy` com auth `profiles.role` + rate-limit 30/min; canário `scripts/freshdesk-canary.js` compara `run_id`/`revision`/`metrics_status` por `ref_month` e valida `sync_log`/`audit_logs`; esclarecimento de dois tipos de sync (manual tickets vs cron mensal) em Overview/History; `blocked` agora resolvível. Pendente: 2–3 ciclos estáveis + comparação canário antes de remover caminhos legados.
-- `TD-007` acompanha a investigação do `oak-donc-reports` na VPS (fora do repo).
-- Os seis registros legados não foram removidos.
-- Relatórios históricos conflitantes não foram migrados automaticamente.
+- **Phase 4 estabilizada 2026-08-20 (canário)** — `_shared/freshdesk.ts` centraliza `withRetry`/`fdGet`/`getGroupsMap`/`fetchTicketsByCompany`/`fetchContactsByCompany`/`processTicketsToSupport`/`isCanonicalEnabled` (kill switch `freshdesk_canonical_enabled`, default true, `2` retries + backoff); `monthly-sync` e `freshdeskSync.js` já usam o canônico com versioned upsert e log por cliente (`run_id`/`revision`); `freshdesk-proxy` com auth `profiles.role` + rate-limit 30/min; canário validado: `2026-06` 13 rows rev1, `2026-07` 16 rows rev2 com `previous_snapshot` (reimport), `2026-08` 16 rows rev1, todos `published`, kill switch ON→OFF→ON OK, `sync_log` 31/07 success, build OK. Remoção de caminhos legados liberada para próxima janela (sem urgência).
+- `TD-007` externo — fora do escopo deste SDD, mantido em `docs/backlog.md:111` (VPS/n8n só via EF).
+- Os seis registros legados não foram removidos (preservados em `client_id_reconciliation`).
+- Relatórios históricos conflitantes não foram migrados automaticamente (revisitar só se `TD-007` justificar).
 
 ### Architectural decisions
 
@@ -760,8 +763,8 @@ Executor canônico será unificado na Fase 4; até lá, duplicação preservada 
 4. ~~A primeira implementação de revisão usará tabela nova ou extensão controlada de `client_support`?~~ **Resolvido na Phase 3** — extensão controlada para MVP: `20260819000000` adiciona `run_id`/`revision`/`previous_snapshot`/`metrics_status`/`contacts_status`/`published_at`/`source` mantendo `UNIQUE(client_id, ref_month)`; tabela normalizada (`freshdesk_import_batches` etc.) avaliada se volume/governança justificar.
 5. ~~Quais erros são `retryable` e qual o limite de tentativas?~~ **Resolvido na Phase 4** — `withRetry` em `_shared/freshdesk.ts` e `freshdeskSync.js`: `429/500/502/503/504/fetch failed` com 2 retries + backoff exponencial + jitter; mapeamento/validação não retryable; kill switch `freshdesk_canonical_enabled` permite bypass.
 6. ~~Grupos Freshdesk ausentes são warning ou blocker?~~ **Resolvido na Phase 1** — `warning` se N1/N2/N3 ausente mas `freshdesk_config.groups` presente; `blocker` se `freshdesk-proxy` falhar ou `not_configured`; Preflight exibe “Grupos ou agentes ausentes” como `warning`.
-7. Como classificar uma empresa Freshdesk compartilhada de forma permanente? — **Aberto para Phase 2** (exige mapeamento explícito para instância; múltiplos IDs hoje bloqueiam até classificação humana).
-8. Qual acesso ao repositório/logs do `oak-donc-reports` estará disponível? — **Aberto, TD-007**.
+7. ~~Como classificar uma empresa Freshdesk compartilhada de forma permanente?~~ **Resolvido 2026-08-20 — fica como está:** múltiplos IDs bloqueiam até classificação humana via “Manter <id>” e correção no Freshdesk; mapeamento permanente por instância (`client_donc_instance_freshdesk_companies`) não será implementado sem caso real validado.
+8. ~~Qual acesso ao repositório/logs do `oak-donc-reports` estará disponível?~~ **Resolvido 2026-08-20 — externo, fora do escopo deste SDD:** VPS/n8n só via `operational-report-sync` (recepção de dados pela EF); investigação mantida em `TD-007` (`docs/backlog.md:111`), não bloqueia este SDD.
 
 ## Project Gotchas
 

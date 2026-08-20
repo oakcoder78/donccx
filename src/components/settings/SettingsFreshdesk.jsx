@@ -187,55 +187,182 @@ function PreflightSection({ checks, loading, onTabChange }) {
   )
 }
 
-// ── History: últimas execuções (read-only, integrado do sync_log) ───────────
+// ── History: execuções + revisões por mês + decisões (4.7) ───────────────────
 function HistorySection() {
   const { data: history = [], isLoading } = useSyncHistory({ limit: 8, enabled: true })
   const { data: lastRun } = useSyncStatus()
 
+  const { data: revisions = [], isLoading: revLoading } = useQuery({
+    queryKey: ['freshdesk_history_revisions'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_support')
+        .select('ref_month, metrics_status, contacts_status, revision, published_at, source, run_id')
+        .order('ref_month', { ascending: false })
+        .order('revision', { ascending: false })
+        .limit(60)
+      if (error) throw error
+      // Aggregate by ref_month
+      const map = new Map()
+      for (const r of data ?? []) {
+        if (!map.has(r.ref_month)) map.set(r.ref_month, { ref_month: r.ref_month, rows: [] })
+        map.get(r.ref_month).rows.push(r)
+      }
+      return Array.from(map.values()).slice(0, 6).map(g => {
+        const rows = g.rows
+        const published = rows.filter(r => r.metrics_status === 'published' || r.contacts_status === 'published')
+        const maxRev = Math.max(...rows.map(r => r.revision ?? 1))
+        const lastPub = published.sort((a, b) => new Date(b.published_at) - new Date(a.published_at))[0]?.published_at ?? null
+        return {
+          ref_month: g.ref_month,
+          total: rows.length,
+          publishedCount: published.length,
+          maxRevision: maxRev,
+          lastPublishedAt: lastPub,
+          source: rows[0]?.source ?? '—',
+          runIds: [...new Set(rows.map(r => r.run_id?.slice(0, 8)).filter(Boolean))].slice(0, 3).join(', '),
+        }
+      })
+    },
+    staleTime: 30_000,
+  })
+
+  const { data: audits = [] } = useQuery({
+    queryKey: ['freshdesk_history_audits'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('audit_logs')
+        .select('action, user_name, created_at, entity_id, new_value')
+        .like('action', 'freshdesk_%')
+        .order('created_at', { ascending: false })
+        .limit(8)
+      if (error) throw error
+      return data ?? []
+    },
+    staleTime: 30_000,
+  })
+
   if (isLoading) return <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4"><PageSpinner /></div>
 
   return (
-    <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3" data-testid="freshdesk-history">
-      <div className="flex items-center gap-2">
-        <Icons.Clock size={16} className="text-donc-navy" />
-        <p className="text-sm font-medium text-text-primary">Histórico (cron mensal)</p>
-        <span className="text-xs text-text-tertiary">— syncs manuais de tickets em Visão Geral</span>
-      </div>
-      {lastRun && (
-        <div className="flex items-center gap-2 text-xs">
-          <Badge variant={lastRun.status === 'success' ? 'green' : 'red'}>{lastRun.status === 'success' ? 'Sucesso' : 'Falha'}</Badge>
-          <span className="text-text-tertiary">Última: {formatDateTimeBR(lastRun.started_at)}</span>
+    <div className="space-y-4" data-testid="freshdesk-history">
+      {/* Execuções cron (sync_log) */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Icons.Clock size={16} className="text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">Execuções — cron mensal</p>
+          <span className="text-xs text-text-tertiary">quem = service_role/cron · quando/escopo/processados/falhos</span>
         </div>
-      )}
-      {history.length === 0 ? (
-        <p className="text-sm text-text-tertiary">Nenhuma execução registrada.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border-tertiary">
-                <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Início</th>
-                <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Status</th>
-                <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Resumo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map(row => (
-                <tr key={row.id} className="border-t border-border-tertiary">
-                  <td className="px-2 py-1.5 text-xs">{formatDateTimeBR(row.started_at)}</td>
-                  <td className="px-2 py-1.5"><Badge variant={row.status === 'success' ? 'green' : 'red'}>{row.status}</Badge></td>
-                  <td className="px-2 py-1.5 text-xs text-text-secondary">
-                    {row.summary ? `${row.summary?.freshdesk?.synced ?? '?'} empresas` : row.error_message ? friendlyError(row.error_message) : '—'}
-                  </td>
+        {lastRun && (
+          <div className="flex items-center gap-2 text-xs">
+            <Badge variant={lastRun.status === 'success' ? 'green' : 'red'}>{lastRun.status === 'success' ? 'Sucesso' : 'Falha'}</Badge>
+            <span className="text-text-tertiary">Última: {formatDateTimeBR(lastRun.started_at)}</span>
+          </div>
+        )}
+        {history.length === 0 ? (
+          <p className="text-sm text-text-tertiary">Nenhuma execução registrada.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-tertiary">
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Início</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Status</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Escopo / Resumo</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {history.map(row => (
+                  <tr key={row.id} className="border-t border-border-tertiary">
+                    <td className="px-2 py-1.5 text-xs">{formatDateTimeBR(row.started_at)}</td>
+                    <td className="px-2 py-1.5"><Badge variant={row.status === 'success' ? 'green' : row.status === 'running' ? 'amber' : 'red'}>{row.status}</Badge></td>
+                    <td className="px-2 py-1.5 text-xs text-text-secondary">
+                      {row.summary ? `${row.summary?.freshdesk?.synced ?? '?'} empresas · donc ${row.summary?.donc?.synced ?? '—'} · health ${row.summary?.health?.recalculated ?? '—'}` : row.error_message ? friendlyError(row.error_message) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Revisões por mês (4.7: qual mês/revisão publicada) */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Icons.FileText size={16} className="text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">Revisões por mês</p>
+          <span className="text-xs text-text-tertiary">— qual revisão está publicada · source · run</span>
         </div>
-      )}
-      <p className="text-xs text-text-tertiary">
-        Histórico completo em <span className="font-medium">Status da Sincronização</span> → agendamento e execuções manuais.
-      </p>
+        {revLoading ? (
+          <PageSpinner />
+        ) : revisions.length === 0 ? (
+          <p className="text-sm text-text-tertiary">Nenhuma revisão importada.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-tertiary">
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Mês</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Revisão max</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Publicados</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Última publicação</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Source / run</th>
+                </tr>
+              </thead>
+              <tbody>
+                {revisions.map(r => (
+                  <tr key={r.ref_month} className="border-t border-border-tertiary">
+                    <td className="px-2 py-1.5 text-xs font-medium">{r.ref_month}</td>
+                    <td className="px-2 py-1.5 text-xs"><Badge variant={r.maxRevision > 1 ? 'amber' : 'slate'}>Rev. {r.maxRevision}</Badge></td>
+                    <td className="px-2 py-1.5 text-xs">{r.publishedCount}/{r.total}</td>
+                    <td className="px-2 py-1.5 text-xs">{r.lastPublishedAt ? formatDateTimeBR(r.lastPublishedAt) : '—'}</td>
+                    <td className="px-2 py-1.5 text-xs text-text-secondary">{r.source} · {r.runIds || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Decisões (audit_logs) — quem/quais decisões */}
+      <div className="bg-bg-primary border border-border-tertiary rounded-lg p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <Icons.ClipboardList size={16} className="text-donc-navy" />
+          <p className="text-sm font-medium text-text-primary">Decisões recentes</p>
+          <span className="text-xs text-text-tertiary">quem · qual decisão · quando</span>
+        </div>
+        {audits.length === 0 ? (
+          <p className="text-sm text-text-tertiary">Nenhuma decisão auditada.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-tertiary">
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Quando</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Quem</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Ação</th>
+                  <th className="text-left text-xs font-semibold text-text-tertiary px-2 py-1.5">Alvo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {audits.map((a, i) => (
+                  <tr key={i} className="border-t border-border-tertiary">
+                    <td className="px-2 py-1.5 text-xs">{formatDateTimeBR(a.created_at)}</td>
+                    <td className="px-2 py-1.5 text-xs truncate max-w-[140px]">{a.user_name ?? '—'}</td>
+                    <td className="px-2 py-1.5 text-xs"><Badge variant="slate">{a.action.replace('freshdesk_', '')}</Badge></td>
+                    <td className="px-2 py-1.5 text-xs text-text-secondary">#{a.entity_id}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-xs text-text-tertiary">
+          Trilha completa em <span className="font-medium">audit_logs</span> com `old_value`/`new_value` e `published_at` por `client_support.revision`.
+        </p>
+      </div>
     </div>
   )
 }

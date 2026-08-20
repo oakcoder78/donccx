@@ -160,12 +160,38 @@ const FIELDS = [
 
 function CompareRow({ label, current, proposed }) {
   const changed = current !== proposed && proposed != null
+  const cur = typeof current === 'number' ? current : null
+  const pro = typeof proposed === 'number' ? proposed : null
+  let delta = null
+  let pct = null
+  if (cur != null && pro != null && changed) {
+    delta = pro - cur
+    pct = cur !== 0 ? Math.round((delta / cur) * 100) : null
+  }
   return (
     <tr className="border-t border-border-tertiary">
       <td className="px-3 py-2 text-xs text-text-tertiary">{label}</td>
-      <td className="px-3 py-2 text-sm text-right text-text-secondary" style={{ width: 90 }}>{current ?? '—'}</td>
-      <td className={`px-3 py-2 text-sm text-right font-medium ${changed ? 'text-donc-sky' : 'text-text-secondary'}`} style={{ width: 100 }}>
+      <td className="px-3 py-2 text-sm text-right text-text-secondary" style={{ width: 70 }}>{current ?? '—'}</td>
+      <td className={`px-3 py-2 text-sm text-right font-medium ${changed ? 'text-donc-sky' : 'text-text-secondary'}`} style={{ width: 80 }}>
         {proposed ?? '—'}
+      </td>
+      <td className="px-2 py-2 text-xs text-right" style={{ width: 70 }}>
+        {delta != null ? (
+          <span className={delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-text-tertiary'}>
+            {delta > 0 ? `+${delta}` : `${delta}`}
+          </span>
+        ) : (
+          <span className="text-text-tertiary/40">—</span>
+        )}
+      </td>
+      <td className="px-2 py-2 text-xs text-right" style={{ width: 55 }}>
+        {pct != null ? (
+          <span className={pct > 0 ? 'text-green-600' : pct < 0 ? 'text-red-600' : 'text-text-tertiary'}>
+            {pct > 0 ? `+${pct}%` : `${pct}%`}
+          </span>
+        ) : (
+          <span className="text-text-tertiary/40">—</span>
+        )}
       </td>
     </tr>
   )
@@ -514,12 +540,16 @@ function PendingCard({ record, onAction }) {
   }
 
   async function act(action) {
-    if ((action === 'approve' || action === 'merge') && unresolvedCount > 0) {
-      toast.error(
-        `Resolva ${unresolvedCount} grupo${unresolvedCount !== 1 ? 's' : ''} de duplicata antes de aprovar`,
-        { icon: '⚠️' },
-      )
-      return
+    const needsResolve = action === 'approve' || action === 'merge' || action === 'approve_metrics' || action === 'approve_contacts'
+    if (needsResolve && unresolvedCount > 0 && (action === 'approve_contacts' || action === 'approve' || action === 'merge')) {
+      // approve_contacts and approve require contact resolution; approve_metrics does not block on contacts
+      if (action !== 'approve_metrics') {
+        toast.error(
+          `Resolva ${unresolvedCount} grupo${unresolvedCount !== 1 ? 's' : ''} de duplicata antes de aprovar contatos`,
+          { icon: '⚠️' },
+        )
+        return
+      }
     }
     setBusy(true)
     try {
@@ -533,6 +563,8 @@ function PendingCard({ record, onAction }) {
 
   const totalNew = effectiveContacts.length
   const dupLabel = groups.length > 0 ? ` · ${groups.length} grupo${groups.length !== 1 ? 's' : ''}` : ''
+  const metricsPublished = record.metrics_status === 'published'
+  const contactsPublished = record.contacts_status === 'published'
 
   return (
     <>
@@ -559,26 +591,44 @@ function PendingCard({ record, onAction }) {
               </span>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-            <button disabled={busy} onClick={() => act('approve')} style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: busy ? '#ccc' : '#d3da47', color: busy ? '#888' : '#173557' }}>Aprovar</button>
-            <button disabled={busy} onClick={() => act('merge')}   style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: busy ? '#ccc' : '#59c2ed', color: busy ? '#888' : '#173557' }}>Mesclar</button>
-            <button disabled={busy} onClick={() => act('reject')}  style={{ padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 500, border: '1px solid rgba(255,255,255,0.4)', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: 'transparent', color: '#fff' }}>Rejeitar</button>
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <button disabled={busy} onClick={() => act('approve')} style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: busy ? '#ccc' : '#d3da47', color: busy ? '#888' : '#173557' }} title="Publica métricas e contatos juntos">Aprovar tudo</button>
+            <button disabled={busy || metricsPublished} onClick={() => act('approve_metrics')} style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: 'none', cursor: busy || metricsPublished ? 'not-allowed' : 'pointer', backgroundColor: busy || metricsPublished ? '#ccc' : '#59c2ed', color: busy || metricsPublished ? '#888' : '#173557', opacity: metricsPublished ? 0.5 : 1 }} title={metricsPublished ? 'Métricas já publicadas' : 'Publica só métricas, mantém contatos pendentes'}>Aprovar métricas</button>
+            <button disabled={busy || contactsPublished} onClick={() => act('approve_contacts')} style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: 'none', cursor: busy || contactsPublished ? 'not-allowed' : 'pointer', backgroundColor: busy || contactsPublished ? '#ccc' : '#22c55e', color: busy || contactsPublished ? '#888' : '#fff', opacity: contactsPublished ? 0.5 : 1 }} title={contactsPublished ? 'Contatos já publicados' : 'Publica só contatos'}>Aprovar contatos</button>
+            <button disabled={busy} onClick={() => act('merge')}   style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 600, border: 'none', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: busy ? '#ccc' : '#a78bfa', color: busy ? '#888' : '#fff' }}>Mesclar</button>
+            <button disabled={busy} onClick={() => act('reject')}  style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 500, border: '1px solid rgba(255,255,255,0.4)', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: 'transparent', color: '#fff' }}>Rejeitar</button>
+            <button disabled={busy} onClick={() => act('keep_pending')} style={{ padding: '5px 10px', borderRadius: 5, fontSize: 11, fontWeight: 500, border: '1px solid rgba(255,255,255,0.3)', cursor: busy ? 'not-allowed' : 'pointer', backgroundColor: 'rgba(255,255,255,0.1)', color: '#fff' }} title="Mantém pendente sem publicar">Manter pendente</button>
           </div>
         </div>
 
         <div className="p-4">
-          {/* Comparação de métricas */}
+          {/* Origem e timestamp */}
+          <div className="flex flex-wrap gap-2 text-xs text-text-tertiary mb-2">
+            <span>Origem: <strong className="text-text-secondary">{record.source ?? 'freshdesk'}</strong></span>
+            <span>·</span>
+            <span>Período: <strong className="text-text-secondary">{record.ref_month}</strong></span>
+            {record.run_id && <><span>·</span><span>run <span className="font-mono text-text-secondary">{record.run_id.slice(0, 8)}</span></span></>}
+            {record.revision && <><span>·</span><span>Rev. {record.revision}</span></>}
+            <span>·</span>
+            <span className={`px-1.5 py-0.5 rounded text-xs ${record.metrics_status === 'published' ? 'bg-green-100 text-green-700' : record.metrics_status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>métricas: {record.metrics_status}</span>
+            <span className={`px-1.5 py-0.5 rounded text-xs ${record.contacts_status === 'published' ? 'bg-green-100 text-green-700' : record.contacts_status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>contatos: {record.contacts_status}</span>
+          </div>
+          {/* Comparação de métricas com delta */}
           <table className="w-full text-sm mb-3" style={{ tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: 'auto' }} />
-              <col style={{ width: 90 }} />
-              <col style={{ width: 100 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 55 }} />
             </colgroup>
             <thead>
               <tr className="bg-bg-secondary">
                 <th className="text-left px-3 py-1.5 text-xs font-medium text-text-tertiary">Campo</th>
                 <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Atual</th>
                 <th className="text-right px-3 py-1.5 text-xs font-medium text-text-tertiary">Freshdesk</th>
+                <th className="text-right px-2 py-1.5 text-xs font-medium text-text-tertiary">Δ abs</th>
+                <th className="text-right px-2 py-1.5 text-xs font-medium text-text-tertiary">Δ %</th>
               </tr>
             </thead>
             <tbody>
@@ -696,6 +746,12 @@ export default function FreshdeskPendingPage() {
   async function handleAction(record, action, resolvedContacts) {
     const snap = record.freshdesk_snapshot ?? {}
 
+    if (action === 'keep_pending') {
+      await logAudit('keep_pending', record, { reason: 'user_kept_pending' })
+      toast.success('Mantido pendente — nenhuma alteração')
+      return
+    }
+
     if (action === 'reject') {
       const { error } = await supabase
         .from('client_support')
@@ -704,10 +760,68 @@ export default function FreshdeskPendingPage() {
       if (error) { toast.error(error.message); return }
       await logAudit('rejected', record, { reason: 'manual_reject' })
       toast.success('Dados rejeitados')
+      setRecords(p => p.filter(r => r.id !== record.id))
+      return
+    }
+
+    if (action === 'approve_metrics') {
+      const now = new Date().toISOString()
+      const bothPending = record.metrics_status === 'pending' && record.contacts_status === 'pending'
+      const payload = {
+        tickets_opened:     snap.tickets_opened    ?? record.tickets_opened,
+        tickets_resolved:   snap.tickets_resolved  ?? record.tickets_resolved,
+        sla_first_response: snap.sla_first_response ?? record.sla_first_response,
+        n1_pct:             snap.n1_pct  ?? record.n1_pct,
+        n2_pct:             snap.n2_pct  ?? record.n2_pct,
+        n3_pct:             snap.n3_pct  ?? record.n3_pct,
+        metrics_status:     'published',
+        published_at:       record.published_at ?? now,
+      }
+      // If contacts already published/rejected, clear snapshot and pending; otherwise keep pending for contacts
+      if (record.contacts_status === 'published' || record.contacts_status === 'rejected') {
+        payload.pending = false
+        payload.freshdesk_snapshot = null
+      } else {
+        // Keep contacts pending: preserve new_contacts in snapshot, keep pending true
+        const nextSnap = { ...(snap ?? {}), tickets_opened: undefined, tickets_resolved: undefined, sla_first_response: undefined, n1_pct: undefined, n2_pct: undefined, n3_pct: undefined }
+        // Only keep new_contacts; clear metric keys from snapshot to signal metrics done
+        payload.freshdesk_snapshot = snap.new_contacts ? { new_contacts: snap.new_contacts } : null
+        payload.pending = true
+      }
+      const { error } = await supabase.from('client_support').update(payload).eq('id', record.id)
+      if (error) { toast.error(error.message); return }
+      await logAudit('approved_metrics', record, { revision: record.revision })
+      toast.success('Métricas publicadas — contatos permanecem pendentes')
+      if (payload.pending === false) setRecords(p => p.filter(r => r.id !== record.id))
+      else setRecords(p => p.map(r => r.id === record.id ? { ...r, ...payload } : r))
+      return
+    }
+
+    if (action === 'approve_contacts') {
+      await approveContacts(record.client_id, resolvedContacts)
+      const payload = {
+        contacts_status: 'published',
+        published_at: record.published_at ?? new Date().toISOString(),
+      }
+      if (record.metrics_status === 'published' || record.metrics_status === 'rejected') {
+        payload.pending = false
+        payload.freshdesk_snapshot = null
+      } else {
+        payload.pending = true
+        // Keep metrics snapshot part; strip new_contacts
+        const { new_contacts, ...rest } = snap ?? {}
+        payload.freshdesk_snapshot = Object.keys(rest).length ? rest : null
+      }
+      const { error } = await supabase.from('client_support').update(payload).eq('id', record.id)
+      if (error) { toast.error(error.message); return }
+      await logAudit('approved_contacts', record, { contacts_approved: resolvedContacts?.length ?? 0, revision: record.revision })
+      toast.success('Contatos publicados')
+      if (payload.pending === false) setRecords(p => p.filter(r => r.id !== record.id))
+      else setRecords(p => p.map(r => r.id === record.id ? { ...r, ...payload } : r))
+      return
     }
 
     if (action === 'approve') {
-      // Phase 3: publica métricas e contatos independentemente (MVP: ambos juntos)
       const { error } = await supabase
         .from('client_support')
         .update({
