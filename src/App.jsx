@@ -51,9 +51,9 @@ const qc = new QueryClient({
 })
 
 function DonkieGuard() {
-  const { profile } = useAuth()
+  const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
-  if (!isEnabled('donkie', profile?.role)) return null
+  if (!isEnabled('donkie', effectiveRole)) return null
   return (
     <>
       <DonkiePanel />
@@ -75,7 +75,7 @@ function AppLayout({ googleOAuthSignal }) {
 }
 
 function PrivateRoute() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, effectiveRole, loading } = useAuth()
   const location = useLocation()
   const { isEnabled, loading: flagsLoading } = useFeatureFlags()
   if (loading || flagsLoading) return null
@@ -93,11 +93,11 @@ function PrivateRoute() {
     return <Navigate to="/primeiro-acesso" replace />
   }
 
-  if (profile.role === 'analyst' && isEnabled('whatsapp_atendimento', profile.role) && !location.pathname.startsWith('/atendimento')) {
+  if (effectiveRole === 'analyst' && isEnabled('whatsapp_atendimento', effectiveRole) && !location.pathname.startsWith('/atendimento')) {
     return <Navigate to="/atendimento" replace />
   }
 
-  if (location.pathname.startsWith('/atendimento') && !isEnabled('whatsapp_atendimento', profile?.role)) {
+  if (location.pathname.startsWith('/atendimento') && !isEnabled('whatsapp_atendimento', effectiveRole)) {
     return <Navigate to="/module-unavailable" replace />
   }
 
@@ -105,23 +105,24 @@ function PrivateRoute() {
 }
 
 function AdminRoute() {
-  const { profile } = useAuth()
+  const { profile, effectiveRole } = useAuth()
   const { isEnabled, loading: flagsLoading } = useFeatureFlags()
   if (flagsLoading) return null
-  if (profile?.role !== 'admin' && profile?.role !== 'manager') return <Navigate to="/dashboard" replace />
-  if (profile?.role === 'manager') {
-    if (!isEnabled('settings_menu', profile?.role)) return <Navigate to="/dashboard" replace />
-    if (!isEnabled('api_donc', profile?.role)) return <Navigate to="/dashboard" replace />
-    if (!isEnabled('freshdesk', profile?.role)) return <Navigate to="/dashboard" replace />
+  // Use effectiveRole so impersonation previews correct access; original admin can still exit preview via banner
+  if (effectiveRole !== 'admin' && effectiveRole !== 'manager') return <Navigate to="/dashboard" replace />
+  if (effectiveRole === 'manager') {
+    if (!isEnabled('settings_menu', effectiveRole)) return <Navigate to="/dashboard" replace />
+    if (!isEnabled('api_donc', effectiveRole)) return <Navigate to="/dashboard" replace />
+    if (!isEnabled('freshdesk', effectiveRole)) return <Navigate to="/dashboard" replace />
   }
   return <Outlet />
 }
 
 function AuthRedirect() {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, effectiveRole, loading } = useAuth()
   if (loading) return null
   if (user && profile?.status === 'active') {
-    return <Navigate to={profile?.role === 'analyst' ? '/atendimento' : '/dashboard'} replace />
+    return <Navigate to={effectiveRole === 'analyst' ? '/atendimento' : '/dashboard'} replace />
   }
   return <Outlet />
 }

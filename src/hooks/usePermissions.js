@@ -1,8 +1,8 @@
 import { useAuth } from '../contexts/AuthContext'
 
 export function usePermissions() {
-  const { profile } = useAuth()
-  const role = profile?.role
+  const { effectiveProfile } = useAuth()
+  const role = effectiveProfile?.role || null
 
   return {
     canManageUsers:      role === 'admin' || role === 'manager',

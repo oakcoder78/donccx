@@ -6,6 +6,7 @@ const AuthContext = createContext({})
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [impersonatedRole, setImpersonatedRole] = useState(null)
   const [loading, setLoading] = useState(true)
 
   async function fetchProfile(userId) {
@@ -16,6 +17,21 @@ export function AuthProvider({ children }) {
         .eq('id', userId)
         .maybeSingle()
       setProfile(data)
+      // Also fetch impersonation if admin
+      if (data?.role === 'admin') {
+        const { data: imp } = await supabase
+          .from('role_impersonations')
+          .select('target_role, expires_at')
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (imp && new Date(imp.expires_at) > new Date()) {
+          setImpersonatedRole(imp.target_role)
+        } else {
+          setImpersonatedRole(null)
+        }
+      } else {
+        setImpersonatedRole(null)
+      }
     } catch (e) {
       setProfile(null)
     }
@@ -47,22 +63,56 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  const effectiveRole = impersonatedRole || profile?.role
+  const effectiveProfile = profile ? { ...profile, role: effectiveRole } : null
+
   const value = {
     user,
     profile,
+    effectiveProfile,
+    effectiveRole,
+    impersonatedRole,
+    isImpersonating: !!impersonatedRole,
     loading,
     isAdmin: profile?.role === 'admin',
     isManager: profile?.role === 'manager' || profile?.role === 'admin',
     isAnalyst: profile?.role === 'analyst',
     isSales: profile?.role === 'sales',
     isFinance: profile?.role === 'finance',
+    // Effective (impersonated) helpers
+    isEffectiveAdmin: effectiveRole === 'admin',
+    isEffectiveManager: effectiveRole === 'manager' || effectiveRole === 'admin',
     signIn: (email, password) => supabase.auth.signInWithPassword({ email, password }),
     signInWithGoogle: () => supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/dashboard` },
     }),
-    signOut: () => supabase.auth.signOut(),
+    signOut: async () => {
+      // Clear impersonation on logout
+      if (impersonatedRole) {
+        await supabase.from('role_impersonations').delete().eq('user_id', user?.id)
+      }
+      return supabase.auth.signOut()
+    },
     refreshProfile: () => user ? fetchProfile(user.id) : Promise.resolve(),
+    setImpersonation: async (targetRole) => {
+      if (profile?.role !== 'admin') throw new Error('Only admin can impersonate')
+      if (!targetRole || targetRole === 'admin') {
+        await supabase.rpc('clear_impersonation')
+        setImpersonatedRole(null)
+      } else {
+        const { error } = await supabase.rpc('set_impersonation', { target: targetRole })
+        if (error) throw error
+        setImpersonatedRole(targetRole)
+      }
+      // Reload to apply RLS changes
+      window.location.reload()
+    },
+    clearImpersonation: async () => {
+      await supabase.rpc('clear_impersonation')
+      setImpersonatedRole(null)
+      window.location.reload()
+    },
   }
 
   return (

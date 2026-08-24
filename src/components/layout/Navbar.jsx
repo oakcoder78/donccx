@@ -7,6 +7,7 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
 import { UserEditModal } from '../ui/UserEditModal'
 import { Icons } from '@/lib/icons'
+import { ROLE_OPTIONS } from '@/lib/roles'
 import toast from 'react-hot-toast'
 
 const mainNavLinks = [
@@ -24,7 +25,7 @@ const analystNavLinks = [
 ]
 
 export function Navbar({ googleOAuthSignal }) {
-  const { user, profile, signOut, refreshProfile } = useAuth()
+  const { user, profile, effectiveRole, impersonatedRole, isImpersonating, setImpersonation, clearImpersonation, signOut, refreshProfile } = useAuth()
   const { canViewSettings } = usePermissions()
   const { isEnabled } = useFeatureFlags()
   const navigate = useNavigate()
@@ -41,14 +42,14 @@ export function Navbar({ googleOAuthSignal }) {
     }
   }, [googleOAuthSignal])
 
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager'
   const { data: syncData } = useSyncStatus({ enabled: isAdminOrManager })
   const syncFailed = isAdminOrManager && syncData?.status === 'failed'
 
-  const isAnalyst = profile?.role === 'analyst'
+  const isAnalyst = effectiveRole === 'analyst'
 
   const availableLinks = (links) => links.filter(link => 
-    !link.featureFlag || isEnabled(link.featureFlag, profile?.role)
+    !link.featureFlag || isEnabled(link.featureFlag, effectiveRole)
   )
 
   const links = isAnalyst
@@ -136,7 +137,7 @@ export function Navbar({ googleOAuthSignal }) {
             </div>
             <div className="text-left hidden sm:block">
               <div className="text-white text-xs font-medium leading-tight">{profile?.name || 'Usuário'}</div>
-              <div className="text-white/50 text-[11px] uppercase">{profile?.role || 'csm'}</div>
+              <div className="text-white/50 text-[11px] uppercase">{isImpersonating ? `${effectiveRole} (via Admin)` : (profile?.role || 'csm')}</div>
             </div>
             <svg className="w-4 h-4 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -146,13 +147,42 @@ export function Navbar({ googleOAuthSignal }) {
           {dropdownOpen && (
             <>
               <div className="fixed inset-0 z-10" onClick={() => setDropdownOpen(false)} />
-              <div className="absolute right-0 top-full mt-1 w-48 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-20 py-1">
+              <div className="absolute right-0 top-full mt-1 w-56 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-20 py-1">
                 <button
                   onClick={() => { setDropdownOpen(false); setShowProfile(true) }}
                   className="w-full text-left px-3 py-2 text-sm text-text-secondary hover:bg-bg-secondary transition-colors"
                 >
                   Minha conta
                 </button>
+                {/* Admin backdoor: Ver como */}
+                {profile?.role === 'admin' && (
+                  <div className="px-3 py-2 border-t border-border-tertiary mt-1">
+                    <label className="label-sm mb-1 block">Ver como</label>
+                    <select
+                      value={impersonatedRole || ''}
+                      onChange={e => {
+                        const v = e.target.value || null
+                        setDropdownOpen(false)
+                        if (v) setImpersonation(v)
+                        else clearImpersonation()
+                      }}
+                      className="input-base w-full text-xs"
+                    >
+                      <option value="">— Meu papel (Admin) —</option>
+                      {ROLE_OPTIONS.filter(r => r.value !== 'admin').map(r => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
+                    {isImpersonating && (
+                      <button
+                        onClick={() => { setDropdownOpen(false); clearImpersonation() }}
+                        className="mt-1 text-xs text-donc-red hover:underline"
+                      >
+                        Sair do preview
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="border-t border-border-tertiary my-1" />
                 <button
                   onClick={handleSignOut}
@@ -168,6 +198,14 @@ export function Navbar({ googleOAuthSignal }) {
           )}
         </div>
       </nav>
+
+      {isImpersonating && (
+        <div className="bg-amber-400 text-amber-900 text-xs font-medium text-center py-1.5 px-4 flex items-center justify-center gap-2">
+          <Icons.Eye size={14} />
+          <span>Visualizando como <strong>{effectiveRole}</strong> — dados reais filtrados por RLS. Expira em 1h.</span>
+          <button onClick={() => clearImpersonation()} className="underline font-semibold ml-2">Sair do preview</button>
+        </div>
+      )}
 
       {showProfile && (
         <UserEditModal
