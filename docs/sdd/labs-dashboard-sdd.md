@@ -803,6 +803,8 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 - `clients.csm_id` exists; `clients.comercial_id` **does NOT exist** (Phase 2 labs will add it)
 - `profiles.role` now `admin|manager|csm|analyst|sales|finance` (sales/finance added 2026-08-24, live)
 - `clients` RLS for `sales` (scoped `csm_id`, future `comercial_id`) and `finance` (global) already deployed via `20260824000002_rls_sales_finance.sql`
+- `role_impersonations` table + `get_user_role()` impersonation override + RPC `set/clear_impersonation` live (2026-08-24 `20260824000003_role_impersonation.sql`) — admin backdoor with real RLS, 1h expiry
+- `AuthContext` exposes `effectiveRole/effectiveProfile/impersonatedRole/setImpersonation` + `useViewAsRole` wrapper; `Navbar` has Ver como dropdown + banner; `App.jsx` and `usePermissions` use `effectiveRole`
 - `clients.lifecycle_stage` exists and is used in `DashboardPage`/`HealthDashboard` filters
 - `feature_flags.labs_dashboard` **does NOT exist** (Phase 0 will create it, default `enabled=false`, `allowed_roles` must include `sales,finance`)
 - `src/pages/labs/` and `src/components/labs/` **do not exist**
@@ -826,6 +828,8 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 | `lifecycle_stage = 'cliente'` filter mandatory in all labs queries | `lead`/`ex_cliente` não devem vazar para cockpits operacionais/financeiros; mesmo padrão do dashboard legado. |
 | Reuse `ClientHealthDrawer.jsx` for labs drawer | Componente já é self-contained com queries próprias; evita duplicação. |
 | TanStack defaults `staleTime 30s / retry 1 / gcTime 5m` | Consistência com `App.jsx` QueryClient; evita overrides ad-hoc. |
+| `src/lib/roles.js` como single source (`ROLE_OPTIONS`, `ROLE_LABEL`, `ROLE_VALUES`) | Evita 4 hardcodes divergentes (SettingsFeatureFlags + 3 selects em SettingsUsers); labels em inglês `Admin/Manager/CSM/Analyst/Sales/Finance` seguem padrão plataforma. Validado em screenshots. |
+| Backdoor `Ver como` só `admin` com dados reais via `role_impersonations` + `get_user_role()` override | Frontend-only seria preview visual sem dados; requisito exigiu visão real. Solução com tabela + SECURITY DEFINER + expiry 1h garante RLS real sem mutar `profiles.role`, auditável e auto-limpeza. `effectiveRole` propaga para UI gating. |
 | Desktop-first 1280px, responsive fallback | Padrão do projeto (health-score SDD); labs validará mobile em Phase 5 polish. |
 
 ---
