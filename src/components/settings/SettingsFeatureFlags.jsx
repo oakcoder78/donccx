@@ -9,6 +9,8 @@ const ROLE_OPTIONS = [
   { value: 'manager', label: 'Manager' },
   { value: 'csm',     label: 'CSM'     },
   { value: 'analyst', label: 'Analyst' },
+  { value: 'sales',   label: 'Comercial (Sales)' },
+  { value: 'finance', label: 'Financeiro (Finance)' },
 ]
 
 const FLAG_GROUPS = {
