@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Icons } from '@/lib/icons'
+import { ROLE_OPTIONS, ROLE_LABEL } from '@/lib/roles'
 import { useProfiles, useProfilesMutations } from '@/hooks/useProfiles'
 import { usePermissions } from '@/hooks/usePermissions'
 import { useAuditLog } from '@/hooks/useAuditLog'
@@ -17,7 +18,7 @@ import toast from 'react-hot-toast'
 
 const statusVariant = { active: 'green', pending: 'amber', blocked: 'red' }
 const statusLabel   = { active: 'Ativo', pending: 'Pendente', blocked: 'Bloqueado' }
-const roleLabel     = { admin: 'Admin', manager: 'Manager', csm: 'CSM', analyst: 'Analyst' }
+const roleLabel     = ROLE_LABEL
 
 
 // ── Modal: convidar usuário por e-mail ───────────────────────────────────────
@@ -99,9 +100,7 @@ function InviteUserModal({ onClose, onDone }) {
         <div>
           <label className="label-sm">Perfil</label>
           <select name="role" value={form.role} onChange={handleChange} className="input-base w-full">
-            <option value="csm">CSM</option>
-            <option value="analyst">Analyst</option>
-            <option value="manager">Manager</option>
+            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
@@ -172,9 +171,7 @@ function ApproveModal({ request, onClose, onDone }) {
         <div>
           <label className="label-sm">Perfil</label>
           <select value={role} onChange={e => setRole(e.target.value)} className="input-base w-full">
-            <option value="csm">CSM</option>
-            <option value="analyst">Analyst</option>
-            <option value="manager">Manager</option>
+            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
@@ -334,12 +331,9 @@ export function SettingsUsers() {
                 <select
                   value={p.role}
                   onChange={e => updateRole.mutateAsync({ id: p.id, role: e.target.value, name: p.name })}
-                  className="input-base text-xs w-24"
+                  className="input-base text-xs w-[130px]"
                 >
-                  <option value="csm">CSM</option>
-                  <option value="analyst">Analyst</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
+                  {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               ) : (
                 <span className="text-xs text-text-tertiary w-24 text-center">{roleLabel[p.role]}</span>

@@ -1,17 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Icons } from '@/lib/icons'
+import { ROLE_OPTIONS } from '@/lib/roles'
 import { supabase } from '@/lib/supabaseClient'
 import { SettingsSectionHeader } from './SettingsSectionHeader'
 import toast from 'react-hot-toast'
-
-const ROLE_OPTIONS = [
-  { value: 'admin',   label: 'Admin'   },
-  { value: 'manager', label: 'Manager' },
-  { value: 'csm',     label: 'CSM'     },
-  { value: 'analyst', label: 'Analyst' },
-  { value: 'sales',   label: 'Comercial (Sales)' },
-  { value: 'finance', label: 'Financeiro (Finance)' },
-]
 
 const FLAG_GROUPS = {
   'Barra principal': ['whatsapp_atendimento', 'settings_menu'],
