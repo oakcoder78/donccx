@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/Card'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useAuth } from '@/contexts/AuthContext'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useCatalog } from '@/hooks/useCatalog'
 import { supabase } from '@/lib/supabaseClient'
 import { Icons } from '@/lib/icons'
@@ -251,6 +253,9 @@ function DoncInstancesSection({ clientId }) {
 
 export function ClientSubDados({ client }) {
   const { canViewFinancial } = usePermissions()
+  const { effectiveRole } = useAuth()
+  const { isEnabled } = useFeatureFlags()
+  const canViewFinancialEffective = isEnabled('financial_data', effectiveRole)
   const { data: catalog = [] } = useCatalog()
 
   const servicos = client.client_catalog
@@ -272,7 +277,7 @@ export function ClientSubDados({ client }) {
           <InfoRow label="Renovação" value={formatDate(client.contract_renewal)} />
           <InfoRow label="Início Onboarding" value={formatDate(client.onb_start)} />
           <InfoRow label="Go Live" value={formatDate(client.golive)} />
-          {canViewFinancial && (
+          {canViewFinancialEffective && (
             <>
               <InfoRow label="MRR" value={client.mrr ? `R$ ${Number(client.mrr).toLocaleString('pt-BR')}` : null} />
               <InfoRow
