@@ -12,7 +12,7 @@ const FLAG_GROUPS = {
   'Projetos': ['fase_types', 'activity_types', 'project_templates', 'brief_templates'],
   'Health Score': ['health'],
   'IA & Automação': ['donkie', 'ai'],
-  'Integrações': ['freshdesk', 'api_donc'],
+  'Integrações': ['freshdesk', 'api_donc', 'asana'],
   'Comunicação': ['email_templates'],
   'Governança': ['logs', 'features'],
   'Cockpits & Dashboards': ['health', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'labs_dashboard', 'financial_data'],
