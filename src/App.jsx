@@ -37,6 +37,7 @@ import CockpitsPage from './pages/CockpitsPage'
 import CsRadarPage from './pages/CsRadarPage'
 import ProjectCockpitPage from './pages/ProjectCockpitPage'
 import ProfissionaisCockpitPage from './pages/ProfissionaisCockpitPage'
+import LabsDashboardPage from './pages/labs/LabsDashboardPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -93,7 +94,7 @@ function PrivateRoute() {
     return <Navigate to="/primeiro-acesso" replace />
   }
 
-  if (effectiveRole === 'analyst' && isEnabled('whatsapp_atendimento', effectiveRole) && !location.pathname.startsWith('/atendimento')) {
+  if (effectiveRole === 'analyst' && isEnabled('whatsapp_atendimento', effectiveRole) && !location.pathname.startsWith('/atendimento') && !location.pathname.startsWith('/labs/dashboard')) {
     return <Navigate to="/atendimento" replace />
   }
 
@@ -184,6 +185,7 @@ function AppRoutes() {
           <Route path="/module-unavailable" element={<ModuleUnavailablePage variant="no-access" />} />
           <Route path="/atendimento" element={<AtendimentoPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/labs/dashboard" element={<LabsDashboardPage />} />
           <Route path="/cockpits" element={<CockpitsPage />} />
           <Route path="/health" element={<HealthDashboardPage />} />
           <Route path="/cs-radar" element={<CsRadarPage />} />

@@ -11,13 +11,14 @@ import { ROLE_OPTIONS } from '@/lib/roles'
 import toast from 'react-hot-toast'
 
 const mainNavLinks = [
-  { to: '/dashboard',    label: 'Dashboard'   },
-  { to: '/empresas',     label: 'Empresas'    },
-  { to: '/contatos',     label: 'Contatos'    },
-  { to: '/atividades',   label: 'Atividades'  },
-  { to: '/projetos',     label: 'Projetos'    },
-  { to: '/cockpits',     label: 'Cockpits'    },
-  { to: '/atendimento',  label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
+  { to: '/dashboard',      label: 'Dashboard'   },
+  { to: '/labs/dashboard', label: 'Labs', featureFlag: 'labs_dashboard' },
+  { to: '/empresas',       label: 'Empresas'    },
+  { to: '/contatos',       label: 'Contatos'    },
+  { to: '/atividades',     label: 'Atividades'  },
+  { to: '/projetos',       label: 'Projetos'    },
+  { to: '/cockpits',       label: 'Cockpits'    },
+  { to: '/atendimento',    label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
 ]
 
 const analystNavLinks = [
