@@ -16,7 +16,7 @@ const TABS = ['Dados da Empresa', 'Contrato', 'Operacional', 'Endereço']
 const EMPTY = {
   name: '', fantasy_name: '', cnpj: '', segment_id: '',
   unidades_total: '', unidades_donc: '',
-  abc_class: '', csm_id: '', site: '', contract_active: true,
+  abc_class: '', csm_id: '', comercial_id: '', site: '', contract_active: true,
   logo_url: '',
   billing_type: 'por_licenca', billing_base_value: '',
   billing_floor: '', contract_signed_date: '', contract_start: '',
@@ -61,6 +61,7 @@ export function ClientForm({ client, onClose }) {
           billing_floor: client.billing_floor ?? '',
           segment_id: client.segment_id || '',
           csm_id: client.csm_id || '',
+          comercial_id: client.comercial_id || '',
           stage_id: client.stage_id || '',
           contract_active: client.contract_active !== false,
           lifecycle_stage: client.lifecycle_stage || 'lead',
@@ -108,6 +109,7 @@ export function ClientForm({ client, onClose }) {
   }, [existingModPricing.length])
 
   const csms = profiles.filter(p => p.role === 'csm' || p.role === 'manager')
+  const comercials = profiles.filter(p => (p.role === 'sales' || p.role === 'manager' || p.role === 'admin') && p.status === 'active')
   const servicos = catalog.filter(c => c.type === 'servico')
   const solucoes = catalog.filter(c => c.type === 'solucao')
   const isMutating = create.isPending || update.isPending
@@ -276,6 +278,7 @@ export function ClientForm({ client, onClose }) {
       unidades_donc: form.unidades_donc !== '' ? Number(form.unidades_donc) : 0,
       abc_class: form.abc_class || null,
       csm_id: form.csm_id || null,
+      comercial_id: form.comercial_id || null,
       site: form.site || null,
       contract_active: form.contract_active,
       billing_type: form.billing_type,
@@ -436,6 +439,14 @@ export function ClientForm({ client, onClose }) {
                   <option value="">Sem CSM</option>
                   {csms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
+              </div>
+              <div>
+                <label className="label-sm">Comercial responsável</label>
+                <select name="comercial_id" value={form.comercial_id} onChange={handleChange} className="input-base w-full">
+                  <option value="">Sem Comercial</option>
+                  {comercials.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <p className="text-[11px] text-text-tertiary mt-0.5">Titularidade comercial (dual ownership)</p>
               </div>
               <div>
                 <label className="label-sm">Site</label>

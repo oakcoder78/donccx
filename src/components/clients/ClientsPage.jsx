@@ -53,7 +53,8 @@ export default function ClientsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { profile } = useAuth()
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
+  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager' || profile?.role === 'finance'
+  const isSales = profile?.role === 'sales'
 
   const [search,          setSearch]          = useState('')
   const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
@@ -66,7 +67,11 @@ export default function ClientsPage() {
     if (f) setFilter(f)
   }, [searchParams])
 
-  const baseFilters = isAdminOrManager ? { search } : { csm_id: profile?.id, search }
+  const baseFilters = isAdminOrManager
+    ? { search }
+    : isSales
+      ? { comercial_id: profile?.id, search }
+      : { csm_id: profile?.id, search }
 
   // Call both hooks; enable only the relevant one (avoids conditional hook calls)
   const { data: activeClients = [], isLoading: loadingActive } =
@@ -246,6 +251,12 @@ function CompanyCard({ client: c, onClick }) {
           <div className="flex items-center gap-1">
             <Avatar name={c.csm.name} size="sm" />
             <span className="text-xs text-text-tertiary truncate max-w-[100px]">{c.csm.name}</span>
+          </div>
+        )}
+        {c.comercial && (
+          <div className="flex items-center gap-1">
+            <Avatar name={c.comercial.name} size="sm" />
+            <span className="text-xs text-text-tertiary truncate max-w-[100px]">Com. {c.comercial.name}</span>
           </div>
         )}
       </div>

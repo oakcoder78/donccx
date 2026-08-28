@@ -7,6 +7,7 @@ const CLIENT_SELECT = `
   *,
   stage:stages(*),
   csm:profiles!clients_csm_id_fkey(id, name, email),
+  comercial:profiles!clients_comercial_id_fkey(id, name, email),
   client_catalog(id, catalog_item_id, status, catalog_items(*)),
   onboardings(id, context, status, situacao_geral, created_at, end_date, projects(id))
 `
@@ -14,6 +15,8 @@ const CLIENT_SELECT = `
 function buildClientsQuery(filters) {
   let q = supabase.from('clients').select(CLIENT_SELECT).order('name')
   if (filters.csm_id)   q = q.eq('csm_id', filters.csm_id)
+  if (filters.comercial_id) q = q.eq('comercial_id', filters.comercial_id)
+  if (filters._labs_dual_owner) q = q.or(`csm_id.eq.${filters._labs_dual_owner},comercial_id.eq.${filters._labs_dual_owner}`)
   if (filters.stage_id) q = q.eq('stage_id', filters.stage_id)
   if (filters.search)   q = q.or(`name.ilike.%${filters.search}%,fantasy_name.ilike.%${filters.search}%`)
   if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
@@ -83,7 +86,7 @@ export function useClientMutations() {
       // Fetch old data to detect field changes for audit
       const { data: oldData } = await supabase
         .from('clients')
-        .select('name, csm_id, stage_id')
+        .select('name, csm_id, comercial_id, stage_id')
         .eq('id', id)
         .single()
 
@@ -132,6 +135,11 @@ export function useClientMutations() {
         await logAction('change_csm', 'client', id, oldData?.name,
           { csm_id: oldData?.csm_id },
           { csm_id: payload.csm_id })
+      }
+      if (payload.comercial_id !== undefined && payload.comercial_id !== oldData?.comercial_id) {
+        await logAction('change_comercial', 'client', id, oldData?.name,
+          { comercial_id: oldData?.comercial_id },
+          { comercial_id: payload.comercial_id })
       }
       if (payload.stage_id !== undefined && payload.stage_id !== oldData?.stage_id) {
         await logAction('change_stage', 'client', id, oldData?.name,
