@@ -38,18 +38,18 @@
     <div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px); background-size: 32px 32px;"></div>
   </div>
   <div class="max-w-[1120px] mx-auto px-6 py-8 lg:py-9 relative">
-    <div class="flex gap-5 items-start">
+    <div class="flex gap-5 items-center">
       <div class="relative flex-shrink-0">
         <div class="absolute -inset-2 rounded-[22px] bg-[#d3da47]/20 blur-xl"></div>
         <img src="https://i.pravatar.cc/176?img=12" alt="foto perfil" class="relative w-[112px] h-[112px] rounded-[20px] object-cover border-[3px] border-white shadow-2xl">
         <span id="hero-role-pill" class="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full bg-[#d3da47] text-[#0f2540] text-[11px] font-extrabold tracking-wide shadow-lg">Sales</span>
         <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#2f9e70] border-[3px] border-[#0a1f33] shadow"></span>
       </div>
-      <div class="flex-1 min-w-0">
-        <!-- GREETING-ENGINE: temporal + operational (3 clientes precisam de você) na 3ª linha -->
+      <div class="flex-1 min-w-0 flex flex-col justify-center">
+        <!-- GREETING-ENGINE: h1 + p extra + p operational (3ª linha) — alinhadas verticalmente com foto -->
         <h1 id="greeting-text" class="text-white font-extrabold tracking-tight leading-none" style="font-family:Montserrat,sans-serif;font-size:34px;letter-spacing:-0.03em;">Bom dia, Jorge.</h1>
-        <p id="greeting-extra" class="text-white/70 text-sm mt-1">Quinta, 28 de agosto · Carteira equilibrada</p>
-        <p id="greeting-operational" class="text-[#d3da47] text-sm mt-1 font-semibold hidden"></p>
+        <p id="greeting-extra" class="text-white/70 text-sm mt-1 leading-none">Quinta, 28 de agosto · Carteira equilibrada</p>
+        <p id="greeting-operational" class="text-[#d3da47] text-sm mt-1 font-semibold leading-none hidden"></p>
       </div>
     </div>
 
@@ -84,7 +84,7 @@
       <span class="w-8 h-8 rounded-xl bg-[#173557] flex items-center justify-center text-white text-sm">◈</span>
       <div>
         <h2 class="text-sm font-extrabold tracking-tight text-[#0e223a]" style="font-family:Montserrat,sans-serif">Nossa força em Números</h2>
-        <p class="text-xs text-[#6b7889]">Acumulado 2026 · até <strong>julho</strong> (ref agosto) · plataforma desde dez/2025 · comparativo futuro por quarter</p>
+        <p class="text-xs text-[#6b7889]">Acumulado 2026 · até <strong>julho</strong> · plataforma desde dez/2025 · comparativo futuro por quarter</p>
       </div>
       <span class="ml-auto hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">YTD 2026</span>
     </div>
@@ -107,7 +107,7 @@
       <div class="panel !bg-[#0f2540] !border-white/10">
         <div class="text-[11px] tracking-widest uppercase font-bold text-[#d3da47]">Média health score</div>
         <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:30px;line-height:1">82</div>
-        <div class="text-xs text-white/60">média julho · 75/50 thresholds</div>
+        <div class="text-xs text-white/60">média julho</div>
       </div>
     </div>
     <p class="text-[11px] text-[#9aa5b5] mt-2">Sem comparativo no YTD (plataforma desde dez/2025) · quarter a quarter vira quando fechar Q3.</p>
@@ -190,11 +190,12 @@ const opEl=document.getElementById('greeting-operational');
 if(greetingEl) greetingEl.textContent=greetingForHour(hour,'Jorge.');
 const extras=['Carteira equilibrada','Carteira exige atenção','3 clientes precisam de você'];
 const today=new Date(); const seed=today.getDate()+today.getMonth()*31;
-const extraText=today.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})+' · '+(extras[seed%extras.length]);
-if(extraEl) extraEl.textContent=extraText;
-// 3ª linha: quando extra for "3 clientes precisam de você", duplica como linha amarela dedicada e mantém 2ª linha só com data
-if(extraText.includes('3 clientes precisam de você') && opEl){
-  opEl.textContent='3 clientes precisam de você';
+const picked=extras[seed%extras.length];
+const isOperational = picked === '3 clientes precisam de você';
+if(extraEl) extraEl.textContent=today.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})+(isOperational ? '' : ' · '+picked);
+// 3ª linha amarela só quando for operacional — evita duplicação
+if(isOperational && opEl){
+  opEl.textContent=picked;
   opEl.classList.remove('hidden');
 }
 
