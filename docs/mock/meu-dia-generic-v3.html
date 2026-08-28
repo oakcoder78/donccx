@@ -23,9 +23,13 @@
 <nav class="bg-[#173557] h-[56px] flex items-center px-6 gap-8 sticky top-0 z-30 border-b border-white/5">
   <div class="flex items-center gap-0.5"><span class="text-[#d3da47] font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">donc</span><span class="text-white font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">CX</span><span class="text-white/50 font-light text-[13px] ml-1">Hub</span></div>
   <div class="flex items-center gap-1 flex-1 text-[14px]"><span class="px-3.5 py-2 text-white bg-white/[0.08] rounded-full font-semibold border border-white/10">Labs</span><span class="px-3 py-1.5 text-white/45">Dashboard</span><span class="px-3 py-1.5 text-white/45">Empresas</span><span class="px-3 py-1.5 text-white/45">Cockpits</span></div>
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-2 relative" id="avatar-wrap">
     <span class="hidden lg:inline-flex items-center text-[11px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-white/80">REF JULHO</span>
-    <div class="w-8 h-8 rounded-full bg-[#d3da47] flex items-center justify-center text-[#0f2540] font-bold text-xs ring-2 ring-white/20">J</div>
+    <button id="avatar-btn" class="w-8 h-8 rounded-full bg-[#d3da47] flex items-center justify-center text-[#0f2540] font-bold text-xs ring-2 ring-white/20 hover:ring-white/40 transition">J</button>
+    <div id="avatar-dropdown" class="hidden absolute right-0 top-full mt-2 w-56 bg-white border border-[rgba(15,34,58,0.08)] rounded-2xl shadow-xl p-2 z-50">
+      <div class="text-[11px] tracking-widest uppercase font-bold text-[#9aa5b5] px-2 py-1">Ver como</div>
+      <div id="role-options" class="space-y-1"></div>
+    </div>
   </div>
 </nav>
 
@@ -212,8 +216,29 @@ const roleMap={
   manager:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">18</div><div class="text-xs text-white/60">Alocados em sua carteira</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Ordens de Serviço</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">46.748</div><div class="text-xs font-bold text-[#d3da47]">+8% vs média 90 dias</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais Ativos</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">1.042</div><div class="text-xs font-bold text-[#d3da47]">+4% vs média 90 dias</div></div>`,
   analyst:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Total de Tickets</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">98</div><div class="text-xs text-white/60">89 via WhatsApp</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Tickets em Aberto</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">23</div><div class="text-xs text-white/60">Freshdesk + WhatsApp</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Taxa Resolução</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">76%</div><div class="text-xs text-white/60">últimos 30d</div></div>`
 };
-if(role && roleMap[role] && heroCards){ heroCards.innerHTML=roleMap[role]; if(pill) pill.textContent=role.charAt(0).toUpperCase()+role.slice(1); }
-if(role==='analyst' || location.hash==='#analyst') document.getElementById('analyst-empty').classList.remove('hidden');
+function renderRole(r){
+  if(roleMap[r] && heroCards){ heroCards.innerHTML=roleMap[r]; if(pill) pill.textContent=r.charAt(0).toUpperCase()+r.slice(1); }
+  document.getElementById('analyst-empty').classList.toggle('hidden', r!=='analyst');
+  history.replaceState(null,'','?role='+r);
+}
+if(role && roleMap[role] && heroCards){ renderRole(role); }
+if(location.hash==='#analyst') document.getElementById('analyst-empty').classList.remove('hidden');
+// Avatar dropdown
+const avatarBtn=document.getElementById('avatar-btn');
+const avatarDropdown=document.getElementById('avatar-dropdown');
+const avatarWrap=document.getElementById('avatar-wrap');
+const roleOptionsEl=document.getElementById('role-options');
+const roles=['admin','manager','csm','sales','finance','analyst'];
+const labels={admin:'Admin',manager:'Manager',csm:'CSM',sales:'Sales',finance:'Finance',analyst:'Analyst'};
+roles.forEach(r=>{
+  const b=document.createElement('button');
+  b.className='w-full text-left px-3 py-2 rounded-xl text-sm font-medium hover:bg-[#f1f3f5] flex items-center justify-between '+(role===r?'bg-[#173557] text-white hover:bg-[#173557]':'text-[#0e223a]');
+  b.innerHTML='<span>'+labels[r]+'</span>'+(role===r?'<span class="w-2 h-2 rounded-full bg-[#d3da47]"></span>':'');
+  b.onclick=()=>{ avatarDropdown.classList.add('hidden'); renderRole(r); };
+  roleOptionsEl.appendChild(b);
+});
+if(avatarBtn) avatarBtn.onclick=(e)=>{ e.stopPropagation(); avatarDropdown.classList.toggle('hidden'); };
+document.addEventListener('click',(e)=>{ if(!avatarWrap.contains(e.target)) avatarDropdown.classList.add('hidden'); });
 </script>
 </body>
 </html>
