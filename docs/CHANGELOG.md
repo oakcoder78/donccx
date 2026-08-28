@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-28
+
+### Invite — Correção do 400 `null value in column "id"` ao convidar usuário
+
+- **Fix:** `SettingsUsers.InviteUserModal` (`src/components/settings/SettingsUsers.jsx`) fazia `insert into profiles {name,email,role,status:'pending'}` **antes** de chamar `invite-user`. Como `profiles.id` é `uuid PK FK -> auth.users(id)` sem `DEFAULT`, o insert sem `id` falhava com `POST /rest/v1/profiles?select=id 400 null value in column "id"` (regressão de `790a26f`). Fluxo corrigido para **invite-first**: `POST /functions/v1/invite-user {email,role,name,redirectTo}` cria `auth.users` + trigger `handle_new_user` cria `profiles(id=new.id)`, depois Edge garante `profiles` via `adminClient`. Frontend agora usa `data.user_id` retornado para `logAction`/`toast` e não faz mais `insert`/`update` direto — preserva UX `Convidar` (`Nome*/E-mail*/Perfil`) e seções `Aguardando aprovação / Convites enviados / Todos os usuários`.
+- **Fix:** `supabase/functions/invite-user/index.ts` — adicionado `upsert` com `adminClient` (bypass RLS) nos dois branches: `existingUser` → `upsert {id, name, email, role, status:'active'}` (libera direto), novo usuário → `upsert {id, name, email, role, status:'invited'}` + `update` fallback para promover `pending` do trigger para `invited`. Garante ambos os fluxos de entrada: **(1) usuário solicita acesso** (`/solicitar-acesso` → `access_requests pending` → `ApproveModal` → `invite-user`) e **(2) admin convida direto** (`InviteUserModal` → `invite-user`), convergindo em `primeiro-acesso` (`status invited → active`).
+- **DB:** `supabase/migrations/20260828000000_fix_profiles_invited_status.sql` — recria `profiles_status_check` incluindo `invited` (`active|pending|blocked|invited`) e `profiles_role_check` com `sales|finance`. Migration idempotente; `invited` já era usado em `App.jsx:90` (`status==='invited' → /primeiro-acesso`) e `SettingsUsers.jsx:216`/`App.jsx` mas faltava no `CHECK` do `remote_schema`.
+- **Ops:** `npx supabase db push --include-all` + `npx supabase functions deploy invite-user` + `npm run build` OK; `git push origin main` Vercel redeploy. Validado com `douglas.nunes@leevia.com.br` (Finance) — antes `400`, depois `Convite enviado`.
+
 ## 2026-08-18
 
 ### Brief público — Erro ao salvar respostas (HTTP 400)
@@ -425,6 +434,7 @@
 
 | Migration | Description |
 |-----------|-------------|
+| `20260828000000_fix_profiles_invited_status.sql` | Recreates `profiles_status_check` (`active|pending|blocked|invited`) + `profiles_role_check` (`admin|manager|csm|analyst|sales|finance`) — fixes `InviteUserModal` `400 null value in column "id"` |
 | `20260615000001_fix_client_catalog_history_rls.sql` | Adds `client_catalog_history_insert` policy — trigger quebrava por RLS ao salvar client_catalog |
 | `20260615000000_brief_responses_insert_policy.sql` | Adds `brief_responses_insert` / `brief_responses_update` policies |
 | `20260614000000_projects_cockpit_flag.sql` | Adds `projects_cockpit` feature flag |

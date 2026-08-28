@@ -25,7 +25,7 @@ The Settings module is the administrative hub of the application. It centralises
 | **SettingsCatalog.jsx** | UI for managing catalogue entities. |
 | **SettingsSegments.jsx** | UI for creating and editing business segments. |
 | **SettingsStages.jsx** | UI for defining workflow stages. |
-| **SettingsUsers.jsx** | UI for admin‑level user management (list, edit, role assignment). |
+| **SettingsUsers.jsx** | UI for admin‑level user management (list, edit, role assignment). Handles both entry flows: (1) user requests access via `/solicitar-acesso` → `access_requests pending` → `ApproveModal` → `invite-user`, and (2) admin invites directly via `InviteUserModal` → `invite-user` (invite-first, no pre-insert into `profiles`). |
 | **SettingsLogs.jsx** | UI for privileged audit‑log inspection. |
 | **SettingsFreshdesk.jsx** | UI for configuring Freshdesk integration credentials and options. |
 | **SettingsAsana.jsx** | UI for the Asana integration: enable toggle + workspace/project/section selectors, persisted in `freshdesk_config` key `asana_config`. |
@@ -86,6 +86,7 @@ Primary actions must be placed in the header using the `actions` property. Examp
 - **Contexts** – `AuthContext` for user role information.
 
 ## Integration Points
+- **Auth / Invite** – `SettingsUsers` delegates user creation to `supabase/functions/invite-user` (`verify_jwt=false` but `auth.getUser(token)` + `profiles.role==='admin'` + `createRateLimiter 20/min` + `adminClient` bypass RLS). Function checks `auth.admin.listUsers` for `existingUser`, then `inviteUserByEmail({data:{role,name}, redirectTo})`; trigger `handle_new_user` inserts `profiles`, Edge `upsert` promotes to `invited`/`active`. `profiles_status_check` (`active|pending|blocked|invited`, `20260828000000_fix_profiles_invited_status.sql`) and `profiles_role_check` (`admin|manager|csm|analyst|sales|finance`) enforce status/role. Related tables: `profiles (id FK auth.users)`, `access_requests (pending|approved|rejected|invited)`, `role_impersonations`.
 - **Freshdesk** – credentials and routing settings stored via the `SettingsFreshdesk` component. The Mapping section is now displayed as a dedicated card inside the synchronization layout, replacing the previous tab-based navigation (Sync / Mapping).
 - **Asana** – integration settings stored via the `SettingsAsana` component (workspace/project/section selectors + enable toggle), backed by the `asana-proxy` Edge Function and the `ASANA_PAT` secret. Task pattern follows manual convention — name `[<Cliente>] <Assunto> [#<id_freshdesk>]`, body with all Freshdesk ticket fields + link, reviewed/edited in `AsanaReviewModal` before creation. Active in production (project "Tickets Asana", section "Aguardando Avaliação Técnica").
 
@@ -105,6 +106,9 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 3. **Edit Configuration** – user modifies inputs; component validates locally (e.g., weight sum = 100).
 4. **Persist Changes** – user clicks *Save*; mutation sends data to Supabase; on success a toast appears and the query cache is invalidated.
 5. **Permission Enforcement** – attempts to access admin‑only screens are hidden; non‑privileged users cannot see or interact with those UI elements.
+6. **User Entry Flows (SettingsUsers)** – two inbound paths converge on `supabase/functions/invite-user` (admin-only, `service_role`):
+   - **(1) Solicitação (inbound):** `SolicitarAcessoPage` inserts `access_requests {name,email,status:'pending'}` (no `auth.users`); admin reviews `Aguardando aprovação` → `ApproveModal` `POST /functions/v1/invite-user {email,role,name,redirectTo:'https://donccx.vercel.app/primeiro-acesso'}` → `adminClient.auth.admin.inviteUserByEmail` creates `auth.users` → trigger `handle_new_user` inserts `profiles(id=new.id, status:'pending')` → Edge `upsert profiles {id, status:'invited'|'active'}`; invite email sent; user completes `PrimeiroAcesso` (`upsert profiles {status:'active'}`).
+   - **(2) Convite direto (outbound):** `InviteUserModal` `POST /functions/v1/invite-user` first (no pre-insert into `profiles`; prior `insert {name,email,role}` without `id` caused `400 null value in column "id"` — fixed `2026-08-28`); same Edge `upsert invited` path; `Convites enviados` (filter `status==='invited'`) shows pending invites. Both flows share `logAction('invite_user')` + `statusVariant/statusLabel` (`active|pending|blocked`, chip `Convite enviado` for `invited`).
 
 ## State Management
 - **Local component state** – `useState` for form fields, active tabs, loading flags, etc.

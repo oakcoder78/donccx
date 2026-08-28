@@ -76,9 +76,10 @@ An **overlay drawer** (`DrawerClientContent`) renders client details when a clie
 2. **Dashboard Access** – after login, router redirects to `/dashboard`, showing health scores and client signals.
 3. **Create Ticket** – from the dashboard or a direct link, user opens `/atendimento`, follows a three‑step wizard to select a client, paste WhatsApp text, optionally run AI analysis, review fields, and create a Freshdesk ticket.
 4. **View/Edit Report** – authenticated users navigate to `/report/edit/:id` (`ReportEditorPage`) to modify a report; public viewers use `/report/:id` (`ReportPublicPage`).
-5. **Request Access** – prospective users fill `/solicitar-acesso` to request a role.
-6. **Password Reset** – `/reset-password` allows password recovery via Supabase.
-7. **First‑Access Setup** – new users complete `/primeiro-acesso` to configure their profile.
+5. **Request Access** – prospective users fill `/solicitar-acesso` (`SolicitarAcessoPage` inserts `access_requests {name,email,status:'pending'}` after dedup against `profiles`/`access_requests`; no `auth` creation) → admin approves in `SettingsUsers` (`ApproveModal` → `invite-user` → `auth.users` + `profiles invited/active`).
+6. **Direct Invite** – admin fills `SettingsUsers` → `Convidar` (`InviteUserModal` `Nome*/E-mail*/Perfil`) → `POST /functions/v1/invite-user` (invite-first, no pre-insert into `profiles`; fixed `2026-08-28` `400 null value in column "id"`); `profiles` created by `handle_new_user` + Edge `upsert invited`; invite email to `https://donccx.vercel.app/primeiro-acesso`.
+7. **Password Reset** – `/reset-password` allows password recovery via Supabase.
+8. **First‑Access Setup** – new users (`status invited|pending`) complete `/primeiro-acesso` (`PrimeiroAcesso.jsx:78` `auth.updateUser({password})` + `upsert profiles {id:user.id, status:'active'}` + `update access_requests status='approved'` + `signOut` → `/login`).
 
 ## State Management
 - Local component state via `useState` for form fields, step control, and UI flags.
