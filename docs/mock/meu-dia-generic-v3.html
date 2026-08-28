@@ -154,9 +154,9 @@
         <div class="flex items-center justify-between px-3 py-3 rounded-xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.06)]"><div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-[#59c2ed]"></span><div><p class="text-sm font-semibold text-[#0e223a] leading-none">Visita técnica — Top Móveis</p><p class="text-xs text-[#6b7889]">29/08 · 14:00 · você</p></div></div><span class="text-[10px] font-bold tracking-wide px-2.5 py-1.5 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">AGENDADA</span></div>
         <div class="flex items-center justify-between px-3 py-3 rounded-xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.06)]"><div class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-[#9aa5b5]"></span><div><p class="text-sm font-semibold text-[#0e223a] leading-none">Call — Casa Forte</p><p class="text-xs text-[#6b7889]">30/08 · 11:00 · você</p></div></div><span class="text-[10px] font-bold tracking-wide px-2.5 py-1.5 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">AGENDADA</span></div>
       </div>
-      <div class="mt-auto pt-3 border-t border-[rgba(15,34,58,0.08)] flex gap-2">
+      <div class="mt-auto pt-3 border-t border-[rgba(15,34,58,0.08)] flex gap-2" id="agenda-footer">
         <button class="flex-1 h-9 rounded-xl bg-[#173557] text-white text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#0f2540] transition"><span class="text-sm leading-none">+</span> Nova atividade</button>
-        <button class="flex-1 h-9 rounded-xl bg-white border border-[rgba(15,34,58,0.08)] text-[#0e223a] text-xs font-semibold flex items-center justify-center gap-2 hover:bg-[#f1f3f5] transition"><span class="text-sm leading-none">✉</span> Enviar e-mail</button>
+        <a id="agenda-secondary-cta" href="#" class="flex-1 h-9 rounded-xl bg-white border border-[rgba(15,34,58,0.08)] text-[#0e223a] text-xs font-semibold flex items-center justify-center gap-2 hover:bg-[#f1f3f5] transition"><span class="text-sm leading-none">✉</span> Enviar e-mail</a>
       </div>
     </div>
   </div>
@@ -209,9 +209,7 @@
   </div>
 </section>
 
-<section id="analyst-empty" class="bg-[#f1f3f5] py-6 hidden">
-  <div class="max-w-[1120px] mx-auto px-6"><div class="panel border-dashed !bg-[#fbfcfd]"><div class="flex gap-5 items-center"><div class="w-20 h-20 rounded-2xl bg-[#173557]/5 border border-[#173557]/10 flex items-center justify-center text-[#173557] text-xl">◎</div><div><h3 class="text-sm font-bold text-[#0e223a]">Sua carteira começa no Atendimento</h3><p class="text-sm text-[#6b7889] mt-1">Você vê pulso e mapa do ecossistema, mas <strong>saúde</strong> é por cliente — sem cliente atribuído ainda.</p></div></div><div class="flex gap-2 mt-5"><a href="/atendimento" class="px-5 py-2.5 rounded-xl bg-[#0f2540] text-white text-sm font-bold shadow">Ir para Atendimento</a><a href="#meu-dia" class="px-5 py-2.5 rounded-xl bg-white border text-sm font-semibold text-[#0e223a]">Ver Meu dia</a></div></div></div>
-</section>
+
 
 <div class="max-w-[1120px] mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]"></div>
 
@@ -255,11 +253,17 @@ const roleMap={
 };
 function renderRole(r){
   if(roleMap[r] && heroCards){ heroCards.innerHTML=roleMap[r]; if(pill) pill.textContent=r.charAt(0).toUpperCase()+r.slice(1); }
-  document.getElementById('analyst-empty').classList.toggle('hidden', r!=='analyst');
+  const agendaCta=document.getElementById('agenda-secondary-cta');
+  if(r==='analyst' && agendaCta){
+    agendaCta.href='/atendimento';
+    agendaCta.innerHTML='Atendimento <span class="ml-1 px-1.5 py-0.5 rounded-full bg-[#d98b28] text-white text-[10px]">23</span>';
+  } else if(agendaCta){
+    agendaCta.href='#';
+    agendaCta.innerHTML='<span class="text-sm leading-none">✉</span> Enviar e-mail';
+  }
   history.replaceState(null,'','?role='+r);
 }
 if(role && roleMap[role] && heroCards){ renderRole(role); }
-if(location.hash==='#analyst') document.getElementById('analyst-empty').classList.remove('hidden');
 // Avatar dropdown
 const avatarBtn=document.getElementById('avatar-btn');
 const avatarDropdown=document.getElementById('avatar-dropdown');
