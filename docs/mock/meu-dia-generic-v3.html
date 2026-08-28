@@ -256,7 +256,7 @@ function renderRole(r){
   const agendaCta=document.getElementById('agenda-secondary-cta');
   if(r==='analyst' && agendaCta){
     agendaCta.href='/atendimento';
-    agendaCta.innerHTML='Atendimento <span class="ml-1 px-1.5 py-0.5 rounded-full bg-[#d98b28] text-white text-[10px]">23</span>';
+    agendaCta.innerHTML='<span class="text-sm leading-none">+</span> Novo atendimento';
   } else if(agendaCta){
     agendaCta.href='#';
     agendaCta.innerHTML='<span class="text-sm leading-none">✉</span> Enviar e-mail';
