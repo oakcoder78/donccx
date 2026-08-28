@@ -24,7 +24,7 @@
   <div class="flex items-center gap-0.5"><span class="text-[#d3da47] font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">donc</span><span class="text-white font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">CX</span><span class="text-white/50 font-light text-[13px] ml-1">Hub</span></div>
   <div class="flex items-center gap-1 flex-1 text-[14px]"><span class="px-3.5 py-2 text-white bg-white/[0.08] rounded-full font-semibold border border-white/10">Labs</span><span class="px-3 py-1.5 text-white/45">Dashboard</span><span class="px-3 py-1.5 text-white/45">Empresas</span><span class="px-3 py-1.5 text-white/45">Cockpits</span></div>
   <div class="flex items-center gap-2">
-    <span class="hidden lg:flex items-center gap-1.5 text-[11px] font-bold tracking-widest uppercase text-white/50"><span class="w-2 h-2 rounded-full bg-[#d3da47] animate-pulse"></span> Foto de <b class="text-white/80">julho</b> · ref agosto</span>
+    <span class="hidden lg:inline-flex items-center text-[11px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-white/80">REF JULHO</span>
     <div class="w-8 h-8 rounded-full bg-[#d3da47] flex items-center justify-center text-[#0f2540] font-bold text-xs ring-2 ring-white/20">J</div>
   </div>
 </nav>
@@ -46,36 +46,34 @@
         <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#2f9e70] border-[3px] border-[#0a1f33] shadow"></span>
       </div>
       <div class="flex-1 min-w-0">
-        <!-- GREETING-ENGINE: temporal + identity + operational -->
+        <!-- GREETING-ENGINE: temporal + operational (3 clientes precisam de você) na 3ª linha -->
         <h1 id="greeting-text" class="text-white font-extrabold tracking-tight leading-none" style="font-family:Montserrat,sans-serif;font-size:34px;letter-spacing:-0.03em;">Bom dia, Jorge.</h1>
         <p id="greeting-extra" class="text-white/70 text-sm mt-1">Quinta, 28 de agosto · Carteira equilibrada</p>
-        <p class="text-white/40 text-xs mt-2">Foto de <strong class="text-white/70">julho</strong> (referência agosto) · atualização via cron · <code class="bg-white/10 px-1 rounded">src/lib/greeting-engine</code></p>
+        <p id="greeting-operational" class="text-[#d3da47] text-sm mt-1 font-semibold hidden"></p>
       </div>
     </div>
 
-    <!-- 3 CARDS HERO — sempre do usuário logado (por perfil) -->
-    <div id="hero-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-7">
-      <!-- Sales example (default) — JS troca por perfil -->
-      <div class="glass-strong rounded-2xl p-4 relative overflow-hidden">
+    <!-- 3 CARDS HERO — sempre referente a julho, do usuário logado -->
+    <div id="hero-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-6">
+      <div class="glass-strong rounded-2xl p-5 relative overflow-hidden">
         <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-[#d3da47]/10 blur-2xl"></div>
         <div class="relative">
-          <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes na carteira</div>
-          <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">3</div>
-          <div class="text-xs text-white/60">Sales · comercial_id</div>
+          <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes</div>
+          <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">3</div>
+          <div class="text-xs text-white/60">Alocados em sua carteira</div>
         </div>
       </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d</div>
-        <div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">+8% <span class="text-sm font-bold text-white/70">vs avg</span></div>
-        <div class="text-xs text-white/50">cur jul vs média abr-jun</div>
+      <div class="glass rounded-2xl p-5">
+        <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Ordens de Serviço</div>
+        <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">46.748</div>
+        <div class="text-xs font-bold text-[#d3da47]">+8% vs média 90 dias</div>
       </div>
-      <div class="glass rounded-2xl p-4">
-        <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div>
-        <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">1.042 <span class="text-xs text-[#d3da47]">+4%</span></div>
-        <div class="text-xs text-white/50">base faturamento</div>
+      <div class="glass rounded-2xl p-5">
+        <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais Ativos</div>
+        <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">1.042</div>
+        <div class="text-xs font-bold text-[#d3da47]">+4% vs média 90 dias</div>
       </div>
     </div>
-    <p class="text-[11px] text-white/30 mt-3">Hero 3 cards sempre do logado · troca via <code class="bg-white/10 px-1 rounded">?role=sales|csm|finance|manager|analyst</code> · thresholds via <code>health_config</code></p>
   </div>
 </section>
 
@@ -177,10 +175,10 @@
   <div class="max-w-[1120px] mx-auto px-6"><div class="panel border-dashed !bg-[#fbfcfd]"><div class="flex gap-5 items-center"><div class="w-20 h-20 rounded-2xl bg-[#173557]/5 border border-[#173557]/10 flex items-center justify-center text-[#173557] text-xl">◎</div><div><h3 class="text-sm font-bold text-[#0e223a]">Sua carteira começa no Atendimento</h3><p class="text-sm text-[#6b7889] mt-1">Você vê pulso e mapa do ecossistema, mas <strong>saúde</strong> é por cliente — sem cliente atribuído ainda.</p></div></div><div class="flex gap-2 mt-5"><a href="/atendimento" class="px-5 py-2.5 rounded-xl bg-[#0f2540] text-white text-sm font-bold shadow">Ir para Atendimento</a><a href="#meu-dia" class="px-5 py-2.5 rounded-xl bg-white border text-sm font-semibold text-[#0e223a]">Ver Meu dia</a></div></div></div>
 </section>
 
-<div class="max-w-[1120px] mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]">Foto de <strong class="text-[#6b7889]">julho</strong> · thresholds <code>health_config 75/50</code> · Single <code>useLabsClients</code> lifted · YTD 2026 acumulado · quarter comparativo futuro</div>
+<div class="max-w-[1120px] mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]">YTD 2026 acumulado · comparativo por quarter no futuro · Ecossistema Donc</div>
 
 <script>
-// Greeting-engine minimal replica (temporal + fallback)
+// Greeting-engine: h1 = Bom dia/Boa tarde/Boa noite, Jorge. | p#greeting-extra = Quinta, 28 de agosto · Carteira equilibrada | p#greeting-operational = 3 clientes precisam de você (quando criticalClients>0) na 3ª linha
 function greetingForHour(h, name){
   let g='Olá'; if(h<12) g='Bom dia'; else if(h<18) g='Boa tarde'; else g='Boa noite';
   return g+', '+name+'.';
@@ -188,22 +186,28 @@ function greetingForHour(h, name){
 const hour=new Date().getHours();
 const greetingEl=document.getElementById('greeting-text');
 const extraEl=document.getElementById('greeting-extra');
+const opEl=document.getElementById('greeting-operational');
 if(greetingEl) greetingEl.textContent=greetingForHour(hour,'Jorge.');
-// operational extra stub (deterministic)
 const extras=['Carteira equilibrada','Carteira exige atenção','3 clientes precisam de você'];
 const today=new Date(); const seed=today.getDate()+today.getMonth()*31;
-if(extraEl) extraEl.textContent=today.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})+' · '+(extras[seed%extras.length]);
+const extraText=today.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})+' · '+(extras[seed%extras.length]);
+if(extraEl) extraEl.textContent=extraText;
+// 3ª linha: quando extra for "3 clientes precisam de você", duplica como linha amarela dedicada e mantém 2ª linha só com data
+if(extraText.includes('3 clientes precisam de você') && opEl){
+  opEl.textContent='3 clientes precisam de você';
+  opEl.classList.remove('hidden');
+}
 
 // Hero per profile
 const params=new URLSearchParams(location.search), role=params.get('role');
 const pill=document.getElementById('hero-role-pill');
 const heroCards=document.getElementById('hero-cards');
 const roleMap={
-  csm:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes na carteira</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">5</div><div class="text-xs text-white/60">csm_id · cliente</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">—6% <span class="text-xs text-white/60">estável</span></div><div class="text-xs text-white/50">±35% health_config</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">42 <span class="text-xs text-[#d3da47]">+4%</span></div><div class="text-xs text-white/50">base faturamento</div></div>`,
-  sales:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes na carteira</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">3</div><div class="text-xs text-white/60">comercial_id · cliente</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">+8% <span class="text-xs text-white/60">vs avg</span></div><div class="text-xs text-white/50">cur jul vs abr-jun</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">28 <span class="text-xs text-[#d3da47]">+12%</span></div><div class="text-xs text-white/50">vs avg 90d</div></div>`,
-  finance:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-[#d3da47]">MRR YTD</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">R$ 945k</div><div class="text-xs text-white/60">7× R$135k · jan→jul</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes em atraso</div><div class="mono font-extrabold text-[#d64545] mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">3 <span class="text-xs text-white/60">· R$ 89k</span></div><div class="text-xs text-white/50">delay_days >0</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Renovações previstas</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">5</div><div class="text-xs text-white/50">até dez/2026</div></div>`,
-  manager:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d · global</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">+8% <span class="text-xs text-white/60">vs avg</span></div><div class="text-xs text-white/50">todos os clientes</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">1.042 <span class="text-xs text-[#d3da47]">+4%</span></div><div class="text-xs text-white/50">global</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Health médio · global</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">82</div><div class="text-xs text-white/50">75/50 thresholds</div></div>`,
-  analyst:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Total de Tickets</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">98 <span class="text-xs text-white/60">· 89 via WhatsApp</span></div><div class="text-xs text-white/50">Freshdesk + WhatsApp</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Tickets em Aberto</div><div class="mono font-extrabold text-[#d98b28] mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">23</div><div class="text-xs text-white/50">aguardando</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Taxa Resolução</div><div class="mono font-extrabold text-[#2f9e70] mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">76%</div><div class="text-xs text-white/50">últimos 30d</div></div>`
+  csm:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">5</div><div class="text-xs text-white/60">Alocados em sua carteira</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Ordens de Serviço</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">46.748</div><div class="text-xs font-bold text-[#d3da47]">+8% vs média 90 dias</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais Ativos</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">42</div><div class="text-xs font-bold text-[#d3da47]">+4% vs média 90 dias</div></div>`,
+  sales:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">3</div><div class="text-xs text-white/60">Alocados em sua carteira</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Ordens de Serviço</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">46.748</div><div class="text-xs font-bold text-[#d3da47]">+8% vs média 90 dias</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais Ativos</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">1.042</div><div class="text-xs font-bold text-[#d3da47]">+4% vs média 90 dias</div></div>`,
+  finance:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">MRR · Julho</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">R$ 135,7k</div><div class="text-xs text-white/60">Alocados em sua carteira</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes em atraso</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">3</div><div class="text-xs font-bold text-[#d64545]">R$ 89k em atraso</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Renovações previstas</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">5</div><div class="text-xs text-white/60">até dez/2026</div></div>`,
+  manager:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">18</div><div class="text-xs text-white/60">Alocados em sua carteira</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Ordens de Serviço</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">46.748</div><div class="text-xs font-bold text-[#d3da47]">+8% vs média 90 dias</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais Ativos</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">1.042</div><div class="text-xs font-bold text-[#d3da47]">+4% vs média 90 dias</div></div>`,
+  analyst:`<div class="glass-strong rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Total de Tickets</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">98</div><div class="text-xs text-white/60">89 via WhatsApp</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Tickets em Aberto</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">23</div><div class="text-xs text-white/60">Freshdesk + WhatsApp</div></div><div class="glass rounded-2xl p-5"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Taxa Resolução</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:32px;line-height:1">76%</div><div class="text-xs text-white/60">últimos 30d</div></div>`
 };
 if(role && roleMap[role] && heroCards){ heroCards.innerHTML=roleMap[role]; if(pill) pill.textContent=role.charAt(0).toUpperCase()+role.slice(1); }
 if(role==='analyst' || location.hash==='#analyst') document.getElementById('analyst-empty').classList.remove('hidden');
