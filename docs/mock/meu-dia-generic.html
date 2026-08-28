@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu Dia — Genérica (Labs Dashboard Mock)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config = { theme: { extend: { colors: { 'donc-navy': '#173557', 'donc-lime': '#d3da47' } } } }
+</script>
+<style>*{font-family:Inter,system-ui,sans-serif}</style>
+</head>
+<body class="bg-[#f4f5f7] min-h-screen">
+
+<!-- Header -->
+<div class="bg-white border-b border-[rgba(15,34,58,0.09)] sticky top-0 z-10">
+  <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div>
+      <h1 class="text-lg font-bold text-[#0e223a]">Meu Dia</h1>
+      <p class="text-xs text-[#6b7889]">Quinta, 28 de agosto de 2026 · Bom dia, Jorge — Sales</p>
+    </div>
+    <span class="text-[11px] px-2 py-1 rounded-full bg-[#173557] text-white uppercase tracking-wide">Labs • Genérica</span>
+  </div>
+</div>
+
+<div class="max-w-6xl mx-auto px-6 py-6 space-y-4">
+
+  <!-- Block 2: Minhas próximas 48h (scoped own) -->
+  <div class="bg-white border border-[rgba(15,34,58,0.09)] rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-[#0e223a] flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-[#59c2ed]"></span>
+        Minhas próximas 48h <span class="text-[11px] font-normal text-[#9aa5b5]">onde participei</span>
+      </h2>
+      <a class="text-xs text-[#59c2ed] hover:underline" href="#">ver todas →</a>
+    </div>
+    <div class="space-y-2">
+      <div class="flex items-center justify-between py-2 border-b border-[rgba(15,34,58,0.06)]">
+        <div>
+          <p class="text-sm font-medium text-[#0e223a]">Reunião de alinhamento — Lojas Silva</p>
+          <p class="text-xs text-[#6b7889]">Hoje · 15:00 · responsável: você</p>
+        </div>
+        <span class="text-[11px] px-2 py-1 rounded-full bg-[#d64545]/10 text-[#d64545] font-medium">ATRASADA</span>
+      </div>
+      <div class="flex items-center justify-between py-2 border-b border-[rgba(15,34,58,0.06)]">
+        <div>
+          <p class="text-sm font-medium text-[#0e223a]">Follow-up proposta — Rede Centro</p>
+          <p class="text-xs text-[#6b7889]">Amanhã · 10:00 · participante</p>
+        </div>
+        <span class="text-[11px] px-2 py-1 rounded-full bg-[#d98b28]/10 text-[#d98b28] font-medium">EM 24H</span>
+      </div>
+      <div class="flex items-center justify-between py-2">
+        <div>
+          <p class="text-sm font-medium text-[#0e223a]">Enviar relatório — Móveis Sul</p>
+          <p class="text-xs text-[#6b7889]">28/08 · 09:00 · você</p>
+        </div>
+        <span class="text-[11px] px-2 py-1 rounded-full bg-[#f4f5f7] text-[#6b7889]">AGENDADA</span>
+      </div>
+    </div>
+    <div class="mt-3 text-xs text-[#9aa5b5]">Atividades onde sou responsável ou participante. Manager global filtraria tudo, mas genérica respeita <em>own</em>.</div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-4">
+    <!-- Block 3: Saúde agregada (minha carteira) -->
+    <div class="lg:col-span-1 bg-white border border-[rgba(15,34,58,0.09)] rounded-2xl p-5">
+      <h2 class="text-sm font-semibold text-[#0e223a] mb-3">Saúde da minha carteira</h2>
+      <div class="flex items-baseline gap-2 mb-3">
+        <span class="text-2xl font-bold text-[#2f9e70]">82</span><span class="text-xs text-[#9aa5b5]">avg · 18 empresas</span>
+      </div>
+      <!-- Dims strip -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between text-xs"><span class="text-[#59c2ed]">Uso</span><span class="font-medium">18/18 ok</span></div>
+        <div class="h-1.5 rounded-full bg-[#e3f2ea]"><div class="h-1.5 rounded-full bg-[#59c2ed]" style="width:100%"></div></div>
+        <div class="flex items-center justify-between text-xs"><span class="text-[#b46cd1]">Suporte</span><span class="font-medium">17/18 ok</span></div>
+        <div class="h-1.5 rounded-full bg-[#e3f2ea]"><div class="h-1.5 rounded-full bg-[#b46cd1]" style="width:94%"></div></div>
+        <div class="flex items-center justify-between text-xs"><span class="text-[#d98b28]">Relacion.</span><span class="font-medium">16/18 ok</span></div>
+        <div class="h-1.5 rounded-full bg-[#e3f2ea]"><div class="h-1.5 rounded-full bg-[#d98b28]" style="width:88%"></div></div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        <span class="text-[11px] px-2 py-1 rounded-full bg-[#2f9e70]/10 text-[#2f9e70]">12 Saudáveis</span>
+        <span class="text-[11px] px-2 py-1 rounded-full bg-[#d98b28]/10 text-[#d98b28]">4 Atenção</span>
+        <span class="text-[11px] px-2 py-1 rounded-full bg-[#d64545]/10 text-[#d64545]">2 Alerta</span>
+      </div>
+      <p class="text-[11px] text-[#9aa5b5] mt-2">Thresholds 75/50 via <code>health_config</code> (não hardcode).</p>
+    </div>
+
+    <!-- Block 4: Sinais agregado -->
+    <div class="lg:col-span-1 bg-white border border-[rgba(15,34,58,0.09)] rounded-2xl p-5">
+      <h2 class="text-sm font-semibold text-[#0e223a] mb-3">Sinais — minha carteira</h2>
+      <div class="space-y-2">
+        <div class="flex items-center justify-between p-2 rounded-lg bg-[#d64545]/5 border border-[#d64545]/10">
+          <span class="text-xs font-medium text-[#0e223a]">Sem interação 30d+</span>
+          <span class="text-xs font-bold text-[#d64545]">4</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-lg bg-[#d98b28]/5 border border-[#d98b28]/10">
+          <span class="text-xs font-medium text-[#0e223a]">Temperatura vencida</span>
+          <span class="text-xs font-bold text-[#d98b28]">6</span>
+        </div>
+        <div class="flex items-center justify-between p-2 rounded-lg bg-[#59c2ed]/5 border border-[#59c2ed]/10">
+          <span class="text-xs font-medium text-[#0e223a]">Atividade atrasada</span>
+          <span class="text-xs font-bold text-[#59c2ed]">2</span>
+        </div>
+      </div>
+      <p class="text-[11px] text-[#9aa5b5] mt-3">Agregado via <code>getSignals</code> + <code>lastActivityMap</code>. Detalhe por cliente no drawer Phase 2.</p>
+    </div>
+
+    <!-- Block 5a: Atalhos estáticos -->
+    <div class="lg:col-span-1 bg-white border border-[rgba(15,34,58,0.09)] rounded-2xl p-5">
+      <h2 class="text-sm font-semibold text-[#0e223a] mb-3">Atalhos</h2>
+      <div class="grid grid-cols-3 gap-2">
+        <a href="/empresas" class="flex flex-col items-center gap-2 p-3 rounded-xl bg-[#f4f5f7] hover:bg-[#e8f6fd] transition">
+          <div class="w-8 h-8 rounded-lg bg-[#173557] text-white flex items-center justify-center">🏢</div>
+          <span class="text-xs font-medium text-[#0e223a]">Empresas</span>
+        </a>
+        <a href="/atividades" class="flex flex-col items-center gap-2 p-3 rounded-xl bg-[#f4f5f7] hover:bg-[#e8f6fd] transition">
+          <div class="w-8 h-8 rounded-lg bg-[#59c2ed] text-white flex items-center justify-center">📋</div>
+          <span class="text-xs font-medium text-[#0e223a]">Atividades</span>
+        </a>
+        <a href="/contatos" class="flex flex-col items-center gap-2 p-3 rounded-xl bg-[#f4f5f7] hover:bg-[#e8f6fd] transition">
+          <div class="w-8 h-8 rounded-lg bg-[#2f9e70] text-white flex items-center justify-center">👥</div>
+          <span class="text-xs font-medium text-[#0e223a]">Contatos</span>
+        </a>
+      </div>
+      <p class="text-[11px] text-[#9aa5b5] mt-3">Estáticos — cockpits por papel virão no Phase 3.</p>
+    </div>
+  </div>
+
+  <!-- Block 5b: Feed 5 Minhas atividades recentes onde participei -->
+  <div class="bg-white border border-[rgba(15,34,58,0.09)] rounded-2xl p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-sm font-semibold text-[#0e223a]">Atividades recentes onde participei</h2>
+      <span class="text-[11px] text-[#9aa5b5]">5 últimas</span>
+    </div>
+    <div class="space-y-2 text-xs">
+      <div class="flex justify-between py-1.5 border-b border-[rgba(15,34,58,0.06)]"><span>Reunião — Lojas Silva</span><span class="text-[#9aa5b5]">ontem</span></div>
+      <div class="flex justify-between py-1.5 border-b border-[rgba(15,34,58,0.06)]"><span>Ligação — Rede Centro</span><span class="text-[#9aa5b5]">2d atrás</span></div>
+      <div class="flex justify-between py-1.5 border-b border-[rgba(15,34,58,0.06)]"><span>E-mail — Móveis Sul</span><span class="text-[#9aa5b5]">3d atrás</span></div>
+      <div class="flex justify-between py-1.5 border-b border-[rgba(15,34,58,0.06)]"><span>Tarefa — Casa Forte</span><span class="text-[#9aa5b5]">4d atrás</span></div>
+      <div class="flex justify-between py-1.5"><span>WhatsApp — Top Móveis</span><span class="text-[#9aa5b5]">5d atrás</span></div>
+    </div>
+    <div class="mt-3 flex gap-2">
+      <span class="text-[11px] px-2 py-1 rounded-full bg-[#f4f5f7] text-[#6b7889]">Loading skeleton 3 rows shimmer (Phase 1)</span>
+      <span class="text-[11px] px-2 py-1 rounded-full bg-[#f4f5f7] text-[#6b7889]">Empty: "Sem atividades onde participei" → CTA Atividades</span>
+    </div>
+  </div>
+
+  <!-- Footer note -->
+  <div class="text-[11px] text-[#9aa5b5] text-center pb-4">
+    Genérica: sem MRR/OS vs avg90/CSM filter — per-role operacional vai para cockpits Phase 3. Single <code>useLabsClients(profile)</code> lifted previne 6× queries. Tokens via <code>src/lib/scoring.js</code> (C, scoreBand thresholds via health_config).
+  </div>
+
+</div>
+
+</body>
+</html>

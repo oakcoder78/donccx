@@ -230,40 +230,15 @@ Grid: use Tailwind `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4` for co
 ## 3. Component Tree — `/labs/dashboard`
 
 ```
-LabsDashboardPage (src/pages/labs/LabsDashboardPage.jsx)  route: /labs/dashboard
-├── PageHeader  title="Meu Dia"  subtitle="{dateStr} · {profile.name}"
-├── RoleBanner (optional) — shows active cockpit scope: "Visão: CSM | Comercial | Gestão"
-├── MeuDiaPanel (src/components/labs/MeuDiaPanel.jsx)
-│   ├── TodayActivities  (upcomingActivities: overdue + next 6 days, from useActivities)
-│   │   └── ActivityRow*  onClick → ActivityDetailModal
-│   ├── SignalsStrip  (getSignals(client, lastActivityMap) aggregated)
-│   └── MrrSummary  (mrrTotal / mrrAtrasado — admin/manager only; csm sees own portfolio)
-├── CockpitGrid (src/components/labs/CockpitGrid.jsx)
-│   ├── CsmCockpitCard        visible to csm|admin|manager
-│   │   ├── EmRisco list (health_total < 50, top 5 by urgencyScore)
-│   │   ├── SemInteracao count (lastActivity < ago30)
-│   │   └── CTA → /health or /cs-radar
-│   ├── GestaoCockpitCard     visible to manager|admin
-│   │   ├── ScorecardRow (Média, Saudáveis, Atenção, Alerta) — filtered
-│   │   ├── OverdueFases count + list
-│   │   └── CTA → /health, /projetos-cockpit
-│   ├── ComercialCockpitCard  visible to comercial (csm scoped by comercial_id) + manager/admin
-│   │   ├── MinhasEmpresas (clients where comercial_id = profile.id, lifecycle_stage=cliente)
-│   │   ├── Pipeline (leads count where stage in funil)
-│   │   └── CTA → /projetos-cockpit (commercial view) + /empresas?owner=comercial
-│   ├── FinanceiroCockpitCard visible to financeiro (manager/admin)
-│   │   ├── MRR + atraso + renewal 30d
-│   │   └── CTA → /profissionais-cockpit
-│   ├── SuporteCockpitCard    visible to suporte/analyst + manager/admin
-│   │   ├── Tickets indicators (health_suporte <10) + Freshdesk placeholder
-│   │   └── CTA → /atendimento or support filtered /atividades
-│   └── ProjetosCockpitCard   visible to all with labs_dashboard (embeds ProjectCockpit summary)
-│       └── Mini timeline + status counts (reuses useProjectCockpit)
-├── FilterBar (optional, Phase 4)
-│   ├── CSM select (admin/manager only, from useProfiles)
-│   └── Period chips (Hoje / 7d / 30d — local state, no URL param)
-└── Drawer (optional, Phase 3)
-    └── ClientHealthDrawer (reuse src/components/clients/ClientHealthDrawer.jsx)
+LabsDashboardPage (src/pages/labs/LabsDashboardPage.jsx)  route: /labs/dashboard — Genérica 5 blocks (Phase 1)
+├── PageHeader  title="Meu Dia"  subtitle="{dateStr} · {greeting} · {effectiveRole}"
+└── MeuDiaPanel (src/components/labs/MeuDiaPanel.jsx) — 5 blocks max, generic, no per-role cockpits
+    ├── Block 1 Header (greeting + date pt-BR)
+    ├── Block 2 Minhas próximas 48h (overdue + 48h, responsible_id=own where I participated → ActivityRow)
+    ├── Block 3 Saúde agregada (avg + bandas via health_config thresholds, minha carteira labsFilterFor, DIM strip)
+    ├── Block 4 Sinais agregado (getSignals chips: Sem interação/Temp vencida/Atividade atrasada)
+    └── Block 5 Atalhos estáticos (Empresas/Atividades/Contatos) + Feed 5 Minhas atividades recentes onde participei
+   // CockpitGrid + 6 *CockpitCard deferred to Phase 3+ (per-role), Drawer deferred to Phase 3
 ```
 
 > **Project pattern:** DashboardPage builds divs inline with `style`. Follow same for MeuDiaPanel/CockpitCards — do not create new generic KpiCard abstractions unless justified. Reuse `Panel`/`PanelHead` locally.
@@ -497,44 +472,38 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ---
 
-### Phase 1 — "Meu Dia" (Generic Dashboard) Extraction
+### Phase 1 — "Meu Dia" (Generic Dashboard — 5 blocks, truly generic, no MRR/OS)
 
-**Status:** Planned — depends on Phase 0
+**Status:** In progress — focus only on generic per stakeholder (per-role cockpits deferred to Phase 3+)
 
-**Rationale:** O conceito de "Meu Dia" é genérico e serve a todos os papéis: atividades do dia, sinais urgentes, resumo de MRR. É o menor denominador comum que permite extrair lógica do `DashboardPage` monolítico sem quebrar contratos. Ao isolar "Meu Dia" primeiro, cada cockpit subsequente pode ser desenvolvido de forma independente. Além disso, valida o padrão de extração de helpers (`getSignals`, `scoreBand*`, MRR aggregates) que será repetido nos cockpits.
+**Rationale:** `Dashboard` atual tem todas as regras de negócio corretas (thresholds `±35%` via `health_config` `75/50` com `useHealthConfig`, `getSignals`, `daysSince`, `tempVencida`) e funciona. `labs/dashboard` não deve recriar regras, só **reusar e repartir**: primeiro uma `Genérica` que atende qualquer perfil com o que é de uso comum, depois cada papel ganha sua dash com o que é indispensável para seu trabalho. Genérica é `Minhas atividades 48h` (own, onde participei) + `Saúde agregada` da minha carteira + `Sinais agregado` + `Atalhos estáticos` + `Feed recente` — sem `MRR` (fica em `financial_data` + cockpit `finance/manager` global) e sem `OS vs avg90` (operacional vai para cockpits por papel). Valida extração de `src/lib/scoring.js` sem fork.
 
-**Scope:**
-- `MeuDiaPanel.jsx`: today overdue + next 6 days activities, signals, MRR summary (role-scoped)
-- Extract and reuse `getSignals`, `scoreBand*`, `daysSince`, `tempVencida` locally (copied, not imported)
-- Integrate `useActivities`, `useClients(labsFilter)`, `lastActivityMap`, `overdueOnboardingFases` queries
+**Scope — Genérica only:**
+- `MeuDiaPanel.jsx`: 5 blocks max, `Header` + `Minhas próximas 48h` (own) + `Saúde agregada` (minha carteira `labsFilterFor(profile)`, `scoreBand` via `health_config`) + `Sinais` (3-4 chips `Sem interação/Temp vencida/Atividade atrasada`) + `Atalhos estáticos (Empresas/Atividades/Contatos) + Feed 5` (minhas atividades recentes onde participei)
+- Reusar `getSignals`, `scoreBand*` (`thresholds` param via `health_config`, não hardcode `35%`), `daysSince`, `tempVencida` via `src/lib/scoring.js` centralizado (mandatory)
+- Single lifted `useLabsClients(profile)` + `useActivities({responsible_id: own})` + `useHealthConfig` + `lastActivityMap`; `labsFilterFor` scoped (`sales comercial_id`, `csm` csm_id, `finance/manager/admin` global mas genérica usa scoped own para atividades)
 
-#### Checklist
+#### Checklist (Active — Genérica only)
 
-- [ ] **Create `src/components/labs/MeuDiaPanel.jsx`**
-  - [ ] Props: none (reads `useAuth`, `useActivities`, `useClients(labsFilter)`, `useProfiles`, `useHealthConfig`)
-  - [ ] Queries internalised: `lastActivityMap` (same as DashboardPage line 372), `overdueOnboardingFases`, `overdueCount`, `upcomingActivities` (overdue + next 6 days)
-  - [ ] Helpers copied locally: `getSignals`, `scoreBand*`, `daysSince`, `fmtDate`, `tempVencida`, `C` subset
-  - [ ] MRR cards: `mrrTotal`, `mrrAtrasado` (admin/manager only; csm sees portfolio slice)
-  - [ ] Empty states: "Sem atividades para hoje" + CTA → `navigate('/atividades')`
-  - [ ] Loading skeleton: 3 placeholder rows with shimmer
-  - [ ] Icons via `Icons.*`
-  - [ ] No direct import from `DashboardPage.jsx`
-- [ ] **Modify `src/pages/labs/LabsDashboardPage.jsx`**
-  - [ ] Import and render `<MeuDiaPanel />` below `PageHeader`
-  - [ ] Add `dateStr` (`toLocaleDateString('pt-BR', ...)`) memo
-  - [ ] Handle loading/error/empty states delegation to panel
 - [ ] **Create `src/lib/scoring.js` (mandatory — blocks fork)**
-  - [ ] Extract `C`, `DIM_*`, `scoreBand`, `scoreBandColor`, `scoreBandLabel`, `getSignals`, `buildReasons`, `daysSince`, `tempVencida`, `ago30Str` as pure functions (no hooks). Both `DashboardPage.jsx` and labs import from here. Add linter guard: `no-restricted-imports` forbidding `from '../dashboard/DashboardPage'`.
-- [ ] **Patch `src/App.jsx:PrivateRoute` (A1 fix)**
-  - [ ] Allow `/labs/dashboard` for analyst when `labs_dashboard` enabled: `if (role==='analyst' && isEnabled('whatsapp_atendimento') && !path.startsWith('/atendimento') && !path.startsWith('/labs/dashboard')) Navigate /atendimento` — or document that analyst labs = atendimento only and remove analyst from `labs_dashboard allowed_roles`.
-- [ ] **Create `src/hooks/useLabsClients.js` (mandatory single lifted query — A5)**
-  - [ ] Export `labsFilterFor(profile)` and `useLabsClients(profile)` wrapping `useClients` with `.or()` dual-ownership and column-select masking for MRR (only financeiro/manager/admin fetches `mrr,billing_*`).
-  - [ ] `LabsDashboardPage` calls once and slices via `useMemo` to cockpits — prevents 6× queries.
+  - [ ] Extract `C` subset, `DIMS` (`health_uso` `#59c2ed` etc), `scoreBand/Color/Label` with `thresholds` param (from `useHealthConfig` `75/50`, not hardcode), `getSignals`, `buildReasons`, `daysSince`, `tempVencida`, `fmtDate`, `ago30Str` as pure fns. Add `no-restricted-imports` guard.
+- [ ] **Create `src/components/labs/MeuDiaPanel.jsx` (5 blocks max, generic)**
+  - [ ] Props: `{clients, healthConfig, activities, lastActivityMap}` from lifted queries (no internal `useClients` duplication)
+  - [ ] Block 1 Header: `Meu Dia · {dateStr pt-BR} · {greeting}` + `effectiveRole` badge via `useAuth` + `useGreeting`
+  - [ ] Block 2 Minhas próximas 48h: `overdue + next 48h` where `responsible_id=own` (avaliar `participants` vs `responsible_id` — manager pode ver vazio, ok para genérica; own é correto per spec "só faz sentido ver as que eu fiz parte")
+  - [ ] Block 3 Saúde agregada: `avg health_total + bandas Saudáveis/Atenção/Alerta` da **minha carteira** (`labsFilterFor`), `C.dim*` strip, no MRR, no CSM filter, thresholds from `health_config`
+  - [ ] Block 4 Sinais: aggregated chips count via `getSignals` memo (no lista completa por cliente → Phase 2 drawer)
+  - [ ] Block 5 Atalhos estáticos `Empresas/Atividades/Contatos` (no per-role cockpit links) + Feed 5 `Minhas atividades recentes onde participei` (`activity_date desc`)
+  - [ ] States: loading skeleton 3 rows shimmer, empty "Sem atividades onde participei" + CTA `→ Atividades`, error retry; Icons only `Icons.*`; no `DashboardPage` import
+- [ ] **Modify `src/pages/labs/LabsDashboardPage.jsx` (lifted queries)**
+  - [ ] Single `useLabsClients(profile)` + `useActivities({responsible_id: own})` + `useHealthConfig()` + `lastActivityMap` lifted, `dateStr` memo, render `<MeuDiaPanel />`, handle loading/error/empty delegation; no `CockpitGrid` import in Phase 1
+- [ ] **Create `docs/mock/meu-dia-generic.html` (HTML Tailwind static)**
+  - [ ] Mock estático desktop 1280px com dados mock, `C` tokens, `Icons.*` placeholders, states loading/empty/error
 - [ ] **Build:** `npm run build` with no errors
 - [x] **Verify (partial)**
-  - [ ] `/labs/dashboard` shows MeuDia data matching `/dashboard` equivalent section
-  - [ ] Analyst sees own activities only; admin sees all
-  - [ ] No console errors, no N+1 (single `clients` query)
+  - [ ] `/labs/dashboard` shows MeuDia com atividades own (sales vê só own, finance/manager também own na genérica) e saúde da própria carteira, sem MRR/OS
+  - [ ] `isEnabled('financial_data')` não afeta genérica (MRR escondido)
+  - [ ] No N+1 (single `clients` query lifted)
 
 #### Implementation Log (Phase 1)
 
