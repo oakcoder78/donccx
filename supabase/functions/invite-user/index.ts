@@ -72,6 +72,12 @@ serve(async (req) => {
 
     if (existingUser) {
       console.log('User already exists in Auth:', email, 'id:', existingUser.id)
+      // Garantir que profiles reflita role/status correto (convite direto libera acesso)
+      const { error: upsertErr } = await adminClient
+        .from('profiles')
+        .upsert({ id: existingUser.id, name, email, role, status: 'active' }, { onConflict: 'id' })
+      if (upsertErr) console.error('profiles upsert (existing) error:', upsertErr.message)
+      else console.log('profiles upserted active for existing user:', existingUser.id)
       return new Response(
         JSON.stringify({ success: true, existing: true, user_id: existingUser.id }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -98,6 +104,21 @@ serve(async (req) => {
     }
 
     console.log('Invite sent to:', email, 'user_id:', data.user?.id)
+
+    // Garantir profiles com status invited (trigger handle_new_user cria pending, aqui promovemos para invited)
+    if (data.user?.id) {
+      const { error: upsertErr } = await adminClient
+        .from('profiles')
+        .upsert({ id: data.user.id, name, email, role, status: 'invited' }, { onConflict: 'id' })
+      if (upsertErr) {
+        console.error('profiles upsert (invited) error:', upsertErr.message)
+      } else {
+        console.log('profiles upserted invited for new user:', data.user.id)
+      }
+      // Fallback: se trigger ainda não criou, forçar update caso upsert não pegue por race
+      // (upsert já cobre, mas garantir status invited mesmo se linha já existia como pending)
+      await adminClient.from('profiles').update({ name, role, status: 'invited' }).eq('id', data.user.id)
+    }
 
     return new Response(
       JSON.stringify({ success: true, existing: false, user_id: data.user?.id }),

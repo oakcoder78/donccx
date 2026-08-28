@@ -39,15 +39,7 @@ function InviteUserModal({ onClose, onDone }) {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) { toast.error('Sessão expirada. Faça login novamente.'); return }
 
-      // Inserir profile com status pending
-      const { data: profile, error: insertError } = await supabase
-        .from('profiles')
-        .insert({ name: form.name, email: form.email, role: form.role, status: 'pending' })
-        .select('id')
-        .single()
-      if (insertError) throw new Error(insertError.message)
-
-      // Enviar convite
+      // Enviar convite primeiro — Edge Function cria auth.users + profiles via handle_new_user + upsert invited/active
       const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`
       const res = await fetch(fnUrl, {
         method: 'POST',
@@ -66,14 +58,9 @@ function InviteUserModal({ onClose, onDone }) {
       const data = await res.json()
       if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao enviar convite')
 
-      const isExisting = data?.existing === true
-      await supabase
-        .from('profiles')
-        .update({ status: isExisting ? 'active' : 'invited' })
-        .eq('id', profile.id)
-
-      await logAction('invite_user', 'user', profile.id, form.name, null, { role: form.role, email: form.email })
-      toast.success(isExisting
+      const userId = data.user_id || data.id
+      await logAction('invite_user', 'user', userId || form.email, form.name, null, { role: form.role, email: form.email })
+      toast.success(data?.existing
         ? `Acesso liberado diretamente para ${form.email}`
         : `Convite enviado para ${form.email}`
       )
