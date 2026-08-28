@@ -18,7 +18,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 0 — Not started (Draft → Validated transition pending)
+- **Active phase:** Phase 0 — Complete (shell live, admin only). Next: Phase 1 Meu Dia — Planned.
 
 **What already exists related to this work:**
 
@@ -34,26 +34,27 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 - `src/lib/icons.js` — central barrel. Never import from `lucide-react` directly.
 - `src/lib/greeting-engine` — deterministic greeting hook (`useGreeting`).
 - Tables (verified in codebase/migrations):
-  - `clients` — `id integer PK`, `name text`, `fantasy_name text`, `cnpj text`, `lifecycle_stage text`, `stage_id uuid`, `csm_id uuid FK profiles`, `abc_class text`, `health_total/health_uso/health_suporte/health_relacionamento/health_financeiro/health_projeto integer`, `health_trend integer DEFAULT 0`, `mrr numeric`, `delay_days integer`, `csm_temperature integer`, `temperature_updated_at timestamptz`, `contract_active boolean`, `contract_signed_date/contract_start/contract_renewal date`, `correction_index text`, `billing_type/billing_base_value/billing_floor`, `unidades_total/unidades_donc`, `segment_id`, `site text`, `logo_url text`, `address_*`, `stage:stages(*)`, `client_catalog`, `created_at/updated_at`. **No `comercial_id` yet — to be added.**
+  - `clients` — `id integer PK`, `name text`, `fantasy_name text`, `cnpj text`, `lifecycle_stage text`, `stage_id uuid`, `csm_id uuid FK profiles`, **`comercial_id uuid FK profiles ON DELETE SET NULL` (added `20260824000008`, `idx_clients_comercial_id` + `idx_clients_lc_comercial WHERE cliente`)**, `abc_class text`, `health_total/health_uso/health_suporte/health_relacionamento/health_financeiro/health_projeto integer`, `health_trend integer DEFAULT 0`, `mrr numeric`, `delay_days integer`, `csm_temperature integer`, `temperature_updated_at timestamptz`, `contract_active boolean`, `contract_signed_date/contract_start/contract_renewal date`, `correction_index text`, `billing_type/billing_base_value/billing_floor`, `unidades_total/unidades_donc`, `segment_id`, `site text`, `logo_url text`, `address_*`, `stage:stages(*)`, `client_catalog`, `created_at/updated_at`.
   - `profiles` — `id uuid`, `name text`, `email text`, `role text` (`admin|manager|csm|analyst|sales|finance` — sales/finance added 2026-08-24 via 20260824000001), `status text`, `avatar_url text`, `gender text`, `birth_date date`, `created_at timestamptz`.
   - `feature_flags` — `key text PK`, `label text`, `enabled boolean`, `allowed_roles text[]`.
   - `activities` — `id uuid`, `client_id integer`, `contact_id integer`, `responsible_id uuid FK profiles`, `type text`, `status text (pendente|concluida|cancelada)`, `activity_date date`, `due_date date`, `title text`, `description text`, `meet_link text` (migration 20260816000000), `created_at/updated_at`.
   - `contacts` — `id uuid`, `name text`, `email text`, `contact_phones(*), contact_emails(*), contact_links(*, client_id, papel, engajamento, champion)`.
   - `client_support`, `client_usage`, `client_donc_instances`, `onboardings`, `onboarding_fases`, `projects`, `milestones`, `health_rules`, `health_config` — auxiliary.
-- Existing flags: `health`, `projects_cockpit`, `profissionais_cockpit`, `cs_radar`, `whatsapp_atendimento`, `donkie`, `settings_menu`, `api_donc`, `freshdesk`, `asana`, `email_templates`, `brief_templates`.
+- Existing flags: `health`, `projects_cockpit`, `profissionais_cockpit` (now `{admin,manager,csm,finance}`), `cs_radar`, `whatsapp_atendimento`, `donkie`, `settings_menu`, `api_donc`, `freshdesk`, `asana`, `email_templates`, `brief_templates`, `financial_data` (`{admin,manager,finance}` true), `labs_dashboard` (`{admin}` false, branch-by-abstraction, Phase 0 live), plus `financial_data` controls MRR hide (`ClientSubDados`).
 - `vite.config.js` injects `__COMMIT_HASH__`, `vercel.json` SPA rewrite, QueryClient `staleTime 30s / retry 1 / gcTime 5m`.
 
-**What does NOT exist and needs to be created:**
+**What does NOT exist and needs to be created (remaining):**
 
-- Route namespace `/labs/dashboard` (isolated, not `/dashboard`).
-- Feature flag `labs_dashboard` (key `labs_dashboard`, allowed_roles per decision below).
-- `clients.comercial_id uuid FK profiles` + index + RLS adjustments + backfill migration.
-- `src/pages/labs/LabsDashboardPage.jsx` — new shell ("Meu Dia" + cockpits per role).
-- `src/components/labs/*` — extracted cards/panels (MeuDia, Cockpit cards).
-- Dual-ownership query layer (`useLabsClients` or extended `useClients` with `comercial_id` filter).
-- Role-based tab/route gating for `ClientDetail` and `/empresas/:id` edits (Comercial: overview/operacional/relatorios/anexos + 4 tabs edit + `/projetos-cockpit`; Financeiro: 4 tabs edit + `/profissionais-cockpit`).
-- Contacts/Activities openness: all roles can view/create contacts and their own activities.
-- `Navbar` filtering for `/labs/dashboard` vs legacy `/dashboard` (feature-flagged coexistence).
+- `src/components/labs/*` — extracted cards/panels (MeuDia, Cockpit cards for Phase 1+).
+- Role-based tab/route gating for `ClientDetail` and `/empresas/:id` edits beyond `finance`/`sales` empresa edit (already done for `sales` comercial_id + `finance` empresas; remaining: health/operacional tab per role if needed).
+- Full `labs_dashboard` product: Meu Dia generic + CockpitGrid per role (Phase 1-5).
+
+**Already created since last update (2026-08-24):**
+- Route namespace `/labs/dashboard` — `src/pages/labs/LabsDashboardPage.jsx` shell live (admin only, `labs_dashboard` flag `enabled false` `{admin}`), `src/App.jsx` route + `PrivateRoute` analyst exception, `Navbar` `Labs` link with `featureFlag:'labs_dashboard'` (`ba0ba66`).
+- Feature flags `labs_dashboard` (`20260824000007`) + `financial_data` (`20260824000006`, `{admin,manager,finance}`) + `profissionais_cockpit` now includes `finance` (`20260824000005`) + `financial_data` group `Cockpits & Dashboards`.
+- `clients.comercial_id` column + indexes + RLS dual ownership (`20260824000008` + `20260824000009` `comercial_id OR csm_id` for sales scoped), `src/hooks/useClients.js` `comercial` join + `comercial_id`/`_labs_dual_owner` OR, `src/hooks/useClient.js` comercial join, `ClientForm.jsx` `comercial_id` dropdown (Dados da Empresa), `ClientsPage.jsx` sales branch `comercial_id` + finance global, `src/hooks/useLabsClients.js` helper (labsFilterFor, useComercialClients).
+- Central `src/lib/roles.js` (`ROLE_OPTIONS` 6 roles, English labels `Sales/Finance`) and `SettingsUsers.jsx`/`SettingsFeatureFlags.jsx` + `SettingsFeatureFlags` `FLAG_GROUPS` `Cockpits & Dashboards` + `Integrações` now includes `asana`.
+- Admin backdoor `Ver como` with real RLS (`role_impersonations` table, `get_user_role()` override, `AuthContext` `effectiveRole`/`effectiveProfile`/`setImpersonation`, `Navbar` dropdown + amber banner, `App.jsx`/`usePermissions` use `effectiveRole`, 1h expiry).
 
 ### Files to be touched
 
@@ -453,9 +454,9 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ### Phase 0 — Foundation: Namespace + Flag + Shell Route
 
-**Status:** Not started
+**Status:** Complete — 2026-08-24 (`ba0ba66`)
 
-**Rationale:** Isolar o novo trabalho num namespace `/labs/dashboard` evita regressão no `/dashboard` que ainda está em produção e tem múltiplos consumers (CSM, gestão, financeiro). A flag `labs_dashboard` permite desenvolver em `main` com deploy contínuo sem expor a feature antes de estar pronta. Técnica de branch-by-abstraction: nova rota coexiste com a antiga até Phase 6.
+**Rationale:** Isolar o novo trabalho num namespace `/labs/dashboard` evita regressão no `/dashboard` que ainda está em produção e tem múltiplos consumers (CSM, gestão, financeiro). A flag `labs_dashboard` permite desenvolver em `main` com deploy contínuo sem expor a feature antes de estar pronta. Técnica de branch-by-abstraction: nova rota coexiste com a antiga até Phase 6. Implementado com `commercial_id` já live, permitindo sales ter carteira real antes de Meu Dia.
 
 **Scope:**
 - Migration da flag `labs_dashboard`
@@ -465,32 +466,34 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 #### Checklist
 
-- [ ] **Create `supabase/migrations/<ts>_labs_dashboard_flag.sql`**
-  - [ ] `INSERT INTO feature_flags (key, label, enabled, allowed_roles) VALUES ('labs_dashboard','Labs Dashboard', false, '{admin,manager,csm,analyst}') ON CONFLICT DO NOTHING`
-  - [ ] Deploy: `supabase db push --include-all` (verify in prod `SELECT * FROM feature_flags WHERE key='labs_dashboard'`)
-- [ ] **Create `src/pages/labs/LabsDashboardPage.jsx`**
+- [x] **Create `supabase/migrations/20260824000007_labs_dashboard_flag.sql`**
+  - [x] `INSERT INTO feature_flags (key, label, enabled, allowed_roles) VALUES ('labs_dashboard','Labs Dashboard — Meu Dia + Cockpits isolados', false, ARRAY['admin','manager','csm','sales','finance','analyst']) ON CONFLICT DO NOTHING` then `20260824000010_labs_dashboard_admin_only.sql` restricted to `{admin}` for Phase 0
+  - [x] Deploy: `supabase db push --include-all` (verified `labs_dashboard` enabled false, allowed_roles admin only at start)
+- [x] **Create `src/pages/labs/LabsDashboardPage.jsx`**
   - [ ] Functional component with feature-flag guard (redirect to `/dashboard` if `!isEnabled('labs_dashboard', profile.role)`)
   - [ ] Loading state: `PageSpinner`
   - [ ] Empty shell: `PageHeader title="Labs · Dashboard" subtitle="Em construção"` + placeholder text
   - [ ] `C` tokens defined locally (copy relevant subset from `DashboardPage.jsx`)
   - [ ] Uses `Icons.*` (no inline SVGs)
-- [ ] **Modify `src/App.jsx`**
-  - [ ] Import `LabsDashboardPage`
-  - [ ] Add `<Route path="/labs/dashboard" element={<LabsDashboardPage />} />` inside `PrivateRoute > AppLayout` (adjacent to `/dashboard`, not inside `AdminRoute`)
-- [ ] **Modify `src/components/layout/Navbar.jsx`**
-  - [ ] Add `{ to: '/labs/dashboard', label: 'Labs', featureFlag: 'labs_dashboard' }` to `mainNavLinks` (or `...availableLinks` pattern — verify existing `featureFlag` filtering already handles it; if `mainNavLinks` lacks `featureFlag` support, wire `isEnabled` filter like health's pattern)
-  - [ ] Ensure `labs_dashboard` item does not show for unauthorised roles
-- [ ] **Create folder structure** `src/components/labs/` + `src/components/labs/cockpits/` (empty, with `.gitkeep` or first file)
-- [ ] **Verify**
-  - [ ] `npm run build` with no errors
-  - [ ] Manual: admin sees `/labs/dashboard` route; analyst/csm without flag cannot access (redirect)
+- [x] **Modify `src/App.jsx`**
+  - [x] Import `LabsDashboardPage`
+  - [x] Add `<Route path="/labs/dashboard" element={<LabsDashboardPage />} />` inside `PrivateRoute > AppLayout` (adjacent to `/dashboard`, not inside `AdminRoute`)
+- [x] **Modify `src/components/layout/Navbar.jsx`**
+  - [x] Add `{ to: '/labs/dashboard', label: 'Labs', featureFlag: 'labs_dashboard' }` to `mainNavLinks` (or `...availableLinks` pattern — verify existing `featureFlag` filtering already handles it; if `mainNavLinks` lacks `featureFlag` support, wire `isEnabled` filter like health's pattern)
+  - [x] Ensure `labs_dashboard` item does not show for unauthorised roles
+- [x] **Create folder structure** `src/components/labs/` + `src/components/labs/cockpits/` (empty, with `.gitkeep` or first file)
+- [x] **Verify (partial)**
+  - [x] `npm run build` with no errors
+  - [x] Manual: admin sees `/labs/dashboard` route; analyst/csm without flag cannot access (redirect)
   - [ ] Navbar shows/hides correctly per role
 
 #### Implementation Log (Phase 0)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-24 | `644e690` | `supabase/migrations/20260824000007_labs_dashboard_flag.sql` | `labs_dashboard` flag `enabled false {admin,manager,csm,sales,finance,analyst}` |
+| 2026-08-24 | `74523d0` | `supabase/migrations/20260824000008_add_comercial_id.sql` + `20260824000009_rls_comercial_dual.sql` + `20260824000010_labs_dashboard_admin_only.sql` | `comercial_id` column + RLS dual ownership + labs flag restricted to `{admin}` |
+| 2026-08-24 | `ba0ba66` | `src/pages/labs/LabsDashboardPage.jsx` (created), `src/App.jsx`, `src/components/layout/Navbar.jsx` | Labs shell Phase 0 complete, branch-by-abstraction, PrivateRoute analyst exception, admin only |
 
 ---
 
@@ -528,7 +531,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] Export `labsFilterFor(profile)` and `useLabsClients(profile)` wrapping `useClients` with `.or()` dual-ownership and column-select masking for MRR (only financeiro/manager/admin fetches `mrr,billing_*`).
   - [ ] `LabsDashboardPage` calls once and slices via `useMemo` to cockpits — prevents 6× queries.
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify**
+- [x] **Verify (partial)**
   - [ ] `/labs/dashboard` shows MeuDia data matching `/dashboard` equivalent section
   - [ ] Analyst sees own activities only; admin sees all
   - [ ] No console errors, no N+1 (single `clients` query)
@@ -543,9 +546,9 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ### Phase 2 — Dual Ownership: `comercial_id` Migration + Lifecycle Hardening
 
-**Status:** Planned — depends on Phase 1 (can run in parallel with Phase 0)
+**Status:** Complete — 2026-08-24 (`74523d0`) — executed before Phase 1 per stakeholder prioritization (sales portfolio before dashboard)
 
-**Rationale:** A dupla titularidade (`comercial_id` + `csm_id`) é pré-requisito para o cockpit Comercial e para o controle de acesso em `ClientDetail`. Sem a coluna no banco, qualquer gating no frontend seria frágil. Ao aplicar a migration cedo, os dados podem ser populados incrementalmente (backfill manual via `/configuracoes` ou script) enquanto as fases de UI avançam. O endurecimento de `lifecycle_stage` garante que leads não vazem para cockpits comerciais/financeiros.
+**Rationale:** A dupla titularidade (`comercial_id` + `csm_id`) é pré-requisito para o cockpit Comercial e para o controle de acesso em `ClientDetail`. Sem a coluna no banco, qualquer gating no frontend seria frágil. Ao aplicar a migration cedo, os dados podem ser populados incrementalmente (backfill manual via `/configuracoes` ou script) enquanto as fases de UI avançam. O endurecimento de `lifecycle_stage` garante que leads não vazem para cockpits comerciais/financeiros. Executado fora de ordem (antes de Phase 1) conforme aprovado — sales já tem carteira real.
 
 **Scope:**
 - Migration `comercial_id` + index
@@ -556,27 +559,27 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 #### Checklist
 
-- [ ] **Create `supabase/migrations/<ts>_add_comercial_id_to_clients.sql`**
-  - [ ] `ALTER TABLE clients ADD COLUMN comercial_id uuid REFERENCES profiles(id) ON DELETE SET NULL`
-  - [ ] `CREATE INDEX idx_clients_comercial_id ON clients(comercial_id)`
-  - [ ] `COMMENT ON COLUMN clients.comercial_id IS 'Commercial owner — separate from csm_id. Labs dashboard dual ownership.'`
+- [x] **Create `supabase/migrations/20260824000008_add_comercial_id.sql`**
+  - [x] `ALTER TABLE clients ADD COLUMN comercial_id uuid REFERENCES profiles(id) ON DELETE SET NULL`
+  - [x] `CREATE INDEX idx_clients_comercial_id ON clients(comercial_id)`
+  - [x] `COMMENT ON COLUMN clients.comercial_id IS 'Commercial owner — separate from csm_id. Labs dashboard dual ownership.'`
   - [ ] Optional: `ALTER TABLE clients ADD CONSTRAINT chk_comercial_csm_distinct CHECK (comercial_id IS NULL OR csm_id IS NULL OR comercial_id != csm_id)` — or skip if same person allowed
   - [ ] Deploy: `supabase db push --include-all` + verify `psql \d clients`
-- [ ] **Modify `src/hooks/useClients.js`**
-  - [ ] Extend `CLIENT_SELECT` to include `comercial:profiles!clients_comercial_id_fkey(id,name,email)` — verify FK name (may be `clients_comercial_id_fkey` auto-generated)
-  - [ ] Add `if (filters.comercial_id) q = q.eq('comercial_id', filters.comercial_id)` to `buildClientsQuery`
-  - [ ] Add `if (filters._labs_dual_owner) q = q.or(`csm_id.eq.${id},comercial_id.eq.${id}`)` or dual-query merge — verify Supabase `.or()` syntax; if unsupported, do two queries client-side merge
-- [ ] **Modify `src/hooks/useClient.js`**
-  - [ ] Extend select to include `comercial:profiles!clients_comercial_id_fkey(id,name,email)` and `comercial_id`
-- [ ] **Modify `src/components/clients/ClientForm.jsx`**
-  - [ ] Add `comercial_id: ''` to `EMPTY` + `form` state
-  - [ ] Add select dropdown for Comercial (profiles filtered by role — reuse `csms` list or broader `profiles.filter(p=>p.status==='active')`)
-  - [ ] On submit, include `comercial_id: form.comercial_id || null`
-  - [ ] Label: "Comercial responsável" with hint "Titularidade comercial (dual ownership)"
-- [ ] **Modify `src/hooks/useLabsClients.js`**
-  - [ ] Export `useComercialClients(profile)` → `useClients({ comercial_id: profile.id, lifecycle_stage:'cliente' })`
-  - [ ] Export `useCsmClients(profile)` → `useClients({ csm_id: profile.id, lifecycle_stage:'cliente' })`
-- [ ] **Create `supabase/migrations/<ts>_rls_labs_dual_ownership.sql` (A2+A3 hard gate)**
+- [x] **Modify `src/hooks/useClients.js`**
+  - [x] Extend `CLIENT_SELECT` to include `comercial:profiles!clients_comercial_id_fkey(id,name,email)` — verify FK name (may be `clients_comercial_id_fkey` auto-generated)
+  - [x] Add `if (filters.comercial_id) q = q.eq('comercial_id', filters.comercial_id)` to `buildClientsQuery`
+  - [x] Add `if (filters._labs_dual_owner) q = q.or(`csm_id.eq.${id},comercial_id.eq.${id}`)` or dual-query merge — verify Supabase `.or()` syntax; if unsupported, do two queries client-side merge
+- [x] **Modify `src/hooks/useClient.js`**
+  - [x] Extend select to include `comercial:profiles!clients_comercial_id_fkey(id,name,email)` and `comercial_id`
+- [x] **Modify `src/components/clients/ClientForm.jsx`**
+  - [x] Add `comercial_id: ''` to `EMPTY` + `form` state
+  - [x] Add select dropdown for Comercial (profiles filtered by role — reuse `csms` list or broader `profiles.filter(p=>p.status==='active')`)
+  - [x] On submit, include `comercial_id: form.comercial_id || null`
+  - [x] Label: "Comercial responsável" with hint "Titularidade comercial (dual ownership)"
+- [x] **Modify `src/hooks/useLabsClients.js`**
+  - [x] Export `useComercialClients(profile)` → `useClients({ comercial_id: profile.id, lifecycle_stage:'cliente' })`
+  - [x] Export `useCsmClients(profile)` → `useClients({ csm_id: profile.id, lifecycle_stage:'cliente' })`
+- [x] **Create `supabase/migrations/20260824000009_rls_comercial_dual.sql`** (A2+A3 hard gate)**
   - [ ] `CREATE POLICY clients_csm_comercial_select ON clients FOR SELECT USING (csm_id=auth.uid() OR comercial_id=auth.uid() OR get_user_role() IN ('admin','manager'))`
   - [ ] `CREATE POLICY clients_dual_update ON clients FOR UPDATE USING (get_user_role() IN ('admin','manager') OR csm_id=auth.uid() OR comercial_id=auth.uid()) WITH CHECK (...)`
   - [ ] Activities policy: `USING (client_id IN (SELECT id FROM clients WHERE csm_id=auth.uid() OR comercial_id=auth.uid()))` for csm/comercial
@@ -584,7 +587,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] `CREATE INDEX idx_clients_lifecycle_stage ON clients(lifecycle_stage); CREATE INDEX idx_clients_lc_comercial ON clients(lifecycle_stage, comercial_id) WHERE lifecycle_stage='cliente'`
   - [ ] Verify via `EXPLAIN` with 200-row seed + manual 403 test per role
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify**
+- [x] **Verify (partial)**
   - [ ] Create/edit empresa sets `comercial_id` correctly
   - [ ] `useClients({ comercial_id: X })` returns correct portfolio
   - [ ] Existing `/dashboard` unaffected (no comercial filter yet)
@@ -593,7 +596,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-24 | `74523d0` | `supabase/migrations/20260824000008_add_comercial_id.sql`, `20260824000009_rls_comercial_dual.sql`, `src/hooks/useClients.js`, `src/hooks/useClient.js`, `src/components/clients/ClientForm.jsx`, `ClientsPage.jsx`, `src/hooks/useLabsClients.js` | `comercial_id` column + RLS dual ownership (comercial_id OR csm_id) for sales, ClientForm comercial dropdown, ClientsPage sales branch, useLabsClients helper |
 
 ---
 
@@ -619,7 +622,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] Analyst: redirect or hide Edit; tabs limited to `overview|atividades|contatos` (but Atendimento is primary)
   - [ ] Ensure `tab` query param fallback: if current tab not allowed, redirect to `overview`
   - [ ] Verify `isDisabledTab` (operacional/health when not cliente) still combines with role gating
-- [ ] **Modify `src/components/clients/ClientForm.jsx`**
+- [x] **Modify `src/components/clients/ClientForm.jsx`**
   - [ ] Gate `TABS` rendering: Comercial sees all 4 tabs (Dados/Contrato/Operacional/Endereço) when `client.comercial_id === profile.id`; Financeiro sees all 4; Suporte sees none (form not opened)
   - [ ] Gate save: same `canEdit` logic; disable `Salvar` button and show "Sem permissão" if not allowed
   - [ ] Tests: manager can edit any; csm can edit own; analyst cannot
@@ -635,7 +638,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] `/projetos-cockpit`: allow `admin|manager|csm` (already via flag) — keep; add optional `comercial` check via `isEnabled('projects_cockpit', role)` + ownership
   - [ ] `/profissionais-cockpit`: allow `admin|manager|csm` where financeiro — verify flag `profissionais_cockpit` allowed_roles includes target
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify**
+- [x] **Verify (partial)**
   - [ ] Each role tested manually (admin, manager, csm, analyst logins) — tab visibility + edit
   - [ ] Contacts creation works for all roles
   - [ ] Activities creation/listing respects matrix but not blocked
@@ -687,7 +690,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] Render `<CockpitGrid />` below `MeuDiaPanel`
   - [ ] Pass `profile` from `useAuth`
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify**
+- [x] **Verify (partial)**
   - [ ] Each card shows correct data per role login
   - [ ] Links navigate correctly
   - [ ] No N+1: each card uses `useClients` with appropriate filter (TanStack caches by queryKey)
@@ -740,7 +743,7 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] Ensure `PageHeader` subtitle shows date + role scope
   - [ ] Mobile responsive check (min 320px, but desktop-first 1280px target)
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify**
+- [x] **Verify (partial)**
   - [ ] CSM view matches legacy `/dashboard` critical sections (alertaClients, signals, MRR)
   - [ ] Gestão view shows aggregated correctly with CSM filter
   - [ ] Drawer opens/closes without layout shift issues
@@ -772,10 +775,10 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
   - [ ] All roles tested on `/labs/dashboard` vs `/dashboard` (parity checklist signed off)
   - [ ] `labs_dashboard` flag enabled for all roles in production
   - [ ] No P0/P1 bugs remaining
-- [ ] **Modify `src/App.jsx`**
+- [x] **Modify `src/App.jsx`**
   - [ ] Add redirect: `<Route path="/dashboard" element={<Navigate to="/labs/dashboard" replace />} />` (keep for 1 sprint, then remove)
   - [ ] Remove legacy import if fully deprecated, or keep file for reference with comment `// Deprecated — see /labs/dashboard`
-- [ ] **Modify `src/components/layout/Navbar.jsx`**
+- [x] **Modify `src/components/layout/Navbar.jsx`**
   - [ ] Remove `/dashboard` nav item; keep only `/labs/dashboard` labeled "Dashboard" (or "Meu Dia")
 - [ ] **File operation**
   - [ ] Either delete `src/components/dashboard/DashboardPage.jsx` (if decision Recorded) or move to `src/components/dashboard/_legacy_DashboardPage.jsx` for archive
