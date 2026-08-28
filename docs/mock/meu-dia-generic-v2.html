@@ -3,182 +3,104 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meu Dia — Genérica v2 (Labs • Impeccable Operate)</title>
+<title>Meu Dia — Genérica v2 ousada (Labs • Ecossistema Donc)</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700&display=swap" rel="stylesheet">
-<script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        'navy': '#173557',
-        'navyDeep': '#0f2540',
-        'navySoft': 'rgba(255,255,255,0.08)',
-        'sky': '#59c2ed',
-        'skySoft': '#e8f6fd',
-        'lime': '#d3da47',
-        'limeSoft': '#f6f8d9',
-        'ink': '#0e223a',
-        'ink2': '#3b4a5e',
-        'ink3': '#6b7889',
-      }
-    }
-  }
-}
-</script>
+<script>tailwind.config={theme:{extend:{colors:{navy:'#173557',navyDeep:'#0f2540',sky:'#59c2ed',lime:'#d3da47',ink:'#0e223a',ink3:'#6b7889'}}}}</script>
 <style>
 *{font-family:Inter,system-ui,sans-serif}
 .mono{font-variant-numeric:tabular-nums}
-.panel{ background:#ffffff; border:0.5px solid rgba(15,34,58,0.09); border-radius:16px; padding:18px 20px 14px; display:flex; flex-direction:column; height:100%; box-sizing:border-box; }
-.stripHead{ font-size:13px; letter-spacing:0.10em; text-transform:uppercase; color:#9aa5b5; font-weight:600; }
-.seeAll{ font-size:12px; font-weight:600; color:#173557; }
-.seeAll:hover{ color:#2b7aa4; }
-.dot5{ width:6px; height:6px; border-radius:999px; display:inline-block; }
-.shimmer{ background: linear-gradient(90deg, #eef0f3 25%, #f8f9fb 37%, #eef0f3 63%); background-size:400% 100%; animation: shimmer 1.6s ease-in-out infinite; }
-@keyframes shimmer{ 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+.panel{background:#fff;border:0.5px solid rgba(15,34,58,.09);border-radius:16px;padding:18px 20px 14px;display:flex;flex-direction:column;height:100%;box-sizing:border-box}
+.stripHead{font-size:13px;letter-spacing:.10em;text-transform:uppercase;color:#9aa5b5;font-weight:600}
+.seeAll{font-size:12px;font-weight:600;color:#173557}
+.seeAll:hover{color:#2b7aa4}
+.dot5{width:6px;height:6px;border-radius:999px;display:inline-block}
 </style>
 </head>
 <body class="bg-[#f4f5f7] min-h-screen">
-
-<!-- NAV (repr. doncCX) -->
 <nav class="bg-[#173557] h-14 flex items-center px-6 gap-8 sticky top-0 z-30">
   <div class="flex items-center gap-0.5"><span class="text-[#d3da47] font-bold text-lg tracking-tight">donc</span><span class="text-white font-bold text-lg tracking-tight">CX</span><span class="text-white/60 font-light text-sm ml-0.5">Hub</span></div>
-  <div class="flex items-center gap-1 flex-1 text-sm">
-    <span class="px-3 py-1.5 text-white border-b-[3px] border-[#d3da47] font-medium">Labs</span>
-    <span class="px-3 py-1.5 text-white/60">Dashboard</span><span class="px-3 py-1.5 text-white/60">Empresas</span><span class="px-3 py-1.5 text-white/60">Cockpits</span>
-  </div>
-  <div class="w-7 h-7 rounded-full bg-[#d3da47] flex items-center justify-center text-[#173557] font-bold text-xs">J</div>
+  <div class="flex items-center gap-1 flex-1 text-sm"><span class="px-3 py-1.5 text-white border-b-[3px] border-[#d3da47] font-medium">Labs</span><span class="px-3 py-1.5 text-white/60">Dashboard</span><span class="px-3 py-1.5 text-white/60">Empresas</span><span class="px-3 py-1.5 text-white/60">Cockpits</span></div>
+  <div class="w-7 h-7 rounded-full bg-[#d3da47] flex items-center justify-center text-[#0f2540] font-bold text-xs">J</div>
 </nav>
 
-<!-- FAIXA NAVY HERO — Clube Navy + Lime : pertencimento -->
+<!-- HERO ousada — foto 88px, lime 30-38px, sem cards brancos, sem repetição -->
 <section class="bg-[#0f2540] relative overflow-hidden">
-  <!-- subtle ellipse + noise -->
-  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(600px 280px at 20% 0%, rgba(211,218,71,0.08), transparent 60%), radial-gradient(500px 300px at 90% 10%, rgba(89,194,237,0.07), transparent 60%);"></div>
+  <div class="absolute inset-0 pointer-events-none" style="background: radial-gradient(700px 320px at 18% 0%, rgba(211,218,71,0.10), transparent 60%), radial-gradient(560px 300px at 92% 12%, rgba(89,194,237,0.09), transparent 60%);"></div>
   <div class="max-w-6xl mx-auto px-6 py-8 relative">
-    <div class="grid lg:grid-cols-12 gap-6 items-start">
-      <!-- 7 col hero -->
-      <div class="lg:col-span-7 flex gap-4">
-        <img src="https://i.pravatar.cc/112?img=12" alt="avatar" class="w-14 h-14 rounded-full object-cover border-2 border-white/90 ring-2 ring-[#d3da47]/60 flex-shrink-0 mt-1">
-        <div>
-          <h1 class="text-white font-bold tracking-tight" style="font-family:Montserrat,sans-serif; font-size:22px; line-height:1.2;">Bom dia, Jorge</h1>
-          <p class="text-white/70 text-sm">Quinta, 28 de agosto de 2026 · <span class="text-white/90 italic">sua carteira está equilibrada</span></p>
-          <div class="flex flex-wrap gap-1.5 mt-3">
-            <span class="px-2 py-1 rounded-full text-xs font-medium bg-white/10 text-white/90 border border-white/10">18 empresas ativas</span>
-            <span class="px-2 py-1 rounded-full text-xs font-medium bg-[#d3da47] text-[#0f2540]">Labs · Genérica</span>
-            <span class="px-2 py-1 rounded-full text-xs font-medium bg-white/10 text-white/60">Sales · 3 clientes com você</span>
-          </div>
-          <div class="flex gap-2 mt-4">
-            <a href="#meu-dia" class="px-4 py-2 rounded-lg bg-white text-[#0f2540] text-sm font-semibold hover:bg-[#f8f9fb] transition">Ver meu dia →</a>
-            <a href="/empresas" class="px-4 py-2 rounded-lg bg-white/10 text-white text-sm font-medium border border-white/15 hover:bg-white/15 transition">Empresas</a>
-          </div>
-        </div>
+    <div class="flex flex-col lg:flex-row lg:items-start gap-6">
+      <!-- Foto 88px estilizada -->
+      <div class="relative flex-shrink-0">
+        <img id="hero-photo" src="https://i.pravatar.cc/176?img=12" alt="foto perfil" class="w-[88px] h-[88px] rounded-2xl object-cover border-[3px] border-white/90 ring-[3px] ring-[#d3da47]/60 shadow-xl">
+        <span class="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-full bg-[#d3da47] text-[#0f2540] text-[11px] font-bold tracking-wide">Sales</span>
+        <span class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#2f9e70] border-2 border-[#0f2540]"></span>
       </div>
-      <!-- 5 col stack mini-panels brancos sobre navy -->
-      <div class="lg:col-span-5 grid grid-cols-2 gap-3">
-        <div class="panel !p-3">
-          <div class="stripHead !text-[11px] mb-2">Seu papel</div>
-          <div class="text-sm font-semibold text-[#0e223a]">Sales</div>
-          <div class="text-xs text-[#6b7889]">Comercial · 3 clientes com você</div>
-          <div class="mt-2 text-[11px] text-[#9aa5b5]">Efêmero: veja dados via RLS `comercial_id`.</div>
+      <div class="flex-1 min-w-0">
+        <h1 class="text-white font-bold tracking-tight" style="font-family:Montserrat,sans-serif;font-size:26px;line-height:1.15;">Bom dia, Jorge</h1>
+        <p class="text-white/70 text-sm mt-1">Quinta, 28 de agosto de 2026 · <span class="text-white/90 italic">Ecossistema Donc em movimento</span></p>
+        <!-- ÚNICA linha de carteira — por perfil -->
+        <p id="hero-copy" class="text-white text-sm mt-2"><span class="font-semibold text-white">Você cuida de 3 empresas</span> <span class="text-white/35 mx-1">·</span> <span class="text-white/80">18 clientes no Ecossistema Donc</span></p>
+        <p class="text-white/55 text-xs mt-1">Foto de <strong class="text-white/75">julho</strong> (referência agosto) · atualização via cron · sem MRR aqui</p>
+        <!-- Ghost links, sem cards brancos, sem duplicar navbar -->
+        <div class="flex gap-4 mt-4 text-sm">
+          <a href="#meu-dia" class="text-white/80 hover:text-white font-medium">↓ Meu dia</a>
+          <span class="text-white/20">·</span>
+          <span class="text-white/55 text-xs self-center">onde participei · own</span>
         </div>
-        <div class="panel !p-3">
-          <div class="stripHead !text-[11px] mb-2">Acesso rápido</div>
-          <div class="flex flex-col gap-1.5">
-            <a class="text-sm font-medium text-[#173557] hover:text-[#2b7aa4] flex items-center gap-2"><span class="w-6 h-6 rounded-md bg-[#e8f6fd] flex items-center justify-center text-[#59c2ed] text-xs">◧</span> Atividades</a>
-            <a class="text-sm font-medium text-[#173557] hover:text-[#2b7aa4] flex items-center gap-2"><span class="w-6 h-6 rounded-md bg-[#f6f8d9] flex items-center justify-center text-[#6b7020] text-xs">⬡</span> Empresas</a>
-          </div>
-        </div>
+        <!-- Variantes por perfil (para dev) -->
+        <p class="text-[11px] text-white/35 mt-3 hidden lg:block">Variantes: <span class="text-white/60">csm 3·18</span> · <span class="text-white/60">sales 3 comercial·18</span> · <span class="text-white/60">finance global 18 · 1.042 profs</span> · <span class="text-white/60">analyst 0 · via Atendimento</span> — hero troca via <code class="bg-white/10 px-1 rounded">?role=sales</code></p>
       </div>
     </div>
-    <!-- Barra tribo 4up dentro do navy -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6 border-t border-white/10 pt-5">
+    <!-- Barra 3up revisada — sem Clientes ativos repetido -->
+    <div class="grid grid-cols-3 gap-4 mt-7 border-t border-white/10 pt-5">
       <div>
-        <div class="text-[11px] tracking-widest uppercase font-semibold text-white/55">Clientes ativos</div>
-        <div class="mono font-bold tracking-tight" style="font-family:Montserrat,sans-serif; font-size:30px; color:#d3da47; line-height:1;">18</div>
-        <div class="text-xs text-white/60">carteira global · foto julho</div>
-      </div>
-      <div>
-        <div class="text-[11px] tracking-widest uppercase font-semibold text-white/55">Projetos abertos</div>
-        <div class="mono font-bold tracking-tight" style="font-family:Montserrat,sans-serif; font-size:30px; color:#d3da47; line-height:1;">12</div>
+        <div class="text-[11px] tracking-widest uppercase font-semibold text-white/55">Projetos em aberto</div>
+        <div class="mono font-bold tracking-tight" style="font-family:Montserrat,sans-serif;font-size:30px;color:#d3da47;line-height:1;">12</div>
         <div class="text-xs text-white/60">8 clientes com projeto</div>
       </div>
       <div>
         <div class="text-[11px] tracking-widest uppercase font-semibold text-white/55">Cidades atendidas</div>
-        <div class="mono font-bold tracking-tight" style="font-family:Montserrat,sans-serif; font-size:30px; color:#d3da47; line-height:1;">47</div>
+        <div class="mono font-bold tracking-tight" style="font-family:Montserrat,sans-serif;font-size:30px;color:#d3da47;line-height:1;">47</div>
         <div class="text-xs text-white/60">Top: SP · RJ · MG</div>
       </div>
       <div>
-        <div class="text-[11px] tracking-widest uppercase font-semibold text-white/55">OS no mês · tribo</div>
-        <div class="mono font-bold tracking-tight flex items-baseline gap-2" style="font-family:Montserrat,sans-serif; font-size:30px; color:#d3da47; line-height:1;">4.281 <span class="text-xs font-medium text-white/70">jul</span></div>
-        <div class="text-xs text-white/60">vs avg 90d 3.940 <span class="text-[#d3da47]">+8%</span></div>
+        <div class="text-[11px] tracking-widest uppercase font-semibold text-white/55">OS no mês · ecossistema</div>
+        <div class="mono font-bold tracking-tight flex items-baseline gap-2" style="font-family:Montserrat,sans-serif;font-size:30px;color:#d3da47;line-height:1;">4.281 <span class="text-xs font-medium text-white/70">jul</span></div>
+        <div class="text-xs text-white/60">vs média 90d 3.940 <span class="text-[#d3da47]">+8%</span></div>
       </div>
     </div>
-    <div class="text-[11px] text-white/45 mt-2">Foto de <strong class="text-white/70">julho</strong> (referência agosto) · vs média 90d abr-jun. MRR oculto aqui (cockpit Finance).</div>
   </div>
 </section>
 
-<!-- FAIXA BG: Mapa 8 + Projetos 4 -->
+<!-- FAIXA BG: Mapa pins/heatmap + Projetos -->
 <section class="bg-[#f4f5f7] py-6">
   <div class="max-w-6xl mx-auto px-6 grid lg:grid-cols-12 gap-5">
-    <!-- Mapa 8 col — pins + heat -->
     <div class="lg:col-span-8 panel !p-0 overflow-hidden">
       <div class="px-5 pt-4 pb-3 flex items-center justify-between">
-        <div>
-          <div class="stripHead">Onde estamos</div>
-          <h2 class="text-sm font-semibold text-[#0e223a]">Mapa vivo da tribo</h2>
-        </div>
-        <span class="seeAll">clusters por UF · lazy</span>
+        <div><div class="stripHead">Onde estão nossos clientes</div><h2 class="text-sm font-semibold text-[#0e223a]">Mapa vivo do Ecossistema</h2></div>
+        <span class="text-xs text-[#9aa5b5]">Cada cluster = cidade com N clientes · anon</span>
       </div>
       <div class="relative h-[340px] bg-[#eef3f7] border-t border-[rgba(15,34,58,0.09)] overflow-hidden">
-        <!-- Heat base -->
-        <div class="absolute inset-0" style="background: radial-gradient(400px 260px at 35% 45%, rgba(89,194,237,0.18), transparent 60%), radial-gradient(360px 240px at 70% 55%, rgba(211,218,71,0.14), transparent 60%), radial-gradient(300px 200px at 55% 30%, rgba(180,108,209,0.10), transparent 60%);"></div>
-        <!-- Brazil silhouette (simplified SVG) -->
-        <svg viewBox="0 0 340 340" class="absolute inset-0 w-full h-full opacity-40">
-          <path d="M120 60 L180 40 L220 70 L240 120 L210 180 L170 220 L120 200 L90 140 L100 80 Z" fill="none" stroke="#173557" stroke-width="0.7" stroke-dasharray="4 4"/>
-        </svg>
-        <!-- Pins / clusters -->
-        <div class="absolute" style="left:58%; top:42%;">
-          <div class="w-8 h-8 rounded-full bg-[#173557] border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-bold">8</div>
-          <div class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#d3da47] border border-white"></div>
-        </div>
-        <div class="absolute" style="left:62%; top:68%;">
-          <div class="w-6 h-6 rounded-full bg-[#173557] border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-bold">5</div>
-        </div>
-        <div class="absolute" style="left:42%; top:48%;">
-          <div class="w-7 h-7 rounded-full bg-[#173557] border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-bold">6</div>
-        </div>
-        <div class="absolute" style="left:78%; top:35%;">
-          <div class="w-5 h-5 rounded-full bg-[#b46cd1] border-2 border-white shadow"></div>
-        </div>
-        <div class="absolute" style="left:30%; top:55%;">
-          <div class="w-5 h-5 rounded-full bg-[#d98b28] border-2 border-white shadow"></div>
-        </div>
-        <!-- Tooltip -->
-        <div class="absolute left-1/2 -translate-x-1/2 bottom-3 bg-white border border-[rgba(15,34,58,0.09)] rounded-xl px-3 py-2 shadow-sm flex items-center gap-2">
-          <span class="dot5" style="background:#59c2ed"></span><span class="text-xs text-[#0e223a] font-medium">SP · 8 clientes</span><span class="text-[11px] text-[#9aa5b5]">3 com projeto aberto</span>
-        </div>
+        <div class="absolute inset-0" style="background: radial-gradient(420px 260px at 38% 48%, rgba(89,194,237,0.20), transparent 60%), radial-gradient(360px 240px at 72% 58%, rgba(211,218,71,0.16), transparent 60%);"></div>
+        <svg viewBox="0 0 340 340" class="absolute inset-0 w-full h-full opacity-30"><path d="M120 60 L180 40 L220 70 L240 120 L210 180 L170 220 L120 200 L90 140 L100 80 Z" fill="none" stroke="#173557" stroke-width="0.7" stroke-dasharray="4 4"/></svg>
+        <div class="absolute" style="left:58%;top:42%"><div class="w-8 h-8 rounded-full bg-[#173557] border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-bold">8</div><div class="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#d3da47] border border-white"></div></div>
+        <div class="absolute" style="left:62%;top:68%"><div class="w-6 h-6 rounded-full bg-[#173557] border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-bold">5</div></div>
+        <div class="absolute" style="left:42%;top:48%"><div class="w-7 h-7 rounded-full bg-[#173557] border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-bold">6</div></div>
+        <div class="absolute" style="left:78%;top:35%"><div class="w-5 h-5 rounded-full bg-[#b46cd1] border-2 border-white shadow"></div></div>
+        <div class="absolute" style="left:30%;top:55%"><div class="w-5 h-5 rounded-full bg-[#d98b28] border-2 border-white shadow"></div></div>
+        <div class="absolute left-1/2 -translate-x-1/2 bottom-3 bg-white border border-[rgba(15,34,58,0.09)] rounded-xl px-3 py-2 shadow-sm flex items-center gap-2"><span class="dot5" style="background:#59c2ed"></span><span class="text-xs text-[#0e223a] font-medium">SP · 8 clientes</span><span class="text-[11px] text-[#9aa5b5]">3 com projeto aberto</span></div>
       </div>
-      <div class="px-5 py-3 flex items-center justify-between border-t border-[rgba(15,34,58,0.09)]">
-        <span class="text-[11px] tracking-widest uppercase font-semibold text-[#9aa5b5]">Top estados</span>
-        <span class="text-xs text-[#6b7889]">SP 8 · MG 5 · RJ 4 · PR 3</span>
-      </div>
+      <div class="px-5 py-3 flex items-center justify-between border-t border-[rgba(15,34,58,0.09)]"><span class="text-[11px] tracking-widest uppercase font-semibold text-[#9aa5b5]">Top estados</span><span class="text-xs text-[#6b7889]">SP 8 · MG 5 · RJ 4 · PR 3</span></div>
     </div>
-    <!-- Projetos em aberto 4 col — densa 35 linhas feel -->
     <div class="lg:col-span-4 panel">
       <div class="stripHead mb-2">Projetos em aberto</div>
       <h3 class="text-sm font-semibold text-[#0e223a] mb-3">12 projetos · 8 clientes</h3>
       <div class="space-y-2.5 max-h-[340px] overflow-auto pr-1">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2"><span class="dot5" style="background:#59c2ed"></span><span class="text-sm text-[#0e223a]">Go Live — Rede Sul</span></div><span class="text-xs text-[#9aa5b5] mono">42%</span>
-        </div>
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="dot5" style="background:#59c2ed"></span><span class="text-sm text-[#0e223a]">Go Live — Rede Sul</span></div><span class="text-xs text-[#9aa5b5] mono">42%</span></div>
         <div class="h-1 rounded-full bg-[#eef0f3]"><div class="h-1 rounded-full bg-[#59c2ed]" style="width:42%"></div></div>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2"><span class="dot5" style="background:#b46cd1"></span><span class="text-sm text-[#0e223a]">Onboarding — Casa Forte</span></div><span class="text-xs text-[#9aa5b5] mono">78%</span>
-        </div>
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="dot5" style="background:#b46cd1"></span><span class="text-sm text-[#0e223a]">Onboarding — Casa Forte</span></div><span class="text-xs text-[#9aa5b5] mono">78%</span></div>
         <div class="h-1 rounded-full bg-[#eef0f3]"><div class="h-1 rounded-full bg-[#b46cd1]" style="width:78%"></div></div>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2"><span class="dot5" style="background:#d98b28"></span><span class="text-sm text-[#0e223a]">Implantação — Lojas Centro</span></div><span class="text-xs text-[#9aa5b5] mono">18%</span>
-        </div>
+        <div class="flex items-center justify-between"><div class="flex items-center gap-2"><span class="dot5" style="background:#d98b28"></span><span class="text-sm text-[#0e223a]">Implantação — Lojas Centro</span></div><span class="text-xs text-[#9aa5b5] mono">18%</span></div>
         <div class="h-1 rounded-full bg-[#eef0f3]"><div class="h-1 rounded-full bg-[#d98b28]" style="width:18%"></div></div>
         <div class="text-[11px] text-[#9aa5b5] mt-1">+ 9 projetos — ver todos em Cockpits → Projetos</div>
       </div>
@@ -187,76 +109,60 @@ tailwind.config = {
   </div>
 </section>
 
-<!-- FAIXA SURFACE: Pulso tribo 2 + Meu Dia teaser -->
-<section class="bg-white py-6 border-y border-[rgba(15,34,58,0.09)]">
+<!-- FAIXA SURFACE: Pulso + Meu dia own -->
+<section id="meu-dia" class="bg-white py-6 border-y border-[rgba(15,34,58,0.09)]">
   <div class="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-5">
-    <!-- Pulso global anonimizado -->
     <div class="panel">
-      <div class="stripHead mb-3">Pulso da tribo · julho</div>
+      <div class="stripHead mb-3">Pulso do ecossistema · julho</div>
       <div class="grid grid-cols-2 gap-4">
         <div class="border-l-[3px] border-[#59c2ed] pl-3">
-          <div class="text-xs text-[#6b7889] flex items-center gap-1.5"><span class="w-6 h-6 rounded-md bg-[#e8f6fd] flex items-center justify-center text-[#59c2ed]">◈</span> OS processadas</div>
+          <div class="text-xs text-[#6b7889] flex items-center gap-1.5"><span class="w-6 h-6 rounded-md bg-[#e8f6fd] flex items-center justify-center text-[#59c2ed] text-[11px]">◆</span> OS processadas</div>
           <div class="mono text-xl font-bold text-[#0e223a]">4.281</div>
-          <div class="text-xs text-[#9aa5b5]">foto julho · avg 90d 3.940 <span class="text-[#2f9e70]">+8%</span></div>
+          <div class="text-xs text-[#9aa5b5]">foto julho · média 90d 3.940 <span class="text-[#2f9e70]">+8%</span></div>
           <svg width="100%" height="32" viewBox="0 0 120 32" class="mt-1"><polyline fill="none" stroke="#59c2ed" stroke-width="2" points="0,22 30,18 60,20 90,12 120,14"/></svg>
         </div>
         <div class="border-l-[3px] border-[#d3da47] pl-3">
-          <div class="text-xs text-[#6b7889] flex items-center gap-1.5"><span class="w-6 h-6 rounded-md bg-[#f6f8d9] flex items-center justify-center text-[#6b7020]">◉</span> Usuários ativos</div>
+          <div class="text-xs text-[#6b7889] flex items-center gap-1.5"><span class="w-6 h-6 rounded-md bg-[#f6f8d9] flex items-center justify-center text-[#6b7020] text-[11px]">●</span> Profissionais ativos</div>
           <div class="mono text-xl font-bold text-[#0e223a]">1.042</div>
-          <div class="text-xs text-[#9aa5b5]">base faturamento · ativos</div>
+          <div class="text-xs text-[#9aa5b5]">base faturamento · foto julho</div>
           <svg width="100%" height="32" viewBox="0 0 120 32" class="mt-1"><polyline fill="none" stroke="#d3da47" stroke-width="2" points="0,20 30,22 60,16 90,18 120,10"/></svg>
         </div>
       </div>
     </div>
-    <!-- Meu Dia teaser own -->
     <div class="panel">
-      <div class="stripHead mb-3">Meu dia — onde participei</div>
+      <div class="stripHead mb-3">Meu dia — onde participei <span class="normal-case tracking-normal text-[11px] text-[#9aa5b5] font-normal">own · 48h</span></div>
       <div class="space-y-2">
-        <div class="flex items-center justify-between py-2 border-b border-[rgba(15,34,58,0.06)]">
-          <div><p class="text-sm font-medium text-[#0e223a]">Reunião — Lojas Silva</p><p class="text-xs text-[#6b7889]">Hoje · 15:00 · você</p></div><span class="text-[11px] px-2 py-1 rounded-full bg-[#d64545]/10 text-[#d64545] font-medium">ATRASADA</span>
-        </div>
-        <div class="flex items-center justify-between py-2 border-b border-[rgba(15,34,58,0.06)]">
-          <div><p class="text-sm font-medium text-[#0e223a]">Follow-up — Rede Centro</p><p class="text-xs text-[#6b7889]">Amanhã · 10:00 · participante</p></div><span class="text-[11px] px-2 py-1 rounded-full bg-[#d98b28]/10 text-[#d98b28] font-medium">EM 24H</span>
-        </div>
-        <div class="flex items-center justify-between py-2">
-          <div><p class="text-sm font-medium text-[#0e223a]">Enviar relatório — Móveis Sul</p><p class="text-xs text-[#6b7889]">28/08 · 09:00 · você</p></div><span class="text-[11px] px-2 py-1 rounded-full bg-[#f4f5f7] text-[#6b7889]">AGENDADA</span>
-        </div>
+        <div class="flex items-center justify-between py-2 border-b border-[rgba(15,34,58,0.06)]"><div><p class="text-sm font-medium text-[#0e223a]">Reunião — Lojas Silva</p><p class="text-xs text-[#6b7889]">Hoje · 15:00 · você</p></div><span class="text-[11px] px-2 py-1 rounded-full bg-[#d64545]/10 text-[#d64545] font-medium">ATRASADA</span></div>
+        <div class="flex items-center justify-between py-2 border-b border-[rgba(15,34,58,0.06)]"><div><p class="text-sm font-medium text-[#0e223a]">Follow-up — Rede Centro</p><p class="text-xs text-[#6b7889]">Amanhã · 10:00 · participante</p></div><span class="text-[11px] px-2 py-1 rounded-full bg-[#d98b28]/10 text-[#d98b28] font-medium">EM 24H</span></div>
+        <div class="flex items-center justify-between py-2"><div><p class="text-sm font-medium text-[#0e223a]">Enviar relatório — Móveis Sul</p><p class="text-xs text-[#6b7889]">28/08 · 09:00 · você</p></div><span class="text-[11px] px-2 py-1 rounded-full bg-[#f4f5f7] text-[#6b7889]">AGENDADA</span></div>
       </div>
       <a class="seeAll mt-auto pt-3 inline-block" href="/atividades">ver todas →</a>
     </div>
   </div>
 </section>
 
-<!-- ANALYST EMPTY VARIANT (toggle via hash #analyst) -->
+<!-- ANALYST empty — toggle via ?role=analyst ou #analyst -->
 <section id="analyst-empty" class="bg-[#f4f5f7] py-6 hidden">
-  <div class="max-w-6xl mx-auto px-6">
-    <div class="panel border-dashed !bg-[#fbfcfd]">
-      <div class="flex gap-4 items-center">
-        <div class="w-20 h-20 rounded-xl bg-[#173557]/5 border border-[#173557]/10 flex items-center justify-center flex-shrink-0">◉</div>
-        <div>
-          <h3 class="text-sm font-semibold text-[#0e223a]">Sua carteira começa no Atendimento</h3>
-          <p class="text-sm text-[#6b7889]">Você vê tribo e pulso global, mas <strong>Saúde da minha carteira</strong> é por cliente — sem cliente atribuído ainda.</p>
-        </div>
-      </div>
-      <div class="flex gap-2 mt-4">
-        <a href="/atendimento" class="px-4 py-2 rounded-lg bg-[#0f2540] text-white text-sm font-semibold">Ir para Atendimento</a>
-        <a href="#meu-dia" class="px-4 py-2 rounded-lg bg-white border border-[rgba(15,34,58,0.09)] text-sm font-medium text-[#0e223a]">Ver Pulso</a>
-      </div>
-      <p class="text-[11px] text-[#9aa5b5] mt-3">Genérica nunca mostra <code>Saúde 82</code> fake quando <code>clients.length===0</code>.</p>
-    </div>
-  </div>
+  <div class="max-w-6xl mx-auto px-6"><div class="panel border-dashed !bg-[#fbfcfd]"><div class="flex gap-4 items-center"><div class="w-20 h-20 rounded-xl bg-[#173557]/5 border border-[#173557]/10 flex items-center justify-center flex-shrink-0 text-[#173557]">◎</div><div><h3 class="text-sm font-semibold text-[#0e223a]">Sua carteira começa no Atendimento</h3><p class="text-sm text-[#6b7889]">Você vê pulso e mapa do ecossistema, mas <strong>saúde</strong> é por cliente — sem cliente atribuído ainda.</p></div></div><div class="flex gap-2 mt-4"><a href="/atendimento" class="px-4 py-2 rounded-lg bg-[#0f2540] text-white text-sm font-semibold">Ir para Atendimento</a><a href="#meu-dia" class="px-4 py-2 rounded-lg bg-white border border-[rgba(15,34,58,0.09)] text-sm font-medium text-[#0e223a]">Ver Meu dia</a></div></div></div>
 </section>
 
-<!-- Footer selo -->
-<div class="max-w-6xl mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]">
-  Foto de <strong class="text-[#6b7889]">julho</strong> (referência agosto) · vs média 90d abr-jun · thresholds <code>health_config 75/50</code> · <code>effectiveRole</code> + <code>financial_data</code> para MRR · Single <code>useLabsClients</code> lifted.
-</div>
+<div class="max-w-6xl mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]">Foto de <strong class="text-[#6b7889]">julho</strong> (referência agosto) · vs média 90d abr-jun · thresholds <code>health_config 75/50</code> via <code>src/lib/scoring.js</code> · Single <code>useLabsClients</code> lifted · Ecossistema Donc</div>
 
 <script>
-// Toggle analyst empty via #analyst
-if (location.hash === '#analyst') {
-  document.getElementById('analyst-empty').classList.remove('hidden');
-}
+const params = new URLSearchParams(location.search);
+const role = params.get('role');
+const copy = document.getElementById('hero-copy');
+const photo = document.getElementById('hero-photo');
+const map = {
+  csm: 'Você cuida de 3 empresas <span class="text-white/35 mx-1">·</span> 18 clientes no Ecossistema Donc',
+  sales: 'Você acompanha 3 empresas (comercial) <span class="text-white/35 mx-1">·</span> 18 clientes ativos',
+  finance: 'Visão global <span class="text-white/35 mx-1">·</span> 18 empresas <span class="text-white/35 mx-1">·</span> 1.042 profissionais ativos',
+  manager: 'Visão global <span class="text-white/35 mx-1">·</span> 18 empresas <span class="text-white/35 mx-1">·</span> 47 cidades',
+  analyst: 'Você apoia via Atendimento <span class="text-white/35 mx-1">·</span> 18 clientes na plataforma',
+  admin: 'Visão global <span class="text-white/35 mx-1">·</span> 18 empresas <span class="text-white/35 mx-1">·</span> 12 projetos'
+};
+if(role && map[role] && copy){ copy.innerHTML = map[role]; }
+if(role==='analyst' || location.hash==='#analyst'){ document.getElementById('analyst-empty').classList.remove('hidden'); }
 </script>
 </body>
 </html>
