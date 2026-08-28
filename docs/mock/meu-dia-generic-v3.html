@@ -3,268 +3,210 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Meu Dia — Genérica v3 moderna (Labs • Ecossistema Donc)</title>
+<title>Meu Dia — Genérica v3 moderna ousada (Labs • greeting-engine)</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
 <script>tailwind.config={theme:{extend:{colors:{navy:'#173557',navyDeep:'#0a1f33',sky:'#59c2ed',lime:'#d3da47',ink:'#0e223a',ink3:'#6b7889'}}}}</script>
 <style>
 *{font-family:Inter,system-ui,sans-serif}
 .mono{font-variant-numeric:tabular-nums}
-.panel{background:#fff;border:0.5px solid rgba(15,34,58,.08);border-radius:20px;padding:20px 22px 16px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;box-shadow:0 1px 2px rgba(15,34,58,.04), 0 4px 16px rgba(15,34,58,.04)}
+.panel{background:#fff;border:0.5px solid rgba(15,34,58,.08);border-radius:20px;padding:20px 22px 16px;display:flex;flex-direction:column;height:100%;box-sizing:border-box;box-shadow:0 1px 2px rgba(15,34,58,.04), 0 8px 24px rgba(15,34,58,.05)}
 .stripHead{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#9aa5b5;font-weight:700}
 .seeAll{font-size:12px;font-weight:700;color:#173557;letter-spacing:-0.01em}
 .seeAll:hover{color:#2b7aa4}
 .dot5{width:6px;height:6px;border-radius:999px;display:inline-block}
 .glass{background:rgba(255,255,255,.06);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.10)}
 .glass-strong{background:rgba(255,255,255,.08);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12)}
-.shimmer{background:linear-gradient(90deg,#eef0f3 25%,#f8f9fb 37%,#eef0f3 63%);background-size:400% 100%;animation:shimmer 1.6s ease-in-out infinite}
-@keyframes shimmer{0%{background-position:100% 0}100%{background-position:-100% 0}}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-.float{animation:float 4s ease-in-out infinite}
 </style>
 </head>
 <body class="bg-[#f1f3f5] min-h-screen">
-
-<!-- NAV -->
 <nav class="bg-[#173557] h-[56px] flex items-center px-6 gap-8 sticky top-0 z-30 border-b border-white/5">
-  <div class="flex items-center gap-0.5"><span class="text-[#d3da47] font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">donc</span><span class="text-white font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">CX</span><span class="text-white/50 font-light text-[13px] ml-1 tracking-tight">Hub</span></div>
+  <div class="flex items-center gap-0.5"><span class="text-[#d3da47] font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">donc</span><span class="text-white font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">CX</span><span class="text-white/50 font-light text-[13px] ml-1">Hub</span></div>
   <div class="flex items-center gap-1 flex-1 text-[14px]"><span class="px-3.5 py-2 text-white bg-white/[0.08] rounded-full font-semibold border border-white/10">Labs</span><span class="px-3 py-1.5 text-white/45">Dashboard</span><span class="px-3 py-1.5 text-white/45">Empresas</span><span class="px-3 py-1.5 text-white/45">Cockpits</span></div>
-  <div class="flex items-center gap-3">
-    <span class="hidden lg:block text-xs text-white/60">Foto de <b class="text-white/80">julho</b> · ref agosto</span>
+  <div class="flex items-center gap-2">
+    <span class="hidden lg:flex items-center gap-1.5 text-[11px] font-bold tracking-widest uppercase text-white/50"><span class="w-2 h-2 rounded-full bg-[#d3da47] animate-pulse"></span> Foto de <b class="text-white/80">julho</b> · ref agosto</span>
     <div class="w-8 h-8 rounded-full bg-[#d3da47] flex items-center justify-center text-[#0f2540] font-bold text-xs ring-2 ring-white/20">J</div>
   </div>
 </nav>
 
-<!-- HERO v3 — moderna, impactante, ousada mas cores base -->
+<!-- HERO — greeting-engine + 3 cards por perfil (ousada, cores base) -->
 <section class="bg-[#0a1f33] relative overflow-hidden">
-  <!-- mesh gradient moderno -->
   <div class="absolute inset-0 pointer-events-none">
-    <div class="absolute -top-24 -left-24 w-[520px] h-[520px] rounded-full opacity-[0.07]" style="background:radial-gradient(circle at center, #d3da47 0%, transparent 70%)"></div>
-    <div class="absolute -top-32 -right-24 w-[640px] h-[480px] rounded-full opacity-[0.06]" style="background:radial-gradient(circle at center, #59c2ed 0%, transparent 70%)"></div>
+    <div class="absolute -top-24 -left-24 w-[560px] h-[560px] rounded-full opacity-[0.08]" style="background:radial-gradient(circle at center, #d3da47 0%, transparent 70%)"></div>
+    <div class="absolute -top-32 -right-24 w-[640px] h-[480px] rounded-full opacity-[0.07]" style="background:radial-gradient(circle at center, #59c2ed 0%, transparent 70%)"></div>
     <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-[900px] h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-    <!-- grid pattern sutil -->
     <div class="absolute inset-0 opacity-[0.03]" style="background-image: linear-gradient(rgba(255,255,255,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.4) 1px, transparent 1px); background-size: 32px 32px;"></div>
   </div>
-
-  <div class="max-w-[1120px] mx-auto px-6 py-8 lg:py-10 relative">
-    <!-- top row: identidade + métricas glass -->
-    <div class="grid lg:grid-cols-12 gap-6 items-start">
-      <!-- identidade — 7 col -->
-      <div class="lg:col-span-7 flex gap-5 items-start">
-        <div class="relative flex-shrink-0">
-          <div class="absolute -inset-2 rounded-[22px] bg-[#d3da47]/20 blur-xl"></div>
-          <img id="hero-photo" src="https://i.pravatar.cc/176?img=12" alt="foto perfil" class="relative w-[112px] h-[112px] rounded-[20px] object-cover border-[3px] border-white shadow-2xl">
-          <span class="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full bg-[#d3da47] text-[#0f2540] text-[11px] font-extrabold tracking-wide shadow-lg">Sales</span>
-          <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#2f9e70] border-[3px] border-[#0a1f33] shadow"></span>
-        </div>
-        <div class="flex-1 min-w-0 pt-1">
-          <div class="flex items-center gap-2 mb-1">
-            <span class="w-2 h-2 rounded-full bg-[#d3da47] animate-pulse"></span>
-            <span class="text-[11px] tracking-widest uppercase font-bold text-[#d3da47]">Ecossistema Donc • Ao vivo</span>
-            <span class="text-white/20">·</span>
-            <span class="text-xs text-white/50">Quinta, 28 de agosto</span>
-          </div>
-          <h1 class="text-white font-extrabold tracking-tight leading-none" style="font-family:Montserrat,sans-serif;font-size:34px;letter-spacing:-0.03em;">Bom dia, Jorge</h1>
-          <p id="hero-copy" class="text-[15px] mt-2 leading-relaxed"><span class="font-bold text-white">Você cuida de 3 empresas</span> <span class="text-white/30 mx-1.5">—</span> <span class="text-white/80">18 clientes no Ecossistema Donc</span></p>
-          <p class="text-xs text-white/40 mt-2 flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-white/30"></span>
-            Atualização via cron · sem MRR aqui · dados reais por RLS
-          </p>
-        </div>
+  <div class="max-w-[1120px] mx-auto px-6 py-8 lg:py-9 relative">
+    <div class="flex gap-5 items-start">
+      <div class="relative flex-shrink-0">
+        <div class="absolute -inset-2 rounded-[22px] bg-[#d3da47]/20 blur-xl"></div>
+        <img src="https://i.pravatar.cc/176?img=12" alt="foto perfil" class="relative w-[112px] h-[112px] rounded-[20px] object-cover border-[3px] border-white shadow-2xl">
+        <span id="hero-role-pill" class="absolute -bottom-2 -right-2 px-2.5 py-1 rounded-full bg-[#d3da47] text-[#0f2540] text-[11px] font-extrabold tracking-wide shadow-lg">Sales</span>
+        <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#2f9e70] border-[3px] border-[#0a1f33] shadow"></span>
       </div>
-
-      <!-- métricas glass — 5 col bento -->
-      <div class="lg:col-span-5 grid grid-cols-3 gap-3">
-        <div class="glass rounded-2xl p-4 flex flex-col">
-          <span class="text-[10px] tracking-widest uppercase font-bold text-white/50">Projetos</span>
-          <span class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">12</span>
-          <span class="text-xs text-white/60 mt-1">8 clientes</span>
-          <span class="mt-2 inline-flex text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#d3da47] text-[#0f2540]">ativo</span>
-        </div>
-        <div class="glass rounded-2xl p-4 flex flex-col">
-          <span class="text-[10px] tracking-widest uppercase font-bold text-white/50">Cidades</span>
-          <span class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">47</span>
-          <span class="text-xs text-white/60 mt-1">SP · RJ · MG</span>
-          <span class="mt-2 text-[11px] font-semibold text-white/40">cobertura</span>
-        </div>
-        <div class="glass-strong rounded-2xl p-4 flex flex-col relative overflow-hidden">
-          <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-[#d3da47]/10 blur-2xl"></div>
-          <span class="text-[10px] tracking-widest uppercase font-bold text-[#d3da47]">OS · Jul</span>
-          <span class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">4.281</span>
-          <span class="text-xs text-white/70 mt-1">vs 90d <b class="text-[#d3da47]">+8%</b></span>
-        </div>
+      <div class="flex-1 min-w-0">
+        <!-- GREETING-ENGINE: temporal + identity + operational -->
+        <h1 id="greeting-text" class="text-white font-extrabold tracking-tight leading-none" style="font-family:Montserrat,sans-serif;font-size:34px;letter-spacing:-0.03em;">Bom dia, Jorge.</h1>
+        <p id="greeting-extra" class="text-white/70 text-sm mt-1">Quinta, 28 de agosto · Carteira equilibrada</p>
+        <p class="text-white/40 text-xs mt-2">Foto de <strong class="text-white/70">julho</strong> (referência agosto) · atualização via cron · <code class="bg-white/10 px-1 rounded">src/lib/greeting-engine</code></p>
       </div>
     </div>
 
-    <!-- sub-metrics row dentro da hero — bento 4 -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
-      <div class="glass rounded-2xl px-4 py-3 flex items-center justify-between">
-        <div><div class="text-[11px] font-bold tracking-widest uppercase text-white/50">Clientes</div><div class="mono text-lg font-bold text-white">18</div></div>
-        <div class="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white/80">◧</div>
+    <!-- 3 CARDS HERO — sempre do usuário logado (por perfil) -->
+    <div id="hero-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-7">
+      <!-- Sales example (default) — JS troca por perfil -->
+      <div class="glass-strong rounded-2xl p-4 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-20 h-20 rounded-full bg-[#d3da47]/10 blur-2xl"></div>
+        <div class="relative">
+          <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes na carteira</div>
+          <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">3</div>
+          <div class="text-xs text-white/60">Sales · comercial_id</div>
+        </div>
       </div>
-      <div class="glass rounded-2xl px-4 py-3 flex items-center justify-between">
-        <div><div class="text-[11px] font-bold tracking-widest uppercase text-white/50">Profissionais</div><div class="mono text-lg font-bold text-white">1.042</div></div>
-        <div class="w-9 h-9 rounded-xl bg-[#d3da47]/20 flex items-center justify-center text-[#d3da47]">●</div>
+      <div class="glass rounded-2xl p-4">
+        <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d</div>
+        <div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">+8% <span class="text-sm font-bold text-white/70">vs avg</span></div>
+        <div class="text-xs text-white/50">cur jul vs média abr-jun</div>
       </div>
-      <div class="glass rounded-2xl px-4 py-3 flex items-center justify-between">
-        <div><div class="text-[11px] font-bold tracking-widest uppercase text-white/50">Taxa projetos</div><div class="mono text-lg font-bold text-white">44%</div></div>
-        <div class="w-9 h-9 rounded-xl bg-[#59c2ed]/20 flex items-center justify-center text-[#59c2ed]">◆</div>
-      </div>
-      <div class="glass rounded-2xl px-4 py-3 flex items-center justify-between bg-[#d3da47]/10 border-[#d3da47]/20">
-        <div><div class="text-[11px] font-bold tracking-widest uppercase text-[#d3da47]">Foto</div><div class="text-sm font-bold text-white">Julho</div></div>
-        <span class="text-xs font-bold px-2.5 py-1 rounded-full bg-[#d3da47] text-[#0f2540]">ref agosto</span>
+      <div class="glass rounded-2xl p-4">
+        <div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div>
+        <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">1.042 <span class="text-xs text-[#d3da47]">+4%</span></div>
+        <div class="text-xs text-white/50">base faturamento</div>
       </div>
     </div>
+    <p class="text-[11px] text-white/30 mt-3">Hero 3 cards sempre do logado · troca via <code class="bg-white/10 px-1 rounded">?role=sales|csm|finance|manager|analyst</code> · thresholds via <code>health_config</code></p>
   </div>
 </section>
 
-<!-- BENTO GRID — Mapa + Projetos + Pulso -->
+<!-- NOSSA FORÇA EM NÚMEROS · YTD 2026 — sem comparativo, acumulado puro -->
 <section class="bg-[#f1f3f5] py-6">
-  <div class="max-w-[1120px] mx-auto px-6 grid lg:grid-cols-12 gap-5">
+  <div class="max-w-[1120px] mx-auto px-6">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-8 h-8 rounded-xl bg-[#173557] flex items-center justify-center text-white text-sm">◈</span>
+      <div>
+        <h2 class="text-sm font-extrabold tracking-tight text-[#0e223a]" style="font-family:Montserrat,sans-serif">Nossa força em Números</h2>
+        <p class="text-xs text-[#6b7889]">Acumulado 2026 · até <strong>julho</strong> (ref agosto) · plataforma desde dez/2025 · comparativo futuro por quarter</p>
+      </div>
+      <span class="ml-auto hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">YTD 2026</span>
+    </div>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="panel">
+        <div class="stripHead">Clientes</div>
+        <div class="mono font-extrabold text-[#0e223a] mt-1" style="font-family:Montserrat,sans-serif;font-size:30px;line-height:1">18</div>
+        <div class="text-xs text-[#6b7889]">ativos · lifecycle cliente</div>
+      </div>
+      <div class="panel">
+        <div class="stripHead">OS criadas · YTD</div>
+        <div class="mono font-extrabold text-[#0e223a] mt-1" style="font-family:Montserrat,sans-serif;font-size:30px;line-height:1">12.847</div>
+        <div class="text-xs text-[#6b7889]">jan → jul · todos os clientes</div>
+      </div>
+      <div class="panel">
+        <div class="stripHead">Profissionais ativos</div>
+        <div class="mono font-extrabold text-[#0e223a] mt-1" style="font-family:Montserrat,sans-serif;font-size:30px;line-height:1">1.042</div>
+        <div class="text-xs text-[#6b7889]">pico YTD · base faturamento</div>
+      </div>
+      <div class="panel !bg-[#0f2540] !border-white/10">
+        <div class="text-[11px] tracking-widest uppercase font-bold text-[#d3da47]">Média health score</div>
+        <div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:30px;line-height:1">82</div>
+        <div class="text-xs text-white/60">média julho · 75/50 thresholds</div>
+      </div>
+    </div>
+    <p class="text-[11px] text-[#9aa5b5] mt-2">Sem comparativo no YTD (plataforma desde dez/2025) · quarter a quarter vira quando fechar Q3.</p>
+  </div>
+</section>
 
-    <!-- Mapa — 8 col moderna -->
+<!-- MAPA + PROJETOS -->
+<section class="bg-[#f1f3f5] pb-6">
+  <div class="max-w-[1120px] mx-auto px-6 grid lg:grid-cols-12 gap-5">
     <div class="lg:col-span-8 panel !p-0 overflow-hidden">
       <div class="px-6 pt-5 pb-4 flex items-start justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="w-7 h-7 rounded-lg bg-[#e8f6fd] flex items-center justify-center text-[#59c2ed] text-sm">◈</span>
-            <span class="stripHead">Onde estão nossos clientes</span>
-          </div>
-          <h2 class="text-[15px] font-bold text-[#0e223a] tracking-tight mt-1">Mapa vivo do Ecossistema</h2>
-          <p class="text-xs text-[#6b7889]">Cada cluster = cidade com N clientes · anon · pins com calor</p>
-        </div>
+        <div><div class="stripHead">Onde estão nossos clientes</div><h2 class="text-[15px] font-bold text-[#0e223a] tracking-tight mt-1">Mapa vivo do Ecossistema</h2><p class="text-xs text-[#6b7889]">Cada cluster = cidade com N clientes · anon</p></div>
         <span class="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#173557] text-white">heatmap</span>
       </div>
       <div class="relative h-[360px] bg-gradient-to-br from-[#e8f0f7] via-[#eef3f7] to-[#f1f5f9] border-y border-[rgba(15,34,58,0.08)] overflow-hidden">
-        <!-- heat blobs modernos -->
         <div class="absolute inset-0">
           <div class="absolute w-[280px] h-[280px] rounded-full blur-3xl opacity-20" style="left:32%;top:28%;background:radial-gradient(circle, #59c2ed 0%, transparent 70%)"></div>
           <div class="absolute w-[240px] h-[240px] rounded-full blur-3xl opacity-15" style="left:58%;top:42%;background:radial-gradient(circle, #d3da47 0%, transparent 70%)"></div>
-          <div class="absolute w-[200px] h-[200px] rounded-full blur-3xl opacity-10" style="left:68%;top:22%;background:radial-gradient(circle, #b46cd1 0%, transparent 70%)"></div>
         </div>
-        <!-- Brazil outline minimal -->
         <svg viewBox="0 0 340 340" class="absolute inset-0 w-full h-full opacity-[0.12]"><path d="M118 62 L182 38 L224 68 L242 118 L212 182 L168 222 L118 202 L88 142 L98 82 Z" fill="none" stroke="#173557" stroke-width="0.8" stroke-dasharray="5 5"/></svg>
-        <!-- pins modernos com glow -->
-        <div class="absolute float" style="left:57%;top:40%"><div class="relative"><div class="absolute -inset-3 rounded-full bg-[#59c2ed]/20 blur-xl"></div><div class="relative w-10 h-10 rounded-2xl bg-[#173557] border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-extrabold">8</div><div class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#d3da47] border-2 border-white shadow"></div></div></div>
-        <div class="absolute float" style="left:62%;top:66%;animation-delay:0.5s"><div class="relative"><div class="absolute -inset-2 rounded-full bg-[#173557]/15 blur-lg"></div><div class="relative w-8 h-8 rounded-xl bg-white border border-[#173557]/10 shadow-lg flex items-center justify-center text-[#173557] text-xs font-bold">5</div></div></div>
-        <div class="absolute float" style="left:41%;top:46%;animation-delay:1s"><div class="relative"><div class="w-9 h-9 rounded-2xl bg-[#0f2540] border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-extrabold">6</div></div></div>
-        <div class="absolute" style="left:77%;top:33%"><div class="w-6 h-6 rounded-xl bg-[#b46cd1] border-2 border-white shadow-lg"></div></div>
-        <div class="absolute" style="left:29%;top:54%"><div class="w-6 h-6 rounded-xl bg-[#d98b28] border-2 border-white shadow-lg"></div></div>
-        <!-- tooltip glass -->
-        <div class="absolute left-1/2 -translate-x-1/2 bottom-4 glass-strong !bg-white/90 backdrop-blur rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3 border border-white">
-          <span class="w-8 h-8 rounded-xl bg-[#59c2ed] flex items-center justify-center text-white text-xs">◈</span>
-          <div><div class="text-xs font-bold text-[#0e223a]">SP · 8 clientes</div><div class="text-[11px] text-[#6b7889]">3 com projeto aberto · última OS há 2d</div></div>
-          <span class="ml-2 w-2 h-2 rounded-full bg-[#2f9e70] animate-pulse"></span>
-        </div>
+        <div class="absolute" style="left:57%;top:40%"><div class="relative"><div class="absolute -inset-3 rounded-full bg-[#59c2ed]/20 blur-xl"></div><div class="relative w-10 h-10 rounded-2xl bg-[#173557] border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-extrabold">8</div><div class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#d3da47] border-2 border-white shadow"></div></div></div>
+        <div class="absolute" style="left:62%;top:66%"><div class="w-8 h-8 rounded-xl bg-white border border-[#173557]/10 shadow-lg flex items-center justify-center text-[#173557] text-xs font-bold">5</div></div>
+        <div class="absolute" style="left:41%;top:46%"><div class="w-9 h-9 rounded-2xl bg-[#0f2540] border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-extrabold">6</div></div>
+        <div class="absolute left-1/2 -translate-x-1/2 bottom-4 bg-white/90 backdrop-blur rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3 border border-white"><span class="w-8 h-8 rounded-xl bg-[#59c2ed] flex items-center justify-center text-white text-xs">◈</span><div><div class="text-xs font-bold text-[#0e223a]">SP · 8 clientes</div><div class="text-[11px] text-[#6b7889]">3 com projeto aberto</div></div><span class="ml-2 w-2 h-2 rounded-full bg-[#2f9e70] animate-pulse"></span></div>
       </div>
-      <div class="px-6 py-3 flex items-center justify-between">
-        <span class="text-[11px] tracking-widest uppercase font-bold text-[#9aa5b5]">Top estados</span>
-        <div class="flex gap-2"><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#173557] text-white">SP 8</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">MG 5</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">RJ 4</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889]">PR 3</span></div>
-      </div>
+      <div class="px-6 py-3 flex items-center justify-between"><span class="text-[11px] tracking-widest uppercase font-bold text-[#9aa5b5]">Top estados</span><div class="flex gap-2"><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#173557] text-white">SP 8</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border text-[#6b7889]">MG 5</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border text-[#6b7889]">RJ 4</span></div></div>
     </div>
-
-    <!-- Projetos — 4 col com anéis modernos -->
     <div class="lg:col-span-4 panel">
-      <div class="flex items-center justify-between">
-        <div class="stripHead">Projetos em aberto</div>
-        <span class="text-[11px] font-bold px-2 py-1 rounded-full bg-[#f1f3f5] text-[#6b7889]">12 · 8 clientes</span>
-      </div>
+      <div class="flex items-center justify-between"><span class="stripHead">Projetos em aberto</span><span class="text-[11px] font-bold px-2 py-1 rounded-full bg-[#f1f3f5] text-[#6b7889]">12 · 8 clientes</span></div>
       <div class="mt-4 space-y-4">
-        <div class="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.04)]">
-          <div class="relative w-10 h-10 flex-shrink-0">
-            <svg class="w-10 h-10 -rotate-90"><circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/><circle cx="20" cy="20" r="16" fill="none" stroke="#59c2ed" stroke-width="3" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="58"/></svg>
-            <span class="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#59c2ed]">42%</span>
-          </div>
-          <div class="flex-1 min-w-0"><div class="text-sm font-semibold text-[#0e223a] truncate">Go Live — Rede Sul</div><div class="text-xs text-[#6b7889]">Fase atual · Implantação</div></div>
-          <span class="dot5 !w-2 !h-2 flex-shrink-0" style="background:#59c2ed"></span>
-        </div>
-        <div class="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.04)]">
-          <div class="relative w-10 h-10 flex-shrink-0">
-            <svg class="w-10 h-10 -rotate-90"><circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/><circle cx="20" cy="20" r="16" fill="none" stroke="#b46cd1" stroke-width="3" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="22"/></svg>
-            <span class="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#b46cd1]">78%</span>
-          </div>
-          <div class="flex-1 min-w-0"><div class="text-sm font-semibold text-[#0e223a] truncate">Onboarding — Casa Forte</div><div class="text-xs text-[#6b7889]">Quase lá · Treinamento</div></div>
-          <span class="dot5 !w-2 !h-2 flex-shrink-0" style="background:#b46cd1"></span>
-        </div>
-        <div class="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.04)]">
-          <div class="relative w-10 h-10 flex-shrink-0">
-            <svg class="w-10 h-10 -rotate-90"><circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/><circle cx="20" cy="20" r="16" fill="none" stroke="#d98b28" stroke-width="3" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="82"/></svg>
-            <span class="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#d98b28]">18%</span>
-          </div>
-          <div class="flex-1 min-w-0"><div class="text-sm font-semibold text-[#0e223a] truncate">Implantação — Lojas Centro</div><div class="text-xs text-[#6b7889]">Início · Discovery</div></div>
-          <span class="dot5 !w-2 !h-2 flex-shrink-0" style="background:#d98b28"></span>
-        </div>
+        <div class="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.04)]"><div class="relative w-10 h-10 flex-shrink-0"><svg class="w-10 h-10 -rotate-90"><circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/><circle cx="20" cy="20" r="16" fill="none" stroke="#59c2ed" stroke-width="3" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="58"/></svg><span class="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#59c2ed]">42%</span></div><div class="flex-1 min-w-0"><div class="text-sm font-semibold text-[#0e223a] truncate">Go Live — Rede Sul</div><div class="text-xs text-[#6b7889]">Implantação</div></div></div>
+        <div class="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.04)]"><div class="relative w-10 h-10 flex-shrink-0"><svg class="w-10 h-10 -rotate-90"><circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/><circle cx="20" cy="20" r="16" fill="none" stroke="#b46cd1" stroke-width="3" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="22"/></svg><span class="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#b46cd1]">78%</span></div><div class="flex-1 min-w-0"><div class="text-sm font-semibold text-[#0e223a] truncate">Onboarding — Casa Forte</div><div class="text-xs text-[#6b7889]">Treinamento</div></div></div>
+        <div class="flex items-center gap-3 p-3 rounded-2xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.04)]"><div class="relative w-10 h-10 flex-shrink-0"><svg class="w-10 h-10 -rotate-90"><circle cx="20" cy="20" r="16" fill="none" stroke="#eef0f3" stroke-width="3"/><circle cx="20" cy="20" r="16" fill="none" stroke="#d98b28" stroke-width="3" stroke-linecap="round" stroke-dasharray="100.5" stroke-dashoffset="82"/></svg><span class="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[#d98b28]">18%</span></div><div class="flex-1 min-w-0"><div class="text-sm font-semibold text-[#0e223a] truncate">Implantação — Lojas Centro</div><div class="text-xs text-[#6b7889]">Discovery</div></div></div>
       </div>
-      <div class="mt-3 flex items-center justify-between">
-        <span class="text-[11px] text-[#9aa5b5]">+ 9 projetos</span>
-        <a class="seeAll" href="/cockpits">ver todos →</a>
-      </div>
+      <a class="seeAll mt-4 inline-flex gap-1" href="/cockpits">ver todos →</a>
     </div>
   </div>
 </section>
 
-<!-- PULSO + MEU DIA — bento contrast -->
+<!-- PULSO + MEU DIA -->
 <section id="meu-dia" class="bg-white py-6 border-y border-[rgba(15,34,58,0.06)]">
   <div class="max-w-[1120px] mx-auto px-6 grid lg:grid-cols-12 gap-5">
-    <!-- Pulso — dark card moderno -->
     <div class="lg:col-span-7 panel !bg-[#0f2540] !border-white/10 !text-white overflow-hidden relative">
       <div class="absolute top-0 right-0 w-40 h-40 rounded-full bg-[#d3da47]/10 blur-3xl"></div>
-      <div class="relative">
-        <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#d3da47] animate-pulse"></span><span class="stripHead !text-[#d3da47]">Pulso do ecossistema · julho</span></div>
+      <div class="relative"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#d3da47] animate-pulse"></span><span class="stripHead !text-[#d3da47]">Pulso do ecossistema · julho</span></div>
         <div class="grid grid-cols-2 gap-4 mt-4">
-          <div class="rounded-2xl bg-white/[0.06] border border-white/10 p-4">
-            <div class="text-[11px] tracking-widest uppercase font-bold text-white/50 flex items-center gap-2"><span class="w-6 h-6 rounded-lg bg-[#59c2ed] flex items-center justify-center text-white text-[11px]">◆</span> OS processadas</div>
-            <div class="mono text-2xl font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif">4.281</div>
-            <div class="text-xs text-white/50">média 90d 3.940 <span class="text-[#d3da47] font-bold">+8%</span></div>
-            <svg width="100%" height="36" viewBox="0 0 120 36" class="mt-2"><defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#59c2ed" stop-opacity="0.3"/><stop offset="100%" stop-color="#59c2ed" stop-opacity="0"/></linearGradient></defs><path d="M0,24 L30,18 L60,20 L90,10 L120,14 L120,36 L0,36 Z" fill="url(#g1)"/><polyline fill="none" stroke="#59c2ed" stroke-width="2.5" points="0,24 30,18 60,20 90,10 120,14" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="rounded-2xl bg-white/[0.06] border border-white/10 p-4">
-            <div class="text-[11px] tracking-widest uppercase font-bold text-white/50 flex items-center gap-2"><span class="w-6 h-6 rounded-lg bg-[#d3da47] flex items-center justify-center text-[#0f2540] text-[11px]">●</span> Profissionais</div>
-            <div class="mono text-2xl font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif">1.042</div>
-            <div class="text-xs text-white/50">base faturamento</div>
-            <svg width="100%" height="36" viewBox="0 0 120 36" class="mt-2"><defs><linearGradient id="g2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d3da47" stop-opacity="0.3"/><stop offset="100%" stop-color="#d3da47" stop-opacity="0"/></linearGradient></defs><path d="M0,22 L30,24 L60,16 L90,18 L120,8 L120,36 L0,36 Z" fill="url(#g2)"/><polyline fill="none" stroke="#d3da47" stroke-width="2.5" points="0,22 30,24 60,16 90,18 120,8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+          <div class="rounded-2xl bg-white/[0.06] border border-white/10 p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS processadas</div><div class="mono text-2xl font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif">4.281</div><div class="text-xs text-white/50">foto julho</div><svg width="100%" height="36" viewBox="0 0 120 36" class="mt-2"><polyline fill="none" stroke="#59c2ed" stroke-width="2.5" points="0,24 30,18 60,20 90,10 120,14" stroke-linecap="round"/></svg></div>
+          <div class="rounded-2xl bg-white/[0.06] border border-white/10 p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais</div><div class="mono text-2xl font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif">1.042</div><div class="text-xs text-white/50">base faturamento</div><svg width="100%" height="36" viewBox="0 0 120 36" class="mt-2"><polyline fill="none" stroke="#d3da47" stroke-width="2.5" points="0,22 30,24 60,16 90,18 120,8" stroke-linecap="round"/></svg></div>
         </div>
       </div>
     </div>
-    <!-- Meu dia — own -->
     <div class="lg:col-span-5 panel">
-      <div class="flex items-center justify-between">
-        <span class="stripHead">Meu dia — onde participei</span>
-        <span class="text-[11px] font-bold px-2 py-1 rounded-full bg-[#f1f3f5] text-[#6b7889]">own · 48h</span>
-      </div>
+      <div class="flex items-center justify-between"><span class="stripHead">Meu dia — onde participei</span><span class="text-[11px] font-bold px-2 py-1 rounded-full bg-[#f1f3f5] text-[#6b7889]">own · 48h</span></div>
       <div class="mt-3 space-y-1">
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#fef2f2] border border-[#d64545]/10">
-          <div><p class="text-sm font-semibold text-[#0e223a]">Reunião — Lojas Silva</p><p class="text-xs text-[#6b7889]">Hoje · 15:00 · você</p></div>
-          <span class="text-[11px] px-2.5 py-1 rounded-full bg-[#d64545] text-white font-bold">ATRASADA</span>
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#fffbeb] border border-[#d98b28]/10">
-          <div><p class="text-sm font-semibold text-[#0e223a]">Follow-up — Rede Centro</p><p class="text-xs text-[#6b7889]">Amanhã · 10:00 · participante</p></div>
-          <span class="text-[11px] px-2.5 py-1 rounded-full bg-[#d98b28] text-white font-bold">EM 24H</span>
-        </div>
-        <div class="flex items-center justify-between p-3 rounded-xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.06)]">
-          <div><p class="text-sm font-semibold text-[#0e223a]">Enviar relatório — Móveis Sul</p><p class="text-xs text-[#6b7889]">28/08 · 09:00 · você</p></div>
-          <span class="text-[11px] px-2.5 py-1 rounded-full bg-white border border-[rgba(15,34,58,0.08)] text-[#6b7889] font-medium">AGENDADA</span>
-        </div>
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#fef2f2] border border-[#d64545]/10"><div><p class="text-sm font-semibold text-[#0e223a]">Reunião — Lojas Silva</p><p class="text-xs text-[#6b7889]">Hoje · 15:00 · você</p></div><span class="text-[11px] px-2.5 py-1 rounded-full bg-[#d64545] text-white font-bold">ATRASADA</span></div>
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#fffbeb] border border-[#d98b28]/10"><div><p class="text-sm font-semibold text-[#0e223a]">Follow-up — Rede Centro</p><p class="text-xs text-[#6b7889]">Amanhã · 10:00 · participante</p></div><span class="text-[11px] px-2.5 py-1 rounded-full bg-[#d98b28] text-white font-bold">EM 24H</span></div>
+        <div class="flex items-center justify-between p-3 rounded-xl bg-[#f8f9fb] border border-[rgba(15,34,58,0.06)]"><div><p class="text-sm font-semibold text-[#0e223a]">Enviar relatório — Móveis Sul</p><p class="text-xs text-[#6b7889]">28/08 · 09:00 · você</p></div><span class="text-[11px] px-2.5 py-1 rounded-full bg-white border text-[#6b7889] font-medium">AGENDADA</span></div>
       </div>
-      <a class="seeAll mt-4 inline-flex items-center gap-1" href="/atividades">ver todas <span>→</span></a>
+      <a class="seeAll mt-4 inline-flex gap-1" href="/atividades">ver todas →</a>
     </div>
   </div>
 </section>
 
-<!-- ANALYST empty -->
 <section id="analyst-empty" class="bg-[#f1f3f5] py-6 hidden">
-  <div class="max-w-[1120px] mx-auto px-6"><div class="panel border-dashed !bg-[#fbfcfd] !border-[#173557]/10"><div class="flex gap-5 items-center"><div class="w-20 h-20 rounded-2xl bg-[#173557]/5 border border-[#173557]/10 flex items-center justify-center text-[#173557] text-xl">◎</div><div><h3 class="text-sm font-bold text-[#0e223a]">Sua carteira começa no Atendimento</h3><p class="text-sm text-[#6b7889] mt-1">Você vê pulso e mapa do ecossistema, mas <strong>saúde</strong> é por cliente — sem cliente atribuído ainda.</p></div></div><div class="flex gap-2 mt-5"><a href="/atendimento" class="px-5 py-2.5 rounded-xl bg-[#0f2540] text-white text-sm font-bold shadow">Ir para Atendimento</a><a href="#meu-dia" class="px-5 py-2.5 rounded-xl bg-white border border-[rgba(15,34,58,0.08)] text-sm font-semibold text-[#0e223a]">Ver Meu dia</a></div></div></div>
+  <div class="max-w-[1120px] mx-auto px-6"><div class="panel border-dashed !bg-[#fbfcfd]"><div class="flex gap-5 items-center"><div class="w-20 h-20 rounded-2xl bg-[#173557]/5 border border-[#173557]/10 flex items-center justify-center text-[#173557] text-xl">◎</div><div><h3 class="text-sm font-bold text-[#0e223a]">Sua carteira começa no Atendimento</h3><p class="text-sm text-[#6b7889] mt-1">Você vê pulso e mapa do ecossistema, mas <strong>saúde</strong> é por cliente — sem cliente atribuído ainda.</p></div></div><div class="flex gap-2 mt-5"><a href="/atendimento" class="px-5 py-2.5 rounded-xl bg-[#0f2540] text-white text-sm font-bold shadow">Ir para Atendimento</a><a href="#meu-dia" class="px-5 py-2.5 rounded-xl bg-white border text-sm font-semibold text-[#0e223a]">Ver Meu dia</a></div></div></div>
 </section>
 
-<div class="max-w-[1120px] mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]">Foto de <strong class="text-[#6b7889]">julho</strong> · média 90d abr-jun · thresholds <code>health_config 75/50</code> via scoring.js · Single useLabsClients lifted · Ecossistema Donc · <span class="hidden sm:inline">v3 moderna — cores base mantidas, hero ousada, bento, glass</span></div>
+<div class="max-w-[1120px] mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]">Foto de <strong class="text-[#6b7889]">julho</strong> · thresholds <code>health_config 75/50</code> · Single <code>useLabsClients</code> lifted · YTD 2026 acumulado · quarter comparativo futuro</div>
 
 <script>
-const params=new URLSearchParams(location.search),role=params.get('role');
-const copy=document.getElementById('hero-copy');
-const map={csm:'Você cuida de 3 empresas <span class="text-white/30 mx-1">—</span> 18 clientes no Ecossistema Donc',sales:'Você acompanha 3 empresas (comercial) <span class="text-white/30 mx-1">—</span> 18 clientes ativos',finance:'Visão global <span class="text-white/30 mx-1">—</span> 18 empresas <span class="text-white/30 mx-1">—</span> 1.042 profissionais ativos',manager:'Visão global <span class="text-white/30 mx-1">—</span> 18 empresas <span class="text-white/30 mx-1">—</span> 47 cidades',analyst:'Você apoia via Atendimento <span class="text-white/30 mx-1">—</span> 18 clientes na plataforma',admin:'Visão global <span class="text-white/30 mx-1">—</span> 18 empresas <span class="text-white/30 mx-1">—</span> 12 projetos'};
-if(role&&map[role]&&copy)copy.innerHTML=map[role];
-if(role==='analyst'||location.hash==='#analyst')document.getElementById('analyst-empty').classList.remove('hidden');
+// Greeting-engine minimal replica (temporal + fallback)
+function greetingForHour(h, name){
+  let g='Olá'; if(h<12) g='Bom dia'; else if(h<18) g='Boa tarde'; else g='Boa noite';
+  return g+', '+name+'.';
+}
+const hour=new Date().getHours();
+const greetingEl=document.getElementById('greeting-text');
+const extraEl=document.getElementById('greeting-extra');
+if(greetingEl) greetingEl.textContent=greetingForHour(hour,'Jorge.');
+// operational extra stub (deterministic)
+const extras=['Carteira equilibrada','Carteira exige atenção','3 clientes precisam de você'];
+const today=new Date(); const seed=today.getDate()+today.getMonth()*31;
+if(extraEl) extraEl.textContent=today.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})+' · '+(extras[seed%extras.length]);
+
+// Hero per profile
+const params=new URLSearchParams(location.search), role=params.get('role');
+const pill=document.getElementById('hero-role-pill');
+const heroCards=document.getElementById('hero-cards');
+const roleMap={
+  csm:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes na carteira</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">5</div><div class="text-xs text-white/60">csm_id · cliente</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">—6% <span class="text-xs text-white/60">estável</span></div><div class="text-xs text-white/50">±35% health_config</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">42 <span class="text-xs text-[#d3da47]">+4%</span></div><div class="text-xs text-white/50">base faturamento</div></div>`,
+  sales:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes na carteira</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">3</div><div class="text-xs text-white/60">comercial_id · cliente</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">+8% <span class="text-xs text-white/60">vs avg</span></div><div class="text-xs text-white/50">cur jul vs abr-jun</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">28 <span class="text-xs text-[#d3da47]">+12%</span></div><div class="text-xs text-white/50">vs avg 90d</div></div>`,
+  finance:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-[#d3da47]">MRR YTD</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">R$ 945k</div><div class="text-xs text-white/60">7× R$135k · jan→jul</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Clientes em atraso</div><div class="mono font-extrabold text-[#d64545] mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">3 <span class="text-xs text-white/60">· R$ 89k</span></div><div class="text-xs text-white/50">delay_days >0</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Renovações previstas</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:24px;line-height:1">5</div><div class="text-xs text-white/50">até dez/2026</div></div>`,
+  manager:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">OS vs 90d · global</div><div class="mono font-extrabold text-[#d3da47] mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">+8% <span class="text-xs text-white/60">vs avg</span></div><div class="text-xs text-white/50">todos os clientes</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Profissionais vs 90d</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:22px;line-height:1">1.042 <span class="text-xs text-[#d3da47]">+4%</span></div><div class="text-xs text-white/50">global</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Health médio · global</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">82</div><div class="text-xs text-white/50">75/50 thresholds</div></div>`,
+  analyst:`<div class="glass-strong rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Total de Tickets</div><div class="mono font-extrabold text-white mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">98 <span class="text-xs text-white/60">· 89 via WhatsApp</span></div><div class="text-xs text-white/50">Freshdesk + WhatsApp</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Tickets em Aberto</div><div class="mono font-extrabold text-[#d98b28] mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">23</div><div class="text-xs text-white/50">aguardando</div></div><div class="glass rounded-2xl p-4"><div class="text-[11px] tracking-widest uppercase font-bold text-white/50">Taxa Resolução</div><div class="mono font-extrabold text-[#2f9e70] mt-1" style="font-family:Montserrat,sans-serif;font-size:28px;line-height:1">76%</div><div class="text-xs text-white/50">últimos 30d</div></div>`
+};
+if(role && roleMap[role] && heroCards){ heroCards.innerHTML=roleMap[role]; if(pill) pill.textContent=role.charAt(0).toUpperCase()+role.slice(1); }
+if(role==='analyst' || location.hash==='#analyst') document.getElementById('analyst-empty').classList.remove('hidden');
 </script>
 </body>
 </html>
