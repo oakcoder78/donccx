@@ -119,18 +119,19 @@
   <div class="max-w-[1120px] mx-auto px-6 grid lg:grid-cols-12 gap-5">
     <div class="lg:col-span-8 panel !p-0 overflow-hidden">
       <div class="px-6 pt-5 pb-4 flex items-start justify-between gap-4">
-        <div><div class="stripHead">Onde estão nossos clientes</div><h2 class="text-[15px] font-bold text-[#0e223a] tracking-tight mt-1">Mapa vivo do Ecossistema</h2><p class="text-xs text-[#6b7889]">Cada cluster = cidade com N clientes · anon</p></div>
+        <div><div class="stripHead">Onde estão nossos clientes</div><h2 class="text-[15px] font-bold text-[#0e223a] tracking-tight mt-1">Mapa vivo do Ecossistema</h2><p class="text-xs text-[#6b7889]">Cada ponto é uma cidade com clientes</p></div>
         <span class="hidden sm:inline-flex text-[11px] font-bold px-2.5 py-1 rounded-full bg-[#173557] text-white">heatmap</span>
       </div>
-      <div class="relative h-[360px] bg-gradient-to-br from-[#e8f0f7] via-[#eef3f7] to-[#f1f5f9] border-y border-[rgba(15,34,58,0.08)] overflow-hidden">
+      <div class="relative h-[360px] bg-gradient-to-br from-[#dde7f1] via-[#e6eef6] to-[#eef3f7] border-y border-[rgba(15,34,58,0.08)] overflow-hidden">
         <div class="absolute inset-0">
-          <div class="absolute w-[280px] h-[280px] rounded-full blur-3xl opacity-20" style="left:32%;top:28%;background:radial-gradient(circle, #59c2ed 0%, transparent 70%)"></div>
-          <div class="absolute w-[240px] h-[240px] rounded-full blur-3xl opacity-15" style="left:58%;top:42%;background:radial-gradient(circle, #d3da47 0%, transparent 70%)"></div>
+          <div class="absolute w-[320px] h-[320px] rounded-full blur-3xl opacity-[0.32]" style="left:30%;top:26%;background:radial-gradient(circle, #59c2ed 0%, transparent 70%)"></div>
+          <div class="absolute w-[280px] h-[280px] rounded-full blur-3xl opacity-[0.24]" style="left:56%;top:40%;background:radial-gradient(circle, #d3da47 0%, transparent 70%)"></div>
+          <div class="absolute inset-0 opacity-[0.06]" style="background-image: linear-gradient(rgba(23,53,87,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(23,53,87,.5) 1px, transparent 1px); background-size: 28px 28px;"></div>
         </div>
-        <svg viewBox="0 0 340 340" class="absolute inset-0 w-full h-full opacity-[0.12]"><path d="M118 62 L182 38 L224 68 L242 118 L212 182 L168 222 L118 202 L88 142 L98 82 Z" fill="none" stroke="#173557" stroke-width="0.8" stroke-dasharray="5 5"/></svg>
-        <div class="absolute" style="left:57%;top:40%"><div class="relative"><div class="absolute -inset-3 rounded-full bg-[#59c2ed]/20 blur-xl"></div><div class="relative w-10 h-10 rounded-2xl bg-[#173557] border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-extrabold">8</div><div class="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#d3da47] border-2 border-white shadow"></div></div></div>
-        <div class="absolute" style="left:62%;top:66%"><div class="w-8 h-8 rounded-xl bg-white border border-[#173557]/10 shadow-lg flex items-center justify-center text-[#173557] text-xs font-bold">5</div></div>
-        <div class="absolute" style="left:41%;top:46%"><div class="w-9 h-9 rounded-2xl bg-[#0f2540] border-2 border-white shadow-xl flex items-center justify-center text-white text-xs font-extrabold">6</div></div>
+        <svg viewBox="0 0 340 340" class="absolute inset-0 w-full h-full opacity-[0.28]"><path d="M118 62 L182 38 L224 68 L242 118 L212 182 L168 222 L118 202 L88 142 L98 82 Z" fill="rgba(23,53,87,0.06)" stroke="#173557" stroke-width="1.4" stroke-linejoin="round"/></svg>
+        <div class="absolute" style="left:57%;top:40%"><div class="relative"><div class="absolute -inset-4 rounded-full bg-[#59c2ed]/25 blur-xl"></div><div class="relative w-11 h-11 rounded-2xl bg-[#173557] border-[3px] border-white shadow-xl flex items-center justify-center text-white text-sm font-extrabold">8</div><div class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#d3da47] border-2 border-white shadow"></div></div></div>
+        <div class="absolute" style="left:62%;top:66%"><div class="w-9 h-9 rounded-xl bg-white border-2 border-[#173557]/15 shadow-xl flex items-center justify-center text-[#173557] text-sm font-bold">5</div></div>
+        <div class="absolute" style="left:41%;top:46%"><div class="w-10 h-10 rounded-2xl bg-[#0f2540] border-[3px] border-white shadow-xl flex items-center justify-center text-white text-sm font-extrabold">6</div></div>
         <div class="absolute left-1/2 -translate-x-1/2 bottom-4 bg-white/90 backdrop-blur rounded-2xl px-4 py-3 shadow-xl flex items-center gap-3 border border-white"><span class="w-8 h-8 rounded-xl bg-[#59c2ed] flex items-center justify-center text-white text-xs">◈</span><div><div class="text-xs font-bold text-[#0e223a]">SP · 8 clientes</div><div class="text-[11px] text-[#6b7889]">3 com projeto aberto</div></div><span class="ml-2 w-2 h-2 rounded-full bg-[#2f9e70] animate-pulse"></span></div>
       </div>
       <div class="px-6 py-3 flex items-center justify-between"><span class="text-[11px] tracking-widest uppercase font-bold text-[#9aa5b5]">Top estados</span><div class="flex gap-2"><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-[#173557] text-white">SP 8</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border text-[#6b7889]">MG 5</span><span class="text-xs font-medium px-2.5 py-1 rounded-full bg-white border text-[#6b7889]">RJ 4</span></div></div>
