@@ -85,6 +85,7 @@ Available Modules:
 - hooks
 - layout
 - lib
+- meu-dia-dashboard
 - pages
 - projects
 - services

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-08-29
+
+### Docs — Dashboard v3 (SDD reescrito) + gap analysis
+
+- **Docs:** `docs/sdd/labs-dashboard-sdd.md` **reescrito**. A arquitetura-alvo foi invertida: o mock `docs/mock/meu-dia-generic-v3.html` vira a dashboard principal em `/dashboard` para os 6 papéis; o monolito `DashboardPage.jsx` vai para `/labs/dashboard` sob `AdminOnlyRoute` (admin-only). A flag `labs_dashboard` será aposentada. Escopo full-fidelity (RPCs YTD, média 90d, geo por cidade, masking de MRR). Fases: 0 Foundation (done) · 1 Route inversion · 2 Data foundation · 3 v3 build · 4 Cockpits por papel · 5 Matriz Empresas · 6 Aposentar monolito.
+- **Docs:** gap analysis do mock v3 (mock × código × SDD antigo) registrado no SDD §1. Achados: `src/lib/scoring.js` / `BrazilMap.jsx` / `useLabsClients.js` já existem (o SDD antigo mandava criar; os 2 últimos órfãos); não há agregação YTD nem média 90d; gotcha A3 (vazamento de MRR) vira crítico com `/dashboard` global; `useGreeting` só produz 2 linhas (a 3ª vem do status de sync).
+- **Docs:** `docs/modules/meu-dia-dashboard.md` criado + entrada em `.agents/docs-index.md`; `docs/modules/pages.md` "Dashboard Layout" marcado como em transição; `docs/backlog.md` IDEA-002 (Active).
+
+### Docs — Dashboard v3: levantamento da superfície interativa + crítica de UX/a11y
+
+- **Docs:** nova seção `§5 "Interactive Surface & Permissions"` no SDD (as demais renumeradas 5→6…9). Inventário dos 13 modes de drawer do monolito, `ActivityDetailModal`/`ActivityModal`, `handleSync`, filtro CSM; tabela de interação por bloco da v3; matriz "quem interage com o quê" por papel; regra transversal de gating por `effectiveRole`.
+- **Docs:** crítica de UX/visual (`/impeccable critique`, score **16/40**) + auditoria de acessibilidade (`accessibility-tester`, 13 achados / WCAG 2.1 AA). Correções capturadas como requisito no SDD — o HTML do mock **não** foi editado.
+- **Decisões (SDD §7):** escopo por bloco (HERO + agenda = usuário; Saúde + Projetos = carteira como o monolito; Nossa força + Mapa + Operacional = toda a base, iguais p/ todos) + `ScopeLabel` em todo bloco; ordem pessoal-primeiro; reusar `ClientHealthDrawer` + extrair `src/components/ui/Drawer.jsx` (migrar `/health`); migration de RLS p/ csm/sales escreverem `activities` da própria carteira (finance read-only); painel de sync = admin/manager only; `BrazilMap` interativo; **WCAG 2.1 AA como condição de conclusão da Fase 3**; header com seletor de período + "atualizado em".
+- **SDD Fase 2** ganha migrations `activities_csm_sales_write` + `get_finance_summary`; **Fase 3** ganha `ui/Drawer.jsx` + `OperationalHistoryDrawer` + `DashboardHeader` + `ScopeLabel` + checklist de acessibilidade.
+- **Sequenciamento revisado (evita regressão em produção):** Fase 1 não troca `/dashboard` pelo shell. `/dashboard` continua servindo o monolito; uma flag transitória `dashboard_v3` (`{admin}`, `enabled=false`) mostra a v3 só para admin que ligar em `/configuracoes`. `/labs/dashboard` vira `AdminOnlyRoute` já na Fase 1 (monolito) e `labs_dashboard` é aposentada. A troca definitiva (`/dashboard` → v3 p/ todos, drop da flag, carve-out do analyst) acontece no fim da Fase 3 num só deploy.
+- **Sem mudança de código ainda** — implementação começa na Phase 1 do SDD.
+
 ## 2026-08-28
 
 ### Invite — Correção do 400 `null value in column "id"` ao convidar usuário

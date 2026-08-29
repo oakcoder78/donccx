@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 
 const mainNavLinks = [
   { to: '/dashboard',      label: 'Dashboard'   },
-  { to: '/labs/dashboard', label: 'Labs', featureFlag: 'labs_dashboard' },
+  { to: '/labs/dashboard', label: 'Labs', adminOnly: true },
   { to: '/empresas',       label: 'Empresas'    },
   { to: '/contatos',       label: 'Contatos'    },
   { to: '/atividades',     label: 'Atividades'  },
@@ -49,8 +49,9 @@ export function Navbar({ googleOAuthSignal }) {
 
   const isAnalyst = effectiveRole === 'analyst'
 
-  const availableLinks = (links) => links.filter(link => 
-    !link.featureFlag || isEnabled(link.featureFlag, effectiveRole)
+  const availableLinks = (links) => links.filter(link =>
+    (!link.featureFlag || isEnabled(link.featureFlag, effectiveRole)) &&
+    (!link.adminOnly || effectiveRole === 'admin')
   )
 
   const links = isAnalyst

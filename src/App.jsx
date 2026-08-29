@@ -13,7 +13,7 @@ import LoginPage from './pages/LoginPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import SolicitarAcessoPage from './pages/SolicitarAcessoPage'
 import PendingPage from './pages/PendingPage'
-import DashboardPage from './pages/Dashboard'
+import DashboardRoute from './pages/DashboardRoute'
 import ClientsPage from './components/clients/ClientsPage'
 import ClientDetail from './components/clients/ClientDetail'
 import ContactsPage from './components/contacts/ContactsPage'
@@ -119,6 +119,16 @@ function AdminRoute() {
   return <Outlet />
 }
 
+// Admin-strict guard (no manager branch, no flags) for /labs/dashboard —
+// the legacy monolith kept as an admin parity reference. See labs-dashboard-sdd.md §1.3.
+function AdminOnlyRoute() {
+  const { effectiveRole } = useAuth()
+  const { loading: flagsLoading } = useFeatureFlags()
+  if (flagsLoading) return null
+  if (effectiveRole !== 'admin') return <Navigate to="/dashboard" replace />
+  return <Outlet />
+}
+
 function AuthRedirect() {
   const { user, profile, effectiveRole, loading } = useAuth()
   if (loading) return null
@@ -184,8 +194,10 @@ function AppRoutes() {
         <Route element={<AppLayout googleOAuthSignal={googleOAuthSignal} />}>
           <Route path="/module-unavailable" element={<ModuleUnavailablePage variant="no-access" />} />
           <Route path="/atendimento" element={<AtendimentoPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/labs/dashboard" element={<LabsDashboardPage />} />
+          <Route path="/dashboard" element={<DashboardRoute />} />
+          <Route element={<AdminOnlyRoute />}>
+            <Route path="/labs/dashboard" element={<LabsDashboardPage />} />
+          </Route>
           <Route path="/cockpits" element={<CockpitsPage />} />
           <Route path="/health" element={<HealthDashboardPage />} />
           <Route path="/cs-radar" element={<CsRadarPage />} />

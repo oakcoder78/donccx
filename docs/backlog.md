@@ -240,6 +240,37 @@ O health score calcula a dimensão "Uso" usando `client_usage.active_users` (con
 - CSMs priorizam carteira pelo health score — ordenação pode mudar radicalmente
 - Comunicar CSMs com 1 semana de antecedência se scores mudarem >5 pts em clientes ABC-A
 | IDEA-001 | Idea | UI Pattern Library — Phase 2 (8 patterns restantes) | M | Ready | `docs/sdd/ui-patterns-phase2-sdd.md` |
+| IDEA-002 | Feature | Dashboard v3 (`/dashboard` para todos) + monolito → `/labs` admin-only | H | Active | `docs/sdd/labs-dashboard-sdd.md` |
+
+---
+
+## IDEA-002 — Dashboard v3 + monolito em Labs
+
+**Type:** Feature / Refactor
+**Priority:** H
+**Status:** Active → `docs/sdd/labs-dashboard-sdd.md`
+**Linked SDD:** `docs/sdd/labs-dashboard-sdd.md`
+**Origin:** 2026-08-29 — o SDD do "Labs Dashboard" descrevia `/labs/dashboard` como a nova dash minimalista ("Genérica", 5 blocos, sem MRR/OS) e `/dashboard` como o monolito legado. Decisão do stakeholder **inverteu**: o mock `docs/mock/meu-dia-generic-v3.html` vira a dashboard principal em `/dashboard` para os 6 papéis; o monolito (`DashboardPage.jsx`) vai para `/labs/dashboard` sob `AdminOnlyRoute`.
+
+### Context
+
+A v3 evoluiu (v1→v3) de "Genérica" para uma dashboard completa que re-incorpora o layout do monolito (Pulso / Portfólio / Operacional) + HERO por papel + seções novas (YTD "Nossa força em Números", Mapa vivo). O SDD foi reescrito para refletir a arquitetura-alvo e o estado real do código.
+
+### Gap analysis (resumo — detalhe no SDD §1)
+
+- `src/lib/scoring.js`, `src/components/dashboard/BrazilMap.jsx`, `src/hooks/useLabsClients.js` **já existem** (o SDD antigo mandava criar). `BrazilMap` e `useLabsClients` estão órfãos.
+- Não existe agregação YTD nem média móvel de 90 dias — tudo é mês-vs-mês. Full-fidelity exige RPCs novos.
+- Gotcha A3 (vazamento de MRR via `CLIENT_SELECT = *`) vira **crítico** com `/dashboard` global → masking no banco (`get_finance_summary` RPC / view).
+- `useGreeting` só produz 2 linhas; a 3ª ("Dados referente a jul/26") vem do status de sincronização (`sync_log`), calculada na página. `identity.ts` não tem pools `sales`/`finance`.
+- Flag `labs_dashboard` aposentada (não faz mais sentido).
+
+### Phases (SDD §5)
+
+0 Foundation (done) · 1 Route inversion + shell · 2 Data foundation (RPCs YTD/90d, MRR masking) · 3 v3 build (7 blocos) · 4 Cockpits por papel (roadmap) · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
+
+### Files
+- `docs/sdd/labs-dashboard-sdd.md` (rewritten), `docs/modules/meu-dia-dashboard.md` (new), `docs/modules/pages.md`, `.agents/docs-index.md` (updated)
+- Code: `src/App.jsx`, `src/components/layout/Navbar.jsx`, `src/pages/MeuDiaV3Page.jsx` + `src/components/dashboard/v3/*` (new), hooks + migrations (see SDD "Files to be touched")
 
 ---
 

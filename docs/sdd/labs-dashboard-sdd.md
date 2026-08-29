@@ -1,14 +1,16 @@
-# SDD — Labs Dashboard (`/labs/dashboard`)
+# SDD — Dashboard v3 (`/dashboard`) + Legacy em Labs (`/labs/dashboard`)
 
 ## Purpose
 
-This document is a Spec-Driven Development (SDD) artifact. It serves as the **single source of truth** for the Labs Dashboard workstream — the evolution of the current monolithic `DashboardPage.jsx` (1761 lines, CSM-coupled) into an isolated architecture under `/labs/dashboard` with a generic **"Meu Dia"** dashboard plus role-based **Cockpits** (CSM, Gestão, Comercial, Financeiro, Suporte, Projetos) and dual ownership `clients.comercial_id + csm_id` with `lifecycle_stage`. It is designed to be read by both humans and LLM agents so that work can be resumed, implemented, and documented without external context.
+This document is a Spec-Driven Development (SDD) artifact. It serves as the **single source of truth** for the Dashboard workstream — replacing the monolithic `DashboardPage.jsx` (1761 lines, CSM-coupled) with a new **role-aware Dashboard v3** at `/dashboard` for **all six roles**, built from the mock `docs/mock/meu-dia-generic-v3.html`, while the current monolith is preserved at `/labs/dashboard` behind an **admin-only** guard as a reference and kill-switch. It is designed to be read by both humans and LLM agents so that work can be resumed, implemented, and documented without external context.
 
 ### How to use this document
 
 1. **Before implementing:** Read this document fully — understand the spec, current checkpoint, design system references, and data contracts.
 2. **During implementation:** Follow the checklist for the active phase. Tick items as done.
 3. **After implementation:** Fill the Implementation Log at the bottom of the phase with commit hash, files changed, and technical summary. Update the Checkpoint section.
+
+> **History note (2026-08-29):** this SDD was rewritten. The previous version specified the *opposite* architecture — `/labs/dashboard` as the new minimal "Meu Dia" (5 blocks, no MRR/OS) and `/dashboard` as the legacy monolith kept until a late deprecation phase. The stakeholder decision inverted it: **v3 is the main dashboard for everyone; the monolith moves to `/labs/dashboard` for admin only.** Phase 0 and the `comercial_id` work (old Phase 2) are preserved below as completed history. The old Phases 1/3/4/5 ("Genérica" + CockpitGrid + Empresas access matrix) are re-scoped into Phases 3–5 here.
 
 ---
 
@@ -18,155 +20,167 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 0 — Complete (shell live, admin only). Next: Phase 1 Meu Dia — Planned.
+- **Active phase:** Phase 1 — Route Scaffold + Transitional Flag + Shell — **code done (uncommitted, not deployed); verify + deploy pending authorization**. (Phase 0 Foundation and the `comercial_id` migration are Complete.)
 
 **What already exists related to this work:**
 
-- `src/components/dashboard/DashboardPage.jsx` — 1761 lines, monolithic, CSM-centric. Contains: greeting engine, critical clients, health ranking, signals (`getSignals`), urgency scoring, operational deltas (`client_usage` prevMonth vs prevMonth2), sync-panel, drawer system (4 drawer modes), MRR cards, activities, onboarding phases. Route `/dashboard`. Uses local color tokens `C`, local helpers `scoreBand*`, `DIM_ICONS` with inline SVGs `Ic.*`, `evaluateClientRules` (broken — `health_rules` has no condition columns, later replaced by `getDimensionInsights` in Health Dashboard). Source of truth for visual tokens and drawer pattern.
-- `src/pages/HealthDashboardPage.jsx` (~365 lines) — `GET /health`, scorecard + ranking table + drawer `ClientHealthDrawer.jsx`. Reference for isolated dashboard pattern.
-- `src/pages/CockpitsPage.jsx` — gateway `/cockpits` with cards for Health Score, CS Radar, Project Cockpit, Profissionais Cockpit.
-- `src/pages/CsRadarPage.jsx`, `src/pages/ProjectCockpitPage.jsx`, `src/pages/ProfissionaisCockpitPage.jsx` — existing cockpits (see `project-cockpit-sdd.md`).
-- `src/App.jsx` — routing. `PrivateRoute` gates auth+`profile.status`, redirects analyst to `/atendimento` if `whatsapp_atendimento` enabled. `AdminRoute` for `/configuracoes`. `useFeatureFlags` hook controls per-role access.
-- `src/hooks/useFeatureFlags.js` — `flags: feature_flags` (key, label, enabled, allowed_roles[]), `isEnabled(key, role)`.
-- `src/hooks/useClients.js` — `CLIENT_SELECT` with `csm:profiles!clients_csm_id_fkey`, `buildClientsQuery` supports `csm_id`, `stage_id`, `search`, `abc_class`, `lifecycle_stage`. `useClients` filters `contract_active=true`. `useClient(id)` loads single client with `client_catalog`, `contact_links`, `activities`, `projects`, `client_usage`, `client_support`, `onboardings` + phases.
-- `src/components/clients/ClientDetail.jsx` — tabs: `overview | atividades | operacional | health | contatos | anexos`. `overview` is definitive view; `operacional`/`health` disabled when `lifecycle_stage !== 'cliente'`. `ClientForm.jsx` — modal with 4 tabs: `Dados da Empresa | Contrato | Operacional | Endereço` (edits `csm_id`, `abc_class`, billing, address, etc).
-- `src/contexts/AuthContext.jsx` — `profile` shape: `id, name, email, role (admin|manager|csm|analyst), status (active|pending|blocked|invited), avatar_url, created_at`.
-- `src/lib/icons.js` — central barrel. Never import from `lucide-react` directly.
-- `src/lib/greeting-engine` — deterministic greeting hook (`useGreeting`).
-- Tables (verified in codebase/migrations):
-  - `clients` — `id integer PK`, `name text`, `fantasy_name text`, `cnpj text`, `lifecycle_stage text`, `stage_id uuid`, `csm_id uuid FK profiles`, **`comercial_id uuid FK profiles ON DELETE SET NULL` (added `20260824000008`, `idx_clients_comercial_id` + `idx_clients_lc_comercial WHERE cliente`)**, `abc_class text`, `health_total/health_uso/health_suporte/health_relacionamento/health_financeiro/health_projeto integer`, `health_trend integer DEFAULT 0`, `mrr numeric`, `delay_days integer`, `csm_temperature integer`, `temperature_updated_at timestamptz`, `contract_active boolean`, `contract_signed_date/contract_start/contract_renewal date`, `correction_index text`, `billing_type/billing_base_value/billing_floor`, `unidades_total/unidades_donc`, `segment_id`, `site text`, `logo_url text`, `address_*`, `stage:stages(*)`, `client_catalog`, `created_at/updated_at`.
-  - `profiles` — `id uuid`, `name text`, `email text`, `role text` (`admin|manager|csm|analyst|sales|finance` — sales/finance added 2026-08-24 via 20260824000001), `status text`, `avatar_url text`, `gender text`, `birth_date date`, `created_at timestamptz`.
-  - `feature_flags` — `key text PK`, `label text`, `enabled boolean`, `allowed_roles text[]`.
-  - `activities` — `id uuid`, `client_id integer`, `contact_id integer`, `responsible_id uuid FK profiles`, `type text`, `status text (pendente|concluida|cancelada)`, `activity_date date`, `due_date date`, `title text`, `description text`, `meet_link text` (migration 20260816000000), `created_at/updated_at`.
-  - `contacts` — `id uuid`, `name text`, `email text`, `contact_phones(*), contact_emails(*), contact_links(*, client_id, papel, engajamento, champion)`.
-  - `client_support`, `client_usage`, `client_donc_instances`, `onboardings`, `onboarding_fases`, `projects`, `milestones`, `health_rules`, `health_config` — auxiliary.
-- Existing flags: `health`, `projects_cockpit`, `profissionais_cockpit` (now `{admin,manager,csm,finance}`), `cs_radar`, `whatsapp_atendimento`, `donkie`, `settings_menu`, `api_donc`, `freshdesk`, `asana`, `email_templates`, `brief_templates`, `financial_data` (`{admin,manager,finance}` true), `labs_dashboard` (`{admin}` false, branch-by-abstraction, Phase 0 live), plus `financial_data` controls MRR hide (`ClientSubDados`).
-- `vite.config.js` injects `__COMMIT_HASH__`, `vercel.json` SPA rewrite, QueryClient `staleTime 30s / retry 1 / gcTime 5m`.
+- `src/components/dashboard/DashboardPage.jsx` — **the monolith** (1761 lines), re-exported by `src/pages/Dashboard.jsx` (1-line re-export), imported in `App.jsx`. Route `/dashboard`. 4 strips (FAIXAS): **1 Pulso** (navy: identity + inline greeting + `phraseExtra` + MRR/ARR/em atraso + counter cards), **2 Urgências** (`alertaClients` top 5 + próximas atividades 7d), **3 Portfólio** (saúde rankeada top 10 + saúde por dimensão + sem interação), **4 Operacional** (`ops_dashboard` query → OS/profissionais/health variação mensal `prevMonth` vs `prevMonth2` + `handleSync`). Overlay drawer (`renderDrawerContent`, ~13 modes, 380px fixed aside). Local helpers `C`, `scoreBand*` (hardcoded 50/75), `getSignals`, `alertaClients`, `buildOpCountRows`, `OpDeltaBadge`, inline `Ic.*` SVGs. Consumes `useGreeting` but **`text` is destructured and never rendered** — the header computes its own `new Date().getHours()` greeting; only `extra` (`phraseExtra`) is shown.
+- `src/lib/scoring.js` — **already exists** (194 lines). Exports `C` (color tokens), `HEALTH_ICONS` (dim→icon-name map), `ago30Str`, `fmtDate`, `daysSince`, `scoreBand(s, thresholds)`, `scoreBandColor`, `scoreBandLabel`, `tempVencida(client)`, `getSignals(client, lastActivityMap)`, `buildReasons(...)`. Default thresholds `{ threshold_healthy: 75, threshold_attention: 50 }` but takes a `thresholds` param. **The monolith has NOT migrated to it** (still has local copies + hardcode).
+- `src/components/dashboard/BrazilMap.jsx` — **already exists, orphan** (never imported/rendered). `export function BrazilMap({ clients })`. Fetches Brazil states GeoJSON from `raw.githubusercontent.com/codeforamerica/click_that_hood/.../brazil-states.geojson` (queryKey `['brazil_geojson']`, `staleTime: Infinity`), aggregates by `c.address_state?.trim().toUpperCase()`, renders `d3.geoMercator()`/`d3.geoPath()` SVG, color by count (0 / 1 / 2-3 / 4+), tooltip with up to 5 client names, legend. **Aggregates by UF only — no city-level.** `d3` is an available dependency.
+- `src/hooks/useLabsClients.js` — **already exists, unused anywhere.** `labsFilterFor(profile)` (admin/manager/finance → `{lifecycle_stage:'cliente'}`; sales → `{comercial_id, lifecycle_stage}`; else → `{csm_id, lifecycle_stage}`), `useLabsClients(profile)`, `useComercialClients(profile)` (conditionally calls `useClients` — violates hooks rules), `useCsmClients(profile)`.
+- `src/hooks/useClients.js` — `CLIENT_SELECT` = `*, stage:stages(*), csm:profiles!clients_csm_id_fkey(id,name,email), comercial:profiles!clients_comercial_id_fkey(id,name,email), client_catalog(...), onboardings(id,context,status,situacao_geral,created_at,end_date,projects(id))`. `buildClientsQuery` supports `csm_id`, `comercial_id`, `_labs_dual_owner` (`.or('csm_id.eq.X,comercial_id.eq.X')`), `stage_id`, `search`, `abc_class`, `lifecycle_stage`. `useClients` forces `contract_active=true`, `retry:0`, returns `[]` on error. **Role scoping is the caller's job** (RLS enforces server-side).
+- `src/hooks/useClient.js` — single client, wide select including `client_usage(*, client_donc_instances(id,label))`, `client_support(*)`. Also exports `useClientUsageMutations` (upsert `client_usage` `onConflict:'client_id,ref_month'`), `useClientSupport`, `useClientSupportMutations`.
+- `src/hooks/useActivities.js` — `useActivities(filters)` supports `client_id`, `type`, `status`, `excludeStatuses[]`, `responsible_id`, `search`. Select joins `client`, `contact`, `responsible:profiles(id,name)`, `activity_attachments(id)`; adds `has_attachments`. **No participant concept** — one `responsible_id` per activity; no `activity_participants` table.
+- `src/hooks/useHealthConfig.js` — returns `{ config, rules, weights }`. `config = configs[0] ?? { threshold_healthy: 75, threshold_attention: 50 }`. Respected by `HealthDashboardPage` / `ClientTabHealth`; **not** by the monolith.
+- `src/hooks/useProjectCockpit.js` — `useProjectCockpit()`, queryKey `['projects_cockpit']`, `enabled: !!profile?.role && profile.role !== 'analyst'`, role-scoped internally (csm → own; else all). Returns rows grouped by client with `{ projects[], currentPhase, progress, displayStatus: 'on_time'|'delayed'|'paused' }`. Consumed only by `ProjectCockpitPage`.
+- `src/hooks/useProfissionaisCockpit.js` — `useProfissionaisCockpit(refMonth)`. `monthsQuery` (distinct months from `sync_service_log` where `service_name='donc-api'`), `dataQuery` via RPC `get_profissionais_cockpit({ p_ref_month })` → rows `{ client_id, client_name, ativos_cur, ativos_prev, ativos_delta, acesso_cur/prev/delta, os_cur/prev/delta }`. Also RPCs `get_profissionais_detalhe`, `get_profissionais_export`.
+- `src/hooks/useSyncStatus.js` — `useSyncStatus()` reads `sync_log` where `job_name='monthly-sync'`, latest row: `{ started_at, finished_at, status: 'running'|'success'|'failed', summary: { donc:{synced}, freshdesk:{synced}, health:{recalculated}, trend }, error_message }`. `sync_log` **has NO `ref_month` column** (see migration `20260701000000_create_sync_log_table.sql`). `useSyncHistory({limit})` for the last N runs. Rendered in `SettingsSyncStatus.jsx` (`/configuracoes`).
+- `src/lib/greeting-engine` — `useGreeting({ profile, operational: { criticalClients } })` → `{ text, extra?, fragments[], metadata }`. **Only 2 output strings** (`text` = `"{saudação}, {primeiro nome}."`, `extra` = last non-temporal fragment). Deterministic (seed = `userId:YYYY-MM-DD`). `content/identity.ts` pools only for `admin|manager|csm|analyst` (+ `birthday`/`anniversary`/`neutral`) — **`sales`/`finance` fall through to `neutral`**. Greeting SDD (`docs/sdd/greeting_engine_sdd.md`) is in **Phase A — Narrative Stabilization (no technical expansion)**; the engine must never render telemetry. Only consumer: `DashboardPage.jsx`.
+- `src/App.jsx` — routes `/dashboard` → `DashboardPage` (line 187), `/labs/dashboard` → `LabsDashboardPage` (line 188), both inside `PrivateRoute > AppLayout`. `AdminRoute` (lines 108-120) allows `admin` **and** `manager` (manager needs `settings_menu`+`api_donc`+`freshdesk` flags), redirects others to `/dashboard`; wraps `/configuracoes` + `/config/*` only. `PrivateRoute` (line 97): analyst with `whatsapp_atendimento` enabled and path not `/atendimento` and not `/labs/dashboard` → redirect to `/atendimento` (carve-out for labs already exists). `AuthRedirect` sends active users to `/atendimento` (analyst) or `/dashboard`.
+- `src/pages/labs/LabsDashboardPage.jsx` — 41-line shell (Phase 0). Guard 100% via `isEnabled('labs_dashboard', effectiveRole)` (redirect to `/dashboard` if not enabled + render null). Content = `PageHeader` + placeholder text.
+- `src/components/layout/Navbar.jsx` — `mainNavLinks` (line 14-22): `{to:'/dashboard', label:'Dashboard'}` (no flag), `{to:'/labs/dashboard', label:'Labs', featureFlag:'labs_dashboard'}`, plus Empresas/Contatos/Atividades/Projetos/Cockpits/Atendimento. `availableLinks(links)` filters by `link.featureFlag` via `isEnabled(flag, effectiveRole)` — **does not filter by role directly**. Analyst gets `analystNavLinks` only. Backdoor "Ver como" dropdown (`profile.role === 'admin'` only) → `setImpersonation`.
+- `src/hooks/useFeatureFlags.js` — `flags` from `feature_flags` (`key`, `label`, `enabled`, `allowed_roles text[]`), `staleTime 5min`. `isEnabled(key, role)` = `flag && flag.enabled && role && role ∈ allowed_roles`. Returns `false` while loading (fail-safe).
+- `src/lib/icons.js` — central barrel over `lucide-react`. **Present:** `BarChart3`, `Target`, `Handshake`, `Wallet`, `Rocket`, `FolderKanban`, `Headphones`, `MapPin`? (no). **Absent:** `LayoutDashboard`, `Briefcase`, `DollarSign`, `Headset`, `MapPin`.
+- Tables (verified): `clients` (incl. `comercial_id uuid FK profiles ON DELETE SET NULL`, `address_city text`, `address_state text` (UF), `mrr numeric`, `billing_type/billing_base_value/billing_floor`, `delay_days`, `contract_renewal date`, `health_total`, `health_uso/suporte/relacionamento/financeiro/projeto`, `health_trend`, `csm_temperature`, `temperature_updated_at`, `lifecycle_stage`, `abc_class`, `logo_url`), `profiles` (`role: admin|manager|csm|analyst|sales|finance`), `activities` (`responsible_id`, `activity_date`, `due_date`, `type`, `status`), `client_usage` (`client_id, ref_month, instance_id, os_created/os_abertas/os_finalizadas, active_users, pending, health_snapshot, donc_snapshot jsonb`), `client_donc_instances`, `client_support` (`tickets_opened, tickets_resolved, sla_first_response, ref_month`), `sync_log` (no `ref_month`), `sync_service_log` (`service_name, ref_month`), `feature_flags`, `role_impersonations`, `onboardings`/`onboarding_fases`, `projects`, `health_config`, `health_rules`.
+- Existing flags: `financial_data` (`{admin,manager,finance}`, enabled **true**) — used only in `ClientSubDados.jsx:258` (`canViewFinancialEffective`); **not** in the monolith. `labs_dashboard` (`{admin}`, enabled **false**) — to be retired. `whatsapp_atendimento`, `settings_menu`, `api_donc`, `freshdesk`, `health`, `projects_cockpit`, `profissionais_cockpit` (`{admin,manager,csm,finance}`), `cs_radar`, `donkie`, `asana`, `email_templates`, `brief_templates`.
+- Mocks: `docs/mock/meu-dia-generic.html` (v1 — old spec literal), `-v2.html`, `-v3.html` (**the target**, 36 KB, 2026-08-29). v3 uses Tailwind CDN + inline color config (`navy #173557`, `navyDeep #0a1f33`, `sky #59c2ed`, `lime #d3da47`, `ink #0e223a`, `ink3 #6b7889`).
 
-**What does NOT exist and needs to be created (remaining):**
+**What does NOT exist and needs to be created:**
 
-- `src/components/labs/*` — extracted cards/panels (MeuDia, Cockpit cards for Phase 1+).
-- Role-based tab/route gating for `ClientDetail` and `/empresas/:id` edits beyond `finance`/`sales` empresa edit (already done for `sales` comercial_id + `finance` empresas; remaining: health/operacional tab per role if needed).
-- Full `labs_dashboard` product: Meu Dia generic + CockpitGrid per role (Phase 1-5).
+- `AdminOnlyRoute` guard (admin-strict, no manager branch).
+- `src/pages/DashboardRoute.jsx` (transitional `/dashboard` wrapper — monolito by default, v3 behind `dashboard_v3` flag; deleted in the Phase 3 swap).
+- `src/pages/MeuDiaV3Page.jsx` + `src/components/dashboard/v3/*` blocks + `DashboardHeader` + `ScopeLabel` + `OperationalHistoryDrawer`.
+- `src/components/ui/Drawer.jsx` (shared drawer shell; `HealthDashboardPage` migrates to it).
+- Hooks: `useDashboardClients`, `useDashboardYtd`, `useOperationalDeltas`, a `dataRefMonth` helper.
+- Migrations: retire `labs_dashboard` + add `dashboard_v3` flag (Phase 1); drop `dashboard_v3` (Phase 3 swap); RPCs `get_dashboard_ytd`, `get_operational_90d_avg`, `get_finance_summary` (MRR masking); `activities_csm_sales_write` RLS policies.
+- `BrazilMap` made interactive (`onSelectUF`) + pin legend + fetch-failure degrade.
+- `ClientHealthDrawer` extended with the monolith's `qaItems`.
+- Missing icons in `src/lib/icons.js`.
+- `identity.ts` pools for `sales`/`finance` (content-only).
+- WCAG 2.1 AA fixes (contrast tokens, `<main>`, dropdown ARIA, zoom, focus-visible, reduced-motion).
+- `docs/modules/meu-dia-dashboard.md` + index entry (created 2026-08-29).
 
-**Already created since last update (2026-08-24):**
-- Route namespace `/labs/dashboard` — `src/pages/labs/LabsDashboardPage.jsx` shell live (admin only, `labs_dashboard` flag `enabled false` `{admin}`), `src/App.jsx` route + `PrivateRoute` analyst exception, `Navbar` `Labs` link with `featureFlag:'labs_dashboard'` (`ba0ba66`).
-- Feature flags `labs_dashboard` (`20260824000007`) + `financial_data` (`20260824000006`, `{admin,manager,finance}`) + `profissionais_cockpit` now includes `finance` (`20260824000005`) + `financial_data` group `Cockpits & Dashboards`.
-- `clients.comercial_id` column + indexes + RLS dual ownership (`20260824000008` + `20260824000009` `comercial_id OR csm_id` for sales scoped), `src/hooks/useClients.js` `comercial` join + `comercial_id`/`_labs_dual_owner` OR, `src/hooks/useClient.js` comercial join, `ClientForm.jsx` `comercial_id` dropdown (Dados da Empresa), `ClientsPage.jsx` sales branch `comercial_id` + finance global, `src/hooks/useLabsClients.js` helper (labsFilterFor, useComercialClients).
-- Central `src/lib/roles.js` (`ROLE_OPTIONS` 6 roles, English labels `Sales/Finance`) and `SettingsUsers.jsx`/`SettingsFeatureFlags.jsx` + `SettingsFeatureFlags` `FLAG_GROUPS` `Cockpits & Dashboards` + `Integrações` now includes `asana`.
-- Admin backdoor `Ver como` with real RLS (`role_impersonations` table, `get_user_role()` override, `AuthContext` `effectiveRole`/`effectiveProfile`/`setImpersonation`, `Navbar` dropdown + amber banner, `App.jsx`/`usePermissions` use `effectiveRole`, 1h expiry).
+**Already completed history:**
+
+- **Phase 0 (2026-08-24, `ba0ba66`):** namespace `/labs/dashboard`, shell page, `App.jsx` route, `Navbar` Labs item, `labs_dashboard` flag (`20260824000007`, later restricted to `{admin}` via `20260824000010`). `PrivateRoute` analyst carve-out for `/labs/dashboard`.
+- **`comercial_id` migration (2026-08-24, `74523d0`):** `clients.comercial_id` column + indexes + RLS dual ownership (`20260824000008` + `20260824000009`), `useClients`/`useClient` comercial join, `ClientForm.jsx` comercial dropdown, `ClientsPage.jsx` sales branch, `useLabsClients.js` helper. Roles `sales`/`finance` added to `profiles.role` CHECK (`20260824000001` + RLS `20260824000002`).
+- Admin backdoor "Ver como" (`role_impersonations` + `get_user_role()` override + `AuthContext.effectiveRole`, 1h expiry).
 
 ### Files to be touched
 
-| File | Change type |
-|---|---|
-| `supabase/migrations/<timestamp>_labs_dashboard_flag.sql` | **Create** — `INSERT feature_flags (key='labs_dashboard', ...)` — initial `allowed_roles='{admin}'`, expand progressively |
-| `supabase/migrations/<timestamp>_add_comercial_id_to_clients.sql` | **Create** — `ALTER TABLE clients ADD COLUMN comercial_id uuid REFERENCES profiles(id)`, index, RLS/comment |
-| `supabase/migrations/<timestamp>_rls_labs_dual_ownership.sql` | **Create** — dual-ownership RLS policies + MRR column masking view (High severity — blocks Phase 2) |
-| `src/lib/scoring.js` | **Create** — centralized `C`, `DIM_*`, `scoreBand*`, `getSignals`, `buildReasons`, `daysSince`, `tempVencida` (extracted from DashboardPage, mandatory Phase 1) |
-| `src/App.jsx` | Modify — add `/labs/dashboard` route (inside `PrivateRoute` + `AppLayout`), optional legacy redirect; keep `/dashboard` untouched |
-| `src/pages/labs/LabsDashboardPage.jsx` | **Create** — shell page (`Meu Dia` + cockpits grid). Single entry point under `/labs` |
-| `src/components/labs/MeuDiaPanel.jsx` | **Create** — generic "Meu Dia": today activities + signals + MRR summary (role-filtered) |
-| `src/components/labs/CockpitGrid.jsx` | **Create** — grid of cockpit cards per role (CSM/Gestão/Comercial/Financeiro/Suporte/Projetos) |
-| `src/components/labs/cockpits/CsmCockpitCard.jsx` | **Create** — portfolio health + alerts (extracted from DashboardPage `alertaClients`, `emRisco`) |
-| `src/components/labs/cockpits/GestaoCockpitCard.jsx` | **Create** — aggregated KPIs (health bands, overdue phases, MRR atrasado) |
-| `src/components/labs/cockpits/ComercialCockpitCard.jsx` | **Create** — comercial portfolio (clients where `comercial_id = profile.id`) + `projetos-cockpit` link |
-| `src/components/labs/cockpits/FinanceiroCockpitCard.jsx` | **Create** — financeiro indicators + `profissionais-cockpit` link |
-| `src/components/labs/cockpits/SuporteCockpitCard.jsx` | **Create** — support signals (`health_suporte`, tickets placeholder) |
-| `src/components/labs/cockpits/ProjetosCockpitCard.jsx` | **Create** — reuse/embed `ProjectCockpitPage` summary |
-| `src/hooks/useLabsClients.js` | **Create** — wrapper over Supabase with dual ownership filter (`csm_id` OR `comercial_id` + lifecycle_stage) |
-| `src/hooks/useClients.js` | Modify — add `comercial_id` to `CLIENT_SELECT`, support `filters.comercial_id` in `buildClientsQuery`; keep backward compat |
-| `src/hooks/useFeatureFlags.js` | No change — consumed as-is |
-| `src/components/layout/Navbar.jsx` | Modify — add `/labs/dashboard` nav item gated by `labs_dashboard`; keep `/dashboard` item; `availableLinks` filtering already exists |
-| `src/components/clients/ClientDetail.jsx` | Modify — tab gating + Edit button gating per role matrix (see §4.4) |
-| `src/components/clients/ClientForm.jsx` | Modify — field-level gating: `csm_id`/`comercial_id` editable per role; 4 tabs accessibility per matrix |
-| `src/components/contacts/ContactsPage.jsx` | Modify — ensure all roles can view/create (no role gate; verify flag not blocking) |
-| `src/components/activities/ActivitiesPage.jsx` | Modify — ensure all roles can view/create; filter `responsible_id` for non-admin only when scoped, but global view allowed per spec |
-| `src/lib/icons.js` | Modify — add missing icons (if any of `LayoutDashboard`, `Briefcase`, `DollarSign`, `Headset`, `FolderKanban` not present) |
-| `src/lib/constants.js` | Modify — centralize color tokens `C` from DashboardPage (optional, Phase 5) |
-| `docs/sdd/labs-dashboard-sdd.md` | **Create** — this file |
+| File | Change type | Phase |
+|---|---|---|
+| `docs/sdd/labs-dashboard-sdd.md` | **Rewrite** — this file | — |
+| `docs/modules/meu-dia-dashboard.md` | **Create** — module doc for v3 | — |
+| `.agents/docs-index.md` | Modify — add `meu-dia-dashboard` to Available Modules | — |
+| `docs/modules/pages.md` | Modify — "Dashboard Layout" describes v3; monolith noted as legacy in `/labs` | — |
+| `docs/backlog.md` / `docs/CHANGELOG.md` | Modify — record the inversion | — |
+| `src/App.jsx` | Modify — `AdminOnlyRoute`; `/labs/dashboard` → `<LabsDashboardPage>` under guard; `/dashboard` → `<DashboardRoute>` (P1) then `<MeuDiaV3Page>` (P3 swap); analyst carve-out → `/dashboard` (P3 swap) | 1, 3 |
+| `src/pages/DashboardRoute.jsx` | **Create** (P1) — monolito / v3-by-flag wrapper. **Delete** (P3 swap). | 1, 3 |
+| `src/components/layout/Navbar.jsx` | Modify — "Labs" visible only for `effectiveRole==='admin'`; drop `featureFlag:'labs_dashboard'` | 1 |
+| `src/pages/labs/LabsDashboardPage.jsx` | Modify — thin wrapper rendering `<DashboardPage/>` (+ optional "modo legado" banner) | 1 |
+| `supabase/migrations/<ts>_retire_labs_dashboard_add_dashboard_v3_flag.sql` | **Create** — `DELETE` `labs_dashboard` + `INSERT` `dashboard_v3` (`{admin}`, `enabled=false`) | 1 |
+| `supabase/migrations/<ts>_drop_dashboard_v3_flag.sql` | **Create** — `DELETE` `dashboard_v3` (Phase 3 swap) | 3 |
+| `src/components/settings/SettingsFeatureFlags.jsx` | Modify — `labs_dashboard` → `dashboard_v3` in `FLAG_GROUPS` (P1); remove `dashboard_v3` (P3 swap) | 1, 3 |
+| `supabase/migrations/<ts>_dashboard_v3_rpcs.sql` | **Create** — `get_dashboard_ytd`, `get_operational_90d_avg` | 2 |
+| `supabase/migrations/<ts>_finance_summary_rpc.sql` | **Create** — `get_finance_summary()` (MRR masking, role check) | 2 |
+| `supabase/migrations/<ts>_activities_csm_sales_write.sql` | **Create** — RLS INSERT/UPDATE for csm/sales on own carteira | 2 |
+| `src/hooks/useOperationalDeltas.js` | **Create** — extract monolith FAIXA 4 logic + 3-month per-client history | 2 |
+| `src/hooks/useDashboardYtd.js` | **Create** | 2 |
+| `src/hooks/useDashboardClients.js` | **Create** — single lifted query, role-scoped (reuse `labsFilterFor`) | 2 |
+| `src/lib/greeting-engine/content/identity.ts` | Modify — add `sales` + `finance` pools | 2 |
+| `src/components/ui/Drawer.jsx` | **Create** — shared drawer shell (§5.1) | 3 |
+| `src/pages/HealthDashboardPage.jsx` | Modify — migrate its drawer to `ui/Drawer.jsx`; retest `/health` | 3 |
+| `src/components/clients/ClientHealthDrawer.jsx` | Modify — add the monolith's `qaItems` | 3 |
+| `src/pages/MeuDiaV3Page.jsx` | **Create** — lifted queries + personal-first layout | 3 |
+| `src/components/dashboard/v3/DashboardHeader.jsx` | **Create** — period selector + "atualizado em" + carteira dropdown | 3 |
+| `src/components/dashboard/v3/ScopeLabel.jsx` | **Create** — "minha carteira" / "toda a base" | 3 |
+| `src/components/dashboard/v3/HeroBlock.jsx` | **Create** — greeting 3 lines + per-role card contract | 3 |
+| `src/components/dashboard/v3/MinhaAgendaBlock.jsx` | **Create** — activities by urgency + row → `ActivityDetailModal` | 3 |
+| `src/components/dashboard/v3/SaudeDimensaoBlock.jsx` | **Create** — carteira-scoped, real distribution, row → `<Drawer>`+`ClientHealthDrawer` | 3 |
+| `src/components/dashboard/v3/ProjetosAbertosBlock.jsx` | **Create** — carteira-scoped | 3 |
+| `src/components/dashboard/v3/ForcaNumerosBlock.jsx` | **Create** — YTD, company-wide | 3 |
+| `src/components/dashboard/v3/EcossistemaMapBlock.jsx` | **Create** — `<BrazilMap onSelectUF>` + top estados | 3 |
+| `src/components/dashboard/v3/OperacionalVariacaoBlock.jsx` | **Create** — company-wide; row → `OperationalHistoryDrawer`; sync panel admin/manager only | 3 |
+| `src/components/dashboard/v3/OperationalHistoryDrawer.jsx` | **Create** — extract `op-*` / `op-*-list` from the monolith | 3 |
+| `src/components/dashboard/BrazilMap.jsx` | Modify — `onSelectUF` + pin legend + fetch-failure degrade | 3 |
+| `src/lib/icons.js` | Modify — add `LayoutDashboard`, `Briefcase`, `DollarSign`, `MapPin` | 3 |
+| `src/components/dashboard/DashboardPage.jsx` | Modify (optional, Phase 3+) — migrate helpers to `src/lib/scoring.js` | 3 |
 
 ---
 
 ## 1. Global Definitions
 
-### 1.1 Roles (canonical — updated 2026-08-24)
+### 1.1 Roles (canonical)
 
-| Role | `profiles.role` | Label PT | Description |
-|---|---|---|---|
-| `admin` | `admin` | Admin | Full access. Sees all clients. Only role accessing `/configuracoes`. |
-| `manager` | `manager` | Gestão | Sees all except `/configuracoes`. Team portfolio. |
-| `csm` | `csm` | CSM | Portfolio scoped: `csm_id = profile.id`. Core CSM cockpit. |
-| `sales` | `sales` | Comercial | Sales pipeline owner. Scoped by `comercial_id` (future) or `csm_id` fallback. Sees `overview/operacional/relatorios/anexos` + edit 4 tabs + `projetos-cockpit`. |
-| `finance` | `finance` | Financeiro | Finance. Global view (all `lifecycle_stage='cliente'`). Sees edit 4 tabs + `profissionais-cockpit` + MRR/billing. |
-| `analyst` | `analyst` | Atendimento | Atendimento only (`/atendimento` when `whatsapp_atendimento` enabled). Limited labs access. |
+| Role | `profiles.role` | Label PT | HERO cards | "Minha carteira" blocks (Saúde, Projetos) |
+|---|---|---|---|---|
+| `admin` | `admin` | Admin | default (= sales layout) | toda a base. Only role that sees `/labs/dashboard` (monolith). |
+| `manager` | `manager` | Gestão | Clientes / OS / Profissionais (toda a base) | toda a base |
+| `csm` | `csm` | CSM | Clientes / OS / Profissionais (`csm_id = me`) | `csm_id = me` |
+| `sales` | `sales` | Comercial | same shape as csm (`comercial_id = me OR csm_id = me`) | dual ownership |
+| `finance` | `finance` | Financeiro | **MRR · month / Clientes em atraso / Renovação 30D** (from `get_finance_summary` RPC) | toda a base |
+| `analyst` | `analyst` | Atendimento | **Total Tickets / Tickets em Aberto / Taxa Resolução** (Freshdesk + WhatsApp) | toda a base. Home stays `/atendimento`; `/dashboard` reachable. |
 
-> **Nota arquitetural (2026-08-24):** migrations `20260824000001_add_sales_finance_roles.sql` + `20260824000002_rls_sales_finance.sql` adicionaram `sales`/`finance` ao `CHECK profiles_role_check`. RLS `clients_sales_select` (scoped `csm_id`, future `comercial_id`) e `clients_finance_select` (global) já em produção. Flag `labs_dashboard` deve incluir `sales`/`finance` em `allowed_roles`. "Suporte" permanece alias funcional sobre `analyst`/`csm`.
+**Block scope model (decision, see §7):**
+- **Personalized (logged-in user):** HERO cards, `MinhaAgendaBlock` (`responsible_id`).
+- **"Minha carteira" (portfolio-scoped via `labsFilterFor`):** `SaudeDimensaoBlock`, `ProjetosAbertosBlock` — csm/sales see their own carteira; admin/manager/finance see the whole base. Same behavior as the monolith.
+- **"Toda a base" (company-wide, identical for all 6 roles):** `ForcaNumerosBlock` (YTD), `EcossistemaMapBlock`, `OperacionalVariacaoBlock`.
+- **Every block carries a visible `ScopeLabel`:** *"minha carteira"* vs *"toda a base"*, so a CSM reading "5 clientes" in the HERO next to a company-scoped block doesn't read the numbers as broken.
+
+Impersonation: use `effectiveRole` from `useAuth()` / `usePermissions()` everywhere (not `profile.role`), so "Ver como" previews the correct HERO and scope.
 
 ### 1.2 Lifecycle Stage
 
-| Value | Meaning | Visible in |
-|---|---|---|
-| `lead` | Lead not yet client | `/empresas` only (not in cockpits) |
-| `cliente` | Active client | Labs dashboard, cockpits, `operacional`/`health` tabs |
-| `ex_cliente` | Churned | Filtered out unless `useAllClients` |
+| Value | Visible in v3 |
+|---|---|
+| `lead` | Not in dashboard (only `/empresas`) |
+| `cliente` | Dashboard v3, all blocks |
+| `ex_cliente` | Filtered out |
 
-Filter `lifecycle_stage = 'cliente'` is mandatory for all labs queries (same as `DashboardPage.jsx:330` and `HealthDashboardPage.jsx:107`).
+`lifecycle_stage = 'cliente'` filter is mandatory for all dashboard queries (same as `DashboardPage.jsx` / `HealthDashboardPage.jsx`).
 
-### 1.3 Feature Flag
+### 1.3 Access Model
 
-| Key | Label | `enabled` default | `allowed_roles` |
-|---|---|---|---|
-| `labs_dashboard` | Labs Dashboard | `false` (enable per env) | `'{admin,manager,csm,sales,finance,analyst}'` — all 6 roles (see Gotchas A1) |
+**End state (after the Phase 3 swap):** `/dashboard` = v3 for **every authenticated role**, no flag. `/labs/dashboard` = monolith under **`AdminOnlyRoute`** (`effectiveRole === 'admin'` only). `dashboard_v3` and `labs_dashboard` flags both dropped.
 
-Hook usage:
-```js
-const { isEnabled } = useFeatureFlags()
-const canView = isEnabled('labs_dashboard', profile?.role)
-```
+**During Phases 1–3 (transitional):**
+- `/dashboard` → `DashboardRoute` wrapper: renders the **monolito** by default; renders `<MeuDiaV3Page/>` only when `isEnabled('dashboard_v3', effectiveRole)`.
+- `dashboard_v3` flag: `allowed_roles = {admin}`, `enabled = false`. An admin flips it on in `/configuracoes` to preview v3 progress; nobody else is affected. **No production regression** — every non-admin (and admin with flag off) keeps the working monolito.
+- `/labs/dashboard` → monolito under `AdminOnlyRoute` already in Phase 1 (this half of the inversion is safe).
+- `labs_dashboard` flag: **retired in Phase 1** (migration + refs removed from `Navbar.jsx`, `LabsDashboardPage.jsx`, `SettingsFeatureFlags.jsx`).
 
-> Durante a transição `/dashboard` e `/labs/dashboard` coexistem. A flag controla visibilidade da nova rota na Navbar e acesso direto (redirect to `/dashboard` if not enabled, same as `HealthDashboardPage` pattern).
+`financial_data` flag is **not** used to gate the finance HERO — the `get_finance_summary` RPC (§4.4) is the security boundary. `financial_data` continues to control `ClientSubDados` only.
 
-### 1.4 Color Tokens (canonical from `DashboardPage.jsx` object `C`)
+### 1.4 Color Tokens — source is `src/lib/scoring.js`
 
-| Token | Hex | Usage |
-|---|---|---|
-| `C.navy` | `#173557` | Headers, primary button |
-| `C.sky` | `#59c2ed` | Uso dimension, links |
-| `C.lime` | `#d3da47` | Projeto dimension |
-| `C.dimUso` | `#59c2ed` | Uso |
-| `C.dimSuporte` | `#b46cd1` | Suporte |
-| `C.dimRel` | `#d98b28` | Relacionamento |
-| `C.dimFin` | `#2f9e70` | Financeiro |
-| `C.dimProj` | `#d3da47` | Projeto |
-| `C.red` | `#d64545` | Alerta, band red |
-| `C.amber` | `#d98b28` | Atenção, band amber |
-| `C.green` | `#2f9e70` | Saudável, band green |
-| `C.line` | `rgba(15,34,58,0.09)` | Borders |
-| `C.ink` | `#0e223a` | Primary text |
+Import `C` and `HEALTH_ICONS` from `src/lib/scoring.js`. Do **not** copy tokens from `DashboardPage.jsx`. v3 palette matches: `C.navy #173557`, `navyDeep #0a1f33` (hero bg), `C.sky #59c2ed`, `C.lime #d3da47`, `C.ink #0e223a`, dim colors `C.dimUso/dimSuporte/dimRel/dimFin/dimProj`, band colors `C.red/amber/green`.
 
-Score bands: `≥75 green | 50-74 amber | <50 red` (reuse `scoreBand`, `scoreBandColor`, `scoreBandLabel` — redefine locally, do not import from DashboardPage).
+Score bands: use `scoreBand(s, thresholds)` with `thresholds` from `useHealthConfig().config` (`threshold_healthy` / `threshold_attention`, default 75/50). **Never hardcode 50/75.**
 
 ### 1.5 Health Dimensions (DIMS)
 
-| Key (clients column) | Label | Color | Icon |
+| clients column | Label | Color token | Icon (`HEALTH_ICONS`) |
 |---|---|---|---|
-| `health_uso` | Uso | `C.dimUso` | `Icons.BarChart3` |
-| `health_suporte` | Suporte | `C.dimSuporte` | `Icons.Target` |
-| `health_relacionamento` | Relacionamento | `C.dimRel` | `Icons.Handshake` |
-| `health_financeiro` | Financeiro | `C.dimFin` | `Icons.Wallet` |
-| `health_projeto` | Projeto | `C.dimProj` | `Icons.Rocket` |
+| `health_uso` | Uso | `C.dimUso` | `BarChart3` |
+| `health_suporte` | Suporte | `C.dimSuporte` | `Target` |
+| `health_relacionamento` | Relacionamento | `C.dimRel` | `Handshake` |
+| `health_financeiro` | Financeiro | `C.dimFin` | `Wallet` |
+| `health_projeto` | Projeto | `C.dimProj` | `Rocket` |
 
-Icon map recreate locally:
-```js
-const DIM_ICONS = {
-  health_uso: Icons.BarChart3,
-  health_suporte: Icons.Target,
-  health_relacionamento: Icons.Handshake,
-  health_financeiro: Icons.Wallet,
-  health_projeto: Icons.Rocket,
-}
-```
+Resolve `HEALTH_ICONS[dim]` (string) against `Icons[...]` from `src/lib/icons.js`.
+
+### 1.6 Greeting on v3 — three lines
+
+| Line | Source | Content |
+|---|---|---|
+| 1 | `useGreeting().text` | `"Boa tarde, Jorge."` (engine, deterministic) |
+| 2 | `useGreeting().extra` + date | `"sábado, 29 de agosto · {narrative}"` — date formatted in page, narrative from engine |
+| 3 | **page**, from sync status | `"Dados referente a jul/26"` — `dataRefMonth` (see §4.5) |
+
+The greeting-engine stays in Phase A. Line 3 is **not** an engine responsibility. `operational.criticalClients` passed to `useGreeting` = count of `health_total < threshold_attention` in scope.
+
+`identity.ts` gains `sales` + `finance` pools (editorial content, within Phase A scope) so those roles don't fall to `neutral`.
 
 ---
 
@@ -176,336 +190,434 @@ const DIM_ICONS = {
 
 ### 2.1 Core Components
 
-| Component | File | Props |
+| Component | File | Notes |
 |---|---|---|
-| `Button` | `src/components/ui/Button.jsx` | `variant` (primary/secondary/green/danger), `size` (sm/md) |
-| `Badge` | `src/components/ui/Badge.jsx` | `variant` (green/amber/red/sky/slate) |
+| `Button` | `src/components/ui/Button.jsx` | `variant` primary/secondary/green/danger, `size` sm/md |
+| `Badge` | `src/components/ui/Badge.jsx` | `variant` green/amber/red/sky/slate |
 | `PageHeader` | `src/components/ui/PageHeader.jsx` | `title`, `subtitle`, `action` |
 | `PageSpinner` | `src/components/ui/Spinner.jsx` | full-page loading |
-| `StagePill` | `src/components/ui/StagePill.jsx` | `name`, `color` |
-| `HealthScore` | `src/components/ui/HealthBar.jsx` | `score` |
-| `Icons` | `src/lib/icons.js` | Never import from `lucide-react` directly |
+| `Icons` | `src/lib/icons.js` | never import `lucide-react` directly |
+| `C`, `HEALTH_ICONS`, `scoreBand*`, `getSignals`, `buildReasons`, `daysSince`, `tempVencida` | `src/lib/scoring.js` | import, do not copy |
+| `BrazilMap` | `src/components/dashboard/BrazilMap.jsx` | `{ clients }` prop; **make interactive** — add `onSelectUF` + pin legend (§7) |
+| `Drawer` | `src/components/ui/Drawer.jsx` | **Create in Phase 3.** Generic right-side drawer: overlay + `<aside>` 380px + ESC + click-outside + `paddingRight` helper + single z-index scale. `HealthDashboardPage` migrates to it (§7). |
+| `ClientHealthDrawer` | `src/components/clients/ClientHealthDrawer.jsx` | Reuse as the v3 client drawer content; **extend with the monolith's `qaItems`** (§7). Self-contained (own queries). |
+| `ActivityDetailModal` / `ActivityModal` | `src/components/activities/` | Reuse as-is for agenda row → detail → edit/create. |
+| `ScopeLabel` | `src/components/dashboard/v3/ScopeLabel.jsx` | **Create.** Tiny chip: `"minha carteira"` / `"toda a base"`. On blocks 3–7. |
 
 ### 2.2 Reference Files for This Feature
 
-| File | What to reuse as template |
+| File | Reuse as template for |
 |---|---|
-| `src/components/dashboard/DashboardPage.jsx` | Color tokens `C`, helpers `scoreBand*`, `getSignals`, `alertaClients` urgency, `Panel`/`PanelHead`/`StripHead`/`SeeAll` patterns, drawer overlay pattern (`paddingRight` shift + fixed aside). **Do not import helpers — copy locally.** Replace inline `Ic.*` SVGs with `Icons.*`. |
-| `src/pages/HealthDashboardPage.jsx` | Isolated dashboard pattern: `useClients` + filters + scorecard + table + drawer + feature-flag guard. |
-| `src/pages/CockpitsPage.jsx` | Gateway card pattern for cockpits hub (simple grid of cards → routes). |
-| `src/pages/ProjectCockpitPage.jsx` / `ProfissionaisCockpitPage.jsx` | Cockpit page patterns (filters, summary bar, expandable rows). Reuse `PhaseCircle`/`Connector` compact version if timeline needed. |
-| `src/hooks/useClients.js` | Query pattern with `buildClientsQuery` + role scoping. |
-| `src/components/clients/tabs/ClientTabOverview.jsx` | Overview enrichment pattern (trend Δ, signals, quick actions, dimension accordion). |
-| `src/components/clients/ClientSubProjetos.jsx` | Expandable row pattern (`Set<id>` for expanded state). |
+| `src/components/dashboard/DashboardPage.jsx` | FAIXA 1 Pulso layout (navy hero), FAIXA 3 Portfólio (dim bars), FAIXA 4 Operacional (`ops_dashboard` query + `buildOpCountRows` + `opHealthAll` + `OpDeltaBadge`), `Panel`/`PanelHead`/`StripHead`/`SeeAll`. **Extract FAIXA 4 into `useOperationalDeltas`.** Replace inline `Ic.*` with `Icons.*`. |
+| `src/pages/HealthDashboardPage.jsx` | Isolated dashboard pattern: lifted `useClients` + filters + scorecard + `useHealthConfig` thresholds + drawer. |
+| `src/pages/CockpitsPage.jsx` | Card-grid gateway pattern. |
+| `src/pages/ProfissionaisCockpitPage.jsx` | Month-vs-month operational display + RPC consumption. |
+| `src/components/settings/SettingsSyncStatus.jsx` | How `sync_log` / `useSyncStatus` are read; `prevMonthValue()` helper for month math. |
+| `src/lib/greeting-engine/hooks/useGreeting.ts` | Greeting hook contract. |
 
-### 2.3 Panel Pattern (from DashboardPage.jsx)
+### 2.3 Panel Pattern
 
 ```jsx
 function Panel({ children, style }) {
   return (
     <div style={{
-      background: C.surface, border: `0.5px solid ${C.line}`, borderRadius: 16,
-      padding: '18px 20px 14px', display: 'flex', flexDirection: 'column', height: '100%',
-      boxSizing: 'border-box', ...style,
+      background: '#fff', border: `0.5px solid rgba(15,34,58,.08)`, borderRadius: 20,
+      padding: '20px 22px 16px', display: 'flex', flexDirection: 'column', height: '100%',
+      boxSizing: 'border-box', boxShadow: '0 1px 2px rgba(15,34,58,.04), 0 8px 24px rgba(15,34,58,.05)',
+      ...style,
     }}>{children}</div>
   )
 }
 ```
 
-Grid: use Tailwind `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4` for cockpit cards; avoid new CSS files.
+Grid: Tailwind `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4` / `lg:grid-cols-12`. Desktop-first, container `max-w-[1120px]`. No new CSS files.
 
-### 2.4 Layout & Spacing Tokens
+### 2.4 Design tokens + type scale (port requirement — from the UX critique)
 
-| Token | Tailwind | Usage |
-|---|---|---|
-| `bg-bg-primary` | `bg-bg-primary` | Cards, panels |
-| `bg-bg-secondary` | `bg-bg-secondary` | Page background |
-| `border-border-tertiary` | `border-border-tertiary` | Borders |
-| `text-text-primary` | `text-text-primary` | Titles |
-| `text-text-secondary` | `text-text-secondary` | Labels |
-| `text-text-tertiary` | `text-text-tertiary` | Hints |
+The mock `meu-dia-generic-v3.html` **defines** Tailwind color tokens (`navy/navyDeep/sky/lime/ink/ink3`) and then **uses them 0 times** — 100% of its color is arbitrary `bg-[#hex]` (22 near-duplicate hex values, 4 near-identical navies), plus 45× `text-[Npx]` and 25× inline `font-size`. The React port must:
+
+- Use `C` from `src/lib/scoring.js` for palette (already the canonical source) — no `#hex` literals in v3 components.
+- Use Tailwind's type scale (`text-xs`/`text-sm`/`text-base`/`text-lg`) or `rem`, **not** `text-[11px]` — the mock's px sizes don't respond to browser font scaling (a WCAG 1.4.4 failure).
+- Not port the mock's saturated dashboard chrome: glassmorphism hero cards, ~9 radial-gradient blur "orbs", 2 decorative hairline grids, `tabular-nums` on single digits, `border-l-2` accent on only 2 of 5 agenda rows, `animate-pulse` "liveness" dots. Keep the hero navy, the greeting composition, and the agenda urgency encoding — those work.
 
 ---
 
-## 3. Component Tree — `/labs/dashboard`
+## 3. Component Tree — `/dashboard`
+
+**Section order = personal first** (decision §7 — the mock buries the daily-work blocks at scroll depth 4, behind a decorative map; the critique flagged this as a peak-end / hierarchy failure).
 
 ```
-LabsDashboardPage (src/pages/labs/LabsDashboardPage.jsx)  route: /labs/dashboard — Genérica 5 blocks (Phase 1)
-├── PageHeader  title="Meu Dia"  subtitle="{dateStr} · {greeting} · {effectiveRole}"
-└── MeuDiaPanel (src/components/labs/MeuDiaPanel.jsx) — 5 blocks max, generic, no per-role cockpits
-    ├── Block 1 Header (greeting + date pt-BR)
-    ├── Block 2 Minhas próximas 48h (overdue + 48h, responsible_id=own where I participated → ActivityRow)
-    ├── Block 3 Saúde agregada (avg + bandas via health_config thresholds, minha carteira labsFilterFor, DIM strip)
-    ├── Block 4 Sinais agregado (getSignals chips: Sem interação/Temp vencida/Atividade atrasada)
-    └── Block 5 Atalhos estáticos (Empresas/Atividades/Contatos) + Feed 5 Minhas atividades recentes onde participei
-   // CockpitGrid + 6 *CockpitCard deferred to Phase 3+ (per-role), Drawer deferred to Phase 3
+MeuDiaV3Page (src/pages/MeuDiaV3Page.jsx)   route: /dashboard — all 6 roles, no flag
+│  lifted queries (A5 — single set, sliced via useMemo):
+│    useDashboardClients(profile)      → clients in scope (labsFilterFor)
+│    useActivities(scopedFilter)       → my activities
+│    useHealthConfig()                 → thresholds
+│    useProjectCockpit()               → open projects (portfolio-scoped internally for csm)
+│    useOperationalDeltas()            → FAIXA-4-style month deltas + op-* history drawer data
+│    useDashboardYtd()                 → RPC get_dashboard_ytd
+│    useSyncStatus()                   → dataRefMonth + "atualizado em" stamp
+│    financeSummary (get_finance_summary RPC) → only when effectiveRole ∈ {admin,manager,finance}
+│
+├── DashboardHeader
+│   ├── period selector — default "Fechamento de {mês}/{ano}"; per-block timeframe chip only where a block deviates
+│   └── "Atualizado em {DD/MM HH:mm}" stamp (from useSyncStatus) — states operacional closes monthly, CS is live
+│   └── [admin/manager] carteira/CSM dropdown (ported from monolith selectedCsm)
+│
+│  ── PERSONAL ──
+├── HeroBlock (src/components/dashboard/v3/HeroBlock.jsx)          bg navy (not glassmorphism)
+│   ├── GreetingHeader — line1 useGreeting().text · line2 date + useGreeting().extra · line3 dataRefMonth
+│   └── HeroCards — contract per effectiveRole: {label, value, sub, delta?, variant} × 3
+│         csm|sales|manager → Clientes · OS (Δ vs 90d avg) · Profissionais (Δ vs 90d avg)
+│         finance           → MRR·month (YTD) · Clientes em atraso (R$) · Renovação 30D   [masked RPC]
+│         analyst           → Total Tickets · Tickets em Aberto · Taxa Resolução
+│         admin             → default (= sales layout)
+│       cards navigate only when the destination is accessible to effectiveRole (else static)
+├── MinhaAgendaBlock — <ScopeLabel>minha carteira</ScopeLabel>-free (it's "minhas atividades")
+│     activities sorted atrasada > hoje > futura, cap 5; row → ActivityDetailModal
+│     CTA "Nova atividade" → ActivityModal  ·  secondary: analyst → "Novo atendimento" /atendimento
+│     write CTAs hidden for finance (RLS read-only on activities even after §6 migration)
+│
+│  ── MINHA CARTEIRA (ScopeLabel: "minha carteira" / "toda a base") ──
+├── SaudeDimensaoBlock — portfolio-scoped. Real stacked distribution (ok / atenção / risco) per dimension,
+│     sorted worst-first; at-risk account names inline. header "{count} · média {avg}" + ScopeLabel.
+│     bar/row → <Drawer> with <ClientHealthDrawer client={…}/>  ·  header → /health
+├── ProjetosAbertosBlock — portfolio-scoped. useProjectCockpit() summary + top 3.
+│     row → /projetos/:id  ·  "ver todos" → /projetos-cockpit  (gated by isEnabled('projects_cockpit', effectiveRole))
+│
+│  ── TODA A BASE (company-wide, identical for all roles; ScopeLabel: "toda a base") ──
+├── ForcaNumerosBlock — useDashboardYtd(): Clientes · OS criadas (ano) · Profissionais pico · Média health. Static cards.
+├── EcossistemaMapBlock — <BrazilMap clients={allClients} onSelectUF={uf => navigate('/empresas?estado='+uf)}/>
+│     + "Top estados" chips (also clickable). Real geography + pin legend (not the mock's fake blob).
+└── OperacionalVariacaoBlock — useOperationalDeltas(): 3 panels top-5 (OS / Profissionais / Health) · "{mesAtual} vs {mesAnterior}"
+      row top-5 → <Drawer> OperationalHistoryDrawer (op-os/op-users/op-health 3-month mini charts)
+      SeeAll → <Drawer> op-*-list (all clients) → row → /empresas/:id
+      "Sincronização de dados" panel + op-sync drawer + "sincronizar" button → ADMIN/MANAGER ONLY
+      (csm/sales/finance/analyst cannot read client_donc_instances — hide the panel)
 ```
 
-> **Project pattern:** DashboardPage builds divs inline with `style`. Follow same for MeuDiaPanel/CockpitCards — do not create new generic KpiCard abstractions unless justified. Reuse `Panel`/`PanelHead` locally.
+> **Project pattern:** build blocks with inline `style` + `Panel`, as the monolith does. Do not introduce a generic `KpiCard` abstraction unless a block genuinely repeats 3+ times.
+
+> **Interaction detail** — the full drawer/modal inventory and per-role gating matrix is in **§5 Interactive Surface & Permissions**.
 
 ### Page States
 
-| State | What to show |
+| State | Behavior |
 |---|---|
-| **Loading** | Shimmer skeleton: 1 MeuDia skeleton + 6 cockpit card skeletons |
-| **Empty** | "Nenhum dado para hoje" + CTA to register activity |
-| **Error** | "Erro ao carregar dashboard" + retry button |
-| **Data** | MeuDia + visible cockpits (role-filtered) |
+| **Loading** | Per-block shimmer skeleton (header + hero + 6 block skeletons). |
+| **Empty** | Per-block empty copy: agenda "Sem atividades" + CTA → `/atividades`; carteira blocks (csm with 0 clients) "Sua carteira ainda não tem empresas"; ops "!hasData" → link `/configuracoes`; map fetch fail → top-states list. |
+| **Error** | Per-block "Erro ao carregar" + retry (block-local `refetch`). One failing block must not blank the page. |
+| **Data** | Header + hero + all blocks in the §3 order. |
 
 ### 3.1 State Management
 
-- TanStack Query: `useClients(labsFilter)` with key `['clients', labsFilter]`, `useActivities`, `useProfiles`, `useHealthConfig`, `useProjectCockpit`.
-- `staleTime: 30s`, `retry: 1`, `gcTime: 5m` (same as App.jsx defaults).
-- Local UI state: `selectedCsm` (admin/manager), `expandedCockpit` (accordion one-at-a-time, optional).
-- No URL params for filters in Phase 0-1 (state local); deep links to `/empresas/:id?tab=X` preserved.
+- TanStack Query, `staleTime 30s / retry 1 / gcTime 5m` (App.jsx defaults).
+- Query keys: `['dashboard_clients', scopeKey]`, `['dashboard_ytd']`, `['operational_deltas', prevMonth, prevMonth2]`, `['projects_cockpit']` (shared), `['sync_status']` (shared), `['activities', filter]`.
+- Local UI state only: `selectedCsm` (admin/manager scope switch — optional Phase 3), block-level expand.
+- No URL params for filters in Phase 3. Deep links to `/empresas/:id?tab=X` preserved.
 
 ---
 
 ## 4. Data Contracts
 
-### 4.1 Clients — dual ownership
+### 4.1 Clients — scoped query (`useDashboardClients`)
 
-**Migration (Phase 2):**
-```sql
--- supabase/migrations/<ts>_add_comercial_id_to_clients.sql
-ALTER TABLE clients ADD COLUMN comercial_id uuid REFERENCES profiles(id);
-CREATE INDEX idx_clients_comercial_id ON clients(comercial_id);
-COMMENT ON COLUMN clients.comercial_id IS 'Commercial owner (separate from csm_id). Labs dashboard dual ownership.';
--- Optional backfill: leave NULL initially (commercial portfolio built incrementally)
-```
+Reuse `labsFilterFor(profile)` from `src/hooks/useLabsClients.js`:
 
-**Query contract (src/hooks/useLabsClients.js):**
 ```js
+// src/hooks/useDashboardClients.js
 import { useClients } from './useClients'
+import { labsFilterFor } from './useLabsClients'
 
-export function labsFilterFor(profile) {
-  if (!profile) return {}
-  const isAdminOrManager = profile.role === 'admin' || profile.role === 'manager'
-  if (isAdminOrManager) return { lifecycle_stage: 'cliente' } // sees all
-  // csm/comercial: sees where either csm_id or comercial_id matches
-  // Supabase OR not supported via buildClientsQuery helper; do two queries + merge or use .or()
-  return { lifecycle_stage: 'cliente', _labs_dual_owner: profile.id }
+export function useDashboardClients(profile, options) {
+  return useClients(labsFilterFor(profile), { enabled: !!profile, ...options })
 }
-// Implementation: buildClientsQuery with .or(`csm_id.eq.${id},comercial_id.eq.${id}`)
-// Use useClients(labsFilter, {enabled: !!profile}) for reading.
-// For comercial view specifically: { comercial_id: profile.id, lifecycle_stage: 'cliente' }
-// For CSM view specifically: { csm_id: profile.id, lifecycle_stage: 'cliente' }
+// admin/manager/finance → all lifecycle_stage='cliente'
+// sales → comercial_id = profile.id
+// csm  → csm_id = profile.id
 ```
 
-**Fields used (all exist except `comercial_id`):**
+Single lifted call in `MeuDiaV3Page`; blocks receive `clients` by prop or read the same query key. **Do not** let each block call `useClients` (gotcha A5).
 
-| Field | Type | Source | Note |
-|---|---|---|---|
-| `id` | integer | clients | PK |
-| `name` | text | clients | Fallback display |
-| `fantasy_name` | text | clients | Preferred display |
-| `lifecycle_stage` | text | clients | `cliente` filter mandatory |
-| `csm_id` | uuid | clients | FK profiles(id) — existing |
-| `comercial_id` | uuid | clients | FK profiles(id) — **NEW, nullable** |
-| `abc_class` | text | clients | A/B/C |
-| `stage_id` | uuid | clients | FK stages |
-| `stage` | object | join stages(*) | For pill |
-| `health_total` | integer | clients | 0-100 |
-| `health_uso/suporte/relacionamento/financeiro/projeto` | integer | clients | 0-20 each |
-| `health_trend` | integer | clients | DEFAULT 0 |
-| `mrr` | numeric | clients | For financeiro |
-| `delay_days` | integer | clients | For signals |
-| `csm_temperature` | integer | clients | -7/-3/0/3 |
-| `temperature_updated_at` | timestamptz | clients | For `tempVencida` |
-| `contract_active` | boolean | clients | |
-| `contract_renewal` | date | clients | renovacao30 |
-| `segment_id` | uuid | clients | |
-| `logo_url` | text | clients | |
-| `csm` | object | join profiles!clients_csm_id_fkey | `{id,name,email}` |
-| `comercial` | object | join profiles (new FK) | `{id,name,email}` — add to CLIENT_SELECT |
+Fields used: `id, name, fantasy_name, lifecycle_stage, csm_id, comercial_id, abc_class, stage_id, stage, health_total, health_uso/suporte/relacionamento/financeiro/projeto, health_trend, delay_days, csm_temperature, temperature_updated_at, contract_active, contract_renewal, address_city, address_state, logo_url`. **`mrr`, `billing_*` come from the masked source (§4.4), not this query.**
 
-> **RLS verification needed before Phase 2 merge:** confirm `clients` RLS policies allow reading `comercial_id` for all authenticated. If not, add policy. See `supabase/migrations/20260625200000_security_phase1_rls.sql`.
+### 4.2 YTD — `get_dashboard_ytd()` RPC (Phase 2, new)
 
-### 4.2 Profiles / Roles
-
-| Field | Type | Note |
-|---|---|---|
-| `id` | uuid | PK |
-| `name` | text | |
-| `email` | text | |
-| `role` | text | `admin|manager|csm|analyst` |
-| `status` | text | `active|pending|blocked|invited` |
-| `avatar_url` | text | |
-
-Used via `useProfiles()` for CSM/Comercial dropdowns. Filter `p.role === 'csm' || p.role === 'manager'` for selectors.
-
-### 4.3 Feature Flags
-
-| Field | Type | Note |
-|---|---|---|
-| `key` | text | `labs_dashboard` |
-| `label` | text | Labs Dashboard |
-| `enabled` | boolean | default false |
-| `allowed_roles` | text[] | `'{admin,manager,csm,analyst}'` |
-
-Migration:
 ```sql
-INSERT INTO feature_flags (key, label, enabled, allowed_roles)
-VALUES ('labs_dashboard', 'Labs Dashboard', false, '{admin,manager,csm,analyst}')
-ON CONFLICT (key) DO NOTHING;
+-- returns one row
+create or replace function get_dashboard_ytd()
+returns table (
+  clientes int,
+  clientes_novos_ano int,
+  os_criadas_ano bigint,
+  profissionais_pico int,
+  profissionais_pico_mes text,
+  health_media numeric
+) ...
 ```
 
-### 4.4 Role → Capability Matrix (validated decisions)
+- `clientes` = count `clients` where `lifecycle_stage='cliente'`.
+- `clientes_novos_ano` = count where `date_part('year', contract_start) = current year` (verify column: `contract_start` / `contract_signed_date`).
+- `os_criadas_ano` = `sum(client_usage.os_created)` for `ref_month` in current year.
+- `profissionais_pico` / `_mes` = `max(sum(active_users) per ref_month)` in current year + its month.
+- `health_media` = `avg(health_total)` current (or latest `health_snapshot` month).
 
-| Capability | Admin | Manager (Gestão) | Comercial | Financeiro | Suporte | Analyst (Atendimento) |
-|---|---|---|---|---|---|---|
-| View `/labs/dashboard` + "Meu Dia" | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ (flag-gated) |
-| View all cockpit cards | ✅ | ✅ | subset | subset | subset | Atendimento only |
-| **Empresas tabs** overview | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| **Empresas tabs** operacional | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Empresas tabs** relatorios | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Empresas tabs** anexos | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
-| **Empresas tabs** atividades | ✅ | ✅ | ✅* | ✅* | ✅* | via /atendimento |
-| **Empresas tabs** contatos | ✅ | ✅ | ✅* | ✅* | ✅* | via contatos |
-| **Empresas tabs** health | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Edit** 4 abas (Dados/Contrato/Operacional/Endereço) | ✅ | ✅ | ✅ (own portfolio: `comercial_id`) | ✅ (full 4 abas) | ❌ | ❌ |
-| `/projetos-cockpit` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| `/profissionais-cockpit` | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
-| `contatos` create/view | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `atividades` create/view (own) | ✅ (all) | ✅ (all) | ✅ (own `responsible_id`) | ✅ (own) | ✅ (own) | ✅ (own) |
-| `/configuracoes` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
-| **ClientDetail gating** per tab | — | ver tudo exceto config | overview/operacional/relatorios/anexos editable | editar 4 abas | analyst: Atendimento | manager vê tudo exceto config |
+`SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`. Scope: ecosystem-wide (not per-role) — "Nossa força em Números" is a company view. Confirm with stakeholder if csm/sales should see a scoped variant.
 
-* "Todos os roles podem ver/criar contatos e suas atividades" — contacts open; activities filtered by `responsible_id` for listing but creation allowed; no role blocks contacts.
+### 4.3 Operational deltas — `useOperationalDeltas` (Phase 2, extracted)
 
-**ClientDetail enforcement (ClientDetail.jsx):**
+Extract from `DashboardPage.jsx` FAIXA 4:
+- Query `client_usage` `select('client_id, ref_month, instance_id, os_abertas, os_created, active_users, health_snapshot, donc_snapshot')` where `ref_month in (prevMonth, prevMonth2)` and `pending = false` and `instance_id is not null`.
+- `opsByClient` = group by `client_id` → `ref_month`, sum `os_abertas`/`active_users` across instances.
+- `buildOpCountRows(opsByClient, clients, valOf, unit)` → rows sorted by `|delta|` desc; `state: 'new'` if prev `< 10`, else `up`/`down`; `delta%` = `round((cur-prev)/prev*100)`.
+- `opHealthAll` = `health_snapshot` delta in **points**.
+- Return `{ osRows, usersRows, healthRows, prevMonthLabel, prevMonth2Label, hasData }`.
+
+**90-day average for the HERO** (`+8% vs média 90 dias`): new — RPC or view over the last 3 completed `ref_month`s:
+
+```sql
+create or replace function get_operational_90d_avg()
+returns table (metric text, mes_atual numeric, media_90d numeric, delta_pct numeric) ...
+-- metric in ('os','profissionais'); ecosystem sums; media_90d = avg of last 3 ref_months
+```
+
+### 4.4 Finance summary — masked view (Phase 2, security-critical)
+
+Gotcha A3: `CLIENT_SELECT = *` currently exposes `mrr`, `billing_*`, `delay_days`, `contract_renewal` to every role. With `/dashboard` serving all roles and a finance HERO, this must be masked at the DB.
+
+Option A (preferred): **RPC** `get_finance_summary()`:
+```sql
+create or replace function get_finance_summary()
+returns table (mrr_mes numeric, mrr_ytd numeric, clientes_atraso int, valor_atraso numeric, renovacao_30d int)
+language plpgsql security definer as $$
+begin
+  if get_user_role() not in ('admin','manager','finance') then
+    raise exception 'forbidden';
+  end if;
+  return query select ...
+end $$;
+```
+`GRANT EXECUTE TO authenticated`. Front-end calls it only when `effectiveRole ∈ {admin,manager,finance}`.
+
+Option B: `clients_dashboard_view` that nulls `mrr`/`billing_*` unless `get_user_role() in ('admin','manager','finance')`; `useDashboardClients` reads the view instead of the table. Heavier refactor.
+
+**This blocks the finance HERO card in Phase 3.**
+
+### 4.5 `dataRefMonth` (greeting line 3)
+
 ```js
-const ROLE_TABS = {
-  admin:      ['overview','atividades','operacional','health','contatos','anexos'],
-  manager:    ['overview','atividades','operacional','health','contatos','anexos'],
-  comercial:  ['overview','operacional','anexos'], // + atividades/contatos via global tabs, relatorios is subtab
-  financeiro: ['overview','atividades','operacional','health','contatos','anexos'], // edit 4 abas only
-  suporte:    ['overview','atividades','contatos','anexos'],
-  analyst:    ['overview','atividades','contatos'], // but routed to /atendimento
-}
-function canEditForm(profile, client) {
-  if (profile.role === 'admin' || profile.role === 'manager') return true
-  if (profile.role === 'csm') return client.comercial_id === profile.id || client.csm_id === profile.id
-  return false // analyst never
-}
+// derive the month the operational data refers to
+// primary: last successful monthly-sync
+const lastOk = syncStatus?.status === 'success' ? syncStatus : null
+const refMonth = lastOk ? prevMonth(new Date(lastOk.started_at)) : null
+// fallback: MAX(client_usage.ref_month) where pending=false
+// render: "Dados referente a " + fmtMonthShortYear(refMonth)   → "jul/26"
 ```
 
-### 4.5 Activities Query
+Optional hardening (Phase 2): add `ref_month` to `sync_log.summary` in `supabase/functions/monthly-sync/index.ts` (it already computes `month = prevMonth()` at line ~194) so the front-end reads it directly instead of deriving.
+
+### 4.6 Activities — `MinhaAgendaBlock`
 
 Reuse `useActivities`:
 ```js
-const { data: myTasksRaw = [] } = useActivities(
-  profile?.role === 'admin' || profile?.role === 'manager'
-    ? { excludeStatuses: ['concluida','cancelada'] }
-    : { responsible_id: profile?.id, excludeStatuses: ['concluida','cancelada'] },
-  { enabled: !!profile }
-)
+const filter = (effectiveRole === 'admin' || effectiveRole === 'manager')
+  ? { excludeStatuses: ['concluida','cancelada'] }
+  : { responsible_id: profile.id, excludeStatuses: ['concluida','cancelada'] }
 ```
-Labs "Meu Dia" uses scoped view (own activities) for CSM/Comercial/Financeiro/Suporte; Gestão/Admin sees team/all.
+Sort: overdue (`due_date < today`) → today → future; cap 5. Badge: `ATRASADA` (red) / `HOJE` (amber) / `AGENDADA` (slate). **No participant model** — the mock's "participante" label maps to `responsible_id` only (note in module doc; revisit if `activity_participants` is ever added).
 
-Fields: same as `useActivities` select (client, contact, responsible, activity_attachments flag). `activity_date`, `due_date`, `type`, `status`.
+### 4.7 Projects — `ProjetosAbertosBlock`
 
-### 4.6 Contacts Query
+`useProjectCockpit()` (shared queryKey `['projects_cockpit']`). Summary: total open projects, distinct clients, top 3 by `progress`, `displayStatus` badge. Link → `/cockpits` (or `/projetos-cockpit`).
 
-Reuse `useContacts`:
-```js
-const { data: contacts = [] } = useContacts({ client_id: clientIdOptional })
-// No role filter — all roles can view/create.
-```
-Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `contact_phones`, `contact_emails`.
+### 4.8 Analyst HERO — tickets
 
-### 4.7 Navigation
+Source: `client_support` (`tickets_opened`, `tickets_resolved`) aggregated for the latest `ref_month`, plus WhatsApp/Freshdesk split if available. Cross-reference `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md`. If a clean aggregate is not reachable in Phase 3, render "—" with a tooltip and file a follow-up — do not block the release.
+
+### 4.9 Navigation
 
 | From | To | Guard |
 |---|---|---|
-| Navbar `/labs/dashboard` | `LabsDashboardPage` | `isEnabled('labs_dashboard', role)` else redirect to `/dashboard` |
-| CockpitCard CTA | `/health`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit`, `/empresas/:id?tab=X` | Existing cockpit flags |
-| Row click in cockpits | `/empresas/:id` (overview) or drawer | — |
-| Legacy `/dashboard` | Remains accessible (no redirect). Phase 6 deprecates after labs stable. |
+| Navbar "Dashboard" | `/dashboard` (`MeuDiaV3Page`) | none |
+| Navbar "Labs" | `/labs/dashboard` (`DashboardPage` monolith) | `AdminOnlyRoute` + Navbar shows item only if `effectiveRole==='admin'` |
+| HERO card / block CTAs | `/empresas`, `/atividades`, `/contatos`, `/cockpits`, `/atendimento` | existing route flags |
+| Agenda secondary CTA (analyst) | `/atendimento` | `whatsapp_atendimento` |
+| `AuthRedirect` / `AdminRoute` redirects | `/dashboard` | unchanged (target still valid) |
 
 ---
 
-## 5. Implementation Phases
+## 5. Interactive Surface & Permissions
 
-### Phase 0 — Foundation: Namespace + Flag + Shell Route
+> The mock `meu-dia-generic-v3.html` is **100% static** — no drawer, modal, clickable row, or dynamic tooltip; its only real behavior is the "Ver como" dropdown and `?role=` swap. The interactive layer for v3 is specified here, from the monolith (`DashboardPage.jsx`) and the existing cockpits.
 
-**Status:** Complete — 2026-08-24 (`ba0ba66`)
+### 5.1 Drawer mechanic
 
-**Rationale:** Isolar o novo trabalho num namespace `/labs/dashboard` evita regressão no `/dashboard` que ainda está em produção e tem múltiplos consumers (CSM, gestão, financeiro). A flag `labs_dashboard` permite desenvolver em `main` com deploy contínuo sem expor a feature antes de estar pronta. Técnica de branch-by-abstraction: nova rota coexiste com a antiga até Phase 6. Implementado com `commercial_id` já live, permitindo sales ter carteira real antes de Meu Dia.
+`{ mode, data }` state; `openDrawer(mode, data)` / `closeDrawer()`. Shell today is **copy-pasted** in `HealthDashboardPage.jsx:214-435` and `DashboardPage.jsx:1316/1735-1752` (overlay `fixed inset:0 rgba(14,34,58,0.18) z-40` + `<aside> fixed right:0 width:380 z-50 translateX(0/100%) cubic-bezier(.3,.7,.3,1)` + container `paddingRight: open ? 380 : 0` + ESC). **v3 extracts this into `src/components/ui/Drawer.jsx`** and migrates `HealthDashboardPage` to it (§6 Phase 3). Project z-index is inconsistent (40/50 dashboards, 99/100 Donkie, 300/1000 modais) — the new `Drawer` defines the scale.
 
-**Scope:**
-- Migration da flag `labs_dashboard`
-- Criação da rota `/labs/dashboard` com shell vazio (PageHeader + "Em construção" + guard)
-- Navbar item condicional via `availableLinks`
-- Estrutura de pastas `src/pages/labs/` + `src/components/labs/`
+### 5.2 Monolith drawer — 13 modes (reference for v3 behavior)
 
-#### Checklist
+| mode | trigger | content | row click |
+|---|---|---|---|
+| `cliente` | rows in alerts / portfolio / silent lists + the list modes below | header score/tendência/temperatura · motivo do alerta · sinais (`getSignals`) · ações rápidas (`qaItems`, ≤5) · saúde por dimensão | — |
+| `overdue` | pill "atividades atrasadas" | `DRow` list | → `ActivityDetailModal` |
+| `silent` · `milestones` · `temps` · `healthy` · `renewals` · `risk` | FAIXA-1 pills + counters + SeeAll | client / phase list | → `openDrawer('cliente')` (in-place swap) |
+| `op-os` · `op-users` · `op-health` | top-5 rows of FAIXA-4 panels | `DrawerOpContent`: 3 three-month mini bar-charts, current-mode series highlighted | — (footer → `/empresas/:id`) |
+| `op-os-list` · `op-users-list` · `op-health-list` | SeeAll of the panels | month variation, all clients | → `closeDrawer(); navigate('/empresas/:id')` |
+| `op-sync` | SeeAll "Sincronização de dados" | `instancesNoSync` + per-row "sincronizar" → `handleSync(inst.id, inst.clientId)` | — |
 
-- [x] **Create `supabase/migrations/20260824000007_labs_dashboard_flag.sql`**
-  - [x] `INSERT INTO feature_flags (key, label, enabled, allowed_roles) VALUES ('labs_dashboard','Labs Dashboard — Meu Dia + Cockpits isolados', false, ARRAY['admin','manager','csm','sales','finance','analyst']) ON CONFLICT DO NOTHING` then `20260824000010_labs_dashboard_admin_only.sql` restricted to `{admin}` for Phase 0
-  - [x] Deploy: `supabase db push --include-all` (verified `labs_dashboard` enabled false, allowed_roles admin only at start)
-- [x] **Create `src/pages/labs/LabsDashboardPage.jsx`**
-  - [ ] Functional component with feature-flag guard (redirect to `/dashboard` if `!isEnabled('labs_dashboard', profile.role)`)
-  - [ ] Loading state: `PageSpinner`
-  - [ ] Empty shell: `PageHeader title="Labs · Dashboard" subtitle="Em construção"` + placeholder text
-  - [ ] `C` tokens defined locally (copy relevant subset from `DashboardPage.jsx`)
-  - [ ] Uses `Icons.*` (no inline SVGs)
-- [x] **Modify `src/App.jsx`**
-  - [x] Import `LabsDashboardPage`
-  - [x] Add `<Route path="/labs/dashboard" element={<LabsDashboardPage />} />` inside `PrivateRoute > AppLayout` (adjacent to `/dashboard`, not inside `AdminRoute`)
-- [x] **Modify `src/components/layout/Navbar.jsx`**
-  - [x] Add `{ to: '/labs/dashboard', label: 'Labs', featureFlag: 'labs_dashboard' }` to `mainNavLinks` (or `...availableLinks` pattern — verify existing `featureFlag` filtering already handles it; if `mainNavLinks` lacks `featureFlag` support, wire `isEnabled` filter like health's pattern)
-  - [x] Ensure `labs_dashboard` item does not show for unauthorised roles
-- [x] **Create folder structure** `src/components/labs/` + `src/components/labs/cockpits/` (empty, with `.gitkeep` or first file)
-- [x] **Verify (partial)**
-  - [x] `npm run build` with no errors
-  - [x] Manual: admin sees `/labs/dashboard` route; analyst/csm without flag cannot access (redirect)
-  - [ ] Navbar shows/hides correctly per role
+`qaItems` (client drawer, ≤5, conditional): "Concluir atividade atrasada" (→ `ActivityDetailModal`), "Ver onboarding atrasado", "Registrar contato agora", "Atualizar temperatura", "Ver projeto ativo", "Registrar atividade" — the last four `navigate('/empresas/:id?tab=…')` or `/projetos/:id`.
+
+### 5.3 v3 client drawer
+
+Reuse **`ClientHealthDrawer`** (`src/components/clients/ClientHealthDrawer.jsx`) — the only extracted drawer-content component, self-contained (7 own queries, `staleTime 2-5min`, `enabled: !!client.id`), props `{ client, onClose }`. It already renders header + `buildReasons` + `getSignals` + accordion of real per-dimension metrics + 5 navigation quick-actions. **Extend it with the monolith's `qaItems`** (merge with the existing 5). It writes nothing — it is the navigation hub to `/empresas/:id?tab=…`.
+
+### 5.4 Modals
+
+- **`ActivityDetailModal`** — agenda row · `overdue` drawer · `qaItems[0]`. Actions: concluir/reabrir, editar (→ `ActivityModal`), excluir, Google Calendar sync, anexos. Own overlay.
+- **`ActivityModal`** (create/edit) — opened from `MinhaAgendaBlock` "Nova atividade" and from `ActivityDetailModal` "Editar".
+- `useActivityMutations` — `create`/`update`/`remove`, invalidates `['activities']` + `['client']`.
+
+### 5.5 Sync action
+
+`handleSync(instId, clientId)` — 2× `fetch` to edge function `donc-api-sync`; `syncing[instId]` state; invalidates `['instances_no_sync']`, `['ops_dashboard']`, `['clients']`. **Admin/manager only in v3** — csm/sales/finance/analyst cannot SELECT `client_donc_instances` (RLS), so the "Sincronização" panel and `op-sync` drawer are hidden for them.
+
+### 5.6 Per-block interaction + gating
+
+| Block | Scope | Interaction | Role gating |
+|---|---|---|---|
+| **HERO cards** | user | card navigates only if destination accessible to `effectiveRole` (else static, no `cursor-pointer`) | MRR card → data from `get_finance_summary` (admin/manager/finance); tickets card → `/atendimento` |
+| **Minha agenda** | user (`responsible_id`) | row → `ActivityDetailModal`; "Nova atividade" → `ActivityModal` | create/edit/concluir: all except **finance** (RLS read-only on `activities` even after §6 migration — hide write CTAs for finance) |
+| **Saúde por dimensão** | carteira | bar/row → `<Drawer>` + `<ClientHealthDrawer>`; header → `/health` | scoped by `useDashboardClients` / `labsFilterFor` |
+| **Projetos em aberto** | carteira | row → `/projetos/:id`; "ver todos" → `/projetos-cockpit` | "ver todos" gated by `isEnabled('projects_cockpit', effectiveRole)` |
+| **Nossa força em Números** | toda a base | static cards (institutional) | none |
+| **Mapa vivo** | toda a base | UF / pin → `/empresas?estado=UF` (destination list scoped by RLS) | none on the map; list is RLS-scoped |
+| **Operacional variação mensal** | toda a base | top-5 row → `<Drawer>` `OperationalHistoryDrawer` (`op-os`/`op-users`/`op-health`); SeeAll → `op-*-list` drawer → row → `/empresas/:id` | `op-*` drawers visible to all (data RLS-scoped); **`op-sync` panel + drawer + "sincronizar" button → admin/manager only** |
+| **DashboardHeader** | — | period selector; "atualizado em"; carteira/CSM dropdown | dropdown → admin/manager only |
+| **Nav "Ver como"** | — | `setImpersonation` + `window.location.reload()` | admin only (already) |
+
+### 5.7 "Quem interage com o quê" — per-role matrix
+
+| Interação | admin | manager | csm | sales | finance | analyst |
+|---|---|---|---|---|---|---|
+| Abrir drawer de cliente (read) | ✅ | ✅ | ✅ carteira | ✅ carteira dual | ✅ | ✅ |
+| Criar / editar / concluir atividade | ✅ | ✅ | ✅ (após §6 migration) | ✅ (após §6 migration) | ❌ RLS | ✅ |
+| Disparar sync DONC / ver painel de sync | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| HERO com MRR | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Filtro carteira/CSM no header | ✅ | ✅ | — | — | ❔ (avaliar) | — |
+| Drill operacional (`op-*` drawer) | ✅ | ✅ | ✅ scoped | ✅ scoped | ✅ | ❌ (analyst) |
+| "Ver como" | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+### 5.8 Transversal gating rule
+
+Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A navigation target renders as an active link only if the role has access (RLS scope or `isEnabled(flag, effectiveRole)`) — otherwise the element renders static. A mutation the RLS still blocks (finance on `activities`, non-admin on sync) → **hide the CTA**, do not let it fail with a toast.
+
+### 5.9 Interaction components (Phase 3)
+
+| Component | Action |
+|---|---|
+| `src/components/ui/Drawer.jsx` | **Create** — shared shell (§5.1). `HealthDashboardPage` migrates + `/health` retested. |
+| `src/components/clients/ClientHealthDrawer.jsx` | **Edit** — add `qaItems` (merge with existing 5 nav actions). |
+| `src/components/dashboard/v3/OperationalHistoryDrawer.jsx` | **Create** — extract `op-os`/`op-users`/`op-health` + `op-*-list` from the monolith. |
+| `src/components/dashboard/BrazilMap.jsx` | **Edit** — `onSelectUF` navigate; pin legend; graceful degrade if the external GeoJSON fails. |
+| `src/components/dashboard/v3/ScopeLabel.jsx` | **Create** — "minha carteira" / "toda a base" chip. |
+| `ActivityDetailModal` / `ActivityModal` | Reuse directly. |
+
+---
+
+## 6. Implementation Phases
+
+### Phase 0 — Foundation: Namespace + Flag + Shell
+
+**Status:** Complete — 2026-08-24 (`ba0ba66`). Kept as history.
+
+**Rationale:** isolar o novo trabalho num namespace `/labs/*` com branch-by-abstraction. A rota `/labs/dashboard`, a estrutura de pastas e o backdoor "Ver como" seguem válidos; muda apenas o que renderiza em cada rota (agora invertido) e a aposentadoria da flag.
 
 #### Implementation Log (Phase 0)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-24 | `644e690` | `supabase/migrations/20260824000007_labs_dashboard_flag.sql` | `labs_dashboard` flag `enabled false {admin,manager,csm,sales,finance,analyst}` |
-| 2026-08-24 | `74523d0` | `supabase/migrations/20260824000008_add_comercial_id.sql` + `20260824000009_rls_comercial_dual.sql` + `20260824000010_labs_dashboard_admin_only.sql` | `comercial_id` column + RLS dual ownership + labs flag restricted to `{admin}` |
-| 2026-08-24 | `ba0ba66` | `src/pages/labs/LabsDashboardPage.jsx` (created), `src/App.jsx`, `src/components/layout/Navbar.jsx` | Labs shell Phase 0 complete, branch-by-abstraction, PrivateRoute analyst exception, admin only |
+| 2026-08-24 | `644e690` | `supabase/migrations/20260824000007_labs_dashboard_flag.sql` | `labs_dashboard` flag created (`enabled false`, 6 roles) |
+| 2026-08-24 | `74523d0` | `20260824000008/9/10_*.sql` | `comercial_id` column + RLS dual ownership + labs flag restricted to `{admin}` |
+| 2026-08-24 | `ba0ba66` | `src/pages/labs/LabsDashboardPage.jsx`, `src/App.jsx`, `src/components/layout/Navbar.jsx` | Labs shell live, admin only, `PrivateRoute` analyst carve-out |
 
 ---
 
-### Phase 1 — "Meu Dia" (Generic Dashboard — 5 blocks, truly generic, no MRR/OS)
+### Phase 1 — Route Scaffold + Transitional Flag + Shell
 
-**Status:** In progress — focus only on generic per stakeholder (per-role cockpits deferred to Phase 3+)
+**Status:** Planned — active next.
 
-**Rationale:** `Dashboard` atual tem todas as regras de negócio corretas (thresholds `±35%` via `health_config` `75/50` com `useHealthConfig`, `getSignals`, `daysSince`, `tempVencida`) e funciona. `labs/dashboard` não deve recriar regras, só **reusar e repartir**: primeiro uma `Genérica` que atende qualquer perfil com o que é de uso comum, depois cada papel ganha sua dash com o que é indispensável para seu trabalho. Genérica é `Minhas atividades 48h` (own, onde participei) + `Saúde agregada` da minha carteira + `Sinais agregado` + `Atalhos estáticos` + `Feed recente` — sem `MRR` (fica em `financial_data` + cockpit `finance/manager` global) e sem `OS vs avg90` (operacional vai para cockpits por papel). Valida extração de `src/lib/scoring.js` sem fork.
+**Rationale:** o objetivo é montar o andaime de rotas **sem regressão em produção**. O Vercel faz deploy automático no push, então `/dashboard` não pode virar um shell "em construção" para os usuários entre a Fase 1 e a Fase 3. Solução: uma **flag transitória `dashboard_v3`** (`{admin}`, `enabled=false`) — `/dashboard` continua servindo o monolito por padrão e só mostra a v3 quando a flag está ligada. Admin liga a flag em `/configuracoes` para acompanhar a v3 sendo construída, e compara com o monolito em `/labs/dashboard` (que já vira `AdminOnlyRoute` agora). A **troca definitiva** (`/dashboard` → v3 para todos, drop da flag `dashboard_v3`, carve-out do analyst) acontece no **fim da Fase 3, num único deploy**. A flag `labs_dashboard` (que gateava o shell antigo) é aposentada agora — `/labs/dashboard` passa a ser guardado por papel, não por flag.
 
-**Scope — Genérica only:**
-- `MeuDiaPanel.jsx`: 5 blocks max, `Header` + `Minhas próximas 48h` (own) + `Saúde agregada` (minha carteira `labsFilterFor(profile)`, `scoreBand` via `health_config`) + `Sinais` (3-4 chips `Sem interação/Temp vencida/Atividade atrasada`) + `Atalhos estáticos (Empresas/Atividades/Contatos) + Feed 5` (minhas atividades recentes onde participei)
-- Reusar `getSignals`, `scoreBand*` (`thresholds` param via `health_config`, não hardcode `35%`), `daysSince`, `tempVencida` via `src/lib/scoring.js` centralizado (mandatory)
-- Single lifted `useLabsClients(profile)` + `useActivities({responsible_id: own})` + `useHealthConfig` + `lastActivityMap`; `labsFilterFor` scoped (`sales comercial_id`, `csm` csm_id, `finance/manager/admin` global mas genérica usa scoped own para atividades)
+**Scope:**
+- `AdminOnlyRoute` guard (admin-strict).
+- `/labs/dashboard` → monolito sob `AdminOnlyRoute` (inversão parcial — só o lado labs).
+- `/dashboard` → `DashboardRoute` wrapper: monolito por padrão, v3 quando `isEnabled('dashboard_v3', effectiveRole)`.
+- Migration: aposentar `labs_dashboard`, criar `dashboard_v3` (`{admin}`, `enabled=false`).
+- Navbar: "Labs" visível só para admin.
+- `MeuDiaV3Page` shell.
+- `PrivateRoute` **não muda** nesta fase (analyst só ganha `/dashboard` na Fase 3, quando a v3 tem HERO de analyst).
 
-#### Checklist (Active — Genérica only)
+#### Checklist
 
-- [ ] **Create `src/lib/scoring.js` (mandatory — blocks fork)**
-  - [ ] Extract `C` subset, `DIMS` (`health_uso` `#59c2ed` etc), `scoreBand/Color/Label` with `thresholds` param (from `useHealthConfig` `75/50`, not hardcode), `getSignals`, `buildReasons`, `daysSince`, `tempVencida`, `fmtDate`, `ago30Str` as pure fns. Add `no-restricted-imports` guard.
-- [ ] **Create `src/components/labs/MeuDiaPanel.jsx` (5 blocks max, generic)**
-  - [ ] Props: `{clients, healthConfig, activities, lastActivityMap}` from lifted queries (no internal `useClients` duplication)
-  - [ ] Block 1 Header: `Meu Dia · {dateStr pt-BR} · {greeting}` + `effectiveRole` badge via `useAuth` + `useGreeting`
-  - [ ] Block 2 Minhas próximas 48h: `overdue + next 48h` where `responsible_id=own` (avaliar `participants` vs `responsible_id` — manager pode ver vazio, ok para genérica; own é correto per spec "só faz sentido ver as que eu fiz parte")
-  - [ ] Block 3 Saúde agregada: `avg health_total + bandas Saudáveis/Atenção/Alerta` da **minha carteira** (`labsFilterFor`), `C.dim*` strip, no MRR, no CSM filter, thresholds from `health_config`
-  - [ ] Block 4 Sinais: aggregated chips count via `getSignals` memo (no lista completa por cliente → Phase 2 drawer)
-  - [ ] Block 5 Atalhos estáticos `Empresas/Atividades/Contatos` (no per-role cockpit links) + Feed 5 `Minhas atividades recentes onde participei` (`activity_date desc`)
-  - [ ] States: loading skeleton 3 rows shimmer, empty "Sem atividades onde participei" + CTA `→ Atividades`, error retry; Icons only `Icons.*`; no `DashboardPage` import
-- [ ] **Modify `src/pages/labs/LabsDashboardPage.jsx` (lifted queries)**
-  - [ ] Single `useLabsClients(profile)` + `useActivities({responsible_id: own})` + `useHealthConfig()` + `lastActivityMap` lifted, `dateStr` memo, render `<MeuDiaPanel />`, handle loading/error/empty delegation; no `CockpitGrid` import in Phase 1
-- [ ] **Create `docs/mock/meu-dia-generic.html` (HTML Tailwind static)**
-  - [ ] Mock estático desktop 1280px com dados mock, `C` tokens, `Icons.*` placeholders, states loading/empty/error
-- [ ] **Build:** `npm run build` with no errors
-- [x] **Verify (partial)**
-  - [ ] `/labs/dashboard` shows MeuDia com atividades own (sales vê só own, finance/manager também own na genérica) e saúde da própria carteira, sem MRR/OS
-  - [ ] `isEnabled('financial_data')` não afeta genérica (MRR escondido)
-  - [ ] No N+1 (single `clients` query lifted)
+- [x] **`src/App.jsx`**
+  - [x] `AdminOnlyRoute()` — `if (effectiveRole !== 'admin') return <Navigate to="/dashboard" replace/>`; guards on `flagsLoading`.
+  - [x] Route `/dashboard` → `<DashboardRoute/>`.
+  - [x] `/labs/dashboard` nested under `<Route element={<AdminOnlyRoute/>}>` → `<LabsDashboardPage/>`.
+  - [x] `PrivateRoute` line 97 left untouched (moved in Phase 3).
+- [x] **`src/pages/DashboardRoute.jsx`** — monolito por padrão, `MeuDiaV3Page` quando `isEnabled('dashboard_v3', effectiveRole)`.
+- [x] **`src/pages/labs/LabsDashboardPage.jsx`** — thin wrapper of `<DashboardPage/>` + "Modo legado" banner; flag guard removed.
+- [x] **`src/components/layout/Navbar.jsx`** — Labs item `adminOnly: true`; `availableLinks` also filters `adminOnly` by `effectiveRole === 'admin'`.
+- [x] **Migration `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql`** — `DELETE labs_dashboard` + `INSERT dashboard_v3` (`description`, `{admin}`, `enabled=false`). **NOT pushed** — awaiting authorization.
+- [x] **`src/components/settings/SettingsFeatureFlags.jsx`** — `labs_dashboard` → `dashboard_v3` in `FLAG_GROUPS`.
+- [x] **`src/pages/MeuDiaV3Page.jsx` (shell)** — `PageHeader` + 7 placeholder cards in §3 order with `ScopeLabel` text + shimmer. Icons only.
+- [x] **Build:** `npm run build` — OK (2200 modules, no errors).
+- [ ] **Verify (local, pre-deploy):** manual per-role check pending — needs `npm run dev` + the migration applied (or a local `dashboard_v3` row) to exercise the flag path.
+- [ ] **Deploy:** `git push origin main` + `node_modules/.bin/supabase db push --include-all` — **awaiting authorization**.
 
 #### Implementation Log (Phase 1)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| 2026-08-29 | _(uncommitted)_ | `src/App.jsx`, `src/pages/DashboardRoute.jsx` (new), `src/pages/MeuDiaV3Page.jsx` (new), `src/pages/labs/LabsDashboardPage.jsx`, `src/components/layout/Navbar.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` (new) | Route scaffold: `AdminOnlyRoute`; `/dashboard` → `DashboardRoute` (monolito por padrão, v3 via flag `dashboard_v3`); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell. Build OK. **Não commitado / não deployado.** |
+
+---
+
+### Phase 2 — Data Foundation (full-fidelity backend)
+
+**Status:** Planned — depends on Phase 1.
+
+**Rationale:** a v3 é full-fidelity, então as fontes que hoje não existem precisam ser criadas **antes** de montar a UI, senão os blocos nascem com mock. Três frentes: (1) agregação YTD e média 90 dias (não existem — tudo hoje é mês-vs-mês); (2) masking de MRR no banco (gotcha A3 vira crítico com `/dashboard` global); (3) extrair a lógica da FAIXA 4 do monolito para um hook reutilizável sem fork. Também: pools `sales`/`finance` no greeting (editorial, cabe na Phase A) e o helper de `dataRefMonth`.
+
+**Scope:**
+- RPCs `get_dashboard_ytd`, `get_operational_90d_avg`. (The map aggregates UF client-side from `address_state` — no RPC.)
+- `get_finance_summary()` RPC with role check (§4.4).
+- `useOperationalDeltas`, `useDashboardYtd`, `useDashboardClients` hooks.
+- `dataRefMonth` helper (+ optional `ref_month` in `monthly-sync` summary).
+- `identity.ts` `sales`/`finance` pools.
+
+#### Checklist
+
+- [ ] **Migration `<ts>_dashboard_v3_rpcs.sql`**
+  - [ ] `get_dashboard_ytd()` (§4.2) — verify `clients` date column for "novos no ano".
+  - [ ] `get_operational_90d_avg()` (§4.3) — last 3 completed `ref_month`s, ecosystem sums.
+  - [ ] All `SECURITY DEFINER`, `GRANT EXECUTE TO authenticated`, `REVOKE FROM anon`.
+  - [ ] Map: no RPC — `EcossistemaMapBlock` passes the lifted `clients` to `BrazilMap`, which aggregates by `address_state` (UF) client-side.
+- [ ] **Migration `<ts>_finance_summary_rpc.sql`**
+  - [ ] `get_finance_summary()` with `get_user_role() in ('admin','manager','finance')` guard (§4.4).
+  - [ ] Manual test: call as csm/sales/analyst → `forbidden`; as finance/manager/admin → rows.
+- [ ] **Migration `<ts>_activities_csm_sales_write.sql`** (unblocks "Nova atividade" / "Concluir" for csm/sales — §5.7)
+  - [ ] `CREATE POLICY activities_csm_write ON activities FOR INSERT/UPDATE TO authenticated USING/WITH CHECK (get_user_role()='csm' AND client_id IN (SELECT id FROM clients WHERE csm_id = auth.uid()))`.
+  - [ ] `CREATE POLICY activities_sales_write ON activities ... (get_user_role()='sales' AND client_id IN (SELECT id FROM clients WHERE comercial_id = auth.uid() OR csm_id = auth.uid()))`.
+  - [ ] finance stays read-only on `activities` (no policy) — the v3 hides write CTAs for finance.
+  - [ ] `supabase-guard` validates; manual 403 test per role before + after.
+- [ ] **`src/hooks/useOperationalDeltas.js`** — extract FAIXA 4 (§4.3). queryKey `['operational_deltas', prevMonth, prevMonth2]`, `staleTime 5min`. Also expose the 3-month per-client history used by the `op-*` drawer.
+- [ ] **`src/hooks/useDashboardYtd.js`** — `useQuery(['dashboard_ytd'], rpc get_dashboard_ytd)`.
+- [ ] **`src/hooks/useDashboardClients.js`** — §4.1.
+- [ ] **`src/lib/greeting-engine/content/identity.ts`** — add `sales` + `finance` pools (2 phrases each, tone per `greeting-engine-tone-guide.md`). Update the role union type if present.
+- [ ] **`dataRefMonth`** — helper in `MeuDiaV3Page` or `src/lib/scoring.js` (§4.5). Optional: `supabase/functions/monthly-sync/index.ts` add `ref_month: month` into the `sync_log` update `summary`.
+- [ ] **Build:** `npm run build`. **Deploy:** `node_modules/.bin/supabase db push --include-all`; run `node scripts/fix-supabase-urls.js` if functions were touched.
+- [ ] **Verify:** `get_dashboard_ytd` returns sane numbers; `get_operational_90d_avg` matches a manual spot-check; `get_finance_summary` 403s for non-finance; greeting shows a `sales`/`finance` specific line.
+
+#### Implementation Log (Phase 2)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
@@ -513,105 +625,63 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ---
 
-### Phase 2 — Dual Ownership: `comercial_id` Migration + Lifecycle Hardening
+### Phase 3 — Dashboard v3 Build
 
-**Status:** Complete — 2026-08-24 (`74523d0`) — executed before Phase 1 per stakeholder prioritization (sales portfolio before dashboard)
+**Status:** Planned — depends on Phase 2.
 
-**Rationale:** A dupla titularidade (`comercial_id` + `csm_id`) é pré-requisito para o cockpit Comercial e para o controle de acesso em `ClientDetail`. Sem a coluna no banco, qualquer gating no frontend seria frágil. Ao aplicar a migration cedo, os dados podem ser populados incrementalmente (backfill manual via `/configuracoes` ou script) enquanto as fases de UI avançam. O endurecimento de `lifecycle_stage` garante que leads não vazem para cockpits comerciais/financeiros. Executado fora de ordem (antes de Phase 1) conforme aprovado — sales já tem carteira real.
+**Rationale:** com as fontes prontas, montar os 7 blocos do mock v3 reusando o máximo do que existe: `scoring.js` (tokens + sinais + bandas), `BrazilMap` (mapa), `useProjectCockpit` (projetos), a FAIXA 4 já extraída. Cada bloco isola loading/empty/error para que uma fonte lenta ou quebrada não derrube a página. O HERO por papel é a única parte genuinamente nova de UI.
 
 **Scope:**
-- Migration `comercial_id` + index
-- Update `useClients`/`useClient` client select + `buildClientsQuery` to support `comercial_id`
-- `ClientForm` field for `comercial_id` (dropdown from `useProfiles`)
-- Backfill strategy (leave NULL, populate via UI)
-- RLS/policy verification
+- Shared `src/components/ui/Drawer.jsx` + migrate `HealthDashboardPage` to it.
+- `MeuDiaV3Page` lifted queries + **personal-first layout** (§3) + `DashboardHeader` (period + "atualizado em" + carteira dropdown).
+- 7 blocks under `src/components/dashboard/v3/` + `ScopeLabel`.
+- `ClientHealthDrawer` extended with `qaItems`; `OperationalHistoryDrawer` extracted.
+- `BrazilMap` made interactive (`onSelectUF`).
+- Missing icons.
+- **WCAG 2.1 AA baseline is a completion gate** (not future work).
+- Optional: migrate `DashboardPage.jsx` helpers to `src/lib/scoring.js`.
 
 #### Checklist
 
-- [x] **Create `supabase/migrations/20260824000008_add_comercial_id.sql`**
-  - [x] `ALTER TABLE clients ADD COLUMN comercial_id uuid REFERENCES profiles(id) ON DELETE SET NULL`
-  - [x] `CREATE INDEX idx_clients_comercial_id ON clients(comercial_id)`
-  - [x] `COMMENT ON COLUMN clients.comercial_id IS 'Commercial owner — separate from csm_id. Labs dashboard dual ownership.'`
-  - [ ] Optional: `ALTER TABLE clients ADD CONSTRAINT chk_comercial_csm_distinct CHECK (comercial_id IS NULL OR csm_id IS NULL OR comercial_id != csm_id)` — or skip if same person allowed
-  - [ ] Deploy: `supabase db push --include-all` + verify `psql \d clients`
-- [x] **Modify `src/hooks/useClients.js`**
-  - [x] Extend `CLIENT_SELECT` to include `comercial:profiles!clients_comercial_id_fkey(id,name,email)` — verify FK name (may be `clients_comercial_id_fkey` auto-generated)
-  - [x] Add `if (filters.comercial_id) q = q.eq('comercial_id', filters.comercial_id)` to `buildClientsQuery`
-  - [x] Add `if (filters._labs_dual_owner) q = q.or(`csm_id.eq.${id},comercial_id.eq.${id}`)` or dual-query merge — verify Supabase `.or()` syntax; if unsupported, do two queries client-side merge
-- [x] **Modify `src/hooks/useClient.js`**
-  - [x] Extend select to include `comercial:profiles!clients_comercial_id_fkey(id,name,email)` and `comercial_id`
-- [x] **Modify `src/components/clients/ClientForm.jsx`**
-  - [x] Add `comercial_id: ''` to `EMPTY` + `form` state
-  - [x] Add select dropdown for Comercial (profiles filtered by role — reuse `csms` list or broader `profiles.filter(p=>p.status==='active')`)
-  - [x] On submit, include `comercial_id: form.comercial_id || null`
-  - [x] Label: "Comercial responsável" with hint "Titularidade comercial (dual ownership)"
-- [x] **Modify `src/hooks/useLabsClients.js`**
-  - [x] Export `useComercialClients(profile)` → `useClients({ comercial_id: profile.id, lifecycle_stage:'cliente' })`
-  - [x] Export `useCsmClients(profile)` → `useClients({ csm_id: profile.id, lifecycle_stage:'cliente' })`
-- [x] **Create `supabase/migrations/20260824000009_rls_comercial_dual.sql`** (A2+A3 hard gate)**
-  - [ ] `CREATE POLICY clients_csm_comercial_select ON clients FOR SELECT USING (csm_id=auth.uid() OR comercial_id=auth.uid() OR get_user_role() IN ('admin','manager'))`
-  - [ ] `CREATE POLICY clients_dual_update ON clients FOR UPDATE USING (get_user_role() IN ('admin','manager') OR csm_id=auth.uid() OR comercial_id=auth.uid()) WITH CHECK (...)`
-  - [ ] Activities policy: `USING (client_id IN (SELECT id FROM clients WHERE csm_id=auth.uid() OR comercial_id=auth.uid()))` for csm/comercial
-  - [ ] Create `clients_finance_view` or column-select guard so only `financeiro/manager/admin` can SELECT `mrr,billing_*,delay_days,contract_renewal`
-  - [ ] `CREATE INDEX idx_clients_lifecycle_stage ON clients(lifecycle_stage); CREATE INDEX idx_clients_lc_comercial ON clients(lifecycle_stage, comercial_id) WHERE lifecycle_stage='cliente'`
-  - [ ] Verify via `EXPLAIN` with 200-row seed + manual 403 test per role
-- [ ] **Build:** `npm run build` with no errors
-- [x] **Verify (partial)**
-  - [ ] Create/edit empresa sets `comercial_id` correctly
-  - [ ] `useClients({ comercial_id: X })` returns correct portfolio
-  - [ ] Existing `/dashboard` unaffected (no comercial filter yet)
-
-#### Implementation Log (Phase 2)
-
-| Date | Commit | Files | Summary |
-|---|---|---|---|
-| 2026-08-24 | `74523d0` | `supabase/migrations/20260824000008_add_comercial_id.sql`, `20260824000009_rls_comercial_dual.sql`, `src/hooks/useClients.js`, `src/hooks/useClient.js`, `src/components/clients/ClientForm.jsx`, `ClientsPage.jsx`, `src/hooks/useLabsClients.js` | `comercial_id` column + RLS dual ownership (comercial_id OR csm_id) for sales, ClientForm comercial dropdown, ClientsPage sales branch, useLabsClients helper |
-
----
-
-### Phase 3 — Role-Based Empresa Access: Tabs + Edit Permissions + Contatos/Atividades Openness
-
-**Status:** Planned — depends on Phase 2
-
-**Rationale:** A matriz de acesso por papel (Comercial vê overview/operacional/relatorios/anexos, Financeiro edita 4 abas, todos veem contatos/atividades) é o maior impacto de UX para usuários não-CSM. Sem ela, a nova dashboard não cumpre a promessa de "cada papel vê o que precisa". Essa fase é também a mais sensível a regressões (ClientDetail é ponto central), por isso vem após a estabilização da migration.
-
-**Scope:**
-- `ClientDetail.jsx` tab gating + Edit button gating per `ROLE_TABS` matrix
-- `ClientForm.jsx` 4 tabs conditional rendering/editability
-- `ContactsPage` / `ActivitiesPage` openness verification (no accidental gating)
-- `ProjectCockpit` / `ProfissionaisCockpit` route gating per matrix
-
-#### Checklist
-
-- [ ] **Modify `src/components/clients/ClientDetail.jsx`**
-  - [ ] Add role matrix constant `ROLE_TAB_ALLOW` (see §4.4)
-  - [ ] Determine `effectiveRole` = profile.role (or `comercial_id` presence heuristic — Phase 4 clarifies). For now use `profile.role` directly.
-  - [ ] Filter `TABS` with `ROLE_TAB_ALLOW[profile.role]` or admin/manager sees all; hide disabled tabs (or `disabled` with tooltip) when `lifecycle_stage !== 'cliente'` still applies
-  - [ ] Edit button: `canEdit = profile.role === 'admin' || profile.role === 'manager' || client.csm_id === profile.id || client.comercial_id === profile.id`
-  - [ ] Analyst: redirect or hide Edit; tabs limited to `overview|atividades|contatos` (but Atendimento is primary)
-  - [ ] Ensure `tab` query param fallback: if current tab not allowed, redirect to `overview`
-  - [ ] Verify `isDisabledTab` (operacional/health when not cliente) still combines with role gating
-- [x] **Modify `src/components/clients/ClientForm.jsx`**
-  - [ ] Gate `TABS` rendering: Comercial sees all 4 tabs (Dados/Contrato/Operacional/Endereço) when `client.comercial_id === profile.id`; Financeiro sees all 4; Suporte sees none (form not opened)
-  - [ ] Gate save: same `canEdit` logic; disable `Salvar` button and show "Sem permissão" if not allowed
-  - [ ] Tests: manager can edit any; csm can edit own; analyst cannot
-- [ ] **Verify `src/components/contacts/ContactsPage.jsx`**
-  - [ ] No `useFeatureFlags` gate blocking contacts; all roles can `useContacts` + `ContactModal` create
-  - [ ] If any `canView*` check blocks contacts, remove it
-  - [ ] Test: analyst and comercial can create contact
-- [ ] **Verify `src/components/activities/ActivitiesPage.jsx`**
-  - [ ] `useActivities()` already role-aware but should not hide data: ensure labs allows `Todos` view for managers; csm/comercial sees own `responsible_id` but can still filter by client
-  - [ ] Creation `ActivityModal` allowed for all roles (check `useActivityMutations`)
-  - [ ] Add `TODO` comment if global activity view for Comercial needs `comercial_id` portfolio (Phase 4)
-- [ ] **Add route guards for cockpits per matrix**
-  - [ ] `/projetos-cockpit`: allow `admin|manager|csm` (already via flag) — keep; add optional `comercial` check via `isEnabled('projects_cockpit', role)` + ownership
-  - [ ] `/profissionais-cockpit`: allow `admin|manager|csm` where financeiro — verify flag `profissionais_cockpit` allowed_roles includes target
-- [ ] **Build:** `npm run build` with no errors
-- [x] **Verify (partial)**
-  - [ ] Each role tested manually (admin, manager, csm, analyst logins) — tab visibility + edit
-  - [ ] Contacts creation works for all roles
-  - [ ] Activities creation/listing respects matrix but not blocked
-  - [ ] No `[useClients] query error` for comercial_id filter before backfill
+- [ ] **`src/components/ui/Drawer.jsx`** — extract the shell from `HealthDashboardPage.jsx:214-435` / `DashboardPage.jsx:1735-1752` (§5.1): overlay + `<aside>` 380px + ESC + click-outside + `paddingRight` helper + one z-index constant. Migrate `HealthDashboardPage` to it; **retest `/health`** (drawer open/close, ESC, layout shift).
+- [ ] **`src/lib/icons.js`** — add `LayoutDashboard`, `Briefcase`, `DollarSign`, `MapPin` (import at top + alphabetical entry). Check for duplicates first.
+- [ ] **`src/components/dashboard/BrazilMap.jsx`** — add `onSelectUF(uf)` prop (UF click + "Top estados" chip → `navigate('/empresas?estado='+uf)`); pin legend; graceful degrade when the external `['brazil_geojson']` fetch fails (show the top-states list, not a blank box).
+- [ ] **`src/components/clients/ClientHealthDrawer.jsx`** — add the monolith's `qaItems`, merged with the existing 5 nav actions (§5.3).
+- [ ] **`src/components/dashboard/v3/OperationalHistoryDrawer.jsx`** — extract `op-os`/`op-users`/`op-health` (3-month mini charts) + `op-*-list` (all-clients variation → row → `/empresas/:id`) from the monolith (§5.2).
+- [ ] **`src/components/dashboard/v3/ScopeLabel.jsx`** — `"minha carteira"` / `"toda a base"` chip.
+- [ ] **`src/pages/MeuDiaV3Page.jsx`**
+  - [ ] Lifted: `useDashboardClients(profile)`, `useActivities(filter)`, `useHealthConfig()`, `useProjectCockpit()`, `useOperationalDeltas()`, `useDashboardYtd()`, `useSyncStatus()`; `financeSummary` via `get_finance_summary` only when `effectiveRole ∈ {admin,manager,finance}`.
+  - [ ] `useMemo` slices per block. `dateStr` memo. `dataRefMonth` memo.
+  - [ ] **Block order = §3 (personal first):** DashboardHeader → HeroBlock → MinhaAgendaBlock → SaudeDimensaoBlock → ProjetosAbertosBlock → ForcaNumerosBlock → EcossistemaMapBlock → OperacionalVariacaoBlock.
+  - [ ] `DashboardHeader` — period selector (default "Fechamento de {mês}/{ano}") + "Atualizado em {DD/MM HH:mm}" (from `useSyncStatus`) + `selectedCsm` dropdown (admin/manager only, ported from monolith).
+  - [ ] Delegate loading/empty/error to each block; one failing block must not blank the page.
+- [ ] **`HeroBlock.jsx`** — navy bg (not glassmorphism); photo + role pill; `GreetingHeader` (3 lines, §1.6); `HeroCards` — contract per `effectiveRole` `{label,value,sub,delta?,variant}` × 3 (§3; admin → default). OS/Profissionais deltas from `get_operational_90d_avg`; finance card from `financeSummary`. Cards navigate only if destination accessible (§5.8).
+- [ ] **`MinhaAgendaBlock.jsx`** — §4.6 sort + cap 5 + badges; row → `ActivityDetailModal`; "Nova atividade" → `ActivityModal`; secondary CTA: analyst → "Novo atendimento" `/atendimento`. **Hide write CTAs for finance** (§5.6). Truncate long client names.
+- [ ] **`SaudeDimensaoBlock.jsx`** — `<ScopeLabel>`; header "{count} · média {avg}"; **real stacked distribution per dimension (ok / atenção / risco), sorted worst-first**; at-risk account names inline; bar/row → `<Drawer>` + `<ClientHealthDrawer>`. `HEALTH_ICONS` + `Icons`. Empty (0 clients) → "Sua carteira ainda não tem empresas".
+- [ ] **`ProjetosAbertosBlock.jsx`** — `<ScopeLabel>`; §4.7; row → `/projetos/:id`; "ver todos" → `/projetos-cockpit` gated by `isEnabled('projects_cockpit', effectiveRole)`.
+- [ ] **`ForcaNumerosBlock.jsx`** — `<ScopeLabel>toda a base`; 4 panels from `useDashboardYtd()`; "Acumulado {year} · até {mês}".
+- [ ] **`EcossistemaMapBlock.jsx`** — `<ScopeLabel>toda a base`; `<BrazilMap clients={allClients} onSelectUF={…}/>` + clickable "Top estados" chips.
+- [ ] **`OperacionalVariacaoBlock.jsx`** — `<ScopeLabel>toda a base`; 3 panels top-5 from `useOperationalDeltas()`; row → `OperationalHistoryDrawer`; SeeAll → `op-*-list` drawer; "{prevMonthLabel} vs {prevMonth2Label}". Zero delta = neutral dash (not "▲ 0"). New/churned company edge cases (`prev=0` → no `%`). **"Sincronização de dados" panel + `op-sync` drawer + button → render only for admin/manager** (§5.5). Empty ops → link `/configuracoes` if `!hasData`.
+- [ ] **States:** every block handles loading (shimmer), empty (copy + CTA), error (retry). Icons only. No `DashboardPage` import from v3 files (use `scoring.js`).
+- [ ] **WCAG 2.1 AA gate — Phase 3 does not close until all pass:**
+  - [ ] All text meets AA contrast (4.5:1 normal / 3:1 large & UI). The critique flagged `#9aa5b5`/`#6b7889` label colors at ~1.5:1 on `#f1f3f5` — pick AA-passing muted tokens.
+  - [ ] `<main>` landmark; one `<h1>` (the page purpose, not the greeting); `<h2>` per section with `aria-labelledby`.
+  - [ ] "Ver como" dropdown + any block menu: `aria-haspopup` / `aria-expanded` / `role="menu"` / arrow-key nav / Escape / focus return.
+  - [ ] Zoom 200% → no horizontal scroll (relative units, not `text-[Npx]` / `max-w-[1120px]` fixed).
+  - [ ] Global `:focus-visible` ring on every interactive element.
+  - [ ] `▲`/`▼` deltas + status badges carry text, not color alone.
+  - [ ] Glyph icons → real `Icons.*` with label or `aria-hidden`.
+  - [ ] `@media (prefers-reduced-motion: reduce)` disables the pulse/transition affordances.
+  - [ ] Progress bars / donut rings: `role="progressbar"` + `aria-valuenow` (or adjacent text).
+- [ ] **Optional:** migrate `DashboardPage.jsx` `scoreBand*`/`C`/`getSignals` to import from `src/lib/scoring.js` (separate commit).
+- [ ] **Closeout — the swap (single deploy, only after everything above passes for all 6 roles via "Ver como"):**
+  - [ ] `src/App.jsx` — route `/dashboard` element `<DashboardRoute/>` → `<MeuDiaV3Page/>` directly. Delete `src/pages/DashboardRoute.jsx`.
+  - [ ] `src/App.jsx` `PrivateRoute` line 97 — change `!location.pathname.startsWith('/labs/dashboard')` → `!location.pathname.startsWith('/dashboard')` so analyst can open the v3 (still lands on `/atendimento` via `AuthRedirect`).
+  - [ ] Migration `<ts>_drop_dashboard_v3_flag.sql` — `DELETE FROM feature_flags WHERE key = 'dashboard_v3';`
+  - [ ] `src/components/settings/SettingsFeatureFlags.jsx` — remove `dashboard_v3` from `FLAG_GROUPS`.
+  - [ ] Update §0 (active phase → 4), §7 Checkpoint.
+- [ ] **Build:** `npm run build` with no errors.
+- [ ] **Verify:** each role via "Ver como" opens `/dashboard` (v3, no flag), correct HERO + scope labels; `/labs/dashboard` = monolith for admin, redirect for others; network tab shows no `mrr`/`billing_*` for non-finance; csm/sales can create an activity (post-migration); finance cannot (CTA hidden); non-admin does not see the sync panel; analyst reaches `/dashboard`; one block forced to error does not blank the page; axe/Lighthouse a11y clean.
 
 #### Implementation Log (Phase 3)
 
@@ -621,48 +691,16 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ---
 
-### Phase 4 — Cockpits per Role (Comercial + Financeiro + Suporte wiring)
+### Phase 4 — Cockpits per Role (roadmap)
 
-**Status:** Planned — depends on Phase 3
+**Status:** Planned — depends on Phase 3. Kept on the roadmap per stakeholder ("v3 agora + cockpits depois").
 
-**Rationale:** Com os filtros de titularidade e gates de acesso prontos, cada cockpit pode ser plugado com dados reais sem re-trabalho. Comercial precisa de visão de portfólio (`comercial_id`) + link para `projetos-cockpit`; Financeiro precisa de MRR/delay e `profissionais-cockpit`. Suporte/Analyst precisa de `health_suporte` e Freshdesk/Atendimento. Esta fase consolida o valor prometido para papéis não-CSM.
+**Rationale:** a v3 entrega as seções por papel dentro de uma página só. A evolução é transformar cada seção num drill-down / cockpit dedicado por papel (Comercial, Financeiro, Suporte, CSM, Gestão), reusando os componentes de bloco da v3 e os cockpits que já existem (`/health`, `/projetos-cockpit`, `/profissionais-cockpit`, `/cs-radar`). Não recriar regras — repartir.
 
-**Scope:**
-- `ComercialCockpitCard` — clients by `comercial_id`, pipeline leads, CTA to `/projetos-cockpit`
-- `FinanceiroCockpitCard` — MRR, atraso, renewal, CTA to `/profissionais-cockpit`
-- `SuporteCockpitCard` — `health_suporte <10`, atendimento CTA
-- Integration into `CockpitGrid` with role visibility
-
-#### Checklist
-
-- [ ] **Create `src/components/labs/cockpits/ComercialCockpitCard.jsx`**
-  - [ ] Query `useClients({ comercial_id: profile.id, lifecycle_stage:'cliente' })` (or `useComercialClients`)
-  - [ ] Display: count, ABC distribution, health bands filtered, top 3 riscos, pipeline leads (`lifecycle_stage='lead'` + `comercial_id` TODO: verify if lead ownership exists)
-  - [ ] CTA buttons: "Ver meus projetos →" → `/projetos-cockpit`, "Ver empresas →" → `/empresas?comercial_id=me`
-  - [ ] Empty state: "Sem empresas atribuídas"
-  - [ ] Visibility: `profile.role === 'csm' || 'manager' || 'admin'` when has comercial_id or explicit comercial view
-- [ ] **Create `src/components/labs/cockpits/FinanceiroCockpitCard.jsx`**
-  - [ ] Query portfolio (admin/manager = all `lifecycle_stage='cliente'`; financeiro scoped = all or own if applicable)
-  - [ ] Metrics: `mrrTotal`, `mrrAtrasado`, `renovacao30` (same as DashboardPage), `health_financeiro <10` count
-  - [ ] DimHealth strip for financeiro dimension
-  - [ ] CTA: "→ Profissionais" → `/profissionais-cockpit`
-  - [ ] Visibility: `manager|admin` + financeiro alias
-- [ ] **Create `src/components/labs/cockpits/SuporteCockpitCard.jsx`**
-  - [ ] Metrics: `health_suporte <10` count, `client_support` aggregated (tickets if available), `semInteracao` for suporte portfolio
-  - [ ] CTA: "→ Atendimento" → `/atendimento` if `whatsapp_atendimento` enabled else `/atividades?type=suporte`
-  - [ ] Visibility: `analyst|csm|manager|admin`
-- [ ] **Modify `src/components/labs/CockpitGrid.jsx`**
-  - [ ] Add role-visibility logic: filter cards by `isEnabled('labs_dashboard', role)` + card-specific allow
-  - [ ] Layout: responsive grid; collapses to single column on mobile (`min-w-0`)
-  - [ ] Props: `profile`, `clients`, `activities` passed down or each card queries independently (prefer independent queries with `staleTime` to avoid prop drilling)
-- [ ] **Modify `src/pages/labs/LabsDashboardPage.jsx`**
-  - [ ] Render `<CockpitGrid />` below `MeuDiaPanel`
-  - [ ] Pass `profile` from `useAuth`
-- [ ] **Build:** `npm run build` with no errors
-- [x] **Verify (partial)**
-  - [ ] Each card shows correct data per role login
-  - [ ] Links navigate correctly
-  - [ ] No N+1: each card uses `useClients` with appropriate filter (TanStack caches by queryKey)
+**Scope (to be detailed when active):**
+- `CockpitGrid` or per-role routes that compose v3 blocks with deeper filters.
+- Drawer integration (`ClientHealthDrawer.jsx` — already self-contained) from block rows.
+- Per-role visibility rules (card-level, not route-level).
 
 #### Implementation Log (Phase 4)
 
@@ -672,51 +710,35 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ---
 
-### Phase 5 — Cockpits CSM/Gestão/Projetos + Polish + Drawer Integration
+### Phase 5 — Empresas Access Matrix (role → tabs + edit)
 
-**Status:** Planned — depends on Phase 4
+**Status:** Planned — independent of the dashboard; can run in parallel with Phase 3+.
 
-**Rationale:** CSM e Gestão são os consumidores originais do `DashboardPage` e a prova final de que a nova arquitetura pode substituir a antiga. Ao reutilizar `alertaClients`, `emRisco`, `saudaveis`, `overdueOnboardingFases` com extração limpa, garante-se paridade funcional. O drawer `ClientHealthDrawer` e `PageHeader` dão acabamento de UX consistente com `/health`. Centralizar tokens `C` em `src/lib/constants.js` (opcional) fecha o débito técnico de tokens espalhados.
+**Rationale:** era a "Phase 3" do SDD antigo. A matriz de acesso por papel a abas e edição em `ClientDetail`/`ClientForm` (Comercial vê overview/operacional/relatorios/anexos + edita 4 abas do seu portfólio; Financeiro edita 4 abas; todos veem/criam contatos e atividades; analyst restrito) é valiosa e desacoplada da dashboard. Documentada aqui como fase para não perder o histórico de decisões, mas pode virar SDD próprio se o escopo crescer.
 
 **Scope:**
-- `CsmCockpitCard` (alertaClients, emRisco, semInteracao, tempsVencidas)
-- `GestaoCockpitCard` (scorecard row, overdue phases summary, situacao_geral)
-- `ProjetosCockpitCard` (mini summary of `useProjectCockpit`)
-- Optional: centralize `C` tokens, add `LayoutDashboard` icon
+- `ClientDetail.jsx` — `ROLE_TAB_ALLOW` matrix + tab gating + Edit button gating (`canEdit = admin|manager || client.csm_id===me || client.comercial_id===me`).
+- `ClientForm.jsx` — 4-tab gating + save gating.
+- `ContactsPage` / `ActivitiesPage` — verify no accidental role gate (all roles view/create).
+- Route guards for `/projetos-cockpit` (admin|manager|csm|sales) and `/profissionais-cockpit` (admin|manager|finance) per matrix.
 
-#### Checklist
+**Role → capability matrix (validated decisions — carried from prior SDD):**
 
-- [ ] **Create `src/components/labs/cockpits/CsmCockpitCard.jsx`**
-  - [ ] Replicate `alertaClients` multi-criteria (red: onboarding vencido, atividade atrasada, temp muito fria; amber: sem interação 30d, health em queda) — extract `buildReasons` locally
-  - [ ] Display: Em Risco (health <50), Saudáveis (≥75), Sem Interação, Temps Vencidas counts
-  - [ ] CTA: "Ver saúde →" → `/health`, "Ver CS Radar →" → `/cs-radar`
-  - [ ] Click on client row → set `drawerClientId` (local state lifted to `LabsDashboardPage`) + render `ClientHealthDrawer`
-- [ ] **Create `src/components/labs/cockpits/GestaoCockpitCard.jsx`**
-  - [ ] Aggregated view: scorecard (avg + bands), `overdueCount`, `overdueOnboardingFases` top 3, health by dimension `dimHealth`
-  - [ ] Admin/manager sees `selectedCsm` filter (reuse `useProfiles` dropdown)
-  - [ ] CTA: "/health" + "/projetos-cockpit"
-- [ ] **Create `src/components/labs/cockpits/ProjetosCockpitCard.jsx`**
-  - [ ] Hook `useProjectCockpit` (from `src/hooks/useProjectCockpit.js`): `useQuery(['projects_cockpit'], ...)` already exists — reuse
-  - [ ] Summary: total clientes com projeto ativo, % em dia vs atrasado, grouped by `situacao_geral`
-  - [ ] CTA: "→ Projetos Cockpit" → `/projetos-cockpit`
-  - [ ] Expand: optionally render collapsible `ProjectTimeline` mini (compact `PhaseCircle`)
-- [ ] **Optional: `src/lib/constants.js`**
-  - [ ] Export `LABS_COLORS` / `C` from single file; update `DashboardPage.jsx` + `LabsDashboardPage` + cockpit cards to import from it (low risk, high cohesion)
-  - [ ] If skipped, leave `TODO: centralize C tokens` comment
-- [ ] **Add drawer integration in `LabsDashboardPage.jsx`**
-  - [ ] State `drawerClientId` + overlay + aside (same pattern as `HealthDashboardPage.jsx` lines ~1580: `paddingRight: drawerOpen ? 380 : 0`)
-  - [ ] Reuse `src/components/clients/ClientHealthDrawer.jsx` (already handles own queries)
-  - [ ] ESC closes drawer
-- [ ] **Polish**
-  - [ ] Add `Icons.LayoutDashboard` (or `Icons.Briefcase`) to `src/lib/icons.js` if missing for Labs nav icon
-  - [ ] Ensure `PageHeader` subtitle shows date + role scope
-  - [ ] Mobile responsive check (min 320px, but desktop-first 1280px target)
-- [ ] **Build:** `npm run build` with no errors
-- [x] **Verify (partial)**
-  - [ ] CSM view matches legacy `/dashboard` critical sections (alertaClients, signals, MRR)
-  - [ ] Gestão view shows aggregated correctly with CSM filter
-  - [ ] Drawer opens/closes without layout shift issues
-  - [ ] No inline `Ic.*` SVGs remain
+| Capability | Admin | Manager | Comercial | Financeiro | Suporte | Analyst |
+|---|---|---|---|---|---|---|
+| View `/dashboard` (v3) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| View `/labs/dashboard` (monolith) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Empresas tab: overview | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Empresas tab: operacional | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Empresas tab: relatorios | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Empresas tab: anexos | ✅ | ✅ | ✅ | ❌ | ✅ | ❌ |
+| Empresas tab: health | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Edit 4 abas (Dados/Contrato/Operacional/Endereço) | ✅ | ✅ | ✅ (own `comercial_id`) | ✅ | ❌ | ❌ |
+| `/projetos-cockpit` | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `/profissionais-cockpit` | ✅ | ✅ | ❌ | ✅ | ❌ | ❌ |
+| contatos create/view | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| atividades create/view (own) | ✅ all | ✅ all | ✅ own | ✅ own | ✅ own | ✅ own |
+| `/configuracoes` | ✅ | conditional | ❌ | ❌ | ❌ | ❌ |
 
 #### Implementation Log (Phase 5)
 
@@ -726,37 +748,13 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ---
 
-### Phase 6 — Deprecate Legacy `/dashboard` + Migration Guide
+### Phase 6 — Retire Monolith from `/labs`
 
-**Status:** Planned — depends on Phase 5 (all prior phases validated in production)
+**Status:** Planned — human decision, after v3 validated in production for all roles.
 
-**Rationale:** A remoção do legado só pode ocorrer após paridade validada em produção com dados reais e feedback de CSM/Gestão/Comercial/Financeiro. Esta fase é intencionalmente separada para evitar lock-in: mesmo após a remoção, o histórico git preserva o arquivo, e um redirect temporário garante que bookmarks antigos não quebrem. A decisão de remover é humana (PO) e deve ser registrada em `Current Checkpoint`.
+**Rationale:** o monolito fica em `/labs/dashboard` como referência/kill-switch enquanto a v3 amadurece. A remoção é decisão do PO, registrada no Checkpoint. Mesmo removido, o git preserva o arquivo.
 
-**Scope:**
-- Decision gate: validate labs dashboard with all roles
-- Deprecate/remove legacy or redirect to `/labs/dashboard`
-- Update Navbar, App routing, backlog
-- Archive `DashboardPage.jsx` or keep as reference
-
-#### Checklist
-
-- [ ] **Validation gate (human decision)**
-  - [ ] All roles tested on `/labs/dashboard` vs `/dashboard` (parity checklist signed off)
-  - [ ] `labs_dashboard` flag enabled for all roles in production
-  - [ ] No P0/P1 bugs remaining
-- [x] **Modify `src/App.jsx`**
-  - [ ] Add redirect: `<Route path="/dashboard" element={<Navigate to="/labs/dashboard" replace />} />` (keep for 1 sprint, then remove)
-  - [ ] Remove legacy import if fully deprecated, or keep file for reference with comment `// Deprecated — see /labs/dashboard`
-- [x] **Modify `src/components/layout/Navbar.jsx`**
-  - [ ] Remove `/dashboard` nav item; keep only `/labs/dashboard` labeled "Dashboard" (or "Meu Dia")
-- [ ] **File operation**
-  - [ ] Either delete `src/components/dashboard/DashboardPage.jsx` (if decision Recorded) or move to `src/components/dashboard/_legacy_DashboardPage.jsx` for archive
-- [ ] **Docs**
-  - [ ] Update `docs/backlog.md` if labs items existed
-  - [ ] Update SDD Current Checkpoint: mark all phases Complete, add deprecation note
-  - [ ] Add entry to `docs/CHANGELOG.md`
-- [ ] **Build:** `npm run build` with no errors
-- [ ] **Deploy:** `git push origin main` → Vercel; verify redirect + no 404s
+**Scope:** validation gate (parity per role) → delete `src/components/dashboard/DashboardPage.jsx` (or move to `_legacy_`) → remove `/labs/dashboard` route + Navbar item + `LabsDashboardPage.jsx` → CHANGELOG entry.
 
 #### Implementation Log (Phase 6)
 
@@ -766,108 +764,102 @@ Tables: `contacts`, `contact_links(papel, engajamento, champion, client_id)`, `c
 
 ---
 
-## 6. Current Checkpoint
+## 7. Current Checkpoint
 
 ### Production state
 
-- `/dashboard` is the only dashboard in production (monolithic, CSM-coupled, 1761 lines)
-- `/health` (`HealthDashboardPage.jsx`), `/cockpits`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit` exist and are stable (reference for cockpit pattern)
-- `clients.csm_id` exists; `clients.comercial_id` **does NOT exist** (Phase 2 labs will add it)
-- `profiles.role` now `admin|manager|csm|analyst|sales|finance` (sales/finance added 2026-08-24, live)
-- `clients` RLS for `sales` (scoped `csm_id`, future `comercial_id`) and `finance` (global) already deployed via `20260824000002_rls_sales_finance.sql`
-- `role_impersonations` table + `get_user_role()` impersonation override + RPC `set/clear_impersonation` live (2026-08-24 `20260824000003_role_impersonation.sql`) — admin backdoor with real RLS, 1h expiry
-- `AuthContext` exposes `effectiveRole/effectiveProfile/impersonatedRole/setImpersonation` + `useViewAsRole` wrapper; `Navbar` has Ver como dropdown + banner; `App.jsx` and `usePermissions` use `effectiveRole`
-- `clients.lifecycle_stage` exists and is used in `DashboardPage`/`HealthDashboard` filters
-- `feature_flags.labs_dashboard` **does NOT exist** (Phase 0 will create it, default `enabled=false`, `allowed_roles` must include `sales,finance`)
-- `src/pages/labs/` and `src/components/labs/` **do not exist**
-- `DashboardPage` helpers (`scoreBand*`, `C`, `getSignals`, `alertaClients`) are local and not exported — extraction will copy, not import
-- All roles can already read contacts/activities at query level; UI gating is the remaining work
+- `/dashboard` = **monolith** (`DashboardPage.jsx`, 1761 lines) — still the only dashboard live. Phase 1 not yet started.
+- `/labs/dashboard` = 41-line shell (Phase 0), gated by `labs_dashboard` flag `{admin}` `enabled=false`.
+- `/health`, `/cockpits`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit` stable (cockpit pattern reference).
+- `src/lib/scoring.js`, `src/components/dashboard/BrazilMap.jsx`, `src/hooks/useLabsClients.js` **exist** but are unused / not adopted by the monolith.
+- `clients.comercial_id` + RLS dual ownership live. `profiles.role` includes `sales|finance`. `role_impersonations` + `effectiveRole` live.
+- `sync_log` has no `ref_month`. No YTD / 90-day-average aggregation anywhere. MRR is exposed via `CLIENT_SELECT = *` (unmasked) — **A3 unresolved**.
+- `feature_flags.labs_dashboard` exists (retired in Phase 1). `feature_flags.dashboard_v3` does **not** exist yet (created in Phase 1).
+- `activities` RLS: csm/sales are read-only (write policy added in Phase 2).
 
 ### Architectural decisions
 
 | Decision | Rationale |
 |---|---|
-| Namespace isolado `/labs/dashboard` (not `/dashboard`) | Evita regressão no dashboard produtivo enquanto a nova arquitetura é validada; permite feature-flag coexistência e remoção limpa em Phase 6. Decisão validada com stakeholders. |
-| Flag `labs_dashboard` com `allowed_roles = '{admin,manager,csm,sales,finance,analyst}'` (all 6 roles) | Todos os papéis precisam ver "Meu Dia" e seus cockpits; gates mais finos são feitos por card/tab, não pela rota. Validado: todos os roles podem ver/criar contatos e atividades. |
-| `clients.comercial_id` nullable FK, separado de `csm_id` | Dupla titularidade comercial vs CSM: empresa pode ter dono comercial diferente do CSM operacional. Mantém queries simples (`csm_id` vs `comercial_id`), evita array de owners. Backfill incremental (NULL inicial). |
-| Roles `sales`/`finance` como valores reais de `profiles.role` (não alias) | Melhor que alias: RLS pode checar `get_user_role()='sales'/'finance'` diretamente, sem heurística de `comercial_id` presence. Custo de migração pago agora; reversível via UPDATE. |
-| Comercial acessa `overview/operacional/relatorios/anexos` + editar 4 abas + `/projetos-cockpit` | Reflete fluxo comercial: visão operacional e documental da empresa, mas não health financeiro; projeto cockpit relevante para entregas. Decisão validada. |
-| Financeiro acessa editar 4 abas + `/profissionais-cockpit` | Financeiro edita dados cadastrais/billing e consome profissionais (mão de obra/custo); não precisa Cockpit de Projetos. Validado. |
-| Analyst restrito a `/atendimento` (via `whatsapp_atendimento` flag) | Analyst é papel de suporte N1; não acessa labs cockpits além de atendimento. Manager vê tudo exceto `/configuracoes`. Validado. |
-| Todos os roles podem ver/criar `contacts` e suas `activities` | Contatos são ativos compartilhados; bloquear criaria silos. Activities scope por `responsible_id` para listagem mas criação liberada. Validado. |
-| Copiar helpers (`scoreBand*`, `C`, `getSignals`) localmente, não importar de `DashboardPage.jsx` | Helpers não são exportados; importar quebraria build. Padrão já usado em `HealthDashboardPage.jsx` e `ClientHealthDrawer.jsx`. |
-| Substituir `Ic.*` inline SVGs por `Icons.*` | `src/lib/icons.js` é o barrel canônico; inline SVGs são tech debt que não deve ser replicado. |
-| `lifecycle_stage = 'cliente'` filter mandatory in all labs queries | `lead`/`ex_cliente` não devem vazar para cockpits operacionais/financeiros; mesmo padrão do dashboard legado. |
-| Reuse `ClientHealthDrawer.jsx` for labs drawer | Componente já é self-contained com queries próprias; evita duplicação. |
-| TanStack defaults `staleTime 30s / retry 1 / gcTime 5m` | Consistência com `App.jsx` QueryClient; evita overrides ad-hoc. |
-| `src/lib/roles.js` como single source (`ROLE_OPTIONS`, `ROLE_LABEL`, `ROLE_VALUES`) | Evita 4 hardcodes divergentes (SettingsFeatureFlags + 3 selects em SettingsUsers); labels em inglês `Admin/Manager/CSM/Analyst/Sales/Finance` seguem padrão plataforma. Validado em screenshots. |
-| Backdoor `Ver como` só `admin` com dados reais via `role_impersonations` + `get_user_role()` override | Frontend-only seria preview visual sem dados; requisito exigiu visão real. Solução com tabela + SECURITY DEFINER + expiry 1h garante RLS real sem mutar `profiles.role`, auditável e auto-limpeza. `effectiveRole` propaga para UI gating. |
-| Desktop-first 1280px, responsive fallback | Padrão do projeto (health-score SDD); labs validará mobile em Phase 5 polish. |
+| v3 vira `/dashboard` para todos os 6 papéis; monolito vai para `/labs/dashboard` admin-only | Inverte a direção do SDD anterior. A v3 evoluiu (v1→v3) de "Genérica minimalista" para uma dashboard completa que re-incorpora o layout do monolito + HERO por papel. Manter o monolito em labs dá referência de paridade e kill-switch sem bloquear o rollout. |
+| **Flag transitória `dashboard_v3`** (`{admin}`, `enabled=false`) durante Fases 1–3; `/dashboard` serve o monolito por padrão | O Vercel faz deploy automático no push — não dá para trocar `/dashboard` por um shell "em construção" para os usuários. A flag deixa o admin acompanhar a v3 sem regressão para ninguém. É **dropada no fim da Fase 3**, quando `/dashboard` vira v3 para todos. Contradiz o "sem flag" só durante a transição. |
+| End state sem feature flag em `/dashboard` | Todos os papéis precisam da dashboard; gates finos são por card/bloco (HERO por papel) e por RLS (MRR), não pela rota. |
+| `AdminOnlyRoute` (admin-strict) para `/labs/dashboard`, não a flag `labs_dashboard` | A flag `labs_dashboard` nasceu para liberar o "novo" progressivamente; guard por papel no código é mais explícito. `/labs/dashboard` vira `AdminOnlyRoute` já na Fase 1; `labs_dashboard` é aposentada na Fase 1. |
+| Escopo full-fidelity — construir backend faltante (YTD RPC, média 90d, geo cidade, finance masking) | Decisão do stakeholder. Implica Phase 2 dedicada a dados antes da UI. |
+| 3ª linha do greeting vem do status de sincronização (`sync_log` / `/configuracoes`), calculada na página | É rótulo de recência de dado, não narrativa. O greeting-engine está em Phase A (no expansion) e nunca deve renderizar telemetria. |
+| `src/lib/scoring.js` é a fonte de `C`/`HEALTH_ICONS`/helpers — v3 importa, não copia | O arquivo já existe justamente para consolidar as 3 cópias (monolito, `ClientHealthDrawer`, `scoring.js`). v3 não replica o débito. |
+| Cockpits por papel (Phase 4) mantidos no roadmap, não cancelados | v3 entrega as seções por papel numa página; cockpits dedicados são evolução posterior reusando os blocos da v3. |
+| Matriz de acesso a Empresas (Phase 5) desacoplada da dashboard | Independente; pode virar SDD próprio se crescer. |
+| `MinhaAgendaBlock` usa só `responsible_id` (sem participantes) | Não existe `activity_participants`. O rótulo "participante" do mock cai em `responsible_id`. |
+| Reusar `BrazilMap.jsx` (órfão), tornando-o interativo (`onSelectUF` → `/empresas?estado=`) | Componente pronto (d3 + GeoJSON), só falta ligar + adicionar clique. O mapa do mock não é geografia real e não pode ser portado como está (crítica de UX). |
+| Single lifted query set em `MeuDiaV3Page` (A5) | 7 blocos não podem chamar `useClients`/`useProjectCockpit` cada um. Lift + `useMemo` slices. |
+| **Escopo por bloco:** HERO + agenda = usuário; Saúde + Projetos = carteira (como o monolito); Nossa força + Mapa + Operacional = toda a base, iguais para os 6 papéis | Decisão do stakeholder. A generalização dos blocos de empresa é intencional. Cada bloco carrega um `ScopeLabel` visível para o CSM não ler "5 clientes" (hero) vs "18 clientes" (bloco de empresa) como número quebrado. |
+| **Ordem das seções: pessoal primeiro** (HERO → agenda → saúde → projetos → força → mapa → operacional) | Crítica de UX: o mock enterra o trabalho diário (agenda) na seção 4, atrás de um mapa decorativo; termina no bloco mais denso (peak-end). |
+| **Reusar `ClientHealthDrawer`** como o drawer de cliente da v3, estendido com os `qaItems` do monolito | Único conteúdo de drawer já extraído + self-contained. Evita uma 3ª reimplementação de "drawer de cliente". |
+| **Extrair `src/components/ui/Drawer.jsx`** e migrar `HealthDashboardPage` | O shell do drawer está copiado 2× (Health + monolito); z-index do projeto é inconsistente. A v3 seria a 3ª cópia. |
+| **Migration de RLS: csm/sales podem escrever `activities` da própria carteira** | "Minha agenda" com "Nova atividade" é central; sem a policy, 4 dos 6 papéis não conseguem usar o bloco. finance segue read-only (CTA escondido). |
+| **Painel/drawer de sincronização = admin/manager only** | csm/sales/finance/analyst não têm SELECT em `client_donc_instances` (RLS). Esconder, não deixar falhar. |
+| **WCAG 2.1 AA é condição de conclusão da Fase 3** | Crítica: contraste de labels ~1.5:1, dropdown sem ARIA, zoom 200% quebra, ícones-glifo sem label. Não é "melhoria futura". |
+| **Header com seletor de período + "atualizado em"** | Crítica: 6 timeframes coexistem sem "as of"; operacional fecha mensal, CS é live — a UI precisa declarar isso. |
+| **Tokens reais + escala tipográfica no port** | O mock define tokens Tailwind e usa 0×; 45 `text-[Npx]` + 25 font-size inline. v3 usa `C` do `scoring.js` + escala Tailwind/`rem`. |
+| Não editar o HTML do mock | Já cumpriu o papel de referência visual; as correções da crítica entram como requisito no SDD, não no protótipo. |
 
 ---
 
-## 7. Project Gotchas — do not skip
+## 8. Project Gotchas — do not skip
 
-- **Icons:** never import directly from `lucide-react`. Always use `src/lib/icons.js`. Add new icons at top (import) + alphabetically in `Icons` object. Check duplicates first. Verify `LayoutDashboard`, `Briefcase`, `DollarSign`, `Headset` exist before importing — add if missing.
-- **Supabase deploy:** after `npx supabase functions deploy`, "Verify JWT" is automatically re-enabled — disable it manually in the Dashboard. Run `node scripts/fix-supabase-urls.js` after every deploy. Use `node_modules/.bin/supabase` on WSL.
+- **Icons:** never import directly from `lucide-react`. Always use `src/lib/icons.js`. Add new icons at top (import) + alphabetically in `Icons`. Check duplicates first. Missing for v3: `LayoutDashboard`, `Briefcase`, `DollarSign`, `MapPin`.
+- **Supabase deploy:** after `npx supabase functions deploy`, "Verify JWT" is re-enabled automatically — disable it manually in the Dashboard. Run `node scripts/fix-supabase-urls.js` after every deploy. Use `node_modules/.bin/supabase` on WSL. No local Supabase — `db push --include-all` goes straight to production; test on `donccx.vercel.app`.
 - **Branch:** worktree disabled. All work goes directly to `main`. Push to `origin main`; Vercel auto-deploys.
-- **Color helpers:** `scoreBand*` and `C` are local to `DashboardPage.jsx` — Phase 1 extracts them to `src/lib/scoring.js` (mandatory). Until then redefine locally, do not import from DashboardPage.
-- **DashboardPage is 1761 lines:** do not edit it in labs phases except for critical shared fixes. Labs work is additive under `/labs/*`.
-- **Feature flags loading:** `isEnabled()` returns false while `flags` still loading — guard redirects with `flagsLoading` check to avoid flash redirects. `useFeatureFlags` has `staleTime 5m` — labs flag rollout needs manual invalidation or 30s staleTime override.
-- **Clients query:** `buildClientsQuery` does not support `.or()` out of the box — dual ownership OR must use `q.or('csm_id.eq.X,comercial_id.eq.X')` with PostgREST syntax verified. Fallback client-side merge doubles payload and breaks pagination.
-- **Comercial_id FK name:** auto-generated name may be `clients_comercial_id_fkey` — verify via `\d clients` after migration before writing `CLIENT_SELECT` join alias.
-- **Navbar:** uses `availableLinks(links)` filtering via `link.featureFlag`; `HealthDashboardPage` and `CockpitsPage` precedent — follow same for `labs_dashboard`. `availableLinks` filters only by `featureFlag`, not `allowed_roles` — card-level role checks still required.
-- **Build assumption:** `build.minify: false` in `vite.config.js` — build not minified; verify `npm run build` always before phase completion.
-- **`__COMMIT_HASH__`:** injected via `git rev-parse --short HEAD` in `vite.config.js` — ensure file edits do not break hash injection.
-- **No local Supabase:** all DB changes via `supabase db push --include-all` directly to production; test on `donccx.vercel.app` after deploy.
-- **CRITICAL — PrivateRoute analyst gate (A1):** `src/App.jsx:PrivateRoute` redirects `analyst` to `/atendimento` if `whatsapp_atendimento` enabled and path not `/atendimento`. `/labs/dashboard` will be blocked for analyst unless `PrivateRoute` is patched to allow `/labs/dashboard` or analyst is removed from `labs_dashboard allowed_roles`. Fix in Phase 0.
-- **CRITICAL — RLS dual ownership (A2):** `clients` RLS currently only allows `csm_id = auth.uid()` and `admin/manager`. Without `comercial_id` policy, `useClients({comercial_id})` will return 0 rows and `UPDATE` will 403 even though UI shows Edit button. Migration `rls_labs_dual_ownership.sql` is a hard gate before Phase 2 merge.
-- **CRITICAL — MRR leak (A3):** `CLIENT_SELECT = *` returns `mrr, billing_*, delay_days` to any role with SELECT. Hiding `FinanceiroCockpitCard` is not enough — network tab leaks finances. Use column-select per role or `clients_finance_view` for financeiro/manager/admin only.
-- **CRITICAL — Single lifted query (A5):** Do not let 6 cockpits each call `useClients` independently (6× queries). Lift to `LabsDashboardPage` single `useLabsClients(labsFilterFor(profile))` with `queryKey ['labs_clients', profile.id]` and slice via `useMemo`. Reduces 200-client payload from 6×10MB to 1×.
+- **`build.minify: false`** in `vite.config.js` — always run `npm run build` before marking a phase complete. `__COMMIT_HASH__` injected via `git rev-parse --short HEAD`.
+- **A3 — MRR leak (CRITICAL, now global):** `CLIENT_SELECT = *` returns `mrr`, `billing_*`, `delay_days`, `contract_renewal` to any role with SELECT. With `/dashboard` serving all six roles, hiding the finance HERO in the UI is not enough — the network tab leaks it. **Phase 2 `get_finance_summary()` RPC (or masked view) is a hard gate before the Phase 3 finance HERO.**
+- **A5 — single lifted query:** do not let the 7 blocks each call `useClients` / `useProjectCockpit`. Lift to `MeuDiaV3Page` (`queryKey ['dashboard_clients', scopeKey]`) and slice via `useMemo`.
+- **Analyst routing:** `PrivateRoute` redirects analyst to `/atendimento` unless the path is carved out. Phase 1 moves the carve-out from `/labs/dashboard` to `/dashboard`. Verify analyst can reach `/dashboard` but `AuthRedirect` still makes `/atendimento` their landing page.
+- **greeting-engine is in Phase A (Narrative Stabilization) — do NOT expand it.** Line 3 of the v3 greeting is computed in the page from sync status, never in the engine. Adding `sales`/`finance` identity pools is content-only and allowed.
+- **`BrazilMap.jsx` fetches GeoJSON from `raw.githubusercontent.com`** — an external URL. Confirm CSP allows it and handle the offline/failed-fetch state (the map must degrade gracefully).
+- **`useFeatureFlags` `staleTime 5min`:** after dropping `labs_dashboard`, the Navbar may show a stale "Labs" item for up to 5 min for non-admins — acceptable (the route now 403s via `AdminOnlyRoute` anyway). Same applies when `dashboard_v3` is dropped in the Phase 3 swap — a stale `true` for an admin just shows v3, which is the target anyway.
+- **`dashboard_v3` is transitional.** It gates `/dashboard` only in `DashboardRoute.jsx` and appears in `SettingsFeatureFlags`. The Phase 3 swap deletes the wrapper, the flag row, and the settings entry in one deploy. Do not build block-level logic on this flag — block gating is by `effectiveRole` / RLS.
+- **Do not `supabase db push` without explicit authorization.** No local Supabase — every push hits production. Migrations for this SDD are written as files and deployed only when the user says so, alongside the code that matches them.
+- **`buildClientsQuery` has no `.or()` for arbitrary filters** — dual ownership uses `_labs_dual_owner` → `.or('csm_id.eq.X,comercial_id.eq.X')`. `labsFilterFor` already picks the right single-key filter per role; prefer that.
+- **`DashboardPage.jsx` is 1761 lines** — do not restructure it in dashboard-v3 phases. Only allowed edit: migrate its local helpers to import from `src/lib/scoring.js` (separate commit, Phase 3 optional).
+- **`activities` write RLS is role-gated.** Before the Phase 2 migration (`activities_csm_sales_write`), csm/sales/finance all fail on `create`/`update` — `useActivityMutations.onError` shows a `toast.error`. After the migration: csm/sales can write within their carteira; **finance stays read-only** — the v3 must hide the "Nova atividade" / "Concluir" CTAs for finance, not let them fail.
+- **`client_donc_instances` is admin/manager-only (RLS phase2).** The "Sincronização de dados" panel, the `op-sync` drawer, and the "sincronizar" button must not render for csm/sales/finance/analyst.
+- **WCAG 2.1 AA is a Phase 3 completion gate, not future polish.** The mock's muted label tokens (`#9aa5b5` ~1.45:1, `#6b7889` ~1.95:1 on `#f1f3f5`) fail AA badly; `text-[Npx]` sizes break browser font-scaling; the "Ver como" dropdown has no ARIA/Escape; zoom 200% overflows. See the Phase 3 checklist.
+- **z-index has no scale in this project** (40/50 dashboards, 99/100 Donkie, 300/1000 modais). The new `src/components/ui/Drawer.jsx` defines the drawer/overlay layer; do not reintroduce ad-hoc values in v3.
+- **`BrazilMap.jsx` fetches GeoJSON from `raw.githubusercontent.com`** — external URL. Confirm CSP allows it and the map degrades to the top-states list on fetch failure (never a blank 360px box).
+- **`DashboardPage.jsx` scopes Saúde/Portfólio to the CSM's carteira** — the v3 `SaudeDimensaoBlock` / `ProjetosAbertosBlock` do the same (via `labsFilterFor`), and carry a `ScopeLabel`. Do not make them company-wide; only `ForcaNumeros` / `Mapa` / `Operacional` are company-wide.
 
 ---
 
-## 8. LLM Instructions
+## 9. LLM Instructions
 
 When resuming this document for implementation:
 
-1. Read **Section 0 (Current System State)** — understand what exists and what will be created.
-2. Read the **Global Definitions (§1)**, **Design System Reference (§2)**, **Component Tree (§3)**, and **Data Contracts (§4)** before writing any code.
-3. Identify the **active phase** via its checklist status (Phase 0 is first).
-4. Implement item by item. Mark ✅ when done and verified.
-5. After each significant item, run `npm run build` to ensure nothing broke.
-6. At the end of the phase, fill in the **Implementation Log** for that phase.
-7. Update the **Checkpoint (§6)** with the new state and any new architectural decisions.
+1. Read **Section 0** — what exists, what's inverted, what's completed history.
+2. Read **§1 Global Definitions**, **§2 Design System Reference**, **§3 Component Tree**, **§4 Data Contracts**, **§5 Interactive Surface & Permissions** before writing code.
+3. The **active phase** is the first one marked `Planned` after the completed ones — currently **Phase 1**.
+4. Run the mandatory workflow (`.agents/core-agents.md`): `module-detector` → `docs-lookup` → `supabase-guard` (Phases 1–2 have migrations — **major** impact) → `change-classifier` → `docs-writer`.
+5. Implement item by item. Tick ✅ when done and verified.
+6. Run `npm run build` after each significant item and at phase end.
+7. Fill the **Implementation Log** for the phase; update **§0** and **§7 Checkpoint**.
 
-### Technical Summary Template (fill at the end of each phase)
+### Technical Summary Template (fill at end of each phase)
 
 ```
 ### Technical Summary — Phase X
-
 **Commits:** hash1, hash2
-**Files created:** [list]
-**Files modified:** [list]
-**Files deleted:** [list]
-
-**Decisions:**
-- [decision and rationale]
-
-**Issues found:**
-- [problem and solution]
-
-**Pending items:**
-- [items not covered or deferred]
+**Files created / modified / deleted:** [lists]
+**Decisions:** [decision + rationale]
+**Issues found:** [problem + solution]
+**Pending items:** [deferred]
 ```
 
-### Validation Checklist — before marking phase complete
+### Validation Checklist — before marking a phase complete
 
-- [ ] Section 0 reflects actual current state (verified against codebase)
-- [ ] Every file in "Files to be touched" was verified to exist or confirmed not to exist
-- [ ] Data contracts reference real column names (checked via `useClients`/`useClient`/`supabase` schema)
-- [ ] Color tokens and icon names verified in codebase (`C` from DashboardPage, `Icons` from icons.js)
-- [ ] Helpers listed as importable are actually exported (they are not — copied locally per spec)
-- [ ] Active phase clearly identified
-- [ ] Gotchas section includes project-wide traps
-- [ ] Language convention followed (English for checklists/contracts/trees/code; Portuguese for rationale)
+- [ ] §0 reflects actual current state (verified against `App.jsx`, `Navbar.jsx`, `src/lib/scoring.js`, `src/hooks/`)
+- [ ] Every file in "Files to be touched" verified to exist or confirmed not to exist
+- [ ] Data contracts reference real column/RPC names
+- [ ] Color tokens + icon names verified (`C` / `HEALTH_ICONS` from `scoring.js`, `Icons` from `icons.js`)
+- [ ] Active phase clearly identified; one active phase at a time
+- [ ] Language convention followed (English for instruction; Portuguese for rationale)
 - [ ] `npm run build` passes with no errors
-
