@@ -24,7 +24,6 @@
   <div class="flex items-center gap-0.5"><span class="text-[#d3da47] font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">donc</span><span class="text-white font-bold text-[18px] tracking-tight" style="font-family:Montserrat,sans-serif">CX</span><span class="text-white/50 font-light text-[13px] ml-1">Hub</span></div>
   <div class="flex items-center gap-1 flex-1 text-[14px]"><span class="px-3.5 py-2 text-white bg-white/[0.08] rounded-full font-semibold border border-white/10">Labs</span><span class="px-3 py-1.5 text-white/45">Dashboard</span><span class="px-3 py-1.5 text-white/45">Empresas</span><span class="px-3 py-1.5 text-white/45">Cockpits</span></div>
   <div class="flex items-center gap-2 relative" id="avatar-wrap">
-    <span class="hidden lg:inline-flex items-center text-[11px] font-bold tracking-widest uppercase px-2.5 py-1 rounded-full bg-white/10 border border-white/10 text-white/80">REF JULHO</span>
     <button id="avatar-btn" class="w-8 h-8 rounded-full bg-[#d3da47] flex items-center justify-center text-[#0f2540] font-bold text-xs ring-2 ring-white/20 hover:ring-white/40 transition">J</button>
     <div id="avatar-dropdown" class="hidden absolute right-0 top-full mt-2 w-56 bg-white border border-[rgba(15,34,58,0.08)] rounded-2xl shadow-xl p-2 z-50">
       <div class="text-[11px] tracking-widest uppercase font-bold text-[#9aa5b5] px-2 py-1">Ver como</div>
@@ -50,10 +49,10 @@
         <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#2f9e70] border-[3px] border-[#0a1f33] shadow"></span>
       </div>
       <div class="flex-1 min-w-0 flex flex-col justify-center">
-        <!-- GREETING-ENGINE: h1 + p extra + p operational (3ª linha) — alinhadas verticalmente com foto -->
-        <h1 id="greeting-text" class="text-white font-extrabold tracking-tight leading-none" style="font-family:Montserrat,sans-serif;font-size:34px;letter-spacing:-0.03em;">Bom dia, Jorge.</h1>
-        <p id="greeting-extra" class="text-white/70 text-sm mt-2 leading-tight">Quinta, 28 de agosto · Carteira equilibrada</p>
-        <p id="greeting-operational" class="text-[#59c2ed] text-sm mt-1 font-semibold leading-tight hidden"></p>
+        <!-- GREETING-ENGINE: 3 linhas fixas — A -->
+        <h1 id="greeting-text" class="text-white font-extrabold tracking-tight leading-none" style="font-family:Montserrat,sans-serif;font-size:34px;letter-spacing:-0.03em;">Boa tarde, Jorge...</h1>
+        <p id="greeting-extra" class="text-white/70 text-sm mt-2 leading-tight">sábado, 29 de agosto · Carteira equilibrada</p>
+        <p id="greeting-operational" class="text-white/50 text-xs mt-1 leading-tight">Dados referente a jul/26</p>
       </div>
     </div>
 
@@ -95,7 +94,7 @@
       <div class="panel">
         <div class="stripHead">Clientes</div>
         <div class="mono font-extrabold text-[#0e223a] mt-1" style="font-family:Montserrat,sans-serif;font-size:30px;line-height:1">18</div>
-        <div class="text-xs text-[#6b7889]">ativos</div>
+        <div class="text-xs text-[#6b7889]">3 novos em 2026</div>
       </div>
       <div class="panel">
         <div class="stripHead">OS criadas</div>
@@ -214,31 +213,13 @@
 <div class="max-w-[1120px] mx-auto px-6 py-4 text-center text-[11px] text-[#9aa5b5]"></div>
 
 <script>
-// Greeting-engine: h1 | p#greeting-extra = data + extra (ou só data se operational) | p#greeting-operational = 3 clientes... em linha única abaixo (sem duplicar)
-function greetingForHour(h, name){
-  let g='Olá'; if(h<12) g='Bom dia'; else if(h<18) g='Boa tarde'; else g='Boa noite';
-  return g+', '+name+'...';
-}
-const hour=new Date().getHours();
+// Greeting-engine: fixo para validação — 3 linhas A
 const greetingEl=document.getElementById('greeting-text');
 const extraEl=document.getElementById('greeting-extra');
 const opEl=document.getElementById('greeting-operational');
-if(greetingEl) greetingEl.textContent=greetingForHour(hour,'Jorge.');
-const extras=['Carteira equilibrada','Carteira exige atenção','3 clientes precisam de você'];
-const today=new Date(); const seed=today.getDate()+today.getMonth()*31;
-const picked=extras[seed%extras.length];
-const isOperational = picked === '3 clientes precisam de você';
-const dateStr=today.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'});
-if(extraEl) {
-  if(isOperational){
-    extraEl.innerHTML = dateStr+' · <span style="color:#59c2ed;font-weight:600">'+picked+'</span>';
-  } else {
-    extraEl.textContent = dateStr+' · '+picked;
-  }
-}
-if(isOperational && opEl){
-  opEl.classList.add('hidden');
-}
+if(greetingEl) greetingEl.textContent='Boa tarde, Jorge...';
+if(extraEl) extraEl.textContent='sábado, 29 de agosto · Carteira equilibrada';
+if(opEl){ opEl.textContent='Dados referente a jul/26'; opEl.classList.remove('hidden'); }
 
 // Hero per profile
 const params=new URLSearchParams(location.search), role=params.get('role');
