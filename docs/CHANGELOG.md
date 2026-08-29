@@ -2,6 +2,13 @@
 
 ## 2026-08-29
 
+### Fix — Logout resiliente a sessão expirada (`3d1ed81`)
+
+- **Sintoma:** com o access token do Supabase expirado e o navigator lock do gotrue contido/órfão (aba aberta por horas, refresh interrompido), o botão "Sair" travava e o app ficava lento (`POST /auth/v1/logout?scope=global` 403, `GET /rest/v1/...` 401, `Lock ... was not released within 5000ms`). Exposto por um reload pós-deploy; **não é regressão** — a migration da Fase 1 só mexeu em `feature_flags` e o código novo não toca em auth.
+- **Fix:** `AuthContext.signOut` — limpeza de `role_impersonations` em `try/catch` (best-effort, nunca bloqueia) + `supabase.auth.signOut({ scope: 'local' })` (limpa o storage e emite `SIGNED_OUT` sem a chamada de servidor que 403a com token morto). `Navbar.handleSignOut` — `try/catch` + `window.location.assign('/login')` (redirect duro independente de o `signOut` pendurar).
+- **Recuperação para quem já está preso:** fechar todas as abas de `donccx.vercel.app` (libera o lock) e recarregar; se persistir, DevTools → Application → Clear site data → login.
+- Bugs pré-existentes; sem migration. Follow-up: mitigação de UX para auto re-login quando o refresh falha.
+
 ### Dashboard v3 — Phase 1: route scaffold + flag transitória (`753d7a6`)
 
 - **New:** `src/pages/DashboardRoute.jsx` — wrapper de `/dashboard`. Serve o `DashboardPage` monolítico por padrão; renderiza `MeuDiaV3Page` (novo shell) apenas quando `isEnabled('dashboard_v3', effectiveRole)`. Zero regressão: sem a flag ligada, todo mundo continua no dashboard atual.
