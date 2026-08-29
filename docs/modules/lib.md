@@ -45,7 +45,13 @@ Utility library. Centralizes pure functions, API wrappers, constants, and helper
 | `hooks/useGreeting.ts` | React hook for consuming the engine in components |
 
 ## Data Flow
-- **Supabase**: `supabaseClient.js` creates client; other lib files import it for CRUD or RPC calls.
+- **Supabase**: `supabaseClient.js` creates the singleton client (`export const supabase`); other lib files import it for CRUD or RPC calls.
+  - **`auth.lock` is a no-op** (`noopLock`, since `89c022e` / 2026-08-29). The default `@supabase/auth-js`
+    `navigatorLock` (Web Locks API) deadlocked for 4-5 min on **every deploy** when a stale app tab was
+    backgrounded/throttled by the browser: the throttled tab holds the `sb-<ref>-auth-token` lock and
+    every new page load blocks inside `GoTrueClient.initialize()`. The lock's only benefit is de-duping
+    concurrent cross-tab token refreshes, already covered by Supabase's refresh-token reuse grace
+    window. Upstream: supabase/supabase#42505. **Do not re-enable.**
 - **External APIs**: `openrouterService.js`, `freshdeskConfig.js`, `freshdeskSync.js` perform `fetch` calls to remote endpoints, return parsed JSON.
 - **Calculations**: `gravidade.js` and `healthScore.js` accept raw DB rows, output numeric scores used by hooks/pages.
 - **Formatting**: `formatPhone.js`, `icons.js`, `onboardingLabels.js` return deterministic values for UI rendering.

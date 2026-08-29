@@ -20,7 +20,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 1 — Route Scaffold + Transitional Flag + Shell — **shipped `753d7a6` (2026-08-29), migration applied to prod**. Remaining: manual per-role verification on `donccx.vercel.app` after the Vercel deploy settles. Next: Phase 2. (Phase 0 Foundation and the `comercial_id` migration are Complete.)
+- **Active phase:** **Phase 2 — Data Foundation — Planned (next session).** Phase 1 is Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin): `/dashboard` = monolith by default, v3 shell for admin behind the transitional flag; `/labs/dashboard` = monolith admin-only; `labs_dashboard` retired. Admin-verified in prod (shell renders). Phase 0 + `comercial_id` also Complete.
 
 **What already exists related to this work:**
 
@@ -543,7 +543,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Phase 1 — Route Scaffold + Transitional Flag + Shell
 
-**Status:** Planned — active next.
+**Status:** **Complete** — 2026-08-29 (`753d7a6` + `3d1ed81` + `89c022e` + `d86b22e`).
 
 **Rationale:** o objetivo é montar o andaime de rotas **sem regressão em produção**. O Vercel faz deploy automático no push, então `/dashboard` não pode virar um shell "em construção" para os usuários entre a Fase 1 e a Fase 3. Solução: uma **flag transitória `dashboard_v3`** (`{admin}`, `enabled=false`) — `/dashboard` continua servindo o monolito por padrão e só mostra a v3 quando a flag está ligada. Admin liga a flag em `/configuracoes` para acompanhar a v3 sendo construída, e compara com o monolito em `/labs/dashboard` (que já vira `AdminOnlyRoute` agora). A **troca definitiva** (`/dashboard` → v3 para todos, drop da flag `dashboard_v3`, carve-out do analyst) acontece no **fim da Fase 3, num único deploy**. A flag `labs_dashboard` (que gateava o shell antigo) é aposentada agora — `/labs/dashboard` passa a ser guardado por papel, não por flag.
 
@@ -570,20 +570,26 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 - [x] **`src/components/settings/SettingsFeatureFlags.jsx`** — `labs_dashboard` → `dashboard_v3` in `FLAG_GROUPS`.
 - [x] **`src/pages/MeuDiaV3Page.jsx` (shell)** — `PageHeader` + 7 placeholder cards in §3 order with `ScopeLabel` text + shimmer. Icons only.
 - [x] **Build:** `npm run build` — OK (2200 modules, no errors).
-- [x] **Deploy:** `git push origin main` (`753d7a6`) + `supabase db push --include-all` — migration applied; `feature_flags` verified (`labs_dashboard` gone, `dashboard_v3` `{admin}` `enabled=false`).
-- [ ] **Verify (prod):** after Vercel settles — admin sees "Labs" nav → `/labs/dashboard` = monolito; non-admin → redirect; `/dashboard` = monolito for all; admin flips `dashboard_v3` on in `/configuracoes` → `/dashboard` = v3 shell; analyst lands on `/atendimento`.
+- [x] **Deploy:** `git push origin main` (`753d7a6`) + `supabase db push --include-all` — migration applied; `feature_flags` verified.
+- [x] **`dashboard_v3` enabled for admin** (`d86b22e`, 2026-08-29) — direct `UPDATE feature_flags SET enabled=true WHERE key='dashboard_v3'` (flag toggle, not a migration; same as the Settings UI does).
+- [x] **Verify (prod):** admin confirmed via screenshot — `/dashboard` renders the `MeuDiaV3Page` shell (7 placeholder blocks, personal-first order, scope labels, `perfil: admin`); Navbar "Dashboard" active + "Labs" visible for admin. `/dashboard` = monolith for non-admin / admin with flag off.
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-29 | `753d7a6` | `src/App.jsx`, `src/pages/DashboardRoute.jsx` (new), `src/pages/MeuDiaV3Page.jsx` (new), `src/pages/labs/LabsDashboardPage.jsx`, `src/components/layout/Navbar.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` (new), + docs | Route scaffold: `AdminOnlyRoute`; `/dashboard` → `DashboardRoute` (monolito por padrão, v3 via flag transitória `dashboard_v3`); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell. Build OK, migration aplicada em prod. |
+| 2026-08-29 | `753d7a6` | `src/App.jsx`, `src/pages/DashboardRoute.jsx` (new), `src/pages/MeuDiaV3Page.jsx` (new), `src/pages/labs/LabsDashboardPage.jsx`, `src/components/layout/Navbar.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` (new), + docs | Route scaffold: `AdminOnlyRoute`; `/dashboard` → `DashboardRoute` (monolito por padrão, v3 via flag transitória `dashboard_v3`); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell. Migration aplicada em prod. |
+| 2026-08-29 | `3d1ed81` | `src/contexts/AuthContext.jsx`, `src/components/layout/Navbar.jsx` | **Hotfix (bug pré-existente):** `signOut` → `scope: 'local'` + limpeza de `role_impersonations` em `try/catch`; `handleSignOut` → `try/catch` + `window.location.assign('/login')`. Logout não trava mais com sessão expirada. |
+| 2026-08-29 | `89c022e` | `src/lib/supabaseClient.js` | **Hotfix (bug pré-existente):** `createClient` com `auth.lock = noopLock`. O `navigatorLock` do gotrue causava deadlock de 4-5 min a cada deploy quando uma aba do app ficava em background/throttled. Ver §8 e supabase/supabase#42505. |
+| 2026-08-29 | `d86b22e` | — (`feature_flags` UPDATE) | `dashboard_v3.enabled = true` (`{admin}`) — admin passa a ver o shell da v3 em `/dashboard`. |
+
+**Phase 1 = Complete.** Next: Phase 2.
 
 ---
 
 ### Phase 2 — Data Foundation (full-fidelity backend)
 
-**Status:** Planned — depends on Phase 1.
+**Status:** **Planned — active next.** Phase 1 complete.
 
 **Rationale:** a v3 é full-fidelity, então as fontes que hoje não existem precisam ser criadas **antes** de montar a UI, senão os blocos nascem com mock. Três frentes: (1) agregação YTD e média 90 dias (não existem — tudo hoje é mês-vs-mês); (2) masking de MRR no banco (gotcha A3 vira crítico com `/dashboard` global); (3) extrair a lógica da FAIXA 4 do monolito para um hook reutilizável sem fork. Também: pools `sales`/`finance` no greeting (editorial, cabe na Phase A) e o helper de `dataRefMonth`.
 
@@ -837,7 +843,7 @@ When resuming this document for implementation:
 
 1. Read **Section 0** — what exists, what's inverted, what's completed history.
 2. Read **§1 Global Definitions**, **§2 Design System Reference**, **§3 Component Tree**, **§4 Data Contracts**, **§5 Interactive Surface & Permissions** before writing code.
-3. The **active phase** is the first one marked `Planned` after the completed ones — currently **Phase 1**.
+3. The **active phase** is the first one marked `Planned` after the completed ones — currently **Phase 2 (Data Foundation)**. Phase 1 (route scaffold + `dashboard_v3` transitional flag + shell) shipped 2026-08-29.
 4. Run the mandatory workflow (`.agents/core-agents.md`): `module-detector` → `docs-lookup` → `supabase-guard` (Phases 1–2 have migrations — **major** impact) → `change-classifier` → `docs-writer`.
 5. Implement item by item. Tick ✅ when done and verified.
 6. Run `npm run build` after each significant item and at phase end.

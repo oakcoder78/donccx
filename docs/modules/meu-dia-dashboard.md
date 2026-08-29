@@ -1,10 +1,15 @@
 # Module — Meu Dia / Dashboard v3
 
-> **Status: in transition (2026-08-29).** Production `/dashboard` is still the monolithic
-> `DashboardPage.jsx` (see `docs/modules/pages.md` → "Dashboard Layout"). This document describes the
-> **target** architecture. The single source of truth for the migration — phases, checklists,
-> data contracts, decisions — is `docs/sdd/labs-dashboard-sdd.md`. Update that SDD first; keep this
-> module doc in sync at phase boundaries.
+> **Status: in transition — Phase 1 shipped (2026-08-29).** `/dashboard` still serves the monolithic
+> `DashboardPage.jsx` for everyone by default; **admins** see the v3 shell (`MeuDiaV3Page` — 7
+> placeholder blocks, no real data yet) when the transitional `dashboard_v3` flag is on (currently
+> ON for `{admin}`). `/labs/dashboard` = monolith under `AdminOnlyRoute`. The real blocks land in
+> Phase 3. This document describes the **target** architecture; the single source of truth for the
+> migration — phases, checklists, data contracts, decisions — is `docs/sdd/labs-dashboard-sdd.md`.
+> Update that SDD first; keep this module doc in sync at phase boundaries.
+>
+> **Live files (Phase 1):** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`
+> (shell), `src/App.jsx` `AdminOnlyRoute`, `src/pages/labs/LabsDashboardPage.jsx` (monolith wrapper).
 
 ## Purpose
 

@@ -23,6 +23,14 @@ Context layer supplies global authentication state to React tree. Wraps Supabase
 4. Auth actions invoke Supabase methods (`signInWithPassword`, `signInWithOAuth`, `signOut`).
 5. `refreshProfile` re‑fetches profile for current user.
 
+### Logout resilience (2026-08-29, `3d1ed81`)
+`signOut` uses `supabase.auth.signOut({ scope: 'local' })` — it clears the local session and emits
+`SIGNED_OUT` **without** the `POST /auth/v1/logout` server call, which 403s (and stalls) when the
+access token is already expired. The `role_impersonations` cleanup that precedes it is wrapped in
+`try/catch` so a dead session can never block logout. Callers should also hard-redirect
+(`window.location.assign('/login')`) rather than rely on `await signOut()` resolving — see
+`Navbar.handleSignOut`.
+
 ## Dependencies
 - `../lib/supabaseClient` – Supabase JS client.
 - React core (`createContext`, `useContext`, `useEffect`, `useState`).
@@ -48,6 +56,11 @@ if (!user) return <LoginPage/>;
 - Profile fetch runs on every auth change; race conditions if rapid events occur.
 - No error handling for `fetchProfile` failures beyond resetting profile to null.
 - `signInWithGoogle` redirects to `/dashboard`; assumes route exists.
+- A silently-dead session (refresh failed, no `SIGNED_OUT`) is not auto-recovered — the user sees 401s
+  until they log out/in. `signOut` is now hardened (above) but auto re-login on refresh failure is a
+  pending follow-up.
+- The Supabase client runs with the Web Locks cross-tab lock **disabled** (`src/lib/supabaseClient.js`,
+  `89c022e`) — it deadlocked for minutes on every deploy. See `docs/modules/lib.md`.
 
 ## Future Improvements
 - Add error state for profile fetch failures.

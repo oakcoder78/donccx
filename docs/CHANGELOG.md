@@ -22,6 +22,7 @@
 - **Change:** Navbar — item "Labs" agora é `adminOnly` (visível só para `effectiveRole === 'admin'`), sem depender de flag. `availableLinks` ganhou o filtro `adminOnly`.
 - **DB:** `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` — `DELETE` da flag `labs_dashboard` (não é mais lida por nenhum código) + `INSERT` de `dashboard_v3` (`description`, `allowed_roles = {admin}`, `enabled = false`). `SettingsFeatureFlags` troca `labs_dashboard` → `dashboard_v3` no grupo "Cockpits & Dashboards".
 - **Ops:** `supabase db push --include-all` aplicado (1 migration, sem drift) + `git push origin main` (Vercel redeploy). `feature_flags` verificado. `npm run build` OK.
+- **`dashboard_v3.enabled = true`** para `{admin}` (`d86b22e`) — admin passa a ver o `MeuDiaV3Page` shell (7 blocos placeholder "Em construção — Fase 3", ordem pessoal-primeiro, rótulos de escopo) em `/dashboard`. Todos os outros papéis seguem no monolito. Verificado em prod pelo admin.
 - A troca definitiva (`/dashboard` → v3 para todos, `DashboardRoute` deletado, flag dropada, carve-out do analyst movido) acontece no fim da Fase 3 num único deploy. Fases 2 (RPCs YTD/90d, `get_finance_summary`, RLS de escrita de atividades) e 3 (build dos blocos + `ui/Drawer.jsx` + WCAG AA) a seguir.
 
 ### Docs — Dashboard v3 (SDD reescrito) + gap analysis

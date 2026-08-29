@@ -264,13 +264,19 @@ A v3 evoluiu (v1→v3) de "Genérica" para uma dashboard completa que re-incorpo
 - `useGreeting` só produz 2 linhas; a 3ª ("Dados referente a jul/26") vem do status de sincronização (`sync_log`), calculada na página. `identity.ts` não tem pools `sales`/`finance`.
 - Flag `labs_dashboard` aposentada (não faz mais sentido).
 
-### Phases (SDD §5)
+### Phases (SDD §6)
 
-0 Foundation (done) · 1 Route inversion + shell · 2 Data foundation (RPCs YTD/90d, MRR masking) · 3 v3 build (7 blocos) · 4 Cockpits por papel (roadmap) · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
+0 Foundation (**done**) · 1 Route scaffold + flag transitória `dashboard_v3` + shell (**done, 2026-08-29** — `753d7a6` + hotfixes `3d1ed81`/`89c022e`) · **2 Data foundation (RPCs YTD/90d, `get_finance_summary`, RLS `activities_csm_sales_write`, hooks) — próxima** · 3 v3 build (7 blocos + `ui/Drawer.jsx` + `BrazilMap` interativo + WCAG AA) · 4 Cockpits por papel (roadmap) · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
+
+### Progresso
+
+- **Fase 1 shipada:** `/dashboard` → `DashboardRoute` (monolito por padrão; v3 shell para admin via flag `dashboard_v3`, ligada); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell (7 placeholders). Verificado em prod pelo admin.
+- **2 hotfixes de auth** (bugs pré-existentes expostos pelo primeiro deploy): logout resiliente a sessão expirada (`3d1ed81`) + Web Locks do gotrue desligado (`89c022e`, deadlock a cada deploy).
 
 ### Files
-- `docs/sdd/labs-dashboard-sdd.md` (rewritten), `docs/modules/meu-dia-dashboard.md` (new), `docs/modules/pages.md`, `.agents/docs-index.md` (updated)
-- Code: `src/App.jsx`, `src/components/layout/Navbar.jsx`, `src/pages/MeuDiaV3Page.jsx` + `src/components/dashboard/v3/*` (new), hooks + migrations (see SDD "Files to be touched")
+- Docs: `docs/sdd/labs-dashboard-sdd.md` (reescrito), `docs/modules/meu-dia-dashboard.md` (novo), `docs/modules/{pages,contexts,lib}.md`, `.agents/docs-index.md`, `docs/CHANGELOG.md`
+- Código Fase 1: `src/App.jsx`, `src/pages/DashboardRoute.jsx` + `src/pages/MeuDiaV3Page.jsx` (novos), `src/pages/labs/LabsDashboardPage.jsx`, `src/components/layout/Navbar.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `src/contexts/AuthContext.jsx`, `src/lib/supabaseClient.js`, `supabase/migrations/20260829000000_*.sql`
+- Fases 2-3: `src/components/dashboard/v3/*`, `src/components/ui/Drawer.jsx`, hooks + migrations (ver SDD "Files to be touched")
 
 ---
 

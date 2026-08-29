@@ -32,11 +32,14 @@ Pages are plain React components that import shared UI primitives (`Spinner`, `A
 
 ### Dashboard Layout (`Dashboard.jsx`)
 
-> **In transition (2026-08-29).** `Dashboard.jsx` (the monolith below) is being replaced at `/dashboard`
-> by a role-aware, block-based **Dashboard v3** (`src/pages/MeuDiaV3Page.jsx`) for all six roles; the
-> monolith moves to `/labs/dashboard` behind an **admin-only** guard as a parity reference. See
+> **In transition — Phase 1 shipped (2026-08-29).** `/dashboard` now routes through
+> `src/pages/DashboardRoute.jsx`: it renders the monolith below by default, and the block-based
+> **Dashboard v3** (`src/pages/MeuDiaV3Page.jsx`, still a placeholder shell) only when the transitional
+> `dashboard_v3` feature flag is enabled for the role (currently ON for `{admin}`). The monolith also
+> lives at `/labs/dashboard` under `AdminOnlyRoute` as a parity reference. The Phase 3 closeout will
+> point `/dashboard` straight at `MeuDiaV3Page` for everyone and drop the flag. See
 > `docs/modules/meu-dia-dashboard.md` and the SDD `docs/sdd/labs-dashboard-sdd.md` (single source of
-> truth). The layout below describes the current production monolith.
+> truth). The layout below describes the monolith.
 
 The dashboard is organized into **4 visual strips (faixas)**:
 
