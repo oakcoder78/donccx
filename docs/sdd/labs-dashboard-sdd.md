@@ -769,7 +769,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 ### Production state
 
 - **Phase 1 shipped (`753d7a6`, 2026-08-29).** `/dashboard` → `DashboardRoute` (serves the monolith by default; v3 shell when `dashboard_v3` flag on). `/labs/dashboard` → monolith under `AdminOnlyRoute`. `MeuDiaV3Page` shell exists (7 placeholder blocks).
-- `feature_flags`: **`labs_dashboard` deleted**; **`dashboard_v3` created** (`{admin}`, `enabled=false`) — transitional, dropped in the Phase 3 swap.
+- `feature_flags`: **`labs_dashboard` deleted**; **`dashboard_v3` created** (`{admin}`) — transitional, dropped in the Phase 3 swap. **`enabled=true` since 2026-08-29** so admins preview the v3 shell at `/dashboard`; everyone else stays on the monolith.
 - `/health`, `/cockpits`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit` stable (cockpit pattern reference).
 - `src/lib/scoring.js`, `src/components/dashboard/BrazilMap.jsx`, `src/hooks/useLabsClients.js` **exist** but are unused / not adopted by the monolith or the v3 yet.
 - `clients.comercial_id` + RLS dual ownership live. `profiles.role` includes `sales|finance`. `role_impersonations` + `effectiveRole` live.
