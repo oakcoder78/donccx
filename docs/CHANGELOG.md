@@ -2,6 +2,12 @@
 
 ## 2026-08-29
 
+### Fix — Deadlock do Web Locks do gotrue a cada deploy (`89c022e`)
+
+- **Sintoma (reproduzível a cada deploy):** com uma aba do app aberta em background (throttled pelo browser — ex. atrás do terminal), o `navigatorLock` do `@supabase/auth-js` fica preso. A aba throttled segura o lock `sb-etfeqblaeuhaobefxilp-auth-token` e todo novo page load trava dentro de `GoTrueClient.initialize()` esperando por ele → 4-5 min de tela "Carregando" para logar, logout travado, `401` em `feature_flags` (a query dispara antes da sessão inicializar). Issue upstream: [supabase/supabase#42505](https://github.com/supabase/supabase/issues/42505).
+- **Fix:** `src/lib/supabaseClient.js` — `createClient(url, key, { auth: { lock: noopLock } })`. `noopLock` tem a mesma assinatura do `lockNoOp` interno do auth-js (usado quando `navigator.locks` não existe): só executa `fn()`, sem coordenação cross-tab. O único benefício do lock é de-dup de refresh de token concorrente entre abas, já coberto pela janela de tolerância de reuse do refresh token do Supabase. Para um app interno (1 aba por usuário na prática) o custo do deadlock não compensa.
+- **Este deploy dispara a cascata uma última vez** (abas antigas ainda têm o `navigatorLock`). Depois dele: fechar **todas** as abas de `donccx.vercel.app` (inclusive a que fica em background) e abrir uma nova — a partir daí, sem mais deadlock.
+
 ### Fix — Logout resiliente a sessão expirada (`3d1ed81`)
 
 - **Sintoma:** com o access token do Supabase expirado e o navigator lock do gotrue contido/órfão (aba aberta por horas, refresh interrompido), o botão "Sair" travava e o app ficava lento (`POST /auth/v1/logout?scope=global` 403, `GET /rest/v1/...` 401, `Lock ... was not released within 5000ms`). Exposto por um reload pós-deploy; **não é regressão** — a migration da Fase 1 só mexeu em `feature_flags` e o código novo não toca em auth.
