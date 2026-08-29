@@ -20,7 +20,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** Phase 1 — Route Scaffold + Transitional Flag + Shell — **code done (uncommitted, not deployed); verify + deploy pending authorization**. (Phase 0 Foundation and the `comercial_id` migration are Complete.)
+- **Active phase:** Phase 1 — Route Scaffold + Transitional Flag + Shell — **shipped `753d7a6` (2026-08-29), migration applied to prod**. Remaining: manual per-role verification on `donccx.vercel.app` after the Vercel deploy settles. Next: Phase 2. (Phase 0 Foundation and the `comercial_id` migration are Complete.)
 
 **What already exists related to this work:**
 
@@ -570,14 +570,14 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 - [x] **`src/components/settings/SettingsFeatureFlags.jsx`** — `labs_dashboard` → `dashboard_v3` in `FLAG_GROUPS`.
 - [x] **`src/pages/MeuDiaV3Page.jsx` (shell)** — `PageHeader` + 7 placeholder cards in §3 order with `ScopeLabel` text + shimmer. Icons only.
 - [x] **Build:** `npm run build` — OK (2200 modules, no errors).
-- [ ] **Verify (local, pre-deploy):** manual per-role check pending — needs `npm run dev` + the migration applied (or a local `dashboard_v3` row) to exercise the flag path.
-- [ ] **Deploy:** `git push origin main` + `node_modules/.bin/supabase db push --include-all` — **awaiting authorization**.
+- [x] **Deploy:** `git push origin main` (`753d7a6`) + `supabase db push --include-all` — migration applied; `feature_flags` verified (`labs_dashboard` gone, `dashboard_v3` `{admin}` `enabled=false`).
+- [ ] **Verify (prod):** after Vercel settles — admin sees "Labs" nav → `/labs/dashboard` = monolito; non-admin → redirect; `/dashboard` = monolito for all; admin flips `dashboard_v3` on in `/configuracoes` → `/dashboard` = v3 shell; analyst lands on `/atendimento`.
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-29 | _(uncommitted)_ | `src/App.jsx`, `src/pages/DashboardRoute.jsx` (new), `src/pages/MeuDiaV3Page.jsx` (new), `src/pages/labs/LabsDashboardPage.jsx`, `src/components/layout/Navbar.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` (new) | Route scaffold: `AdminOnlyRoute`; `/dashboard` → `DashboardRoute` (monolito por padrão, v3 via flag `dashboard_v3`); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell. Build OK. **Não commitado / não deployado.** |
+| 2026-08-29 | `753d7a6` | `src/App.jsx`, `src/pages/DashboardRoute.jsx` (new), `src/pages/MeuDiaV3Page.jsx` (new), `src/pages/labs/LabsDashboardPage.jsx`, `src/components/layout/Navbar.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` (new), + docs | Route scaffold: `AdminOnlyRoute`; `/dashboard` → `DashboardRoute` (monolito por padrão, v3 via flag transitória `dashboard_v3`); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell. Build OK, migration aplicada em prod. |
 
 ---
 
@@ -768,13 +768,12 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Production state
 
-- `/dashboard` = **monolith** (`DashboardPage.jsx`, 1761 lines) — still the only dashboard live. Phase 1 not yet started.
-- `/labs/dashboard` = 41-line shell (Phase 0), gated by `labs_dashboard` flag `{admin}` `enabled=false`.
+- **Phase 1 shipped (`753d7a6`, 2026-08-29).** `/dashboard` → `DashboardRoute` (serves the monolith by default; v3 shell when `dashboard_v3` flag on). `/labs/dashboard` → monolith under `AdminOnlyRoute`. `MeuDiaV3Page` shell exists (7 placeholder blocks).
+- `feature_flags`: **`labs_dashboard` deleted**; **`dashboard_v3` created** (`{admin}`, `enabled=false`) — transitional, dropped in the Phase 3 swap.
 - `/health`, `/cockpits`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit` stable (cockpit pattern reference).
-- `src/lib/scoring.js`, `src/components/dashboard/BrazilMap.jsx`, `src/hooks/useLabsClients.js` **exist** but are unused / not adopted by the monolith.
+- `src/lib/scoring.js`, `src/components/dashboard/BrazilMap.jsx`, `src/hooks/useLabsClients.js` **exist** but are unused / not adopted by the monolith or the v3 yet.
 - `clients.comercial_id` + RLS dual ownership live. `profiles.role` includes `sales|finance`. `role_impersonations` + `effectiveRole` live.
-- `sync_log` has no `ref_month`. No YTD / 90-day-average aggregation anywhere. MRR is exposed via `CLIENT_SELECT = *` (unmasked) — **A3 unresolved**.
-- `feature_flags.labs_dashboard` exists (retired in Phase 1). `feature_flags.dashboard_v3` does **not** exist yet (created in Phase 1).
+- `sync_log` has no `ref_month`. No YTD / 90-day-average aggregation anywhere. MRR is exposed via `CLIENT_SELECT = *` (unmasked) — **A3 unresolved** (Phase 2).
 - `activities` RLS: csm/sales are read-only (write policy added in Phase 2).
 
 ### Architectural decisions

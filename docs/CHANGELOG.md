@@ -2,6 +2,15 @@
 
 ## 2026-08-29
 
+### Dashboard v3 — Phase 1: route scaffold + flag transitória (`753d7a6`)
+
+- **New:** `src/pages/DashboardRoute.jsx` — wrapper de `/dashboard`. Serve o `DashboardPage` monolítico por padrão; renderiza `MeuDiaV3Page` (novo shell) apenas quando `isEnabled('dashboard_v3', effectiveRole)`. Zero regressão: sem a flag ligada, todo mundo continua no dashboard atual.
+- **New:** `AdminOnlyRoute` em `src/App.jsx` (admin-strict, sem ramo `manager`) envolve `/labs/dashboard`, que passa a renderizar o monolito (`LabsDashboardPage` virou wrapper fino + faixa "Modo legado") como referência de paridade para o admin.
+- **Change:** Navbar — item "Labs" agora é `adminOnly` (visível só para `effectiveRole === 'admin'`), sem depender de flag. `availableLinks` ganhou o filtro `adminOnly`.
+- **DB:** `supabase/migrations/20260829000000_retire_labs_dashboard_add_dashboard_v3_flag.sql` — `DELETE` da flag `labs_dashboard` (não é mais lida por nenhum código) + `INSERT` de `dashboard_v3` (`description`, `allowed_roles = {admin}`, `enabled = false`). `SettingsFeatureFlags` troca `labs_dashboard` → `dashboard_v3` no grupo "Cockpits & Dashboards".
+- **Ops:** `supabase db push --include-all` aplicado (1 migration, sem drift) + `git push origin main` (Vercel redeploy). `feature_flags` verificado. `npm run build` OK.
+- A troca definitiva (`/dashboard` → v3 para todos, `DashboardRoute` deletado, flag dropada, carve-out do analyst movido) acontece no fim da Fase 3 num único deploy. Fases 2 (RPCs YTD/90d, `get_finance_summary`, RLS de escrita de atividades) e 3 (build dos blocos + `ui/Drawer.jsx` + WCAG AA) a seguir.
+
 ### Docs — Dashboard v3 (SDD reescrito) + gap analysis
 
 - **Docs:** `docs/sdd/labs-dashboard-sdd.md` **reescrito**. A arquitetura-alvo foi invertida: o mock `docs/mock/meu-dia-generic-v3.html` vira a dashboard principal em `/dashboard` para os 6 papéis; o monolito `DashboardPage.jsx` vai para `/labs/dashboard` sob `AdminOnlyRoute` (admin-only). A flag `labs_dashboard` será aposentada. Escopo full-fidelity (RPCs YTD, média 90d, geo por cidade, masking de MRR). Fases: 0 Foundation (done) · 1 Route inversion · 2 Data foundation · 3 v3 build · 4 Cockpits por papel · 5 Matriz Empresas · 6 Aposentar monolito.
