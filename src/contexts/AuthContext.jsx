@@ -88,11 +88,16 @@ export function AuthProvider({ children }) {
       options: { redirectTo: `${window.location.origin}/dashboard` },
     }),
     signOut: async () => {
-      // Clear impersonation on logout
-      if (impersonatedRole) {
-        await supabase.from('role_impersonations').delete().eq('user_id', user?.id)
-      }
-      return supabase.auth.signOut()
+      // Clear impersonation on logout — best-effort, must never block the sign-out
+      try {
+        if (impersonatedRole && user?.id) {
+          await supabase.from('role_impersonations').delete().eq('user_id', user.id)
+        }
+      } catch { /* ignore — a dead session must still be able to log out */ }
+      // scope: 'local' clears local storage + emits SIGNED_OUT without the
+      // POST /auth/v1/logout server call, which 403s (and stalls on the lock)
+      // when the access token is already expired/invalid.
+      return supabase.auth.signOut({ scope: 'local' })
     },
     refreshProfile: () => user ? fetchProfile(user.id) : Promise.resolve(),
     setImpersonation: async (targetRole) => {

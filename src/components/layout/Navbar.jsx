@@ -61,8 +61,13 @@ export function Navbar({ googleOAuthSignal }) {
       : availableLinks(mainNavLinks)
 
   async function handleSignOut() {
-    await signOut()
-    navigate('/login')
+    try {
+      await signOut()
+    } catch {
+      // a stalled/failed sign-out must never trap the user in the app
+    }
+    // hard redirect so a hung auth lock can't keep us on the current page
+    window.location.assign('/login')
   }
 
   const { unreadCount, markAsRead } = useNotifications()
