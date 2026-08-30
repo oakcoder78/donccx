@@ -88,10 +88,13 @@ function ClientHistory({ mode, data, onClose }) {
   )
 }
 
-function AllClientsList({ mode, rows = [], prevMonthShort, prevMonth2Short, onClose }) {
+function AllClientsList({ mode, rows = [], prevMonthShort, prevMonth2Short, effectiveRole, profileId, onClose }) {
   const navigate = useNavigate()
   const meta = KIND[mode.replace('-list', '')] || KIND['op-os']
   const isHealth = mode.startsWith('op-health')
+  const canOpen = r =>
+    effectiveRole === 'admin' || effectiveRole === 'manager' ||
+    (!!profileId && (r.csm_id === profileId || r.comercial_id === profileId))
 
   return (
     <>
@@ -104,13 +107,10 @@ function AllClientsList({ mode, rows = [], prevMonthShort, prevMonth2Short, onCl
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 24px' }}>
         {rows.length === 0 && <p style={{ color: C.ink2, fontSize: '0.8125rem' }}>Sem variação registrada.</p>}
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-          {rows.map(r => (
-            <li key={r.clientId}>
-              <button
-                type="button"
-                onClick={() => { onClose(); navigate(`/empresas/${r.clientId}`) }}
-                style={{ width: '100%', textAlign: 'left', font: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: `0.5px solid ${C.line}` }}
-              >
+          {rows.map(r => {
+            const clickable = canOpen(r)
+            const inner = (
+              <>
                 <span style={{ minWidth: 0 }}>
                   <span style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: C.ink, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
                   <span style={{ display: 'block', fontSize: '0.75rem', color: C.ink2 }}>
@@ -126,9 +126,17 @@ function AllClientsList({ mode, rows = [], prevMonthShort, prevMonth2Short, onCl
                   : (r.state === 'new'
                       ? <DeltaBadge neutralLabel="Início de uso" />
                       : <DeltaBadge absolute={r.state === 'up' ? r.absDelta : -r.absDelta} unit={r.unit} />)}
-              </button>
-            </li>
-          ))}
+              </>
+            )
+            const style = { width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: `0.5px solid ${C.line}` }
+            return (
+              <li key={r.clientId}>
+                {clickable
+                  ? <button type="button" onClick={() => { onClose(); navigate(`/empresas/${r.clientId}`) }} style={{ ...style, font: 'inherit', cursor: 'pointer' }}>{inner}</button>
+                  : <div style={style}>{inner}</div>}
+              </li>
+            )
+          })}
         </ul>
       </div>
     </>

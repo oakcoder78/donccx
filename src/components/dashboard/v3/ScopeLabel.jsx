@@ -24,12 +24,3 @@ export function ScopeLabel({ scope }) {
     </span>
   )
 }
-
-/**
- * For company-wide blocks whose data is actually RLS-scoped for csm/sales
- * (useOperationalDeltas): show "toda a base" for the roles that see everything,
- * "minha carteira" for the two that don't.
- */
-export function scopeForRole(effectiveRole) {
-  return effectiveRole === 'csm' || effectiveRole === 'sales' ? 'carteira' : 'base'
-}

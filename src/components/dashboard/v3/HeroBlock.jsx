@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { C, fmtMonthShortYear } from '@/lib/scoring'
+import { C } from '@/lib/scoring'
 
-// Personalised navy hero: greeting (3 lines, SDD §1.6) + 3 KPI cards per role.
+// Personalised navy hero: greeting (3 lines) + 3 KPI cards per role.
 // No glassmorphism / blur-orbs (UX critique) — flat navy, high contrast.
 
 const ROLE_PILL = {
@@ -17,57 +17,16 @@ function fmtMoney(v) {
 }
 
 function fmtInt(v) {
-  return (Number(v) || 0).toLocaleString('pt-BR')
+  return v == null ? '—' : (Number(v) || 0).toLocaleString('pt-BR')
 }
 
-function deltaText(pct) {
-  if (pct == null) return null
-  const up = pct >= 0
-  return { text: `${up ? '+' : ''}${pct}% vs média 90 dias`, color: up ? C.lime : '#f2b8b8' }
-}
-
-function buildCards({ effectiveRole, scopedClientCount, op90d, financeSummary, tickets }) {
-  const os = op90d?.os
-  const prof = op90d?.profissionais
-  const opsCards = [
-    {
-      label: 'Clientes',
-      value: fmtInt(scopedClientCount),
-      sub: (effectiveRole === 'csm' || effectiveRole === 'sales') ? 'Na sua carteira' : 'Ativos na base',
-      to: '/empresas',
-    },
-    {
-      label: 'Ordens de Serviço',
-      value: os ? fmtInt(os.mes_atual) : '—',
-      delta: deltaText(os?.delta_pct),
-    },
-    {
-      label: 'Profissionais Ativos',
-      value: prof ? fmtInt(prof.mes_atual) : '—',
-      delta: deltaText(prof?.delta_pct),
-    },
-  ]
-
+function buildCards({ effectiveRole, clientCount, profissionaisAtivos, healthMedia, financeSummary, tickets }) {
   if (effectiveRole === 'finance') {
     const f = financeSummary
     return [
-      {
-        label: 'MRR · mês',
-        value: f ? fmtMoney(f.mrr_mes) : '—',
-        sub: f ? `Acumulado no ano (est.) ${fmtMoney(f.mrr_ytd)}` : null,
-      },
-      {
-        label: 'Clientes em atraso',
-        value: f ? fmtInt(f.clientes_atraso) : '—',
-        sub: f ? `${fmtMoney(f.valor_atraso)} em atraso` : null,
-        subColor: '#f2b8b8',
-        to: '/empresas',
-      },
-      {
-        label: 'Renovação em 30D',
-        value: f ? fmtInt(f.renovacao_30d) : '—',
-        sub: 'Próximos 30 dias',
-      },
+      { label: 'MRR · mês', value: f ? fmtMoney(f.mrr_mes) : '—', sub: f ? `Acumulado no ano (est.) ${fmtMoney(f.mrr_ytd)}` : null },
+      { label: 'Clientes em atraso', value: f ? fmtInt(f.clientes_atraso) : '—', sub: f ? `${fmtMoney(f.valor_atraso)} em atraso` : null, subColor: '#f2b8b8', to: '/empresas' },
+      { label: 'Renovação em 30D', value: f ? fmtInt(f.renovacao_30d) : '—', sub: 'Próximos 30 dias' },
     ]
   }
 
@@ -80,16 +39,21 @@ function buildCards({ effectiveRole, scopedClientCount, op90d, financeSummary, t
     ]
   }
 
-  // csm / sales / manager / admin
-  return opsCards
+  // csm / sales → carteira; admin / manager → base. Same shape.
+  const carteira = effectiveRole === 'csm' || effectiveRole === 'sales'
+  return [
+    { label: 'Clientes', value: fmtInt(clientCount), sub: carteira ? 'Na sua carteira' : 'Ativos na base', to: '/empresas' },
+    { label: 'Profissionais Ativos', value: fmtInt(profissionaisAtivos), sub: 'Mês de referência' },
+    { label: 'Health Score', value: healthMedia == null ? '—' : Math.round(healthMedia), sub: carteira ? 'Média da carteira' : 'Média da base' },
+  ]
 }
 
 export function HeroBlock({
-  effectiveRole, profile, greeting, dateStr, dataRefMonth,
-  scopedClientCount, op90d, financeSummary, tickets,
+  effectiveRole, profile, greeting, dateStr,
+  clientCount, profissionaisAtivos, healthMedia, financeSummary, tickets,
 }) {
   const navigate = useNavigate()
-  const cards = buildCards({ effectiveRole, scopedClientCount, op90d, financeSummary, tickets })
+  const cards = buildCards({ effectiveRole, clientCount, profissionaisAtivos, healthMedia, financeSummary, tickets })
   const first = (profile?.name || '').split(' ')[0]
 
   return (
@@ -97,24 +61,24 @@ export function HeroBlock({
       aria-label="Resumo do dia"
       style={{ background: C.navyDeep, color: '#fff', borderRadius: 20, padding: '28px 26px 24px', overflow: 'hidden' }}
     >
-      <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
         {profile?.avatar_url
-          ? <img src={profile.avatar_url} alt="" style={{ width: 72, height: 72, borderRadius: 16, objectFit: 'cover', border: '3px solid rgba(255,255,255,0.9)', flexShrink: 0 }} />
+          ? <img src={profile.avatar_url} alt="" style={{ width: 108, height: 108, borderRadius: 20, objectFit: 'cover', border: '3px solid rgba(255,255,255,0.9)', flexShrink: 0 }} />
           : (
-            <div aria-hidden="true" style={{ width: 72, height: 72, borderRadius: 16, background: C.lime, color: C.navyDeep, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: '1.5rem', flexShrink: 0 }}>
+            <div aria-hidden="true" style={{ width: 108, height: 108, borderRadius: 20, background: C.lime, color: C.navyDeep, display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: '2rem', flexShrink: 0 }}>
               {(first[0] || '?').toUpperCase()}
             </div>
           )}
-        <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4 }}>
           <p style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, color: '#fff' }}>
             {greeting?.text || `Olá, ${first}.`}
           </p>
-          <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: C.navyTextSoft, lineHeight: 1.3 }}>
-            {dateStr}{greeting?.extra ? ` · ${greeting.extra}` : ''}
+          <p style={{ margin: 0, fontSize: '0.875rem', color: C.navyTextSoft, lineHeight: 1.3 }}>
+            {dateStr}
           </p>
-          {dataRefMonth && (
-            <p style={{ margin: '2px 0 0', fontSize: '0.875rem', color: C.navyTextMuted, lineHeight: 1.3 }}>
-              Dados referente a {fmtMonthShortYear(dataRefMonth)}
+          {greeting?.extra && (
+            <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 700, color: C.sky, lineHeight: 1.3 }}>
+              {greeting.extra}
             </p>
           )}
         </div>
@@ -150,12 +114,7 @@ export function HeroBlock({
                 <div style={{ fontSize: '1.75rem', fontWeight: 800, marginTop: 8, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                   {card.value}
                 </div>
-                {card.delta && (
-                  <div style={{ fontSize: '0.75rem', fontWeight: 700, marginTop: 8, color: card.delta.color }}>
-                    {card.delta.text}
-                  </div>
-                )}
-                {card.sub && !card.delta && (
+                {card.sub && (
                   <div style={{ fontSize: '0.75rem', marginTop: 8, color: card.subColor || 'rgba(255,255,255,0.75)' }}>
                     {card.sub}
                   </div>

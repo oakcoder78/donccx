@@ -17,9 +17,11 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useClientReports.js` — fetch reports for a client.
 - `useClients.js` — list clients with optional filters.
 - `useContacts.js` — list contacts, manage contact links.
-- `useDashboardClients.js` — Dashboard v3 clients in scope: thin wrapper over `useClients(labsFilterFor(profile))` (admin/manager/finance → all `cliente`; sales → `comercial_id`; csm → `csm_id`). Single lifted call for `MeuDiaV3Page` (do not call per-block).
-- `useDashboardYtd.js` — `useDashboardYtd()` (RPC `get_dashboard_ytd` — company-wide YTD numbers) + `useOperational90dAvg()` (RPC `get_operational_90d_avg` — HERO "vs média 90d" for OS/profissionais). Both `staleTime 10min`.
-- `useOperationalDeltas.js` — `useOperationalDeltas(clients)` extracts the monolith's FAIXA 4 (month-over-month OS/profissionais/health top-movers from `client_usage`; RLS-scoped — carteira for csm/sales, ecosystem otherwise). `useOpClientHistory(clientId)` returns the 3-month series for the `op-*` drawer.
+- `useDashboardClients.js` — Dashboard v3 HERO clients in scope: thin wrapper over `useClients(labsFilterFor(profile))` (admin/manager/finance → all `cliente`; sales → `comercial_id`; csm → `csm_id`). RLS-scoped — carteira for csm/sales, base for admin/manager. Feeds only the HERO (Clientes, Health média).
+- `useDashboardOverview.js` — company-wide ("geral") sources for the blocks that show the same numbers to every role, via SECURITY DEFINER RPCs (migration `20260830000004`): `useDashboardClientsOverview()` (`get_dashboard_clients_overview` → Saúde por dimensão + Mapa) + `useOpenProjectsOverview()` (`get_open_projects_overview` → Projetos em aberto). No mrr/billing.
+- `useActiveProfissionais.js` — `sum(active_users)` of `client_usage` for the last closed month, RLS-scoped (carteira for csm/sales, base otherwise). Feeds the HERO "Profissionais Ativos" card.
+- `useDashboardYtd.js` — `useDashboardYtd()` (RPC `get_dashboard_ytd` — company-wide YTD, feeds "Nossa força em Números"). `useOperational90dAvg()` exists but the v3 no longer consumes it.
+- `useOperationalDeltas.js` — `useOperationalDeltas()` calls `get_operational_deltas()` (SECURITY DEFINER, company-wide for every role) and builds the OS/profissionais/health top-mover lists client-side. `useOpClientHistory(clientId)` returns the 3-month series for the `op-*` drawer (RLS-scoped; only opened for carteira clients of csm/sales).
 - `useDonkie.jsx` — integrate with external Donkie service.
 - `useFeatureFlags.js` — load feature‑flag configuration.
 - `useHealthConfig.js` — retrieve health‑score dimensions & weights.
@@ -88,6 +90,8 @@ UI components may hide certain blocks based on lifecycle_stage. Examples: operat
 - `src/hooks/useClients.js`
 - `src/hooks/useContacts.js`
 - `src/hooks/useDashboardClients.js`
+- `src/hooks/useDashboardOverview.js`
+- `src/hooks/useActiveProfissionais.js`
 - `src/hooks/useDashboardYtd.js`
 - `src/hooks/useOperationalDeltas.js`
 - `src/hooks/useDonkie.jsx`

@@ -4,6 +4,7 @@ import { C, HEALTH_ICONS } from '@/lib/scoring'
 import { Icons } from '@/lib/icons'
 import { Panel, SeeAll } from './primitives'
 import { ScopeLabel } from './ScopeLabel'
+import { canDrillIn } from './gating'
 import { Drawer } from '@/components/ui/Drawer'
 import { ClientHealthDrawer } from '@/components/clients/ClientHealthDrawer'
 
@@ -23,7 +24,7 @@ function band(score) {
   return 'ok'
 }
 
-export function SaudeDimensaoBlock({ clients = [], loading, error, onRetry }) {
+export function SaudeDimensaoBlock({ clients = [], effectiveRole, profileId, loading, error, onRetry }) {
   const navigate = useNavigate()
   const [drawerClient, setDrawerClient] = useState(null)
 
@@ -56,7 +57,7 @@ export function SaudeDimensaoBlock({ clients = [], loading, error, onRetry }) {
           <span style={{ fontSize: '0.6875rem', fontWeight: 700, color: C.ink2 }}>
             {total} · média {avg}
           </span>
-          <ScopeLabel scope="carteira" />
+          <ScopeLabel scope="base" />
         </span>
       </div>
 
@@ -68,7 +69,7 @@ export function SaudeDimensaoBlock({ clients = [], loading, error, onRetry }) {
           </button>
         )}
         {!loading && !error && total === 0 && (
-          <p style={{ margin: 0, color: C.ink2, fontSize: '0.8125rem' }}>Sua carteira ainda não tem empresas.</p>
+          <p style={{ margin: 0, color: C.ink2, fontSize: '0.8125rem' }}>Nenhuma empresa ativa.</p>
         )}
         {!loading && !error && total > 0 && (
           <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -103,16 +104,16 @@ export function SaudeDimensaoBlock({ clients = [], loading, error, onRetry }) {
                   </div>
                   {d.atRisk.length > 0 && (
                     <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {d.atRisk.slice(0, 4).map(c => (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setDrawerClient(c)}
-                          style={{ font: 'inherit', cursor: 'pointer', fontSize: '0.6875rem', fontWeight: 600, color: C.red, background: C.redSoft, border: 0, borderRadius: 999, padding: '2px 8px' }}
-                        >
-                          {c.fantasy_name || c.name}
-                        </button>
-                      ))}
+                      {d.atRisk.slice(0, 4).map(c => {
+                        const chipStyle = { fontSize: '0.6875rem', fontWeight: 600, color: C.red, background: C.redSoft, borderRadius: 999, padding: '2px 8px' }
+                        return canDrillIn(c, effectiveRole, profileId) ? (
+                          <button key={c.id} type="button" onClick={() => setDrawerClient(c)} style={{ ...chipStyle, font: 'inherit', cursor: 'pointer', border: 0 }}>
+                            {c.fantasy_name || c.name}
+                          </button>
+                        ) : (
+                          <span key={c.id} style={chipStyle}>{c.fantasy_name || c.name}</span>
+                        )
+                      })}
                       {d.atRisk.length > 4 && (
                         <span style={{ fontSize: '0.6875rem', color: C.ink2, alignSelf: 'center' }}>+{d.atRisk.length - 4}</span>
                       )}

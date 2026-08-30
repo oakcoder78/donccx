@@ -2,6 +2,18 @@
 
 ## 2026-08-30
 
+### Dashboard v3 — ajustes de interface + blocos "geral" para todos os papéis
+
+Feedback do usuário depois de rodar em produção:
+
+- **HERO:** foto do perfil 72→108px, 3 linhas do greeting centradas verticalmente na imagem. Linha 2 = só a data; **linha 3 = a narrativa do greeting-engine** (ex. "Carteira equilibrada"), destacada em `C.sky` (`#59c2ed`). A linha "Dados referente a jul/26" foi **removida** (duplicava o período do topo + `dataRefMonth` derivava errado).
+- **HERO cards** agora uniformes: **Clientes · Profissionais Ativos · Health Score** — para csm/sales são da **carteira**, para admin/manager são **gerais**. Sem "Ordens de Serviço", sem "Δ vs média 90 dias". finance e analyst inalterados.
+- **Dropdown "Carteira"** (admin/manager) **removido** do header — só alimentava 2 blocos e a lista incluía `manager` (sem carteira) → escolher um zerava a visão.
+- **Saúde por dimensão · Projetos em aberto · Mapa vivo · Operacional — variação mensal** passam a mostrar **os mesmos números (empresa toda) para os 6 papéis**. csm/sales não têm SELECT company-wide (RLS), então via **3 RPCs `SECURITY DEFINER`** (migration `20260830000004`): `get_dashboard_clients_overview`, `get_operational_deltas`, `get_open_projects_overview` — só agregados/campos não-sensíveis, **sem MRR/billing**. Drill-in (abrir drawer / `/empresas/:id`) fica limitado à carteira para csm/sales (`canDrillIn`); linhas de outras empresas aparecem sem clique.
+- **"Projetos em aberto"** → clicar num card abre **`/empresas/:id?tab=operacional&sub=projetos`** (antes `?tab=onboarding`, que não exibia dados).
+- Hooks: `useDashboardOverview` (novo — 2 RPCs), `useActiveProfissionais` (novo — soma RLS-scoped para o HERO), `useOperationalDeltas` reescrito para chamar o RPC. `useProjectCockpit` e `useOperational90dAvg` não são mais usados pela v3 (mantidos para outras telas).
+- Aplicado via Supabase MCP + reconciliado; `npm run build` limpo; advisors de segurança sem nova exposição a `anon`.
+
 ### Dashboard v3 — vira a `/dashboard` de todos os papéis (flag como kill-switch)
 
 - **`/dashboard` = v3 para os 6 papéis.** Migration `20260830000003_dashboard_v3_all_roles.sql` — `UPDATE feature_flags SET allowed_roles = {admin,manager,csm,sales,finance,analyst}, enabled = true WHERE key='dashboard_v3'`. O wrapper `DashboardRoute` passa a renderizar `MeuDiaV3Page` para qualquer papel.
