@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as d3 from 'd3'
 
@@ -22,29 +22,41 @@ function stateColor(count) {
 const W = 400
 const H = 370
 
-export function BrazilMap({ clients }) {
+export function BrazilMap({ clients, onSelectUF }) {
   const [tooltip, setTooltip] = useState(null)
   const containerRef = useRef()
 
-  const { data: geoData } = useQuery({
+  const { data: geoData, isError } = useQuery({
     queryKey: ['brazil_geojson'],
     queryFn: async () => {
       const res = await fetch(GEO_URL)
+      if (!res.ok) throw new Error(`geojson ${res.status}`)
       return res.json()
     },
     staleTime: Infinity,
     gcTime:    Infinity,
+    retry: 1,
   })
 
   // Group active clients by state
-  const stateMap = {}
-  clients.forEach(c => {
-    const st = c.address_state?.trim().toUpperCase()
-    if (st) {
-      if (!stateMap[st]) stateMap[st] = []
-      stateMap[st].push(c.fantasy_name || c.name)
-    }
-  })
+  const stateMap = useMemo(() => {
+    const m = {}
+    clients.forEach(c => {
+      const st = c.address_state?.trim().toUpperCase()
+      if (st) {
+        if (!m[st]) m[st] = []
+        m[st].push(c.fantasy_name || c.name)
+      }
+    })
+    return m
+  }, [clients])
+
+  const topStates = useMemo(
+    () => Object.entries(stateMap)
+      .map(([uf, list]) => ({ uf, count: list.length }))
+      .sort((a, b) => b.count - a.count),
+    [stateMap],
+  )
 
   function handleMouseMove(e, feature) {
     const rect = containerRef.current?.getBoundingClientRect()
@@ -56,6 +68,40 @@ export function BrazilMap({ clients }) {
       nome:    feature.properties.nome || feature.properties.name || feature.properties.sigla,
       clients: stateMap[feature.properties.sigla] || [],
     })
+  }
+
+  // Graceful degrade — external GeoJSON blocked/offline: show the ranked list, not a blank box.
+  if (isError || (!geoData && topStates.length === 0)) {
+    return (
+      <div style={{ padding: '8px 0' }}>
+        {isError && (
+          <p style={{ fontSize: 12, color: '#888780', marginBottom: 10 }}>
+            Mapa indisponível — exibindo a distribuição por estado.
+          </p>
+        )}
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {topStates.map(({ uf, count }) => (
+            <li key={uf}>
+              <button
+                type="button"
+                onClick={() => onSelectUF?.(uf)}
+                style={{
+                  width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 12px', borderRadius: 8, border: '0.5px solid rgba(15,34,58,0.12)',
+                  background: 'transparent', cursor: onSelectUF ? 'pointer' : 'default', font: 'inherit',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: '#0e223a', fontSize: 13 }}>{uf}</span>
+                <span style={{ color: '#3b4a5e', fontSize: 13 }}>{count} cliente{count !== 1 ? 's' : ''}</span>
+              </button>
+            </li>
+          ))}
+          {topStates.length === 0 && (
+            <li style={{ fontSize: 13, color: '#888780' }}>Sem clientes com estado informado.</li>
+          )}
+        </ul>
+      </div>
+    )
   }
 
   if (!geoData) {
@@ -74,11 +120,13 @@ export function BrazilMap({ clients }) {
       <svg
         viewBox={`0 0 ${W} ${H}`}
         style={{ display: 'block', width: '100%', height: H }}
-        aria-label="Mapa do Brasil"
+        role="img"
+        aria-label="Mapa do Brasil com a distribuição de clientes por estado"
       >
         {geoData.features.map((feat, i) => {
           const sigla = feat.properties.sigla
           const count = stateMap[sigla]?.length || 0
+          const clickable = count > 0 && !!onSelectUF
           return (
             <path
               key={sigla || i}
@@ -88,7 +136,8 @@ export function BrazilMap({ clients }) {
               strokeWidth={0.8}
               onMouseMove={e => handleMouseMove(e, feat)}
               onMouseLeave={() => setTooltip(null)}
-              style={{ cursor: count > 0 ? 'pointer' : 'default' }}
+              onClick={clickable ? () => onSelectUF(sigla) : undefined}
+              style={{ cursor: clickable ? 'pointer' : 'default' }}
             />
           )
         })}
@@ -127,7 +176,7 @@ export function BrazilMap({ clients }) {
       )}
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, fontSize: 11, color: '#888780', alignItems: 'center' }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10, fontSize: 11, color: '#3b4a5e', alignItems: 'center' }}>
         {LEGEND.map(({ color, label }) => (
           <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div style={{ width: 12, height: 12, borderRadius: 3, flexShrink: 0, backgroundColor: color, border: '0.5px solid #d4d3ce' }} />

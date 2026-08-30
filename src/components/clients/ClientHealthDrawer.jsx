@@ -408,6 +408,7 @@ export function ClientHealthDrawer({ client, onClose }) {
   if (overdueAct) qaItems.push({ tone: 'red', iconKey: 'red', label: 'Concluir atividade atrasada', onClick: () => { onClose(); navigate(`/empresas/${client.id}?tab=atividades`) } })
   if (signals.some(s => /milestone|onboarding/i.test(s.title))) qaItems.push({ tone: 'red', iconKey: 'red', label: 'Ver onboarding atrasado', onClick: () => { onClose(); navigate(`/empresas/${client.id}?tab=onboarding`) } })
   if (signals.some(s => /interação|contato/i.test(s.title))) qaItems.push({ tone: 'amber', iconKey: 'amber', label: 'Registrar contato agora', onClick: () => { onClose(); navigate(`/empresas/${client.id}?tab=atividades`) } })
+  if (onboardingData) qaItems.push({ tone: 'sky', iconKey: 'sky', label: 'Ver projeto ativo', onClick: () => { onClose(); navigate(`/empresas/${client.id}?tab=onboarding`) } })
   qaItems.push({ tone: 'amber', iconKey: 'amber', label: 'Atualizar temperatura', onClick: () => { onClose(); navigate(`/empresas/${client.id}?tab=health`) } })
   qaItems.push({ tone: 'navy', iconKey: 'navy', label: 'Registrar atividade', onClick: () => { onClose(); navigate(`/empresas/${client.id}?tab=atividades`) } })
 

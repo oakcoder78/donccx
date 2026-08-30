@@ -266,13 +266,14 @@ A v3 evoluiu (v1→v3) de "Genérica" para uma dashboard completa que re-incorpo
 
 ### Phases (SDD §6)
 
-0 Foundation (**done**) · 1 Route scaffold + flag transitória `dashboard_v3` + shell (**done, 2026-08-29** — `753d7a6` + hotfixes `3d1ed81`/`89c022e`) · 2 Data foundation (RPCs YTD/90d, `get_finance_summary`, RLS `activities_csm_sales_write`, hooks) (**done, 2026-08-30**) · **3 v3 build (7 blocos + `ui/Drawer.jsx` + `BrazilMap` interativo + WCAG AA) — próxima** · 4 Cockpits por papel (roadmap) · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
+0 Foundation (**done**) · 1 Route scaffold + flag transitória `dashboard_v3` + shell (**done, 2026-08-29**) · 2 Data foundation (RPCs YTD/90d, `get_finance_summary`, RLS `activities_csm_sales_write`, hooks) (**done, 2026-08-30**) · **3 v3 build — blocos construídos (2026-08-30), swap final pendente de verificação dos 6 papéis** · 4 Cockpits por papel (roadmap) · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
 
 ### Progresso
 
 - **Fase 1 shipada:** `/dashboard` → `DashboardRoute` (monolito por padrão; v3 shell para admin via flag `dashboard_v3`, ligada); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell (7 placeholders). Verificado em prod pelo admin.
 - **2 hotfixes de auth** (bugs pré-existentes expostos pelo primeiro deploy): logout resiliente a sessão expirada (`3d1ed81`) + Web Locks do gotrue desligado (`89c022e`, deadlock a cada deploy).
-- **Fase 2 shipada (2026-08-30):** 3 migrations em prod (`get_dashboard_ytd`, `get_operational_90d_avg`, `get_finance_summary` role-guarded; RLS write de `activities` p/ csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`), ainda não ligados; helpers de mês + `dataRefMonth` em `scoring.js`; pools `sales`/`finance` no greeting. A3 mitigado para o `/dashboard` (leak do `CLIENT_SELECT='*'` fora dela segue aberto).
+- **Fase 2 shipada (2026-08-30):** 3 migrations em prod (`get_dashboard_ytd`, `get_operational_90d_avg`, `get_finance_summary` role-guarded; RLS write de `activities` p/ csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); helpers de mês + `dataRefMonth` em `scoring.js`; pools `sales`/`finance` no greeting. A3 mitigado para o `/dashboard`.
+- **Fase 3 — blocos construídos (2026-08-30):** `MeuDiaV3Page` real (7 blocos + `DashboardHeader`), `ui/Drawer.jsx` compartilhado (+ `/health` migrado), `BrazilMap` interativo + degrade, `ClientHealthDrawer` qaItem, `:focus-visible`/reduced-motion globais, `BlockBoundary` por bloco. Visível para admin via flag `dashboard_v3`. **Swap final pendente:** trocar a rota, dropar a flag e mover o carve-out do analyst — só depois do usuário validar admin/manager/csm/sales/finance/analyst via "Ver como". Deferidos: ARIA do "Ver como" (Navbar), `handleSync` inline no bloco Operacional.
 
 ### Files
 - Docs: `docs/sdd/labs-dashboard-sdd.md` (reescrito), `docs/modules/meu-dia-dashboard.md` (novo), `docs/modules/{pages,contexts,lib}.md`, `.agents/docs-index.md`, `docs/CHANGELOG.md`

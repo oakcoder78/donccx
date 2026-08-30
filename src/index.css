@@ -50,6 +50,23 @@ body {
   }
 }
 
+/* Keyboard focus ring — only shows on keyboard navigation, not mouse clicks (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid var(--color-sky);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Respect the OS "reduce motion" setting (WCAG 2.3.3 / 2.2.2) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--bg-tertiary); }

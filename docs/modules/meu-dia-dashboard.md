@@ -1,20 +1,21 @@
 # Module — Meu Dia / Dashboard v3
 
-> **Status: in transition — Phase 2 shipped (2026-08-30).** `/dashboard` still serves the monolithic
-> `DashboardPage.jsx` for everyone by default; **admins** see the v3 shell (`MeuDiaV3Page` — 7
-> placeholder blocks) when the transitional `dashboard_v3` flag is on (currently ON for `{admin}`).
-> `/labs/dashboard` = monolith under `AdminOnlyRoute`. **Phase 2** added the backend: RPCs
-> `get_dashboard_ytd()`, `get_operational_90d_avg()`, `get_finance_summary()` (all live in prod);
-> `activities` write RLS for csm/sales; hooks `useDashboardClients` / `useDashboardYtd` /
-> `useOperationalDeltas` (unwired). The real blocks that consume them land in Phase 3. This document
-> describes the **target** architecture; the single source of truth for the migration — phases,
-> checklists, data contracts, decisions — is `docs/sdd/labs-dashboard-sdd.md`. Update that SDD first;
-> keep this module doc in sync at phase boundaries.
+> **Status: in transition — Phase 3 blocks built (2026-08-30), closeout swap PENDING.** `/dashboard`
+> still serves the monolithic `DashboardPage.jsx` by default; **admins** now see the **real** v3
+> (`MeuDiaV3Page` — 7 live blocks wired to the Phase 2 data sources) when the transitional
+> `dashboard_v3` flag is on (ON for `{admin}`). `/labs/dashboard` = monolith under `AdminOnlyRoute`.
+> The final swap (route → `MeuDiaV3Page` for everyone, drop the flag, move the analyst carve-out) is
+> **deliberately not done** until the user verifies all 6 roles via "Ver como". This document
+> describes the **target** architecture; the single source of truth for the migration is
+> `docs/sdd/labs-dashboard-sdd.md`. Update that SDD first; keep this doc in sync at phase boundaries.
 >
-> **Live files:** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`
-> (shell), `src/App.jsx` `AdminOnlyRoute`, `src/pages/labs/LabsDashboardPage.jsx` (monolith wrapper),
-> `src/hooks/useDashboard{Clients,Ytd}.js`, `src/hooks/useOperationalDeltas.js`,
-> `supabase/migrations/2026083000000{0,1,2}_*.sql`.
+> **Deferred:** "Ver como" dropdown ARIA (Navbar); the monolith's inline `handleSync` in the ops
+> block (v3 links to `/configuracoes` instead); `DashboardPage.jsx` helper migration to `scoring.js`.
+>
+> **Live files:** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`,
+> `src/components/dashboard/v3/*` (11 files), `src/components/ui/Drawer.jsx`, `src/App.jsx`
+> `AdminOnlyRoute`, `src/pages/labs/LabsDashboardPage.jsx`, `src/hooks/useDashboard{Clients,Ytd}.js`,
+> `src/hooks/useOperationalDeltas.js`, `supabase/migrations/2026083000000{0,1,2}_*.sql`.
 
 ## Purpose
 
@@ -176,10 +177,10 @@ their own carteira; finance stays read-only (hide write CTAs).
 
 | File | Purpose |
 |---|---|
-| `src/pages/MeuDiaV3Page.jsx` | v3 page (to create) — lifted queries + personal-first block layout |
-| `src/components/dashboard/v3/*` | `DashboardHeader`, `ScopeLabel`, `HeroBlock`, `MinhaAgendaBlock`, `SaudeDimensaoBlock`, `ProjetosAbertosBlock`, `ForcaNumerosBlock`, `EcossistemaMapBlock`, `OperacionalVariacaoBlock`, `OperationalHistoryDrawer` |
-| `src/components/ui/Drawer.jsx` | shared right-side drawer shell (to create); `/health` migrates to it |
-| `src/components/clients/ClientHealthDrawer.jsx` | v3 client drawer content — extend with `qaItems` |
+| `src/pages/MeuDiaV3Page.jsx` | v3 page — lifted queries + personal-first block layout + `BlockBoundary` per block |
+| `src/components/dashboard/v3/*` | `primitives` (Panel/StripHead/SeeAll/DeltaBadge/BlockShell/BlockBoundary), `ScopeLabel` (+`scopeForRole`), `DashboardHeader`, `HeroBlock`, `MinhaAgendaBlock`, `SaudeDimensaoBlock`, `ProjetosAbertosBlock`, `ForcaNumerosBlock`, `EcossistemaMapBlock`, `OperacionalVariacaoBlock`, `OperationalHistoryDrawer` |
+| `src/components/ui/Drawer.jsx` | shared right-side drawer shell (`DRAWER_Z`, `drawerPushStyle`); `/health` migrated to it |
+| `src/components/clients/ClientHealthDrawer.jsx` | v3 client drawer content — has `qaItems` incl. "Ver projeto ativo" |
 | `src/components/dashboard/DashboardPage.jsx` | monolith — moves to `/labs/dashboard` (admin only) |
 | `src/components/dashboard/BrazilMap.jsx` | ecosystem map — add `onSelectUF` + pin legend + fetch-fail degrade |
 | `src/hooks/useDashboardClients.js` | `useClients(labsFilterFor(profile))` wrapper (Phase 2) |

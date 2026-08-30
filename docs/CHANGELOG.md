@@ -2,6 +2,20 @@
 
 ## 2026-08-30
 
+### Dashboard v3 — Phase 3: build dos blocos (swap ainda pendente)
+
+- **`/dashboard` renderiza a v3 real para o admin** (atrás da flag `dashboard_v3`, já ligada). Monolito intocado para todos os outros. A troca definitiva (v3 para todos, drop da flag) **não** foi feita — espera o usuário validar os 6 papéis via "Ver como".
+- **Novo `src/components/ui/Drawer.jsx`** — shell de drawer compartilhado (overlay + `<aside>` + ESC + click-outside + `drawerPushStyle` + `role="dialog"`/`aria-modal`, z-index 40/50 via `DRAWER_Z`). `HealthDashboardPage` migrado para ele (código duplicado removido).
+- **10 componentes novos em `src/components/dashboard/v3/`:** `primitives` (Panel/StripHead/SeeAll/DeltaBadge/BlockShell/**BlockBoundary**), `ScopeLabel` (+ `scopeForRole`), `DashboardHeader`, `HeroBlock`, `MinhaAgendaBlock`, `SaudeDimensaoBlock`, `ProjetosAbertosBlock`, `ForcaNumerosBlock`, `EcossistemaMapBlock`, `OperacionalVariacaoBlock`, `OperationalHistoryDrawer`.
+- **`MeuDiaV3Page`** reescrita: queries lifted (Fase 2 hooks + `useFinanceSummary` só p/ admin/manager/finance + `useAnalystTickets`), ordem pessoal-primeiro, `<main>` + `<h1>` sr-only, cada bloco em `<BlockBoundary>` (error boundary — um crash não derruba a página).
+- **`BrazilMap`** — `onSelectUF` (clique no estado + chips "Top estados" → `/empresas?estado=UF`) + degrade gracioso: se o GeoJSON externo falhar, mostra a lista ranqueada de estados, nunca um retângulo vazio.
+- **`ClientHealthDrawer`** — qaItem "Ver projeto ativo".
+- **`src/lib/icons.js`** — `ArrowRight`, `Briefcase`, `DollarSign`, `LayoutDashboard`, `MapPin`.
+- **`src/index.css`** — `:focus-visible` global (WCAG 2.4.7) + `@media (prefers-reduced-motion: reduce)` global (WCAG 2.3.3).
+- **A11y:** tokens de texto ≥ ~8:1 (dropado `C.ink3`/`ink4` p/ corpo), `<h2>` por bloco com `aria-labelledby`, deltas com `▲/▼`+texto (`aria-hidden` no glifo), ícones decorativos `aria-hidden`, barras/donut com `role="img"`+`aria-label`. **Aberto:** ARIA do dropdown "Ver como" (Navbar) — não tocado nesta leva.
+- **Follow-ups:** `handleSync` inline no bloco Operacional (hoje só link p/ `/configuracoes`); migração dos helpers do monolito p/ `scoring.js`.
+- `npm run build` limpo; dev server sobe limpo.
+
 ### Dashboard v3 — Phase 2: Data Foundation
 
 - **DB (3 migrations aplicadas em prod):**

@@ -7,6 +7,7 @@ import { useProfiles } from '@/hooks/useProfiles'
 import { Icons } from '@/lib/icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { ClientHealthDrawer } from '@/components/clients/ClientHealthDrawer'
+import { Drawer, drawerPushStyle } from '@/components/ui/Drawer'
 import { useHealthConfig } from '@/hooks/useHealthConfig'
 
 const C = {
@@ -94,12 +95,6 @@ export default function HealthDashboardPage() {
       navigate('/dashboard', { replace: true })
     }
   }, [profile])
-
-  useEffect(() => {
-    const onKey = e => { if (e.key === 'Escape') setDrawerClientId(null) }
-    if (drawerOpen) window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [drawerOpen])
 
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
   const baseFilters = isAdminOrManager
@@ -212,10 +207,7 @@ export default function HealthDashboardPage() {
   )
 
   return (
-    <div style={{
-      paddingRight: drawerOpen ? 380 : 0,
-      transition: 'padding-right 0.3s ease',
-    }}>
+    <div style={drawerPushStyle(drawerOpen)}>
     <div className="max-w-5xl mx-auto px-6 py-8">
       <PageHeader
         title="Health Score · Carteira"
@@ -409,30 +401,15 @@ export default function HealthDashboardPage() {
       </div>
     </div>
 
-      {/* OVERLAY */}
-      <div onClick={() => setDrawerClientId(null)} style={{
-        position: 'fixed', inset: 0, background: 'rgba(14,34,58,0.18)',
-        opacity: drawerOpen ? 1 : 0, pointerEvents: drawerOpen ? 'auto' : 'none',
-        transition: 'opacity 0.25s ease', zIndex: 40,
-      }} />
-
-      {/* DRAWER */}
-      <aside style={{
-        position: 'fixed', top: 0, right: 0, height: '100vh', width: 380,
-        background: C.surface, borderLeft: `0.5px solid ${C.line}`,
-        zIndex: 50, display: 'flex', flexDirection: 'column',
-        transform: drawerOpen ? 'translateX(0)' : 'translateX(100%)',
-        transition: 'transform 0.3s cubic-bezier(.3,.7,.3,1)',
-        boxShadow: '-1px 0 0 rgba(15,34,58,0.04), -24px 0 48px -24px rgba(15,34,58,0.16)',
-        fontFamily: "'Montserrat', system-ui, sans-serif",
-      }}>
-        {drawerOpen && drawerClient && (
+      {/* Client drawer (shared shell) */}
+      <Drawer open={drawerOpen} onClose={() => setDrawerClientId(null)} ariaLabel="Detalhe de saúde do cliente">
+        {drawerClient && (
           <ClientHealthDrawer
             client={drawerClient}
             onClose={() => setDrawerClientId(null)}
           />
         )}
-      </aside>
+      </Drawer>
 
       {/* Info modal */}
       {showInfoModal && (

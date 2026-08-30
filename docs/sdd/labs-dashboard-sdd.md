@@ -20,7 +20,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** **Phase 3 — Dashboard v3 Build — Planned (next session).** Phase 2 is Complete (2026-08-30): 3 migrations applied to prod (`20260830000000` YTD/90d RPCs, `20260830000001` `get_finance_summary`, `20260830000002` `activities` write RLS for csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); `scoring.js` month helpers + `dataRefMonth`; `identity.ts` `sales`/`finance` pools. Phase 1 Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin). Phase 0 + `comercial_id` also Complete.
+- **Active phase:** **Phase 3 — Dashboard v3 Build — built (2026-08-30), closeout swap PENDING role verification.** All 7 blocks + `DashboardHeader` + shared `ui/Drawer.jsx` are live for admin behind the `dashboard_v3` flag at `/dashboard`. The final swap (route → `MeuDiaV3Page` for everyone, drop the flag, move the analyst carve-out) is intentionally not done until the user verifies each of the 6 roles via "Ver como". Phase 2 was Complete (2026-08-30): 3 migrations applied to prod (`20260830000000` YTD/90d RPCs, `20260830000001` `get_finance_summary`, `20260830000002` `activities` write RLS for csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); `scoring.js` month helpers + `dataRefMonth`; `identity.ts` `sales`/`finance` pools. Phase 1 Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin). Phase 0 + `comercial_id` also Complete.
 
 **What already exists related to this work:**
 
@@ -633,7 +633,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Phase 3 — Dashboard v3 Build
 
-**Status:** **Planned — active next.** Phase 2 complete (2026-08-30) — all data sources + hooks exist, unwired.
+**Status:** **Build complete (2026-08-30) — closeout swap PENDING role verification.** All blocks built and live for admin behind the `dashboard_v3` flag at `/dashboard`. The swap (step "Closeout" below) is deliberately **not** done — it waits until the user checks each of the 6 roles via "Ver como".
 
 **Rationale:** com as fontes prontas, montar os 7 blocos do mock v3 reusando o máximo do que existe: `scoring.js` (tokens + sinais + bandas), `BrazilMap` (mapa), `useProjectCockpit` (projetos), a FAIXA 4 já extraída. Cada bloco isola loading/empty/error para que uma fonte lenta ou quebrada não derrube a página. O HERO por papel é a única parte genuinamente nova de UI.
 
@@ -649,37 +649,31 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 #### Checklist
 
-- [ ] **`src/components/ui/Drawer.jsx`** — extract the shell from `HealthDashboardPage.jsx:214-435` / `DashboardPage.jsx:1735-1752` (§5.1): overlay + `<aside>` 380px + ESC + click-outside + `paddingRight` helper + one z-index constant. Migrate `HealthDashboardPage` to it; **retest `/health`** (drawer open/close, ESC, layout shift).
-- [ ] **`src/lib/icons.js`** — add `LayoutDashboard`, `Briefcase`, `DollarSign`, `MapPin` (import at top + alphabetical entry). Check for duplicates first.
-- [ ] **`src/components/dashboard/BrazilMap.jsx`** — add `onSelectUF(uf)` prop (UF click + "Top estados" chip → `navigate('/empresas?estado='+uf)`); pin legend; graceful degrade when the external `['brazil_geojson']` fetch fails (show the top-states list, not a blank box).
-- [ ] **`src/components/clients/ClientHealthDrawer.jsx`** — add the monolith's `qaItems`, merged with the existing 5 nav actions (§5.3).
-- [ ] **`src/components/dashboard/v3/OperationalHistoryDrawer.jsx`** — extract `op-os`/`op-users`/`op-health` (3-month mini charts) + `op-*-list` (all-clients variation → row → `/empresas/:id`) from the monolith (§5.2).
-- [ ] **`src/components/dashboard/v3/ScopeLabel.jsx`** — `"minha carteira"` / `"toda a base"` chip.
-- [ ] **`src/pages/MeuDiaV3Page.jsx`**
-  - [ ] Lifted: `useDashboardClients(profile)`, `useActivities(filter)`, `useHealthConfig()`, `useProjectCockpit()`, `useOperationalDeltas()`, `useDashboardYtd()`, `useSyncStatus()`; `financeSummary` via `get_finance_summary` only when `effectiveRole ∈ {admin,manager,finance}`.
-  - [ ] `useMemo` slices per block. `dateStr` memo. `dataRefMonth` memo.
-  - [ ] **Block order = §3 (personal first):** DashboardHeader → HeroBlock → MinhaAgendaBlock → SaudeDimensaoBlock → ProjetosAbertosBlock → ForcaNumerosBlock → EcossistemaMapBlock → OperacionalVariacaoBlock.
-  - [ ] `DashboardHeader` — period selector (default "Fechamento de {mês}/{ano}") + "Atualizado em {DD/MM HH:mm}" (from `useSyncStatus`) + `selectedCsm` dropdown (admin/manager only, ported from monolith).
-  - [ ] Delegate loading/empty/error to each block; one failing block must not blank the page.
-- [ ] **`HeroBlock.jsx`** — navy bg (not glassmorphism); photo + role pill; `GreetingHeader` (3 lines, §1.6); `HeroCards` — contract per `effectiveRole` `{label,value,sub,delta?,variant}` × 3 (§3; admin → default). OS/Profissionais deltas from `get_operational_90d_avg`; finance card from `financeSummary`. Cards navigate only if destination accessible (§5.8).
-- [ ] **`MinhaAgendaBlock.jsx`** — §4.6 sort + cap 5 + badges; row → `ActivityDetailModal`; "Nova atividade" → `ActivityModal`; secondary CTA: analyst → "Novo atendimento" `/atendimento`. **Hide write CTAs for finance** (§5.6). Truncate long client names.
-- [ ] **`SaudeDimensaoBlock.jsx`** — `<ScopeLabel>`; header "{count} · média {avg}"; **real stacked distribution per dimension (ok / atenção / risco), sorted worst-first**; at-risk account names inline; bar/row → `<Drawer>` + `<ClientHealthDrawer>`. `HEALTH_ICONS` + `Icons`. Empty (0 clients) → "Sua carteira ainda não tem empresas".
-- [ ] **`ProjetosAbertosBlock.jsx`** — `<ScopeLabel>`; §4.7; row → `/projetos/:id`; "ver todos" → `/projetos-cockpit` gated by `isEnabled('projects_cockpit', effectiveRole)`.
-- [ ] **`ForcaNumerosBlock.jsx`** — `<ScopeLabel>toda a base`; 4 panels from `useDashboardYtd()`; "Acumulado {year} · até {mês}".
-- [ ] **`EcossistemaMapBlock.jsx`** — `<ScopeLabel>toda a base`; `<BrazilMap clients={allClients} onSelectUF={…}/>` + clickable "Top estados" chips.
-- [ ] **`OperacionalVariacaoBlock.jsx`** — `<ScopeLabel>toda a base`; 3 panels top-5 from `useOperationalDeltas()`; row → `OperationalHistoryDrawer`; SeeAll → `op-*-list` drawer; "{prevMonthLabel} vs {prevMonth2Label}". Zero delta = neutral dash (not "▲ 0"). New/churned company edge cases (`prev=0` → no `%`). **"Sincronização de dados" panel + `op-sync` drawer + button → render only for admin/manager** (§5.5). Empty ops → link `/configuracoes` if `!hasData`.
-- [ ] **States:** every block handles loading (shimmer), empty (copy + CTA), error (retry). Icons only. No `DashboardPage` import from v3 files (use `scoring.js`).
-- [ ] **WCAG 2.1 AA gate — Phase 3 does not close until all pass:**
-  - [ ] All text meets AA contrast (4.5:1 normal / 3:1 large & UI). The critique flagged `#9aa5b5`/`#6b7889` label colors at ~1.5:1 on `#f1f3f5` — pick AA-passing muted tokens.
-  - [ ] `<main>` landmark; one `<h1>` (the page purpose, not the greeting); `<h2>` per section with `aria-labelledby`.
-  - [ ] "Ver como" dropdown + any block menu: `aria-haspopup` / `aria-expanded` / `role="menu"` / arrow-key nav / Escape / focus return.
-  - [ ] Zoom 200% → no horizontal scroll (relative units, not `text-[Npx]` / `max-w-[1120px]` fixed).
-  - [ ] Global `:focus-visible` ring on every interactive element.
-  - [ ] `▲`/`▼` deltas + status badges carry text, not color alone.
-  - [ ] Glyph icons → real `Icons.*` with label or `aria-hidden`.
-  - [ ] `@media (prefers-reduced-motion: reduce)` disables the pulse/transition affordances.
-  - [ ] Progress bars / donut rings: `role="progressbar"` + `aria-valuenow` (or adjacent text).
-- [ ] **Optional:** migrate `DashboardPage.jsx` `scoreBand*`/`C`/`getSignals` to import from `src/lib/scoring.js` (separate commit).
+- [x] **`src/components/ui/Drawer.jsx`** — shell extracted: overlay + `<aside>` (z 40/50 via `DRAWER_Z`) + ESC + click-outside + `drawerPushStyle(open)` helper + `role="dialog"`/`aria-modal`/`aria-label`. `HealthDashboardPage` migrated to it (local ESC effect + inline overlay/aside removed). **`/health` retest pending** (user).
+- [x] **`src/lib/icons.js`** — added `ArrowRight`, `Briefcase`, `DollarSign`, `LayoutDashboard`, `MapPin`.
+- [x] **`src/components/dashboard/BrazilMap.jsx`** — `onSelectUF(uf)` (path click + "Top estados" chips), `retry: 1`, and a graceful degrade: on fetch failure it renders the ranked top-states list (clickable), never a blank box. (Path elements are mouse-clickable; keyboard users use the "Top estados" chips — noted.)
+- [x] **`src/components/clients/ClientHealthDrawer.jsx`** — added "Ver projeto ativo" qaItem (when the client has an active onboarding). The other monolith qaItems already existed here; kept navigate-only (drawer is self-contained).
+- [x] **`src/components/dashboard/v3/OperationalHistoryDrawer.jsx`** — `op-os`/`op-users`/`op-health` (3-month mini charts via `useOpClientHistory`) + `op-*-list` (all-clients variation → row → `/empresas/:id`).
+- [x] **`src/components/dashboard/v3/ScopeLabel.jsx`** — `meus dados` / `minha carteira` / `toda a base` chip + `scopeForRole(effectiveRole)`.
+- [x] **`src/pages/MeuDiaV3Page.jsx`** — lifted `useDashboardClients` / `useActivities` / `useHealthConfig` / `useProjectCockpit` / `useOperationalDeltas` / `useDashboardYtd` / `useOperational90dAvg` / `useSyncStatus`; `useFinanceSummary` (RPC, only `admin|manager|finance`); `useAnalystTickets` (RPC-free `client_support` aggregate, `—` fallback). `<main>` + `sr-only <h1>`. Personal-first order. `DashboardHeader` (period chip + "atualizado em" + carteira dropdown that filters client-side for admin/manager). Every block wrapped in `<BlockBoundary>` (class error boundary) so one crash never blanks the page.
+- [x] **`HeroBlock.jsx`** — navy (`C.navyDeep`), no glassmorphism/orbs; avatar-or-initials + role pill; 3-line greeting (`useGreeting().text` · date + `.extra` · `Dados referente a {mês/aa}`); per-role card contract (csm/sales/manager/admin → Clientes/OS Δ90d/Profissionais Δ90d; finance → MRR·mês (+YTD est.)/Clientes em atraso (R$)/Renovação 30D from `financeSummary`; analyst → Total/Abertos/Taxa from `useAnalystTickets`). "Clientes" / analyst / finance-atraso cards navigate; others static.
+- [x] **`MinhaAgendaBlock.jsx`** — sort atrasada > hoje > agendada, cap 5, ATRASADA/HOJE/AGENDADA badges (text); row → `ActivityDetailModal`; "+ Nova atividade" → `ActivityModal` (hidden for finance); analyst → "+ Novo atendimento" → `/atendimento`. Client names truncate.
+- [x] **`SaudeDimensaoBlock.jsx`** — `<ScopeLabel carteira>`; header "{count} · média {avg}"; per-dimension stacked bar (ok/atenção/risco on the 0–20 dim scale, worst-first); at-risk names inline as chips → `<Drawer>` + `<ClientHealthDrawer>`; header link → `/health`. Empty → "Sua carteira ainda não tem empresas."
+- [x] **`ProjetosAbertosBlock.jsx`** — `<ScopeLabel carteira>`; `useProjectCockpit()` summary + top 3 (paused>delayed>on_time, then lowest progress); donut with `role="img"`; row → `/empresas/:clientId?tab=onboarding`; "ver todos" → `/projetos-cockpit` if `isEnabled('projects_cockpit')` else `/cockpits`.
+- [x] **`ForcaNumerosBlock.jsx`** — `<ScopeLabel base>`; 4 cards from `useDashboardYtd()` (Clientes / OS criadas / Profissionais pico / Média health, last one dark).
+- [x] **`EcossistemaMapBlock.jsx`** — `<ScopeLabel base>`; `<BrazilMap clients={allClients} onSelectUF>` + clickable "Top estados" chips → `/empresas?estado=UF`.
+- [x] **`OperacionalVariacaoBlock.jsx`** — `<ScopeLabel scopeForRole(effectiveRole)>` (**"minha carteira" for csm/sales** — RLS scopes `client_usage`); 3 panels top-5 from `useOperationalDeltas(scopedClients)`; row → `OperationalHistoryDrawer` client mode; "ver todos" → list mode; neutral dash for zero, "Início de uso" for new; `!hasData` → link to `/configuracoes`. **Sync-status strip → admin/manager only** (light version: shows last sync + link to `/configuracoes`; the monolith's inline `handleSync` / per-instance `op-sync` drawer is a follow-up).
+- [x] **States:** loading (shimmer) / empty (copy) / error (retry) per block via `BlockShell` / local handling; `BlockBoundary` catches render crashes.
+- [~] **WCAG 2.1 AA gate:**
+  - [x] Text uses `C.ink`/`C.ink2` (≥ ~8:1 on white) — dropped `C.ink3`/`C.ink4` for body text; navy hero uses white / `navyTextSoft` (.78) / `navyTextMuted` (.62) / `C.lime`; hero card labels bumped to `rgba(255,255,255,.72)`.
+  - [x] `<main>` + single `sr-only <h1>` + `<h2 id>` per block section (`aria-labelledby`); hero greeting demoted from `<h1>` to `<p>`, section gets `aria-label`.
+  - [ ] **"Ver como" dropdown ARIA** — lives in `Navbar.jsx`, **not touched this pass**. Still open.
+  - [x] No `text-[Npx]` in v3 (rem + Tailwind scale); grids use `minmax()` + `flex-wrap`; drawer `maxWidth: 100vw`. Zoom 200% spot-check pending (user).
+  - [x] Global `:focus-visible` ring + `@media (prefers-reduced-motion: reduce)` added to `src/index.css`.
+  - [x] Deltas carry `▲/▼` + text; badges carry text labels; `▲/▼` wrapped in `aria-hidden`.
+  - [x] Glyph icons → `Icons.*` with `aria-hidden="true"`.
+  - [x] Progress bars / donut → `role="img"` + `aria-label` (not `progressbar`, but text-equivalent).
+- [ ] **Optional:** migrate `DashboardPage.jsx` helpers to `scoring.js` — not done (keep the monolith frozen).
 - [ ] **Closeout — the swap (single deploy, only after everything above passes for all 6 roles via "Ver como"):**
   - [ ] `src/App.jsx` — route `/dashboard` element `<DashboardRoute/>` → `<MeuDiaV3Page/>` directly. Delete `src/pages/DashboardRoute.jsx`.
   - [ ] `src/App.jsx` `PrivateRoute` line 97 — change `!location.pathname.startsWith('/labs/dashboard')` → `!location.pathname.startsWith('/dashboard')` so analyst can open the v3 (still lands on `/atendimento` via `AuthRedirect`).
@@ -693,7 +687,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-08-30 | _(this commit)_ | `src/components/ui/Drawer.jsx` (new), `src/pages/HealthDashboardPage.jsx`, `src/components/dashboard/BrazilMap.jsx`, `src/components/clients/ClientHealthDrawer.jsx`, `src/lib/icons.js`, `src/index.css`, `src/components/dashboard/v3/*` (10 new: primitives, ScopeLabel, DashboardHeader, HeroBlock, MinhaAgendaBlock, SaudeDimensaoBlock, ProjetosAbertosBlock, ForcaNumerosBlock, EcossistemaMapBlock, OperacionalVariacaoBlock, OperationalHistoryDrawer), `src/pages/MeuDiaV3Page.jsx` | Full v3 block build wired to the Phase 2 data sources. `/dashboard` renders the real v3 for admin behind the `dashboard_v3` flag; monolith unchanged. `npm run build` clean; dev server boots clean. **Closeout swap NOT done** — waits on the user checking all 6 roles via "Ver como". Deferred: "Ver como" dropdown ARIA (Navbar), monolith inline `handleSync` in the ops block, `DashboardPage.jsx` helper migration. |
 
 ---
 
