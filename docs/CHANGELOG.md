@@ -4,7 +4,10 @@
 
 ### Dashboard v3 — ajustes de interface + blocos "geral" para todos os papéis
 
-Feedback do usuário depois de rodar em produção:
+Feedback do usuário depois de rodar em produção. **Verificado em prod pelo usuário nos 6 papéis
+(`f42b959`).** A Fase 3 do SDD fica **completa** — restam só follow-ups não-bloqueantes (limpar a
+flag/wrapper `dashboard_v3`, ARIA do "Ver como", `handleSync` inline, bug de peso do greeting-engine
+em dia útil).
 
 - **HERO:** foto do perfil 72→108px, 3 linhas do greeting centradas verticalmente na imagem. Linha 2 = só a data; **linha 3 = a narrativa do greeting-engine** (ex. "Carteira equilibrada"), destacada em `C.sky` (`#59c2ed`). A linha "Dados referente a jul/26" foi **removida** (duplicava o período do topo + `dataRefMonth` derivava errado).
 - **HERO cards** agora uniformes: **Clientes · Profissionais Ativos · Health Score** — para csm/sales são da **carteira**, para admin/manager são **gerais**. Sem "Ordens de Serviço", sem "Δ vs média 90 dias". finance e analyst inalterados.

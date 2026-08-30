@@ -266,15 +266,15 @@ A v3 evoluiu (v1→v3) de "Genérica" para uma dashboard completa que re-incorpo
 
 ### Phases (SDD §6)
 
-0 Foundation (**done**) · 1 Route scaffold + flag (**done, 2026-08-29**) · 2 Data foundation (**done, 2026-08-30**) · 3 v3 build + swap — **v3 = `/dashboard` para os 6 papéis (done, 2026-08-30); flag `dashboard_v3` mantida como kill-switch** · **4 Cockpits por papel (roadmap) — próxima** · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
+0 Foundation (**done**) · 1 Route scaffold + flag (**done, 2026-08-29**) · 2 Data foundation (**done, 2026-08-30**) · 3 v3 build + swap + ajustes de UI — **v3 = `/dashboard` para os 6 papéis, verificado em prod (done, 2026-08-30); flag `dashboard_v3` mantida como kill-switch** · **4 Cockpits por papel (roadmap) — próxima** · 5 Matriz de acesso Empresas · 6 Aposentar monolito.
 
 ### Progresso
 
 - **Fase 1 shipada:** `/dashboard` → `DashboardRoute` (monolito por padrão; v3 shell para admin via flag `dashboard_v3`, ligada); `/labs/dashboard` → monolito sob `AdminOnlyRoute`; `labs_dashboard` aposentada; `MeuDiaV3Page` shell (7 placeholders). Verificado em prod pelo admin.
 - **2 hotfixes de auth** (bugs pré-existentes expostos pelo primeiro deploy): logout resiliente a sessão expirada (`3d1ed81`) + Web Locks do gotrue desligado (`89c022e`, deadlock a cada deploy).
 - **Fase 2 shipada (2026-08-30):** 3 migrations em prod (`get_dashboard_ytd`, `get_operational_90d_avg`, `get_finance_summary` role-guarded; RLS write de `activities` p/ csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); helpers de mês + `dataRefMonth` em `scoring.js`; pools `sales`/`finance` no greeting. A3 mitigado para o `/dashboard`.
-- **Fase 3 — blocos + swap (2026-08-30):** `MeuDiaV3Page` real (7 blocos + `DashboardHeader`), `ui/Drawer.jsx` compartilhado (+ `/health` migrado), `BrazilMap` interativo + degrade, `ClientHealthDrawer` qaItem, `:focus-visible`/reduced-motion globais, `BlockBoundary` por bloco. **`/dashboard` = v3 para os 6 papéis** (migration `20260830000003` amplia a flag + `enabled=true`); flag mantida como **kill-switch por banco** (`enabled=false` → monolito p/ todos, sem deploy). Analyst: carve-out em `/dashboard` + link na navbar.
-- **Follow-up (não urgente):** limpar a flag/wrapper — deletar `DashboardRoute.jsx`, `/dashboard` → `MeuDiaV3Page` direto, `DELETE` da flag, tirar de `SettingsFeatureFlags`. ARIA do "Ver como" (Navbar). `handleSync` inline no bloco Operacional.
+- **Fase 3 — blocos + swap + ajustes de UI (2026-08-30, verificado em prod):** `MeuDiaV3Page` real (7 blocos), `ui/Drawer.jsx` compartilhado, `BrazilMap` interativo + degrade, `BlockBoundary`, `:focus-visible`/reduced-motion globais. `/dashboard` = v3 p/ os 6 papéis (`20260830000003` amplia a flag; kill-switch por banco). Analyst: carve-out + link na navbar. **Ajustes de UI (`f42b959` + RPCs `20260830000004`):** HERO refeito (foto 108px, 3 linhas, cards Clientes/Profissionais/Health), dropdown Carteira removido, Saúde/Projetos/Mapa/Operacional = toda a base p/ os 6 papéis via 3 RPCs `SECURITY DEFINER`, drill-in gated (`canDrillIn`), Projetos → `?tab=operacional&sub=projetos`.
+- **Follow-up (não urgente):** limpar a flag/wrapper — deletar `DashboardRoute.jsx`, `/dashboard` → `MeuDiaV3Page` direto, `DELETE` da flag, tirar de `SettingsFeatureFlags`. ARIA do "Ver como" (Navbar). `handleSync` inline no bloco Operacional. Bug de peso do greeting-engine (L1 "Uma semana produtiva" em dia útil).
 
 ### Files
 - Docs: `docs/sdd/labs-dashboard-sdd.md` (reescrito), `docs/modules/meu-dia-dashboard.md` (novo), `docs/modules/{pages,contexts,lib}.md`, `.agents/docs-index.md`, `docs/CHANGELOG.md`

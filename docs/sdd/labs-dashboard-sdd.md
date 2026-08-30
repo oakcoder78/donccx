@@ -20,7 +20,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** **Phase 4 — Cockpits per Role (roadmap).** Phase 3 shipped 2026-08-30 (`b29660a` build + `20260830000003` flag + `20260830000004` "geral" RPCs + UI feedback pass): the v3 is now the default `/dashboard` for **all 6 roles** (`dashboard_v3` widened to the 6 roles, `enabled=true`) via the `DashboardRoute` wrapper; the analyst carve-out was moved to `/dashboard` and the analyst navbar gained a "Dashboard" link. `/labs/dashboard` = monolith admin-only. **The `dashboard_v3` flag is kept as a DB kill-switch** — `enabled=false` reverts every role to the monolith with no deploy; full removal (delete the wrapper + flag) is a follow-up. Phase 2 was Complete (2026-08-30): 3 migrations applied to prod (`20260830000000` YTD/90d RPCs, `20260830000001` `get_finance_summary`, `20260830000002` `activities` write RLS for csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); `scoring.js` month helpers + `dataRefMonth`; `identity.ts` `sales`/`finance` pools. Phase 1 Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin). Phase 0 + `comercial_id` also Complete.
+- **Active phase:** **Phase 4 — Cockpits per Role (roadmap).** Phase 3 is **Complete and verified in production (2026-08-30)** — `b29660a` build + `20260830000003` flag + `20260830000004` "geral" RPCs + `f42b959` UI feedback pass; the user confirmed all 6 roles work in prod. The v3 is the default `/dashboard` for **all 6 roles** (`dashboard_v3` widened to the 6 roles, `enabled=true`) via the `DashboardRoute` wrapper; the analyst carve-out was moved to `/dashboard` and the analyst navbar gained a "Dashboard" link. `/labs/dashboard` = monolith admin-only. **The `dashboard_v3` flag is kept as a DB kill-switch** — `enabled=false` reverts every role to the monolith with no deploy; full removal (delete the wrapper + flag) is a follow-up. Phase 2 was Complete (2026-08-30): 3 migrations applied to prod (`20260830000000` YTD/90d RPCs, `20260830000001` `get_finance_summary`, `20260830000002` `activities` write RLS for csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); `scoring.js` month helpers + `dataRefMonth`; `identity.ts` `sales`/`finance` pools. Phase 1 Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin). Phase 0 + `comercial_id` also Complete.
 
 **What already exists related to this work:**
 
@@ -253,55 +253,46 @@ The mock `meu-dia-generic-v3.html` **defines** Tailwind color tokens (`navy/navy
 
 ## 3. Component Tree — `/dashboard`
 
-**Section order = personal first** (decision §7 — the mock buries the daily-work blocks at scroll depth 4, behind a decorative map; the critique flagged this as a peak-end / hierarchy failure).
+> **As-built (2026-08-30, `f42b959`). Supersedes the earlier draft below — kept for the block roster.**
+> Actual data wiring:
+> - `MeuDiaV3Page` lifts: `useDashboardClients` + `useActiveProfissionais` (HERO, RLS-scoped),
+>   `useActivities`, `useHealthConfig`, `useSyncStatus`, `useDashboardClientsOverview` +
+>   `useOpenProjectsOverview` + `useOperationalDeltas` + `useDashboardYtd` (blocks — RPCs, company-wide),
+>   `get_finance_summary` (admin/manager/finance), analyst tickets. Each block in `<BlockBoundary>`.
+> - **`DashboardHeader`:** "Fechamento de {mês}" + "atualizado em {stamp}". **No Carteira dropdown.**
+> - **`HeroBlock`:** foto 108px; L1 `useGreeting().text` · L2 date · L3 `useGreeting().extra` (`C.sky`, bold).
+>   Cards × 3 per role: csm/sales/admin/manager → **Clientes · Profissionais Ativos · Health Score**
+>   (csm/sales = carteira, admin/manager = base); finance → MRR·mês / atraso / renovação 30D;
+>   analyst → tickets. Only "Clientes" (+ finance-atraso, analyst) navigate.
+> - **Saúde / Projetos / Mapa / Operacional** are all `<ScopeLabel scope="base">` — company-wide for
+>   every role via the `20260830000004` RPCs. Drill-in gated by `canDrillIn(row, effectiveRole, profileId)`
+>   (`src/components/dashboard/v3/gating.js`) — non-owned rows are display-only for csm/sales.
+> - **Projetos row** → `/empresas/:id?tab=operacional&sub=projetos`.
 
 ```
-MeuDiaV3Page (src/pages/MeuDiaV3Page.jsx)   route: /dashboard — all 6 roles, no flag
-│  lifted queries (A5 — single set, sliced via useMemo):
-│    useDashboardClients(profile)      → clients in scope (labsFilterFor)
-│    useActivities(scopedFilter)       → my activities
-│    useHealthConfig()                 → thresholds
-│    useProjectCockpit()               → open projects (portfolio-scoped internally for csm)
-│    useOperationalDeltas()            → FAIXA-4-style month deltas + op-* history drawer data
-│    useDashboardYtd()                 → RPC get_dashboard_ytd
-│    useSyncStatus()                   → dataRefMonth + "atualizado em" stamp
-│    financeSummary (get_finance_summary RPC) → only when effectiveRole ∈ {admin,manager,finance}
+MeuDiaV3Page (src/pages/MeuDiaV3Page.jsx)   route: /dashboard — all 6 roles (kill-switch flag)
 │
-├── DashboardHeader
-│   ├── period selector — default "Fechamento de {mês}/{ano}"; per-block timeframe chip only where a block deviates
-│   └── "Atualizado em {DD/MM HH:mm}" stamp (from useSyncStatus) — states operacional closes monthly, CS is live
-│   └── [admin/manager] carteira/CSM dropdown (ported from monolith selectedCsm)
+├── DashboardHeader — "Fechamento de {mês}" + "Atualizado em {DD/MM HH:mm}"
 │
 │  ── PERSONAL ──
-├── HeroBlock (src/components/dashboard/v3/HeroBlock.jsx)          bg navy (not glassmorphism)
-│   ├── GreetingHeader — line1 useGreeting().text · line2 date + useGreeting().extra · line3 dataRefMonth
-│   └── HeroCards — contract per effectiveRole: {label, value, sub, delta?, variant} × 3
-│         csm|sales|manager → Clientes · OS (Δ vs 90d avg) · Profissionais (Δ vs 90d avg)
-│         finance           → MRR·month (YTD) · Clientes em atraso (R$) · Renovação 30D   [masked RPC]
-│         analyst           → Total Tickets · Tickets em Aberto · Taxa Resolução
-│         admin             → default (= sales layout)
-│       cards navigate only when the destination is accessible to effectiveRole (else static)
-├── MinhaAgendaBlock — <ScopeLabel>minha carteira</ScopeLabel>-free (it's "minhas atividades")
-│     activities sorted atrasada > hoje > futura, cap 5; row → ActivityDetailModal
-│     CTA "Nova atividade" → ActivityModal  ·  secondary: analyst → "Novo atendimento" /atendimento
-│     write CTAs hidden for finance (RLS read-only on activities even after §6 migration)
+├── HeroBlock — bg navy; greeting 3 lines; 3 cards per role (see note above)
+├── MinhaAgendaBlock — atrasada > hoje > futura, cap 5; row → ActivityDetailModal
+│     CTA "Nova atividade" → ActivityModal  ·  analyst → "Novo atendimento"  ·  write CTAs hidden for finance
 │
-│  ── MINHA CARTEIRA (ScopeLabel: "minha carteira" / "toda a base") ──
-├── SaudeDimensaoBlock — portfolio-scoped. Real stacked distribution (ok / atenção / risco) per dimension,
-│     sorted worst-first; at-risk account names inline. header "{count} · média {avg}" + ScopeLabel.
-│     bar/row → <Drawer> with <ClientHealthDrawer client={…}/>  ·  header → /health
-├── ProjetosAbertosBlock — portfolio-scoped. useProjectCockpit() summary + top 3.
-│     row → /projetos/:id  ·  "ver todos" → /projetos-cockpit  (gated by isEnabled('projects_cockpit', effectiveRole))
+│  ── TODA A BASE (company-wide via RPCs — identical numbers for all 6 roles) ──
+├── SaudeDimensaoBlock — get_dashboard_clients_overview. Stacked dist (ok/atenção/risco) per dim, worst-first;
+│     at-risk names inline → <Drawer>+<ClientHealthDrawer> (only if canDrillIn)  ·  header → /health
+├── ProjetosAbertosBlock — get_open_projects_overview. top 3. row → /empresas/:id?tab=operacional&sub=projetos
+│     (only if canDrillIn)  ·  "ver todos" → /projetos-cockpit (gated by isEnabled('projects_cockpit'))
 │
-│  ── TODA A BASE (company-wide, identical for all roles; ScopeLabel: "toda a base") ──
-├── ForcaNumerosBlock — useDashboardYtd(): Clientes · OS criadas (ano) · Profissionais pico · Média health. Static cards.
-├── EcossistemaMapBlock — <BrazilMap clients={allClients} onSelectUF={uf => navigate('/empresas?estado='+uf)}/>
-│     + "Top estados" chips (also clickable). Real geography + pin legend (not the mock's fake blob).
-└── OperacionalVariacaoBlock — useOperationalDeltas(): 3 panels top-5 (OS / Profissionais / Health) · "{mesAtual} vs {mesAnterior}"
-      row top-5 → <Drawer> OperationalHistoryDrawer (op-os/op-users/op-health 3-month mini charts)
-      SeeAll → <Drawer> op-*-list (all clients) → row → /empresas/:id
-      "Sincronização de dados" panel + op-sync drawer + "sincronizar" button → ADMIN/MANAGER ONLY
-      (csm/sales/finance/analyst cannot read client_donc_instances — hide the panel)
+├── ForcaNumerosBlock — useDashboardYtd(): Clientes · OS criadas (ano) · Profissionais pico · Média health.
+├── EcossistemaMapBlock — get_dashboard_clients_overview → <BrazilMap onSelectUF={uf → /empresas?estado=UF}>
+│     + "Top estados" chips (clickable for all — the destination list is RLS-scoped).
+└── OperacionalVariacaoBlock — get_operational_deltas: 3 panels top-5 (OS / Profissionais / Health) · "{mesAnt} vs {mesAnt2}"
+      row → <Drawer> OperationalHistoryDrawer (3-month mini charts) · SeeAll → op-*-list drawer → /empresas/:id
+      both gated by canDrillIn (non-owned rows display-only for csm/sales)
+      sync-status strip → admin/manager only (light: last sync + link to /configuracoes;
+      monolith's inline handleSync / op-sync per-instance drawer is a follow-up)
 ```
 
 > **Project pattern:** build blocks with inline `style` + `Panel`, as the monolith does. Do not introduce a generic `KpiCard` abstraction unless a block genuinely repeats 3+ times.
@@ -411,7 +402,11 @@ Option B: `clients_dashboard_view` that nulls `mrr`/`billing_*` unless `get_user
 
 **This blocks the finance HERO card in Phase 3.**
 
-### 4.5 `dataRefMonth` (greeting line 3)
+### 4.5 `dataRefMonth`
+
+> **Revised — the "Dados referente a" greeting line was dropped 2026-08-30 (§1.6).** `dataRefMonth` /
+> `fmtMonthShortYear` stay in `scoring.js` and now only feed `DashboardHeader`'s "atualizado em" stamp.
+> Historical spec below.
 
 ```js
 // derive the month the operational data refers to
@@ -642,7 +637,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Phase 3 — Dashboard v3 Build
 
-**Status:** **Complete (2026-08-30).** Blocks built (`b29660a`) and the v3 is now the default `/dashboard` for all 6 roles (`20260830000003` — flag widened + kept as a kill-switch instead of dropped; analyst carve-out moved + navbar link added). Per-role verification via "Ver como" is the user's post-deploy check. Deferred cleanup: delete the wrapper + flag (see §1.3), "Ver como" ARIA, inline `handleSync`.
+**Status:** **Complete — verified in production (2026-08-30).** Blocks built (`b29660a`); v3 is the default `/dashboard` for all 6 roles (`20260830000003` — flag kept as a kill-switch); UI feedback pass (`f42b959` + RPCs `20260830000004`): HERO reworked, Carteira dropdown removed, Saúde/Projetos/Mapa/Operacional made "toda a base" for every role via SECURITY DEFINER RPCs, drill-in gated by `canDrillIn`. The user confirmed all 6 roles work in prod. Deferred (non-blocking): delete the wrapper + flag (§1.3), "Ver como" ARIA, inline `handleSync`, greeting weekday-fragment weight bug.
 
 **Rationale:** com as fontes prontas, montar os 7 blocos do mock v3 reusando o máximo do que existe: `scoring.js` (tokens + sinais + bandas), `BrazilMap` (mapa), `useProjectCockpit` (projetos), a FAIXA 4 já extraída. Cada bloco isola loading/empty/error para que uma fonte lenta ou quebrada não derrube a página. O HERO por papel é a única parte genuinamente nova de UI.
 
@@ -699,7 +694,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 |---|---|---|---|
 | 2026-08-30 | `b29660a` | `src/components/ui/Drawer.jsx` (new), `src/pages/HealthDashboardPage.jsx`, `src/components/dashboard/BrazilMap.jsx`, `src/components/clients/ClientHealthDrawer.jsx`, `src/lib/icons.js`, `src/index.css`, `src/components/dashboard/v3/*` (11 new), `src/pages/MeuDiaV3Page.jsx` | Full v3 block build wired to the Phase 2 data sources. `npm run build` clean; dev server boots clean. Deferred: "Ver como" dropdown ARIA (Navbar), monolith inline `handleSync` in the ops block, `DashboardPage.jsx` helper migration. |
 | 2026-08-30 | `6178fe8` | `supabase/migrations/20260830000003_dashboard_v3_all_roles.sql` (new), `src/App.jsx`, `src/components/layout/Navbar.jsx`, `src/pages/DashboardRoute.jsx` (comment), + docs | **Closeout (kill-switch variant).** `dashboard_v3` flag widened to all 6 roles + `enabled=true` → `/dashboard` = v3 for everyone via `DashboardRoute`. Flag kept as a DB kill-switch. Analyst carve-out → `/dashboard`; analyst navbar gained a "Dashboard" link. |
-| 2026-08-30 | `f42b959` | `supabase/migrations/20260830000004_dashboard_v3_geral_rpcs.sql` (new — 3 RPCs), `src/hooks/useDashboardOverview.js` + `useActiveProfissionais.js` (new), `src/hooks/useOperationalDeltas.js` (rewrite → RPC), `src/pages/MeuDiaV3Page.jsx`, `src/components/dashboard/v3/{HeroBlock,DashboardHeader,SaudeDimensaoBlock,ProjetosAbertosBlock,OperacionalVariacaoBlock,OperationalHistoryDrawer,ScopeLabel}.jsx`, `src/components/dashboard/v3/gating.js` (new), + docs | **UI feedback pass.** (1) HERO foto 72→108px, 3 linhas centradas; L2 = data, L3 = greeting narrative em `C.sky`; "Dados referente a" removida. (2) HERO cards = Clientes / Profissionais Ativos / Health Score (csm/sales carteira, admin/manager base) — sem OS/Δ90d. (3) Dropdown Carteira removido. (4) Saúde/Projetos/Mapa/Operacional = **toda a base p/ os 6 papéis** via 3 RPCs `SECURITY DEFINER`; drill-in gated à carteira p/ csm/sales (`canDrillIn`). (5) "Projetos" → `/empresas/:id?tab=operacional&sub=projetos`. RPCs aplicadas via MCP + reconciliadas; `npm run build` limpo; advisors ok (sem exposição anon). |
+| 2026-08-30 | `f42b959` (+ docs `0a94555`) | `supabase/migrations/20260830000004_dashboard_v3_geral_rpcs.sql` (new — 3 RPCs), `src/hooks/useDashboardOverview.js` + `useActiveProfissionais.js` (new), `src/hooks/useOperationalDeltas.js` (rewrite → RPC), `src/pages/MeuDiaV3Page.jsx`, `src/components/dashboard/v3/{HeroBlock,DashboardHeader,SaudeDimensaoBlock,ProjetosAbertosBlock,OperacionalVariacaoBlock,OperationalHistoryDrawer,ScopeLabel}.jsx`, `src/components/dashboard/v3/gating.js` (new), + docs | **UI feedback pass — verificado em prod pelo usuário.** (1) HERO foto 72→108px, 3 linhas centradas; L2 = data, L3 = greeting narrative em `C.sky`; "Dados referente a" removida. (2) HERO cards = Clientes / Profissionais Ativos / Health Score (csm/sales carteira, admin/manager base) — sem OS/Δ90d. (3) Dropdown Carteira removido. (4) Saúde/Projetos/Mapa/Operacional = **toda a base p/ os 6 papéis** via 3 RPCs `SECURITY DEFINER`; drill-in gated à carteira p/ csm/sales (`canDrillIn`). (5) "Projetos" → `/empresas/:id?tab=operacional&sub=projetos`. RPCs aplicadas via MCP + reconciliadas; `npm run build` limpo; advisors ok (sem exposição anon). |
 
 ---
 
@@ -780,7 +775,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Production state
 
-- **Phase 3 shipped (`b29660a` + `20260830000003`, 2026-08-30).** `/dashboard` → `DashboardRoute` → `MeuDiaV3Page` **for all 6 roles**. `/labs/dashboard` → monolith under `AdminOnlyRoute` (admin only). 11 v3 components + shared `ui/Drawer.jsx` (+ `/health` migrated to it).
+- **Phase 3 complete + verified in prod (2026-08-30).** `/dashboard` → `DashboardRoute` → `MeuDiaV3Page` **for all 6 roles** (`b29660a` build + `f42b959` UI feedback pass). `/labs/dashboard` → monolith under `AdminOnlyRoute` (admin only). v3 components + shared `ui/Drawer.jsx` (+ `/health` migrated to it). HERO = Clientes/Profissionais Ativos/Health Score (csm/sales carteira, admin/manager base); Saúde/Projetos/Mapa/Operacional = "toda a base" for every role via RPCs `20260830000004` (`get_dashboard_clients_overview`, `get_operational_deltas`, `get_open_projects_overview`); drill-in gated by `canDrillIn`. No Carteira dropdown.
 - `feature_flags`: **`labs_dashboard` deleted**; **`dashboard_v3`** = `allowed_roles {admin,manager,csm,sales,finance,analyst}`, `enabled=true` — **kept as a DB kill-switch** (set `enabled=false` to revert every role to the monolith with no deploy). Still listed in `SettingsFeatureFlags`. Deleting it (+ the `DashboardRoute` wrapper) is a deferred cleanup.
 - Analyst: `PrivateRoute` carve-out on `/dashboard`; `analystNavLinks` has a "Dashboard" link; `AuthRedirect` still lands analyst on `/atendimento`.
 - `/health`, `/cockpits`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit` stable (cockpit pattern reference).
@@ -788,7 +783,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 - `clients.comercial_id` + RLS dual ownership live. `profiles.role` includes `sales|finance`. `role_impersonations` + `effectiveRole` live.
 - **Phase 2 (2026-08-30):** RPCs `get_dashboard_ytd()`, `get_operational_90d_avg()`, `get_finance_summary()` (role-guarded) live in prod. `sync_log.summary.ref_month` written by `monthly-sync` (code committed, function pending redeploy). MRR on the dashboard now flows only through `get_finance_summary` — **A3 mitigated for /dashboard**; the raw `CLIENT_SELECT = '*'` leak elsewhere is still open.
 - `activities` RLS: csm/sales can now INSERT/UPDATE/DELETE within their carteira (`20260830000002`); finance stays read-only.
-- Hooks `useDashboardClients`, `useDashboardYtd` (+ `useOperational90dAvg`), `useOperationalDeltas` (+ `useOpClientHistory`) exist; **not yet wired into any page** (Phase 3).
+- Hooks wired into `MeuDiaV3Page`: `useDashboardClients` + `useActiveProfissionais` (HERO, RLS-scoped), `useDashboardClientsOverview` + `useOpenProjectsOverview` + `useOperationalDeltas` + `useDashboardYtd` (blocks, RPC / company-wide). `useProjectCockpit` and `useOperational90dAvg` are no longer used by the v3.
 
 ### Architectural decisions
 

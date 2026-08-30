@@ -1,20 +1,25 @@
 # Module — Meu Dia / Dashboard v3
 
-> **Status: LIVE for all 6 roles (2026-08-30).** `/dashboard` renders the v3 (`MeuDiaV3Page` — 7 live
-> blocks wired to the Phase 2 data sources) for every role, via the `DashboardRoute` wrapper. The
-> `dashboard_v3` flag is now `{all 6 roles}` + `enabled=true` and is **kept as a DB kill-switch**:
-> `UPDATE feature_flags SET enabled=false WHERE key='dashboard_v3'` reverts every role to the
-> monolith with no deploy. `/labs/dashboard` = monolith under `AdminOnlyRoute` (admin only). The
-> single source of truth is `docs/sdd/labs-dashboard-sdd.md`.
+> **Status: LIVE + verified in prod for all 6 roles (2026-08-30).** `/dashboard` renders the v3
+> (`MeuDiaV3Page` — 7 live blocks) for every role via the `DashboardRoute` wrapper. HERO = Clientes /
+> Profissionais Ativos / Health Score (csm/sales carteira, admin/manager base); Saúde / Projetos /
+> Mapa / Operacional = "toda a base" for every role via SECURITY DEFINER RPCs (`20260830000004`);
+> drill-in gated to the carteira for csm/sales (`canDrillIn`). No Carteira dropdown. The `dashboard_v3`
+> flag (`{all 6 roles}` + `enabled=true`) is **kept as a DB kill-switch**: `UPDATE feature_flags SET
+> enabled=false WHERE key='dashboard_v3'` reverts every role to the monolith with no deploy.
+> `/labs/dashboard` = monolith under `AdminOnlyRoute` (admin only). Single source of truth:
+> `docs/sdd/labs-dashboard-sdd.md`.
 >
-> **Deferred cleanup:** delete `DashboardRoute.jsx` + the flag once v3 is proven stable; "Ver como"
-> dropdown ARIA (Navbar); the monolith's inline `handleSync` in the ops block (v3 links to
-> `/configuracoes` instead); `DashboardPage.jsx` helper migration to `scoring.js`.
+> **Deferred (non-blocking):** delete `DashboardRoute.jsx` + the flag; "Ver como" dropdown ARIA
+> (Navbar); the monolith's inline `handleSync` in the ops block (v3 links to `/configuracoes`);
+> `DashboardPage.jsx` helper migration; greeting-engine weekday-fragment weight bug (L1 shows "Uma
+> semana produtiva, Jorge." on weekdays — Phase A, engine untouched).
 >
-> **Live files:** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`,
-> `src/components/dashboard/v3/*` (11 files), `src/components/ui/Drawer.jsx`, `src/App.jsx`
-> `AdminOnlyRoute`, `src/pages/labs/LabsDashboardPage.jsx`, `src/hooks/useDashboard{Clients,Ytd}.js`,
-> `src/hooks/useOperationalDeltas.js`, `supabase/migrations/2026083000000{0,1,2}_*.sql`.
+> **Live files:** `src/pages/DashboardRoute.jsx`, `src/pages/MeuDiaV3Page.jsx`,
+> `src/components/dashboard/v3/*` (13 files), `src/components/ui/Drawer.jsx`, `src/App.jsx`,
+> `src/pages/labs/LabsDashboardPage.jsx`, `src/hooks/useDashboard{Clients,Overview,Ytd}.js` +
+> `useActiveProfissionais.js` + `useOperationalDeltas.js`,
+> `supabase/migrations/2026083000000{0,1,2,3,4}_*.sql`.
 
 ## Purpose
 
