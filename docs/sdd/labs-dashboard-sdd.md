@@ -20,7 +20,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 - **Active branch:** `main` (worktree disabled — all work goes directly to main)
 - **Last deploy:** `donccx.vercel.app`
-- **Active phase:** **Phase 3 — Dashboard v3 Build — built (2026-08-30), closeout swap PENDING role verification.** All 7 blocks + `DashboardHeader` + shared `ui/Drawer.jsx` are live for admin behind the `dashboard_v3` flag at `/dashboard`. The final swap (route → `MeuDiaV3Page` for everyone, drop the flag, move the analyst carve-out) is intentionally not done until the user verifies each of the 6 roles via "Ver como". Phase 2 was Complete (2026-08-30): 3 migrations applied to prod (`20260830000000` YTD/90d RPCs, `20260830000001` `get_finance_summary`, `20260830000002` `activities` write RLS for csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); `scoring.js` month helpers + `dataRefMonth`; `identity.ts` `sales`/`finance` pools. Phase 1 Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin). Phase 0 + `comercial_id` also Complete.
+- **Active phase:** **Phase 4 — Cockpits per Role (roadmap).** Phase 3 shipped 2026-08-30 (`b29660a` build + `20260830000003` flag): the v3 is now the default `/dashboard` for **all 6 roles** (`dashboard_v3` widened to the 6 roles, `enabled=true`) via the `DashboardRoute` wrapper; the analyst carve-out was moved to `/dashboard` and the analyst navbar gained a "Dashboard" link. `/labs/dashboard` = monolith admin-only. **The `dashboard_v3` flag is kept as a DB kill-switch** — `enabled=false` reverts every role to the monolith with no deploy; full removal (delete the wrapper + flag) is a follow-up. Phase 2 was Complete (2026-08-30): 3 migrations applied to prod (`20260830000000` YTD/90d RPCs, `20260830000001` `get_finance_summary`, `20260830000002` `activities` write RLS for csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); `scoring.js` month helpers + `dataRefMonth`; `identity.ts` `sales`/`finance` pools. Phase 1 Complete (2026-08-29, `753d7a6` + hotfixes `3d1ed81`/`89c022e` + `dashboard_v3` flag ON for admin). Phase 0 + `comercial_id` also Complete.
 
 **What already exists related to this work:**
 
@@ -142,13 +142,14 @@ Impersonation: use `effectiveRole` from `useAuth()` / `usePermissions()` everywh
 
 ### 1.3 Access Model
 
-**End state (after the Phase 3 swap):** `/dashboard` = v3 for **every authenticated role**, no flag. `/labs/dashboard` = monolith under **`AdminOnlyRoute`** (`effectiveRole === 'admin'` only). `dashboard_v3` and `labs_dashboard` flags both dropped.
+**Current state (since 2026-08-30, `b29660a` + migration `20260830000003`):**
+- `/dashboard` → `DashboardRoute` wrapper → `<MeuDiaV3Page/>` **for all 6 roles** (`dashboard_v3`: `allowed_roles = {admin,manager,csm,sales,finance,analyst}`, `enabled = true`).
+- The flag is **kept as a DB kill-switch**: `UPDATE feature_flags SET enabled=false WHERE key='dashboard_v3'` → `DashboardRoute` falls back to the monolith for everyone, no deploy. It still shows in `SettingsFeatureFlags` ("Cockpits & Dashboards").
+- `/labs/dashboard` → monolito under `AdminOnlyRoute` (`effectiveRole === 'admin'`). Navbar "Labs" item admin-only.
+- Analyst: `PrivateRoute` carve-out moved from `/labs/dashboard` to `/dashboard`; `analystNavLinks` gained `{ to: '/dashboard', label: 'Dashboard' }`. `AuthRedirect` still lands analyst on `/atendimento`.
+- `labs_dashboard` flag: retired in Phase 1.
 
-**During Phases 1–3 (transitional):**
-- `/dashboard` → `DashboardRoute` wrapper: renders the **monolito** by default; renders `<MeuDiaV3Page/>` only when `isEnabled('dashboard_v3', effectiveRole)`.
-- `dashboard_v3` flag: `allowed_roles = {admin}`, `enabled = false`. An admin flips it on in `/configuracoes` to preview v3 progress; nobody else is affected. **No production regression** — every non-admin (and admin with flag off) keeps the working monolito.
-- `/labs/dashboard` → monolito under `AdminOnlyRoute` already in Phase 1 (this half of the inversion is safe).
-- `labs_dashboard` flag: **retired in Phase 1** (migration + refs removed from `Navbar.jsx`, `LabsDashboardPage.jsx`, `SettingsFeatureFlags.jsx`).
+**Deferred end state:** delete `DashboardRoute.jsx`, point `/dashboard` straight at `<MeuDiaV3Page/>`, `DELETE` the `dashboard_v3` flag, remove it from `SettingsFeatureFlags`. Do this once the v3 is proven stable in prod for all roles.
 
 `financial_data` flag is **not** used to gate the finance HERO — the `get_finance_summary` RPC (§4.4) is the security boundary. `financial_data` continues to control `ClientSubDados` only.
 
@@ -633,7 +634,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Phase 3 — Dashboard v3 Build
 
-**Status:** **Build complete (2026-08-30) — closeout swap PENDING role verification.** All blocks built and live for admin behind the `dashboard_v3` flag at `/dashboard`. The swap (step "Closeout" below) is deliberately **not** done — it waits until the user checks each of the 6 roles via "Ver como".
+**Status:** **Complete (2026-08-30).** Blocks built (`b29660a`) and the v3 is now the default `/dashboard` for all 6 roles (`20260830000003` — flag widened + kept as a kill-switch instead of dropped; analyst carve-out moved + navbar link added). Per-role verification via "Ver como" is the user's post-deploy check. Deferred cleanup: delete the wrapper + flag (see §1.3), "Ver como" ARIA, inline `handleSync`.
 
 **Rationale:** com as fontes prontas, montar os 7 blocos do mock v3 reusando o máximo do que existe: `scoring.js` (tokens + sinais + bandas), `BrazilMap` (mapa), `useProjectCockpit` (projetos), a FAIXA 4 já extraída. Cada bloco isola loading/empty/error para que uma fonte lenta ou quebrada não derrube a página. O HERO por papel é a única parte genuinamente nova de UI.
 
@@ -674,12 +675,13 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
   - [x] Glyph icons → `Icons.*` with `aria-hidden="true"`.
   - [x] Progress bars / donut → `role="img"` + `aria-label` (not `progressbar`, but text-equivalent).
 - [ ] **Optional:** migrate `DashboardPage.jsx` helpers to `scoring.js` — not done (keep the monolith frozen).
-- [ ] **Closeout — the swap (single deploy, only after everything above passes for all 6 roles via "Ver como"):**
-  - [ ] `src/App.jsx` — route `/dashboard` element `<DashboardRoute/>` → `<MeuDiaV3Page/>` directly. Delete `src/pages/DashboardRoute.jsx`.
-  - [ ] `src/App.jsx` `PrivateRoute` line 97 — change `!location.pathname.startsWith('/labs/dashboard')` → `!location.pathname.startsWith('/dashboard')` so analyst can open the v3 (still lands on `/atendimento` via `AuthRedirect`).
-  - [ ] Migration `<ts>_drop_dashboard_v3_flag.sql` — `DELETE FROM feature_flags WHERE key = 'dashboard_v3';`
-  - [ ] `src/components/settings/SettingsFeatureFlags.jsx` — remove `dashboard_v3` from `FLAG_GROUPS`.
-  - [ ] Update §0 (active phase → 4), §7 Checkpoint.
+- [x] **Closeout — kill-switch variant (`20260830000003`, 2026-08-30):**
+  - [x] Migration `20260830000003_dashboard_v3_all_roles.sql` — `UPDATE feature_flags SET allowed_roles = {6 roles}, enabled = true WHERE key='dashboard_v3'`. `DashboardRoute` now serves v3 to everyone.
+  - [x] `src/App.jsx` `PrivateRoute` — analyst carve-out `!startsWith('/labs/dashboard')` → `!startsWith('/dashboard')`. Analyst can open v3; `AuthRedirect` still lands them on `/atendimento`.
+  - [x] `src/components/layout/Navbar.jsx` — `analystNavLinks` gained `{ to: '/dashboard', label: 'Dashboard' }`.
+  - [x] `src/pages/DashboardRoute.jsx` — comment updated (kill-switch for all roles).
+  - [x] §0 + §1.3 + §7 updated.
+  - [ ] **Deferred (once stable):** delete `DashboardRoute.jsx` → `/dashboard` element `<MeuDiaV3Page/>` direct; migration `DELETE FROM feature_flags WHERE key='dashboard_v3'`; remove from `SettingsFeatureFlags` `FLAG_GROUPS`.
 - [ ] **Build:** `npm run build` with no errors.
 - [ ] **Verify:** each role via "Ver como" opens `/dashboard` (v3, no flag), correct HERO + scope labels; `/labs/dashboard` = monolith for admin, redirect for others; network tab shows no `mrr`/`billing_*` for non-finance; csm/sales can create an activity (post-migration); finance cannot (CTA hidden); non-admin does not see the sync panel; analyst reaches `/dashboard`; one block forced to error does not blank the page; axe/Lighthouse a11y clean.
 
@@ -687,7 +689,8 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-30 | `b29660a` | `src/components/ui/Drawer.jsx` (new), `src/pages/HealthDashboardPage.jsx`, `src/components/dashboard/BrazilMap.jsx`, `src/components/clients/ClientHealthDrawer.jsx`, `src/lib/icons.js`, `src/index.css`, `src/components/dashboard/v3/*` (10 new: primitives, ScopeLabel, DashboardHeader, HeroBlock, MinhaAgendaBlock, SaudeDimensaoBlock, ProjetosAbertosBlock, ForcaNumerosBlock, EcossistemaMapBlock, OperacionalVariacaoBlock, OperationalHistoryDrawer), `src/pages/MeuDiaV3Page.jsx` | Full v3 block build wired to the Phase 2 data sources. `/dashboard` renders the real v3 for admin behind the `dashboard_v3` flag; monolith unchanged. `npm run build` clean; dev server boots clean. **Closeout swap NOT done** — waits on the user checking all 6 roles via "Ver como". Deferred: "Ver como" dropdown ARIA (Navbar), monolith inline `handleSync` in the ops block, `DashboardPage.jsx` helper migration. |
+| 2026-08-30 | `b29660a` | `src/components/ui/Drawer.jsx` (new), `src/pages/HealthDashboardPage.jsx`, `src/components/dashboard/BrazilMap.jsx`, `src/components/clients/ClientHealthDrawer.jsx`, `src/lib/icons.js`, `src/index.css`, `src/components/dashboard/v3/*` (11 new), `src/pages/MeuDiaV3Page.jsx` | Full v3 block build wired to the Phase 2 data sources. `npm run build` clean; dev server boots clean. Deferred: "Ver como" dropdown ARIA (Navbar), monolith inline `handleSync` in the ops block, `DashboardPage.jsx` helper migration. |
+| 2026-08-30 | _(this commit)_ | `supabase/migrations/20260830000003_dashboard_v3_all_roles.sql` (new), `src/App.jsx`, `src/components/layout/Navbar.jsx`, `src/pages/DashboardRoute.jsx` (comment), + docs | **Closeout (kill-switch variant).** `dashboard_v3` flag widened to all 6 roles + `enabled=true` → `/dashboard` = v3 for everyone via `DashboardRoute`. Flag kept as a DB kill-switch (`enabled=false` reverts all to the monolith, no deploy). Analyst carve-out → `/dashboard`; analyst navbar gained a "Dashboard" link. Full removal of the wrapper/flag deferred until v3 is proven stable. |
 
 ---
 
@@ -768,8 +771,9 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 ### Production state
 
-- **Phase 1 shipped (`753d7a6`, 2026-08-29).** `/dashboard` → `DashboardRoute` (serves the monolith by default; v3 shell when `dashboard_v3` flag on). `/labs/dashboard` → monolith under `AdminOnlyRoute`. `MeuDiaV3Page` shell exists (7 placeholder blocks).
-- `feature_flags`: **`labs_dashboard` deleted**; **`dashboard_v3` created** (`{admin}`) — transitional, dropped in the Phase 3 swap. **`enabled=true` since 2026-08-29** so admins preview the v3 shell at `/dashboard`; everyone else stays on the monolith.
+- **Phase 3 shipped (`b29660a` + `20260830000003`, 2026-08-30).** `/dashboard` → `DashboardRoute` → `MeuDiaV3Page` **for all 6 roles**. `/labs/dashboard` → monolith under `AdminOnlyRoute` (admin only). 11 v3 components + shared `ui/Drawer.jsx` (+ `/health` migrated to it).
+- `feature_flags`: **`labs_dashboard` deleted**; **`dashboard_v3`** = `allowed_roles {admin,manager,csm,sales,finance,analyst}`, `enabled=true` — **kept as a DB kill-switch** (set `enabled=false` to revert every role to the monolith with no deploy). Still listed in `SettingsFeatureFlags`. Deleting it (+ the `DashboardRoute` wrapper) is a deferred cleanup.
+- Analyst: `PrivateRoute` carve-out on `/dashboard`; `analystNavLinks` has a "Dashboard" link; `AuthRedirect` still lands analyst on `/atendimento`.
 - `/health`, `/cockpits`, `/cs-radar`, `/projetos-cockpit`, `/profissionais-cockpit` stable (cockpit pattern reference).
 - `src/components/dashboard/BrazilMap.jsx`, `src/hooks/useLabsClients.js` **exist** but are unused / not adopted yet. `src/lib/scoring.js` is used by `HealthDashboardPage`/`ClientTabHealth` and now carries the v3 month/`dataRefMonth` helpers.
 - `clients.comercial_id` + RLS dual ownership live. `profiles.role` includes `sales|finance`. `role_impersonations` + `effectiveRole` live.
@@ -815,11 +819,11 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 - **`build.minify: false`** in `vite.config.js` — always run `npm run build` before marking a phase complete. `__COMMIT_HASH__` injected via `git rev-parse --short HEAD`.
 - **A3 — MRR leak (mitigated for the dashboard 2026-08-30):** `get_finance_summary()` RPC (role-guarded, `SECURITY DEFINER`) is now the only MRR path on `/dashboard` — the v3 finance HERO calls it, never reads `mrr` off the clients query. **Still open:** `CLIENT_SELECT = '*'` in `useClients` continues to return `mrr`/`billing_*`/`delay_days`/`contract_renewal` to every role with SELECT (network tab leak on `/empresas`, `/health`, etc.). v3 components must **not** read those fields off `useDashboardClients`. Full masked view / narrowed select is a separate follow-up.
 - **A5 — single lifted query:** do not let the 7 blocks each call `useClients` / `useProjectCockpit`. Lift to `MeuDiaV3Page` (`queryKey ['dashboard_clients', scopeKey]`) and slice via `useMemo`.
-- **Analyst routing:** `PrivateRoute` redirects analyst to `/atendimento` unless the path is carved out. Phase 1 moves the carve-out from `/labs/dashboard` to `/dashboard`. Verify analyst can reach `/dashboard` but `AuthRedirect` still makes `/atendimento` their landing page.
+- **Analyst routing:** `PrivateRoute` redirects analyst to `/atendimento` unless the path is carved out. Since Phase 3 the carve-out is `/dashboard` (was `/labs/dashboard`) and `analystNavLinks` has a "Dashboard" link. `AuthRedirect` still makes `/atendimento` the analyst landing page.
 - **greeting-engine is in Phase A (Narrative Stabilization) — do NOT expand it.** Line 3 of the v3 greeting is computed in the page from sync status, never in the engine. Adding `sales`/`finance` identity pools is content-only and allowed.
 - **`BrazilMap.jsx` fetches GeoJSON from `raw.githubusercontent.com`** — an external URL. Confirm CSP allows it and handle the offline/failed-fetch state (the map must degrade gracefully).
 - **`useFeatureFlags` `staleTime 5min`:** after dropping `labs_dashboard`, the Navbar may show a stale "Labs" item for up to 5 min for non-admins — acceptable (the route now 403s via `AdminOnlyRoute` anyway). Same applies when `dashboard_v3` is dropped in the Phase 3 swap — a stale `true` for an admin just shows v3, which is the target anyway.
-- **`dashboard_v3` is transitional.** It gates `/dashboard` only in `DashboardRoute.jsx` and appears in `SettingsFeatureFlags`. The Phase 3 swap deletes the wrapper, the flag row, and the settings entry in one deploy. Do not build block-level logic on this flag — block gating is by `effectiveRole` / RLS.
+- **`dashboard_v3` is now a kill-switch, not a preview flag.** Since `20260830000003` it is enabled for all 6 roles, so `/dashboard` = v3 for everyone. It is read only in `DashboardRoute.jsx` (+ shown in `SettingsFeatureFlags`). `enabled=false` reverts all roles to the monolith with no deploy — use it if v3 breaks in prod. The deferred cleanup deletes the wrapper + flag + settings entry. Do not build block-level logic on this flag — block gating is by `effectiveRole` / RLS.
 - **Do not `supabase db push` without explicit authorization.** No local Supabase — every push hits production. Migrations for this SDD are written as files and deployed only when the user says so, alongside the code that matches them.
 - **`buildClientsQuery` has no `.or()` for arbitrary filters** — dual ownership uses `_labs_dual_owner` → `.or('csm_id.eq.X,comercial_id.eq.X')`. `labsFilterFor` already picks the right single-key filter per role; prefer that.
 - **`DashboardPage.jsx` is 1761 lines** — do not restructure it in dashboard-v3 phases. Only allowed edit: migrate its local helpers to import from `src/lib/scoring.js` (separate commit, Phase 3 optional).

@@ -1,16 +1,15 @@
 # Module — Meu Dia / Dashboard v3
 
-> **Status: in transition — Phase 3 blocks built (2026-08-30), closeout swap PENDING.** `/dashboard`
-> still serves the monolithic `DashboardPage.jsx` by default; **admins** now see the **real** v3
-> (`MeuDiaV3Page` — 7 live blocks wired to the Phase 2 data sources) when the transitional
-> `dashboard_v3` flag is on (ON for `{admin}`). `/labs/dashboard` = monolith under `AdminOnlyRoute`.
-> The final swap (route → `MeuDiaV3Page` for everyone, drop the flag, move the analyst carve-out) is
-> **deliberately not done** until the user verifies all 6 roles via "Ver como". This document
-> describes the **target** architecture; the single source of truth for the migration is
-> `docs/sdd/labs-dashboard-sdd.md`. Update that SDD first; keep this doc in sync at phase boundaries.
+> **Status: LIVE for all 6 roles (2026-08-30).** `/dashboard` renders the v3 (`MeuDiaV3Page` — 7 live
+> blocks wired to the Phase 2 data sources) for every role, via the `DashboardRoute` wrapper. The
+> `dashboard_v3` flag is now `{all 6 roles}` + `enabled=true` and is **kept as a DB kill-switch**:
+> `UPDATE feature_flags SET enabled=false WHERE key='dashboard_v3'` reverts every role to the
+> monolith with no deploy. `/labs/dashboard` = monolith under `AdminOnlyRoute` (admin only). The
+> single source of truth is `docs/sdd/labs-dashboard-sdd.md`.
 >
-> **Deferred:** "Ver como" dropdown ARIA (Navbar); the monolith's inline `handleSync` in the ops
-> block (v3 links to `/configuracoes` instead); `DashboardPage.jsx` helper migration to `scoring.js`.
+> **Deferred cleanup:** delete `DashboardRoute.jsx` + the flag once v3 is proven stable; "Ver como"
+> dropdown ARIA (Navbar); the monolith's inline `handleSync` in the ops block (v3 links to
+> `/configuracoes` instead); `DashboardPage.jsx` helper migration to `scoring.js`.
 >
 > **Live files:** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`,
 > `src/components/dashboard/v3/*` (11 files), `src/components/ui/Drawer.jsx`, `src/App.jsx`
@@ -31,9 +30,9 @@ open projects, and month-over-month operational deltas. The previous monolith is
 |---|---|---|
 | Component | `src/pages/MeuDiaV3Page.jsx` | `src/components/dashboard/DashboardPage.jsx` |
 | Roles | all 6 (`admin`, `manager`, `csm`, `sales`, `finance`, `analyst`) | `admin` only |
-| Feature flag | none | none (`labs_dashboard` retired) |
-| Guard | `PrivateRoute` only; analyst carve-out so they are not bounced to `/atendimento` | `AdminOnlyRoute` (admin-strict, no manager branch) |
-| Navbar | "Dashboard" — always visible (non-analyst) | "Labs" — visible only when `effectiveRole === 'admin'` |
+| Feature flag | `dashboard_v3` — `{all 6 roles}` + `enabled=true`, kept as a **kill-switch** (`enabled=false` → monolith for all, no deploy). Read only in `DashboardRoute.jsx`. | none (`labs_dashboard` retired) |
+| Guard | `PrivateRoute` (analyst carve-out on `/dashboard`) → `DashboardRoute` wrapper | `AdminOnlyRoute` (admin-strict, no manager branch) |
+| Navbar | "Dashboard" — visible for all (incl. analyst, since 2026-08-30) | "Labs" — visible only when `effectiveRole === 'admin'` |
 
 ## Page Structure (target)
 

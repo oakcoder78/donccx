@@ -94,7 +94,7 @@ function PrivateRoute() {
     return <Navigate to="/primeiro-acesso" replace />
   }
 
-  if (effectiveRole === 'analyst' && isEnabled('whatsapp_atendimento', effectiveRole) && !location.pathname.startsWith('/atendimento') && !location.pathname.startsWith('/labs/dashboard')) {
+  if (effectiveRole === 'analyst' && isEnabled('whatsapp_atendimento', effectiveRole) && !location.pathname.startsWith('/atendimento') && !location.pathname.startsWith('/dashboard')) {
     return <Navigate to="/atendimento" replace />
   }
 

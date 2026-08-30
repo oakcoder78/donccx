@@ -32,14 +32,13 @@ Pages are plain React components that import shared UI primitives (`Spinner`, `A
 
 ### Dashboard Layout (`Dashboard.jsx`)
 
-> **In transition — Phase 1 shipped (2026-08-29).** `/dashboard` now routes through
-> `src/pages/DashboardRoute.jsx`: it renders the monolith below by default, and the block-based
-> **Dashboard v3** (`src/pages/MeuDiaV3Page.jsx`, still a placeholder shell) only when the transitional
-> `dashboard_v3` feature flag is enabled for the role (currently ON for `{admin}`). The monolith also
-> lives at `/labs/dashboard` under `AdminOnlyRoute` as a parity reference. The Phase 3 closeout will
-> point `/dashboard` straight at `MeuDiaV3Page` for everyone and drop the flag. See
-> `docs/modules/meu-dia-dashboard.md` and the SDD `docs/sdd/labs-dashboard-sdd.md` (single source of
-> truth). The layout below describes the monolith.
+> **Dashboard v3 is live (2026-08-30).** `/dashboard` routes through `src/pages/DashboardRoute.jsx`,
+> which now renders the block-based **Dashboard v3** (`src/pages/MeuDiaV3Page.jsx`) for **all 6 roles**
+> — the `dashboard_v3` flag is `{all roles}` + `enabled=true`, kept only as a DB kill-switch
+> (`enabled=false` → the monolith below, for everyone, no deploy). The monolith lives at
+> `/labs/dashboard` under `AdminOnlyRoute` (admin only). See `docs/modules/meu-dia-dashboard.md` and
+> the SDD `docs/sdd/labs-dashboard-sdd.md` (single source of truth). **The layout described below is
+> the monolith** (`/labs/dashboard`); the v3 layout is in the module doc.
 
 The dashboard is organized into **4 visual strips (faixas)**:
 

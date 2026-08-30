@@ -22,6 +22,7 @@ const mainNavLinks = [
 ]
 
 const analystNavLinks = [
+  { to: '/dashboard',    label: 'Dashboard'   },
   { to: '/atendimento',  label: 'Atendimento', featureFlag: 'whatsapp_atendimento' },
 ]
 
