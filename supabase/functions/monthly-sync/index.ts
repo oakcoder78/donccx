@@ -253,7 +253,7 @@ serve(async (req) => {
       await admin.from('sync_log').update({
         status: 'success',
         finished_at: new Date().toISOString(),
-        summary: { donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult },
+        summary: { ref_month: month, donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult },
       }).eq('id', logId)
     }
 

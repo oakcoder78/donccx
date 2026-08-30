@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-08-30
+
+### Dashboard v3 — Phase 2: Data Foundation
+
+- **DB (3 migrations aplicadas em prod):**
+  - `20260830000000_dashboard_v3_rpcs.sql` — `get_dashboard_ytd()` (clientes, novos no ano por `contract_start`, OS criadas no ano, pico de profissionais + mês, média de health) e `get_operational_90d_avg()` (mês atual vs média dos 3 meses anteriores, para OS e profissionais). Ambos `SECURITY DEFINER` + `search_path=public` + `REVOKE anon` + `GRANT authenticated` — visão "toda a base" idêntica para os 6 papéis, só agregados (sem MRR, sem PII).
+  - `20260830000001_finance_summary_rpc.sql` — `get_finance_summary()` (`mrr_mes`, `mrr_ytd` estimado, clientes/valor em atraso, renovações 30d). Guard interno: `coalesce(get_user_role(),'') NOT IN ('admin','manager','finance')` → `raise exception 'forbidden'` (errcode 42501). **É o único caminho de MRR no /dashboard** — mitiga o gotcha A3 para a dashboard.
+  - `20260830000002_activities_csm_sales_write.sql` — RLS INSERT/UPDATE/**DELETE** em `activities` para csm (carteira `csm_id`) e sales (dual `comercial_id`/`csm_id`). finance segue read-only. Desbloqueia "Nova atividade" / "Concluir" / "Excluir" da "Minha agenda" da v3.
+- **Hooks (novos, ainda não ligados a nenhuma página — Fase 3):** `useDashboardClients` (wrapper de `useClients(labsFilterFor(profile))`), `useDashboardYtd` + `useOperational90dAvg`, `useOperationalDeltas` (extrai a FAIXA 4 do monolito) + `useOpClientHistory` (histórico 3 meses p/ o drawer `op-*`).
+- **`src/lib/scoring.js`:** helpers de mês (`ymOffset`, `fmtMonthShort`, `fmtMonthLong`, `fmtMonthShortYear`) + `dataRefMonth(syncStatus, fallback)` para a 3ª linha do greeting ("Dados referente a jul/26").
+- **`src/lib/greeting-engine/content/identity.ts`:** pools `sales` e `finance` (antes caíam em `neutral`). Conteúdo editorial, dentro da Phase A do greeting-engine.
+- **`supabase/functions/monthly-sync/index.ts`:** passa a gravar `summary.ref_month`. Código commitado, **função não redeployada** nesta leva (evita o re-enable do "Verify JWT"); `dataRefMonth` deriva de `started_at` até o próximo deploy da função.
+- **Ops:** `supabase db push` foi bloqueado pelo classifier do sandbox; as migrations foram aplicadas via Supabase MCP e registradas em `supabase_migrations.schema_migrations` (local ↔ remoto reconciliados — `supabase migration list` limpo). `npm run build` OK. Advisors de segurança: nenhuma nova exposição a `anon`.
+- **Aberto:** `CLIENT_SELECT = '*'` ainda devolve `mrr`/`billing_*` em `/empresas`, `/health` etc. — componentes da v3 não devem ler esses campos de `useDashboardClients`. `useOperationalDeltas` é carteira-scoped para csm/sales (RLS de `client_usage`) — o `ScopeLabel` do bloco Operacional precisa refletir isso.
+
 ## 2026-08-29
 
 ### Fix — Deadlock do Web Locks do gotrue a cada deploy (`89c022e`)

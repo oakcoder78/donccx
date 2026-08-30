@@ -1,15 +1,20 @@
 # Module — Meu Dia / Dashboard v3
 
-> **Status: in transition — Phase 1 shipped (2026-08-29).** `/dashboard` still serves the monolithic
+> **Status: in transition — Phase 2 shipped (2026-08-30).** `/dashboard` still serves the monolithic
 > `DashboardPage.jsx` for everyone by default; **admins** see the v3 shell (`MeuDiaV3Page` — 7
-> placeholder blocks, no real data yet) when the transitional `dashboard_v3` flag is on (currently
-> ON for `{admin}`). `/labs/dashboard` = monolith under `AdminOnlyRoute`. The real blocks land in
-> Phase 3. This document describes the **target** architecture; the single source of truth for the
-> migration — phases, checklists, data contracts, decisions — is `docs/sdd/labs-dashboard-sdd.md`.
-> Update that SDD first; keep this module doc in sync at phase boundaries.
+> placeholder blocks) when the transitional `dashboard_v3` flag is on (currently ON for `{admin}`).
+> `/labs/dashboard` = monolith under `AdminOnlyRoute`. **Phase 2** added the backend: RPCs
+> `get_dashboard_ytd()`, `get_operational_90d_avg()`, `get_finance_summary()` (all live in prod);
+> `activities` write RLS for csm/sales; hooks `useDashboardClients` / `useDashboardYtd` /
+> `useOperationalDeltas` (unwired). The real blocks that consume them land in Phase 3. This document
+> describes the **target** architecture; the single source of truth for the migration — phases,
+> checklists, data contracts, decisions — is `docs/sdd/labs-dashboard-sdd.md`. Update that SDD first;
+> keep this module doc in sync at phase boundaries.
 >
-> **Live files (Phase 1):** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`
-> (shell), `src/App.jsx` `AdminOnlyRoute`, `src/pages/labs/LabsDashboardPage.jsx` (monolith wrapper).
+> **Live files:** `src/pages/DashboardRoute.jsx` (transitional wrapper), `src/pages/MeuDiaV3Page.jsx`
+> (shell), `src/App.jsx` `AdminOnlyRoute`, `src/pages/labs/LabsDashboardPage.jsx` (monolith wrapper),
+> `src/hooks/useDashboard{Clients,Ytd}.js`, `src/hooks/useOperationalDeltas.js`,
+> `supabase/migrations/2026083000000{0,1,2}_*.sql`.
 
 ## Purpose
 
@@ -80,10 +85,14 @@ useDashboardClients(profile)  ──► clients in scope   (labsFilterFor: admin
 useActivities(scopedFilter)   ──► my agenda           (responsible_id for non-manager; no participant model)
 useHealthConfig()             ──► thresholds          (threshold_healthy/attention — never hardcode 75/50)
 useProjectCockpit()           ──► open projects       (shared queryKey ['projects_cockpit'])
-useOperationalDeltas()        ──► month deltas         (extracted from monolith FAIXA 4)
-useDashboardYtd()             ──► RPC get_dashboard_ytd
-useSyncStatus()               ──► dataRefMonth line    (sync_log has no ref_month → derive prevMonth(started_at))
-get_finance_summary()  (RPC)  ──► finance HERO         (only when effectiveRole ∈ {admin,manager,finance})
+useOperationalDeltas(clients) ──► month deltas         (extracted from monolith FAIXA 4; RLS-scoped:
+                                                       carteira for csm/sales, ecosystem for the rest)
+useDashboardYtd()             ──► RPC get_dashboard_ytd (company-wide, SECURITY DEFINER)
+useOperational90dAvg()        ──► RPC get_operational_90d_avg  (HERO Δ — company-wide for all roles)
+useSyncStatus()               ──► dataRefMonth line    (scoring.js dataRefMonth(): summary.ref_month →
+                                                       else prevMonth(started_at) → else caller fallback)
+get_finance_summary()  (RPC)  ──► finance HERO         (only when effectiveRole ∈ {admin,manager,finance};
+                                                       RPC re-checks get_user_role, raises 'forbidden' otherwise)
 ```
 
 ## Reused building blocks
@@ -126,18 +135,23 @@ matrix in **SDD §5 "Interactive Surface & Permissions"**. Summary:
 A nav target is an active link only if the role has access (RLS or feature flag) — else it renders
 static. A mutation the RLS blocks → hide the CTA, don't let it toast-fail.
 
-**RLS write constraint:** csm/sales are read-only on `activities` today. SDD Phase 2 adds
-`activities_csm_sales_write` (INSERT/UPDATE for own carteira). finance stays read-only.
+**RLS write constraint:** since `20260830000002` csm/sales can INSERT/UPDATE/DELETE `activities` for
+their own carteira; finance stays read-only (hide write CTAs).
 
 ## Known constraints / divergences
 
-- **MRR masking (gotcha A3):** `useClients` / `CLIENT_SELECT = *` currently leaks `mrr`, `billing_*`,
-  `delay_days`, `contract_renewal` to any role. With `/dashboard` global, the finance HERO must read a
-  DB-side masked source (`get_finance_summary` RPC or `clients_dashboard_view`). Blocks the finance HERO.
-- **No YTD / 90-day-average aggregation exists** — created in SDD Phase 2 (`get_dashboard_ytd`,
-  `get_operational_90d_avg`).
-- **`activities` write is RLS role-gated** — csm/sales are read-only today; SDD Phase 2 adds a write
-  policy for their own carteira. finance stays read-only (hide write CTAs).
+- **MRR masking (gotcha A3 — mitigated for the dashboard, 2026-08-30):** the finance HERO reads
+  `get_finance_summary()` (role-guarded RPC), never `mrr` off the clients query. **Still leaking
+  elsewhere:** `CLIENT_SELECT = '*'` returns `mrr`/`billing_*`/`delay_days`/`contract_renewal` on
+  `/empresas`, `/health` etc. — v3 components must not read those off `useDashboardClients`.
+- **YTD / 90-day-average aggregation** — `get_dashboard_ytd()` + `get_operational_90d_avg()` live
+  (Phase 2, `20260830000000`). Company-wide, `SECURITY DEFINER`, `authenticated`-only.
+- **`activities` write is RLS role-gated** — since `20260830000002`: csm writes its `csm_id` carteira,
+  sales its `comercial_id`/`csm_id` dual carteira (INSERT/UPDATE/DELETE). finance stays read-only
+  (hide write CTAs). admin/manager unchanged.
+- **`useOperationalDeltas` scope varies by role** — RLS on `client_usage` gives csm/sales only their
+  carteira; admin/manager/finance/analyst get the ecosystem. `OperacionalVariacaoBlock`'s `ScopeLabel`
+  must read `effectiveRole` (not a fixed "toda a base").
 - **`client_donc_instances` is admin/manager-only** — the "Sincronização de dados" panel + `op-sync`
   drawer + "sincronizar" button do not render for other roles.
 - **WCAG 2.1 AA is a Phase 3 completion gate** — the mock fails on label contrast (~1.5:1), missing
@@ -168,9 +182,12 @@ static. A mutation the RLS blocks → hide the CTA, don't let it toast-fail.
 | `src/components/clients/ClientHealthDrawer.jsx` | v3 client drawer content — extend with `qaItems` |
 | `src/components/dashboard/DashboardPage.jsx` | monolith — moves to `/labs/dashboard` (admin only) |
 | `src/components/dashboard/BrazilMap.jsx` | ecosystem map — add `onSelectUF` + pin legend + fetch-fail degrade |
-| `src/hooks/useDashboardClients.js` / `useDashboardYtd.js` / `useOperationalDeltas.js` | data hooks (to create) |
+| `src/hooks/useDashboardClients.js` | `useClients(labsFilterFor(profile))` wrapper (Phase 2) |
+| `src/hooks/useDashboardYtd.js` | `useDashboardYtd()` + `useOperational90dAvg()` — RPC wrappers (Phase 2) |
+| `src/hooks/useOperationalDeltas.js` | `useOperationalDeltas(clients)` + `useOpClientHistory(id)` — FAIXA 4 extract (Phase 2) |
 | `src/hooks/useLabsClients.js` | `labsFilterFor` scoping helper (exists) |
-| `src/lib/scoring.js` | tokens + helpers (exists) |
+| `src/lib/scoring.js` | tokens + helpers + `ymOffset`/`fmtMonth*`/`dataRefMonth` (Phase 2) |
+| `supabase/migrations/2026083000000{0,1,2}_*.sql` | YTD/90d RPCs · `get_finance_summary` · `activities` write RLS (Phase 2) |
 | `src/App.jsx` | `AdminOnlyRoute`; route swap; analyst carve-out on `/dashboard` |
 | `src/components/layout/Navbar.jsx` | "Labs" gated by `effectiveRole==='admin'` |
 | `docs/mock/meu-dia-generic-v3.html` | the target visual mock |

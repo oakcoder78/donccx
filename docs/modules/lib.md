@@ -27,6 +27,7 @@ Utility library. Centralizes pure functions, API wrappers, constants, and helper
 | `onboardingLabels.js` | Map onboarding step IDs to human‑readable labels. |
 | `openrouterService.js` | Call OpenRouter LLM endpoint, return analysis result. |
 | `reportGenerator.js` | Assemble PDF/HTML report from data payloads. |
+| `scoring.js` | Central health/usage scoring helpers — `C` (color tokens), `HEALTH_ICONS`, `scoreBand*(s, thresholds)`, `getSignals`, `buildReasons`, `tempVencida`, `daysSince`. Month helpers (`ymOffset`, `fmtMonthShort/Long/ShortYear`) + `dataRefMonth(syncStatus, fallback)` added for Dashboard v3. Consolidates copies from `DashboardPage.jsx` / `ClientHealthDrawer.jsx` — import, never re-copy. |
 | `supabaseClient.js` | Initialise Supabase JS client, expose `supabase` object. |
 | `supportUtils.js` | Misc helpers (error formatting, date utils). |
 
@@ -36,7 +37,7 @@ Utility library. Centralizes pure functions, API wrappers, constants, and helper
 |------|------|
 | `compose.ts` | Main orchestrator — assembles fragments from all layers |
 | `content/temporal.ts` | Time-of-day and day-of-week phrase provider |
-| `content/identity.ts` | Role-based and milestone phrase provider |
+| `content/identity.ts` | Role-based and milestone phrase provider. Pools for all 6 roles (`admin`, `manager`, `csm`, `analyst`, `sales`, `finance`) + `birthday`/`anniversary`/`neutral`. |
 | `content/operational.ts` | System-state-aware phrase provider |
 | `seed.ts` | Deterministic seed generation from user ID + timestamp |
 | `types.ts` | TypeScript interfaces for fragments, context, results |
@@ -116,5 +117,6 @@ Stateless pure functions; no internal React state. Some modules maintain in‑me
 - `src/lib/onboardingLabels.js`
 - `src/lib/openrouterService.js`
 - `src/lib/reportGenerator.js`
+- `src/lib/scoring.js`
 - `src/lib/supabaseClient.js`
 - `src/lib/supportUtils.js`

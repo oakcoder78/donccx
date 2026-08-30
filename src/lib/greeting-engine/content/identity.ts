@@ -17,6 +17,14 @@ export const IDENTITY_GREETINGS = {
     'Análise em andamento',
     'Dados consolidados',
   ],
+  sales: [
+    'Carteira comercial em foco',
+    'Relacionamento ativo',
+  ],
+  finance: [
+    'Indicadores financeiros',
+    'Faturamento em dia',
+  ],
   birthday: [
     'Feliz aniversário',
     'Dia especial',
@@ -39,6 +47,8 @@ const ROLE_GREETINGS: Record<string, readonly string[]> = {
   manager: IDENTITY_GREETINGS.manager,
   csm: IDENTITY_GREETINGS.csm,
   analyst: IDENTITY_GREETINGS.analyst,
+  sales: IDENTITY_GREETINGS.sales,
+  finance: IDENTITY_GREETINGS.finance,
 }
 
 export function getIdentityFragments(

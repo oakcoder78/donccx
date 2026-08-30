@@ -17,6 +17,9 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useClientReports.js` — fetch reports for a client.
 - `useClients.js` — list clients with optional filters.
 - `useContacts.js` — list contacts, manage contact links.
+- `useDashboardClients.js` — Dashboard v3 clients in scope: thin wrapper over `useClients(labsFilterFor(profile))` (admin/manager/finance → all `cliente`; sales → `comercial_id`; csm → `csm_id`). Single lifted call for `MeuDiaV3Page` (do not call per-block).
+- `useDashboardYtd.js` — `useDashboardYtd()` (RPC `get_dashboard_ytd` — company-wide YTD numbers) + `useOperational90dAvg()` (RPC `get_operational_90d_avg` — HERO "vs média 90d" for OS/profissionais). Both `staleTime 10min`.
+- `useOperationalDeltas.js` — `useOperationalDeltas(clients)` extracts the monolith's FAIXA 4 (month-over-month OS/profissionais/health top-movers from `client_usage`; RLS-scoped — carteira for csm/sales, ecosystem otherwise). `useOpClientHistory(clientId)` returns the 3-month series for the `op-*` drawer.
 - `useDonkie.jsx` — integrate with external Donkie service.
 - `useFeatureFlags.js` — load feature‑flag configuration.
 - `useHealthConfig.js` — retrieve health‑score dimensions & weights.
@@ -84,6 +87,9 @@ UI components may hide certain blocks based on lifecycle_stage. Examples: operat
 - `src/hooks/useClientReports.js`
 - `src/hooks/useClients.js`
 - `src/hooks/useContacts.js`
+- `src/hooks/useDashboardClients.js`
+- `src/hooks/useDashboardYtd.js`
+- `src/hooks/useOperationalDeltas.js`
 - `src/hooks/useDonkie.jsx`
 - `src/hooks/useFeatureFlags.js`
 - `src/hooks/useHealthConfig.js`

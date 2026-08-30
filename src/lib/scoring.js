@@ -56,6 +56,52 @@ export function fmtDate(str) {
   return new Date(str + 'T00:00:00').toLocaleDateString('pt-BR')
 }
 
+const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+
+/** 'YYYY-MM' for the month `n` months before `from` (default: last month). */
+export function ymOffset(n = 1, from = new Date()) {
+  const d = new Date(from)
+  d.setDate(1)
+  d.setMonth(d.getMonth() - n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** 'YYYY-MM' → 'jul' */
+export function fmtMonthShort(ym) {
+  if (!ym) return ''
+  return MONTHS_SHORT[parseInt(ym.split('-')[1], 10) - 1] || ''
+}
+
+/** 'YYYY-MM' → 'julho de 2026' */
+export function fmtMonthLong(ym) {
+  if (!ym) return ''
+  const [y, m] = ym.split('-')
+  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+}
+
+/** 'YYYY-MM' → 'jul/26' */
+export function fmtMonthShortYear(ym) {
+  if (!ym) return ''
+  const [y, m] = ym.split('-')
+  return `${MONTHS_SHORT[Number(m) - 1] || ''}/${y.slice(2)}`
+}
+
+/**
+ * The month the operational (sync) data refers to — for the greeting line 3
+ * "Dados referente a jul/26".
+ *   1. sync_log.summary.ref_month, when present (monthly-sync writes it);
+ *   2. else month before the last successful monthly-sync;
+ *   3. else the caller's fallback (MAX(client_usage.ref_month) where pending=false).
+ * Returns a 'YYYY-MM' string or null.
+ */
+export function dataRefMonth(syncStatus, fallbackYm = null) {
+  if (syncStatus?.summary?.ref_month) return syncStatus.summary.ref_month
+  if (syncStatus?.status === 'success' && syncStatus.started_at) {
+    return ymOffset(1, new Date(syncStatus.started_at))
+  }
+  return fallbackYm
+}
+
 export function daysSince(dateStr) {
   if (!dateStr) return null
   return Math.floor((new Date() - new Date(dateStr + 'T00:00:00')) / 86400000)
