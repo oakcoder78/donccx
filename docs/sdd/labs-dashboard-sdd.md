@@ -627,7 +627,7 @@ Use `effectiveRole` (from `useAuth` / `usePermissions`), never `profile.role`. A
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-08-30 | _(this commit)_ | `supabase/migrations/2026083000000{0,1,2}_*.sql`, `src/hooks/useDashboardClients.js`, `src/hooks/useDashboardYtd.js`, `src/hooks/useOperationalDeltas.js`, `src/lib/scoring.js`, `src/lib/greeting-engine/content/identity.ts`, `supabase/functions/monthly-sync/index.ts` | Data foundation: YTD + 90d-avg + finance-summary RPCs (applied to prod), `activities` write RLS for csm/sales (incl. DELETE), 3 hooks, `scoring.js` month/`dataRefMonth` helpers, greeting `sales`/`finance` pools. A3 (MRR leak) mitigated for the dashboard via `get_finance_summary` — the raw `CLIENT_SELECT='*'` leak still exists elsewhere and stays tracked. |
+| 2026-08-30 | `3d65626` | `supabase/migrations/2026083000000{0,1,2}_*.sql`, `src/hooks/useDashboardClients.js`, `src/hooks/useDashboardYtd.js`, `src/hooks/useOperationalDeltas.js`, `src/lib/scoring.js`, `src/lib/greeting-engine/content/identity.ts`, `supabase/functions/monthly-sync/index.ts` | Data foundation: YTD + 90d-avg + finance-summary RPCs (applied to prod), `activities` write RLS for csm/sales (incl. DELETE), 3 hooks, `scoring.js` month/`dataRefMonth` helpers, greeting `sales`/`finance` pools. A3 (MRR leak) mitigated for the dashboard via `get_finance_summary` — the raw `CLIENT_SELECT='*'` leak still exists elsewhere and stays tracked. |
 
 ---
 
