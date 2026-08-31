@@ -67,7 +67,20 @@ export default function PrimeiroAcesso() {
     setSaving(true)
     try {
       const { error: pwError } = await supabase.auth.updateUser({ password })
-      if (pwError) throw pwError
+      if (pwError) {
+        const msg = (pwError.message || '').toLowerCase()
+        const isSamePassword = pwError.status === 422
+          || msg.includes('different')
+          || msg.includes('same password')
+          || msg.includes('should be different')
+        // Same-password 422 is benign on retry (first attempt set password before RLS failed).
+        // Keep profile activation flowing; only fail on weak/invalid password.
+        if (isSamePassword) {
+          console.warn('[PrimeiroAcesso] updateUser same-password ignored:', pwError.message)
+        } else {
+          throw pwError
+        }
+      }
 
       // role is intentionally NOT sent — it was already set by invite-user (service_role)
       // and must not be escalable via client. RLS also blocks self-promotion to admin/manager.
