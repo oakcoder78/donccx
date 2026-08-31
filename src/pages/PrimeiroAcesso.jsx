@@ -31,7 +31,6 @@ export default function PrimeiroAcesso() {
   }, [profile])
 
   const metaName    = user?.user_metadata?.name || user?.email || ''
-  const metaRole    = user?.user_metadata?.role || 'csm'
   const displayName = (profile?.name || metaName).split(' ')[0]
   const currentAvatar = avatarPreview || profile?.avatar_url || null
 
@@ -70,11 +69,11 @@ export default function PrimeiroAcesso() {
       const { error: pwError } = await supabase.auth.updateUser({ password })
       if (pwError) throw pwError
 
+      // role is intentionally NOT sent — it was already set by invite-user (service_role)
+      // and must not be escalable via client. RLS also blocks self-promotion to admin/manager.
       const patch = {
-        id:     user.id,
         name:   profile?.name || metaName,
         email:  user.email,
-        role:   profile?.role || metaRole,
         status: 'active',
         gender: gender || null,
         phone:  phone.trim() || null,
@@ -94,10 +93,21 @@ export default function PrimeiroAcesso() {
         }
       }
 
-      const { error: profileError } = await supabase
+      // Use UPDATE (not upsert) — row already exists via invite-user/handle_new_user.
+      // UPDATE is covered by profiles_update_own; INSERT fallback is guarded by profiles_insert_own.
+      const { data: updatedRows, error: profileError } = await supabase
         .from('profiles')
-        .upsert(patch, { onConflict: 'id' })
+        .update(patch)
+        .eq('id', user.id)
+        .select('id')
       if (profileError) throw profileError
+      if (!updatedRows || updatedRows.length === 0) {
+        // Fallback: profile row missing (e.g. trigger race) — try insert own row
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({ id: user.id, ...patch, role: profile?.role || 'csm' })
+        if (insertError) throw insertError
+      }
 
       await supabase
         .from('access_requests')

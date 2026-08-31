@@ -47,9 +47,9 @@ serve(async (req) => {
 
     const { data: callerProfile } = await adminClient
       .from('profiles').select('role').eq('id', caller.id).maybeSingle()
-    if (callerProfile?.role !== 'admin') {
+    if (!['admin', 'manager'].includes(callerProfile?.role ?? '')) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden: admin role required' }),
+        JSON.stringify({ error: 'Forbidden: admin or manager role required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -60,6 +60,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: email, role, name' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Manager cannot invite admin/manager (privilege escalation guard)
+    if (callerProfile?.role === 'manager' && ['admin', 'manager'].includes(role)) {
+      return new Response(
+        JSON.stringify({ error: 'Forbidden: manager cannot invite admin/manager' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 

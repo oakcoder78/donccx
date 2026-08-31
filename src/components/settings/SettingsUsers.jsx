@@ -4,6 +4,7 @@ import { Icons } from '@/lib/icons'
 import { ROLE_OPTIONS, ROLE_LABEL } from '@/lib/roles'
 import { useProfiles, useProfilesMutations } from '@/hooks/useProfiles'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useAuth } from '@/contexts/AuthContext'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
@@ -24,8 +25,12 @@ const roleLabel     = ROLE_LABEL
 // ── Modal: convidar usuário por e-mail ───────────────────────────────────────
 function InviteUserModal({ onClose, onDone }) {
   const { logAction } = useAuditLog()
+  const { effectiveRole } = useAuth()
   const [form, setForm] = useState({ name: '', email: '', role: 'csm' })
   const [loading, setLoading] = useState(false)
+  const visibleRoles = effectiveRole === 'manager'
+    ? ROLE_OPTIONS.filter(r => !['admin', 'manager'].includes(r.value))
+    : ROLE_OPTIONS
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -87,7 +92,7 @@ function InviteUserModal({ onClose, onDone }) {
         <div>
           <label className="label-sm">Perfil</label>
           <select name="role" value={form.role} onChange={handleChange} className="input-base w-full">
-            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {visibleRoles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
@@ -103,8 +108,12 @@ function InviteUserModal({ onClose, onDone }) {
 // ── Modal: aprovar solicitação e enviar convite ───────────────────────────────
 function ApproveModal({ request, onClose, onDone }) {
   const { logAction } = useAuditLog()
+  const { effectiveRole } = useAuth()
   const [role, setRole]     = useState('csm')
   const [loading, setLoading] = useState(false)
+  const visibleRoles = effectiveRole === 'manager'
+    ? ROLE_OPTIONS.filter(r => !['admin', 'manager'].includes(r.value))
+    : ROLE_OPTIONS
 
   async function handleConfirm() {
     setLoading(true)
@@ -158,7 +167,7 @@ function ApproveModal({ request, onClose, onDone }) {
         <div>
           <label className="label-sm">Perfil</label>
           <select value={role} onChange={e => setRole(e.target.value)} className="input-base w-full">
-            {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {visibleRoles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
         <div className="flex justify-end gap-2 pt-2 border-t border-border-tertiary">
@@ -179,7 +188,11 @@ export function SettingsUsers() {
   const { data: profiles = [], isLoading, refetch } = useProfiles()
   const { updateStatus, updateRole } = useProfilesMutations()
   const { canManageUsers } = usePermissions()
+  const { effectiveRole } = useAuth()
   const [showInviteUser, setShowInviteUser]   = useState(false)
+  const roleOptionsForManager = effectiveRole === 'manager'
+    ? ROLE_OPTIONS.filter(r => !['admin', 'manager'].includes(r.value))
+    : ROLE_OPTIONS
   const [editingUser, setEditingUser]         = useState(null)
   const [approvingRequest, setApprovingRequest] = useState(null)
 
@@ -320,7 +333,7 @@ export function SettingsUsers() {
                   onChange={e => updateRole.mutateAsync({ id: p.id, role: e.target.value, name: p.name })}
                   className="input-base text-xs w-[130px]"
                 >
-                  {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  {roleOptionsForManager.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               ) : (
                 <span className="text-xs text-text-tertiary w-24 text-center">{roleLabel[p.role]}</span>
