@@ -8,6 +8,11 @@ import { useSegments, useSegmentsMutations } from '@/hooks/useSegments'
 import { useModulePricing, useModulePricingMutations } from '@/hooks/useModulePricing'
 import { supabase } from '@/lib/supabaseClient'
 import { calculateUnitValue } from '@/lib/billing'
+import { useContractCharges, useContractChargesMutations } from '@/hooks/useContractCharges'
+import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
+import { ContractChargesSection } from './sections/ContractChargesSection'
+import { OsTiersSection } from './sections/OsTiersSection'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional
@@ -103,6 +108,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const { create: createSegment } = useSegmentsMutations()
   const { data: existingModPricing = [] } = useModulePricing(client?.id)
   const { saveAll: saveModPricing } = useModulePricingMutations()
+  const { data: existingCharges = [] } = useContractCharges(client?.id)
+  const { mutateAsync: saveCharges } = useContractChargesMutations(client?.id)
+  const { data: existingTiers = [] } = useBillingOsTiers(client?.id)
+  const { mutateAsync: saveTiers } = useBillingOsTiersMutations(client?.id)
+
+  const [contractN, setContractN] = useState(36)
+  const [contractRules, setContractRules] = useState([])
+  const [osTiers, setOsTiers] = useState([])
 
   useEffect(() => {
     if (existingModPricing.length > 0) {
@@ -118,6 +131,37 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       setModPricing(init)
     }
   }, [existingModPricing.length])
+
+  // Initialize contract rules from existingCharges (group consecutive same mode/value)
+  useEffect(() => {
+    if (existingCharges.length > 0 && contractRules.length === 0) {
+      const sorted = [...existingCharges].filter(c => c.kind === 'recorrencia').sort((a,b) => a.month_index - b.month_index)
+      if (sorted.length > 0) {
+        const rules = []
+        let cur = { from: sorted[0].month_index, to: sorted[0].month_index, mode: sorted[0].mode, value: String(sorted[0].mode === 'percent' ? sorted[0].percent : sorted[0].amount) }
+        for (let i = 1; i < sorted.length; i++) {
+          const c = sorted[i]
+          const val = String(c.mode === 'percent' ? c.percent : c.amount)
+          if (c.mode === cur.mode && val === cur.value && c.month_index === cur.to + 1) {
+            cur.to = c.month_index
+          } else {
+            rules.push(cur)
+            cur = { from: c.month_index, to: c.month_index, mode: c.mode, value: val }
+          }
+        }
+        rules.push(cur)
+        setContractRules(rules)
+        const maxM = Math.max(...sorted.map(c => c.month_index))
+        if (maxM > contractN) setContractN(maxM)
+      }
+    }
+  }, [existingCharges])
+
+  useEffect(() => {
+    if (existingTiers.length > 0 && osTiers.length === 0) {
+      setOsTiers(existingTiers.map(t => ({ tier_order: t.tier_order, limit_to: t.limit_to, fixed_value: Number(t.fixed_value), excess_unit_price: Number(t.excess_unit_price) })))
+    }
+  }, [existingTiers])
 
   const csms = profiles.filter(p => p.role === 'csm' || p.role === 'manager')
   const comercials = profiles.filter(p => (p.role === 'sales' || p.role === 'manager' || p.role === 'admin') && p.status === 'active')
@@ -262,6 +306,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       return
     }
 
+    if (contractRules.length > 0) {
+      const v = validateRulesContiguous(contractRules, contractN)
+      if (!v.ok) { toast.error(v.error); setActiveTab(2); return }
+    }
+    if (form.billing_type === 'por_os' && osTiers.length > 0) {
+      const v2 = validateOsTiers(osTiers)
+      if (!v2.ok) { toast.error(v2.error); setActiveTab(2); return }
+    }
+
     let logoUrl = form.logo_url
     if (logoFile) {
       setUploadingLogo(true)
@@ -364,6 +417,25 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         additional_value: Number(v.value) || 0,
       }))
     await saveModPricing.mutateAsync({ clientId, items })
+
+    // Persist contract motor (best-effort, non-blocking if tables not yet migrated)
+    if (contractRules.length > 0) {
+      try {
+        const charges = expandRulesToCharges(contractRules, contractN)
+        await saveCharges({ charges })
+      } catch (e) {
+        toast.error(`Regras contrato: ${e.message}`)
+        // do not block overall success
+      }
+    } else if (existingCharges.length > 0) {
+      // clear if user removed all rules
+      try { await saveCharges({ charges: [] }) } catch (_) {}
+    }
+    if (form.billing_type === 'por_os' && osTiers.length > 0) {
+      try { await saveTiers({ tiers: osTiers }) } catch (e) { toast.error(e.message) }
+    } else if (existingTiers.length > 0 && osTiers.length === 0) {
+      try { await saveTiers({ tiers: [] }) } catch (_) {}
+    }
 
     // Persist handover to client_handovers table if migration exists (best-effort, non-blocking)
     if (form.handover_contexto || form.handover_problemas || form.handover_pessoas) {
@@ -726,12 +798,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             </div>
           )}
 
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <p className="text-xs font-medium text-amber-800 mb-1">Motor de contrato — em breve (Phase 3)</p>
-            <p className="text-xs text-amber-700">
-              Interface para eventuais parcelados (implantação), recorrência 1..120 meses com regras contíguas (absoluto / % do base) e tiers 1..5 por OS (ex: até 2000 = R$3.850, excedente R$0,95, franquia = tier 1). Preview no <code>docs/sdd/empresas-form-v2-sdd.md:4.3</code>.
-            </p>
-          </div>
+          <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} />
+          <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
 
           <div className="bg-donc-navy/5 rounded-lg p-3 border border-donc-navy/20">
             <p className="text-xs text-text-tertiary mb-0.5">Valor unitário com módulos</p>

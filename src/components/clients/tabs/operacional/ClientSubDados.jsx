@@ -6,6 +6,8 @@ import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useCatalog } from '@/hooks/useCatalog'
 import { supabase } from '@/lib/supabaseClient'
 import { Icons } from '@/lib/icons'
+import { useClientHandovers } from '@/hooks/useClientHandovers'
+import { HANDOVER_LABELS } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
 function shortUrl(url) {
@@ -257,6 +259,7 @@ export function ClientSubDados({ client }) {
   const { isEnabled } = useFeatureFlags()
   const canViewFinancialEffective = isEnabled('financial_data', effectiveRole)
   const { data: catalog = [] } = useCatalog()
+  const { data: handover } = useClientHandovers(client.id)
 
   const servicos = client.client_catalog
     ?.filter(cc => cc.catalog_items?.type === 'servico')
@@ -275,8 +278,6 @@ export function ClientSubDados({ client }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <InfoRow label="Início Contrato" value={formatDate(client.contract_start)} />
           <InfoRow label="Renovação" value={formatDate(client.contract_renewal)} />
-          <InfoRow label="Início Onboarding" value={formatDate(client.onb_start)} />
-          <InfoRow label="Go Live" value={formatDate(client.golive)} />
           {canViewFinancialEffective && (
             <>
               <InfoRow label="MRR" value={client.mrr ? `R$ ${Number(client.mrr).toLocaleString('pt-BR')}` : null} />
@@ -287,14 +288,53 @@ export function ClientSubDados({ client }) {
             </>
           )}
           <InfoRow
-            label="Unidades na Donc"
+            label="Unidades previstas (início)"
             value={client.unidades_donc > 0 ? String(client.unidades_donc) : null}
+          />
+          <InfoRow
+            label="Total da rede (potencial)"
+            value={client.unidades_total > 0 ? String(client.unidades_total) : null}
+          />
+          <InfoRow label="Classificação ABC" value={client.abc_class || null} />
+          <InfoRow label="ERP" value={client.erp || null} />
+          <InfoRow label="Equipe TI" value={client.ti_tipo ? ({interna:'Interna',terceirizada:'Terceirizada',hibrida:'Híbrida',nao_possui:'Não possui'}[client.ti_tipo] || client.ti_tipo) : null} />
+          <InfoRow label="Site" value={client.site || null} />
+          <InfoRow
+            label="Bilhetagem"
+            value={
+              client.billing_status
+                ? `${{ativo:'Ativo',suspenso:`Suspenso até ${formatDate(client.billing_suspended_until) || '—'}`,nao_bilhetavel:'Não bilhetável'}[client.billing_status] || client.billing_status}`
+                : client.contract_active === false ? 'Não bilhetável (legado)' : null
+            }
           />
           {client.delay_days > 0 && (
             <InfoRow label="Dias em Atraso" value={`${client.delay_days} dias`} />
           )}
         </div>
+        {(client.onb_start || client.golive) && (
+          <p className="text-[11px] text-white/40 mt-3">Legado: Início Onboarding {formatDate(client.onb_start) || '—'} · Go Live {formatDate(client.golive) || '—'} (usar Projetos)</p>
+        )}
       </div>
+
+      {/* Handoff Comercial → Onboarding (read-only mirror) */}
+      {handover?.answers && Object.keys(handover.answers).length > 0 && (
+        <Card>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs text-text-tertiary font-semibold uppercase tracking-wider">Handoff Comercial → Onboarding</p>
+            <span className="text-[11px] px-2 py-0.5 rounded bg-bg-secondary text-text-tertiary border border-border-tertiary">
+              {handover.template_version || 'v1'} {handover.migrated_from_description ? '· migrado de description' : ''}
+            </span>
+          </div>
+          <div className="space-y-3">
+            {Object.entries(handover.answers).filter(([,v]) => v && String(v).trim()).map(([k, v]) => (
+              <div key={k}>
+                <p className="text-xs font-medium text-text-secondary mb-0.5">{HANDOVER_LABELS[k] || k}</p>
+                <p className="text-sm text-text-primary whitespace-pre-wrap bg-bg-secondary/50 rounded p-2 border border-border-tertiary/50">{String(v)}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Instâncias DONC */}
       <DoncInstancesSection clientId={client.id} />
