@@ -134,19 +134,19 @@ function buildOpCountRows(opsByClient, clients, valOf, unit) {
     const prev = months[prevMonth2]
     if (!cur) return
     const curVal  = valOf(cur)
-    const prevVal = valOf(prev)
-    if (curVal == null || prevVal == null) return
-    if (curVal === 0 && prevVal === 0) return
-    const delta = prevVal > 0 ? Math.round(((curVal - prevVal) / prevVal) * 100) : null
+    const prevVal = prev ? valOf(prev) : null
+    if (curVal == null) return
+    if (curVal === 0 && (prevVal ?? 0) === 0) return
+    const delta = prevVal != null && prevVal > 0 ? Math.round(((curVal - prevVal) / prevVal) * 100) : null
     const cl = clients.find(c => c.id === Number(clientId))
     rows.push({
       clientId,
       name: cl?.fantasy_name || cl?.name || clientId,
       curVal,
-      prevVal,
-      absDelta: Math.abs(curVal - prevVal),
+      prevVal: prevVal ?? 0,
+      absDelta: Math.abs(curVal - (prevVal ?? 0)),
       delta,
-      state: prevVal < 10 ? 'new' : (curVal - prevVal >= 0 ? 'up' : 'down'),
+      state: prevVal == null || prevVal < 10 ? 'new' : (curVal - prevVal >= 0 ? 'up' : 'down'),
       unit,
     })
   })
@@ -690,19 +690,19 @@ export default function DashboardPage() {
   const hasOpsData = useMemo(() => opsRows.some(r => r.ref_month === prevMonth && r.instance_id != null), [opsRows])
 
   const opOSList = useMemo(() => (
-    buildOpCountRows(opsByClient, clients, m => m.donc_snapshot?.totalOs ?? null, 'OS').slice(0, 5)
+    buildOpCountRows(opsByClient, clients, m => m?.donc_snapshot?.totalOs ?? null, 'OS').slice(0, 5)
   ), [opsByClient, clients])
 
   const opOSAll = useMemo(() => (
-    buildOpCountRows(opsByClient, clients, m => m.donc_snapshot?.totalOs ?? null, 'OS')
+    buildOpCountRows(opsByClient, clients, m => m?.donc_snapshot?.totalOs ?? null, 'OS')
   ), [opsByClient, clients])
 
   const opUsersList = useMemo(() => (
-    buildOpCountRows(opsByClient, clients, m => m.active_users ?? null, 'profissionais').slice(0, 5)
+    buildOpCountRows(opsByClient, clients, m => m?.active_users ?? null, 'profissionais').slice(0, 5)
   ), [opsByClient, clients])
 
   const opUsersAll = useMemo(() => (
-    buildOpCountRows(opsByClient, clients, m => m.active_users ?? null, 'profissionais')
+    buildOpCountRows(opsByClient, clients, m => m?.active_users ?? null, 'profissionais')
   ), [opsByClient, clients])
 
   // Sync action
