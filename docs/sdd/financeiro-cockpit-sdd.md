@@ -438,6 +438,43 @@ interface FinanceiroDetail {
 
 ---
 
+### Phase 3.5 — Adimplência (billing_payments) — cobrado externamente, health_financeiro
+
+**Status:** Not started
+
+**Rationale:** Cobrança executada em plataforma externa sem integração previsível (válido 2026). Finance marca manualmente `billing_payments(status, delay_days, paid_at)` por `ref_month` no cockpit. `health_financeiro` precisa de `delay_days` do último mês; `T6 Valor em atraso` já prevê `delay_days>0`. Isolar em fase 3.5 permite entregar motor de contrato (Empresas v2) sem bloquear financeiro, mas antes de exports (que incluem `Adimplente/Inadimplente`).
+
+**Scope:**
+
+- Tabela `billing_payments(client_id,ref_month)` + trigger mirror `clients.delay_days` + RPC wiring + UI badge
+
+#### Checklist
+
+- [ ] **Migration:** `supabase migration new financeiro_cockpit_adimplencia` → `supabase/migrations/20260901000002_financeiro_cockpit_adimplencia.sql`:
+  - [ ] `CREATE TABLE billing_payments (client_id int FK clients ON DELETE CASCADE NOT NULL, ref_month text CHECK YYYY-MM NOT NULL, status text CHECK (adimplente,inadimplente) NOT NULL, delay_days int DEFAULT 0 CHECK >=0, paid_at date, note text, updated_by uuid FK profiles, updated_at timestamptz default now(), PRIMARY KEY (client_id, ref_month))`
+  - [ ] `CREATE INDEX idx_billing_payments_ref_month ON billing_payments(ref_month);`
+  - [ ] `ALTER TABLE billing_payments ENABLE ROW LEVEL SECURITY; CREATE POLICY billing_payments_select ON billing_payments FOR SELECT USING (public.get_user_role() IN ('admin','manager','finance','sales')); CREATE POLICY billing_payments_write ON billing_payments FOR ALL USING (public.get_user_role() IN ('admin','finance')) WITH CHECK (public.get_user_role() IN ('admin','finance'))` + `REVOKE anon/public GRANT authenticated`
+  - [ ] `CREATE OR REPLACE FUNCTION sync_delay_days() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE public.clients SET delay_days = (SELECT delay_days FROM public.billing_payments WHERE client_id=NEW.client_id ORDER BY ref_month DESC LIMIT 1) WHERE id=NEW.client_id; RETURN NEW; END; $$; CREATE TRIGGER trg_sync_delay_days AFTER INSERT OR UPDATE ON billing_payments FOR EACH ROW EXECUTE FUNCTION sync_delay_days();`
+  - [ ] Seed: `INSERT INTO billing_payments (client_id, ref_month, status, delay_days) SELECT id, to_char(now(),'YYYY-MM'), CASE WHEN delay_days>0 THEN 'inadimplente' ELSE 'adimplente' END, delay_days FROM clients WHERE delay_days IS NOT NULL ON CONFLICT DO NOTHING;`
+- [ ] **RPC:** Modify `supabase/migrations/20260901000001_financeiro_cockpit_core.sql` — `get_financeiro_cockpit` `LEFT JOIN billing_payments bp ON bp.client_id=c.id AND bp.ref_month=p_ref_month` → `bp.status, bp.delay_days, bp.paid_at` aliased `payment_status`, `delay_days` (coalesce `c.delay_days` fallback); `get_financeiro_detalhe` same; `get_financeiro_export` include `payment_status | Inadimplente (12d)`
+- [ ] **Helpers:** Update `src/lib/financeiro.js` — `paymentBadge(status, delay_days) → {label, color}` (`adimplente bg-donc-verde/10`, `inadimplente bg-donc-red/10`), `isInadimplente(row)`
+- [ ] **Page:** Modify `src/pages/FinanceiroCockpitPage.jsx`:
+  - [ ] Row expanded barra: add `PaymentToggle` (select `adimplente/inadimplente` + `delay_days` input + `paid_at` date) gated `canWrite = ['admin','finance'].includes(effectiveRole)` else read-only badge; `supabase.from('billing_payments').upsert({client_id, ref_month, status, delay_days, paid_at, updated_by})` + `invalidate ['financeiro_cockpit', refMonth]`
+  - [ ] Table collapsed: add `col Pagamento` badge `Adimplente` / `Inadimplente 12d` + `delay_days` tooltip
+  - [ ] KPI T6 uses `billing_payments.delay_days` (via RPC) not just `clients.delay_days`
+- [ ] **Detail mirror:** `ClientSubDados` read-only `Último status: Inadimplente (12d) — ref 2026-08` via `useClient` latest `billing_payments` (fallback `clients.delay_days`)
+- [ ] **Build:** `npm run build`
+- [ ] **Verify:** finance marks `2026-08 inadimplente 12d` → `clients.delay_days=12` (trigger) → `health_financeiro` penalizado + `T6` soma `mrr_real` desse cliente; `adimplente` → `delay_days=0` + health recupera
+- [ ] **Commit:** `git add supabase/migrations/20260901000002_financeiro_cockpit_adimplencia.sql src/lib/financeiro.js src/pages/FinanceiroCockpitPage.jsx && git commit -m "feat(financeiro): phase 3.5 adimplencia (billing_payments) + health wiring" && git push origin main`
+
+#### Implementation Log (Phase 3.5)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| — | — | — | — |
+
+---
+
 ### Phase 4 — Exports + Audit (CSV Synthetic/Analytic + PDF with CNPJ/SaaS_ID, Delta, Retroactive Reprocess)
 
 **Status:** Not started
@@ -516,6 +553,7 @@ interface FinanceiroDetail {
 
 | Decision | Rationale |
 |---|---|
+| Adimplência em `billing_payments(client_id,ref_month)` no cockpit, não no form empresas | Cobrança externa sem integração; financeiro marca manual por `ref_month` no cockpit onde já fecha MRR. Trigger espelha `delay_days` para `clients` para `health_financeiro` + `T6` sem quebrar `healthScore.js`. Form mostra mirror read-only latest. (Empresas v2 §4.6) |
 | Flag dedicada `cockpit_financeiro` (Q6 Sim) | Kill-switch independente de `financial_data` (gate horizontal). Dependência lógica `cockpit_financeiro ⇒ financial_data`. Validado com diretoria financeira. |
 | Sales escrita total (Q4a) | Negociação nasce no comercial; `admin,finance,sales` write, `manager` leitura. Trilha `created_by/at + reason` + RLS compensa governance. |
 | Retroatividade reprocessa passado (Q4b) | Exceção retroativa reprocessa `ref_month` fechados, gera delta e exige reemissão — cobra explicitamente relatórios fechados. |
@@ -533,6 +571,7 @@ interface FinanceiroDetail {
 
 | Risk | Mitigation |
 |---|---|
+| Adimplência manual sem integração (risco `delay_days` desatualizado) | Phase 3.5 `billing_payments` por `ref_month` + trigger `sync_delay_days` + badge Inadimplente no cockpit e mirror em `ClientSubDados`. Finance atualiza por mês; health lê último `ref_month`. |
 | `billing.js` soma `base+sum(mods)` diverge de Q2 rateio e infla MRR | Phase 3: `mode='rateio'` (default novo) + `validateRateio()` warning ±R$0,01 na UI; manter `mode='legacy'` para callers antigos. Teste com Exemplo A/B BRD §6. |
 | Retroatividade Q4b reprocessa mês fechado sem aviso | Phase 4 banner + delta `mrr_real` vs snapshot + coluna `Δ Retroativo` + reemissão obrigatória. Não fazer reprocessamento silencioso. |
 | DONC API fora no cron → `client_usage` desatualizado | Banner `sync_service_log status='failed'` + `lastSync` timestamp + retry manual. RPC retorna `uso` do último `ref_month` com flag `pending`. |

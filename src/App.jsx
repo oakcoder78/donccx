@@ -38,6 +38,7 @@ import CsRadarPage from './pages/CsRadarPage'
 import ProjectCockpitPage from './pages/ProjectCockpitPage'
 import ProfissionaisCockpitPage from './pages/ProfissionaisCockpitPage'
 import LabsDashboardPage from './pages/labs/LabsDashboardPage'
+import EmpresasV2Page from './pages/labs/EmpresasV2Page'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -197,6 +198,8 @@ function AppRoutes() {
           <Route path="/dashboard" element={<DashboardRoute />} />
           <Route element={<AdminOnlyRoute />}>
             <Route path="/labs/dashboard" element={<LabsDashboardPage />} />
+            <Route path="/labs/empresas_v2" element={<EmpresasV2Page />} />
+            <Route path="/labs/empresas_v2/:id/editar" element={<EmpresasV2Page />} />
           </Route>
           <Route path="/cockpits" element={<CockpitsPage />} />
           <Route path="/health" element={<HealthDashboardPage />} />

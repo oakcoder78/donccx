@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 const mainNavLinks = [
   { to: '/dashboard',      label: 'Dashboard'   },
   { to: '/labs/dashboard', label: 'Labs', adminOnly: true },
+  { to: '/labs/empresas_v2', label: 'Empresas v2', adminOnly: true },
   { to: '/empresas',       label: 'Empresas'    },
   { to: '/contatos',       label: 'Contatos'    },
   { to: '/atividades',     label: 'Atividades'  },
