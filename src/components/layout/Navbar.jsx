@@ -12,8 +12,10 @@ import toast from 'react-hot-toast'
 
 const mainNavLinks = [
   { to: '/dashboard',      label: 'Dashboard'   },
-  { to: '/labs/dashboard', label: 'Labs', adminOnly: true },
-  { to: '/labs/empresas_v2', label: 'Empresas v2', adminOnly: true },
+  { label: 'Labs', adminOnly: true, children: [
+    { to: '/labs/dashboard', label: 'Dashboard' },
+    { to: '/labs/empresas_v2', label: 'Empresas v2' },
+  ]},
   { to: '/empresas',       label: 'Empresas'    },
   { to: '/contatos',       label: 'Contatos'    },
   { to: '/atividades',     label: 'Atividades'  },
@@ -34,6 +36,7 @@ export function Navbar({ googleOAuthSignal }) {
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [labsOpen, setLabsOpen] = useState(false)
 
   useEffect(() => {
     if (googleOAuthSignal.error) {
@@ -88,21 +91,60 @@ export function Navbar({ googleOAuthSignal }) {
 
         {/* Nav tabs */}
         <div className="flex items-center gap-1 flex-1">
-          {links.map(link => (
-            <NavLink
-              key={link.to}
-              to={link.to}
-              className={({ isActive }) =>
-                `px-3 py-1.5 text-sm font-medium transition-colors rounded-md ${
-                  isActive
-                    ? 'text-white border-b-[3px] border-donc-lime rounded-b-none pb-[5px]'
-                    : 'text-white/60 hover:text-white/90'
-                }`
-              }
-            >
-              {link.label}
-            </NavLink>
-          ))}
+          {links.map(link => {
+            if (link.children) {
+              const isLabsActive = link.children.some(c => window.location.pathname.startsWith(c.to))
+              return (
+                <div key={link.label} className="relative">
+                  <button
+                    onClick={() => setLabsOpen(!labsOpen)}
+                    className={`px-3 py-1.5 text-sm font-medium transition-colors rounded-md flex items-center gap-1 ${
+                      isLabsActive || labsOpen
+                        ? 'text-white border-b-[3px] border-donc-lime rounded-b-none pb-[5px]'
+                        : 'text-white/60 hover:text-white/90'
+                    }`}
+                  >
+                    {link.label}
+                    <Icons.ChevronDown size={14} className={`transition-transform ${labsOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {labsOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setLabsOpen(false)} />
+                      <div className="absolute left-0 top-full mt-1 w-48 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-20 py-1">
+                        {link.children.map(child => (
+                          <NavLink
+                            key={child.to}
+                            to={child.to}
+                            onClick={() => setLabsOpen(false)}
+                            className={({ isActive }) =>
+                              `block px-3 py-2 text-sm transition-colors ${isActive ? 'bg-bg-secondary text-donc-navy font-medium' : 'text-text-secondary hover:bg-bg-secondary hover:text-text-primary'}`
+                            }
+                          >
+                            {child.label}
+                          </NavLink>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
+            }
+            return (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) =>
+                  `px-3 py-1.5 text-sm font-medium transition-colors rounded-md ${
+                    isActive
+                      ? 'text-white border-b-[3px] border-donc-lime rounded-b-none pb-[5px]'
+                      : 'text-white/60 hover:text-white/90'
+                  }`
+                }
+              >
+                {link.label}
+              </NavLink>
+            )
+          })}
         </div>
 
         {/* Sync failure badge */}
