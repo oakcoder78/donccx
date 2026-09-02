@@ -12,6 +12,7 @@ import { useContractCharges, useContractChargesMutations } from '@/hooks/useCont
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
 import { ContractChargesSection } from './sections/ContractChargesSection'
 import { OsTiersSection } from './sections/OsTiersSection'
+import { EventuaisSection } from './sections/EventuaisSection'
 import { validateRulesContiguous, validateOsTiers, expandRulesToCharges } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
@@ -116,6 +117,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [contractN, setContractN] = useState(36)
   const [contractRules, setContractRules] = useState([])
   const [osTiers, setOsTiers] = useState([])
+  const [eventuais, setEventuais] = useState([])
 
   useEffect(() => {
     if (existingModPricing.length > 0) {
@@ -162,6 +164,23 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       setOsTiers(existingTiers.map(t => ({ tier_order: t.tier_order, limit_to: t.limit_to, fixed_value: Number(t.fixed_value), excess_unit_price: Number(t.excess_unit_price) })))
     }
   }, [existingTiers])
+
+  useEffect(() => {
+    if (existingCharges.length > 0 && eventuais.length === 0) {
+      // group implantacao charges by installment_group
+      const impl = existingCharges.filter(c => c.kind === 'implantacao')
+      if (impl.length > 0) {
+        const groups = {}
+        impl.forEach(c => {
+          const g = c.installment_group || c.id
+          if (!groups[g]) groups[g] = { label: c.label || 'Implantação', total: 0, installments: 0, group: g }
+          groups[g].total += Number(c.amount) || 0
+          groups[g].installments += 1
+        })
+        setEventuais(Object.values(groups).map(g => ({ label: g.label, total: String(g.total), installments: g.installments, _group: g.group })))
+      }
+    }
+  }, [existingCharges])
 
   const csms = profiles.filter(p => p.role === 'csm' || p.role === 'manager')
   const comercials = profiles.filter(p => (p.role === 'sales' || p.role === 'manager' || p.role === 'admin') && p.status === 'active')
@@ -419,16 +438,22 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     await saveModPricing.mutateAsync({ clientId, items })
 
     // Persist contract motor (best-effort, non-blocking if tables not yet migrated)
-    if (contractRules.length > 0) {
-      try {
-        const charges = expandRulesToCharges(contractRules, contractN)
-        await saveCharges({ charges })
-      } catch (e) {
-        toast.error(`Regras contrato: ${e.message}`)
-        // do not block overall success
+    // Build combined charges: recorrencia (expand rules) + implantacao (expand eventuais)
+    const recorrenciaCharges = contractRules.length > 0 ? (() => { try { return expandRulesToCharges(contractRules, contractN) } catch { return [] } })() : []
+    const implantacaoCharges = []
+    eventuais.forEach(ev => {
+      const total = Number(ev.total) || 0
+      const inst = Math.max(1, Number(ev.installments) || 1)
+      const per = total / inst
+      const group = ev._group || crypto.randomUUID()
+      for (let i = 0; i < inst; i++) {
+        implantacaoCharges.push({ month_index: i + 1, kind: 'implantacao', mode: 'absolute', amount: Number(per.toFixed(2)), label: ev.label || 'Implantação', installment_group: group, installments_total: inst })
       }
+    })
+    const allCharges = [...recorrenciaCharges, ...implantacaoCharges]
+    if (allCharges.length > 0) {
+      try { await saveCharges({ charges: allCharges }) } catch (e) { toast.error(`Contrato: ${e.message}`) }
     } else if (existingCharges.length > 0) {
-      // clear if user removed all rules
       try { await saveCharges({ charges: [] }) } catch (_) {}
     }
     if (form.billing_type === 'por_os' && osTiers.length > 0) {
@@ -798,6 +823,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             </div>
           )}
 
+          <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} />
           <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} billingFloor={form.billing_floor} billingType={form.billing_type} />
           <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
 
