@@ -195,9 +195,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const activeModList = Object.entries(modPricing)
     .filter(([, v]) => v.active)
     .map(([, v]) => ({ additional_value: Number(v.value) || 0 }))
-  const unitValue = calculateUnitValue(Number(form.billing_base_value) || 0, activeModList)
+  // Rateio mode: base * floor = total, mods are distribution of total (not additive)
+  const basePerLic = Number(form.billing_base_value) || 0
   const floor = Number(form.billing_floor) || 0
-  const mrrMinimo = floor * unitValue
+  const baseTotal = floor > 0 ? basePerLic * floor : basePerLic
+  const unitValue = calculateUnitValue(basePerLic, activeModList, { mode: 'rateio' })
+  const mrrMinimo = baseTotal
+  const sumMods = activeModList.reduce((s, m) => s + (m.additional_value || 0), 0)
+  const rateioOk = activeModList.length === 0 ? true : Math.abs(sumMods - baseTotal) <= 0.01
+  const rateioDiff = Math.abs(sumMods - baseTotal)
 
   const allActive = solucoes.length > 0 && solucoes.every(s => modPricing[s.id]?.active)
   function toggleAll() {
@@ -759,14 +765,22 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             )}
           </div>
 
-          <div className="bg-bg-secondary rounded-lg p-3 border border-border-tertiary flex items-center justify-between">
+          <div className="bg-donc-navy rounded-lg p-4 text-white flex items-center justify-between">
             <div>
-              <p className="text-xs text-text-tertiary mb-0.5">MRR mínimo garantido (piso × valor unitário)</p>
-              <p className="text-lg font-bold text-donc-navy">{fmtBRL(mrrMinimo)}</p>
+              <p className="text-xs text-white/60 mb-0.5">MRR Total do contrato</p>
+              <p className="text-xl font-bold">{fmtBRL(baseTotal)}</p>
+              <p className="text-xs text-white/70">{floor > 0 ? `${floor} × ${fmtBRL(basePerLic)} / licença` : `${fmtBRL(basePerLic)} / licença`}</p>
             </div>
-            <button type="button" onClick={() => setHelpOpen(!helpOpen)} className="p-1.5 rounded hover:bg-white border border-transparent hover:border-border-tertiary" title="Ajuda contrato">
-              <Icons.HelpCircle size={16} className="text-text-tertiary" />
-            </button>
+            <div className="flex items-center gap-2">
+              {!rateioOk && activeModList.length > 0 && (
+                <span className="text-xs bg-donc-red/20 border border-donc-red/30 rounded px-2 py-1 text-white">
+                  Rateio diverge {fmtBRL(sumMods)} vs {fmtBRL(baseTotal)} (Δ {fmtBRL(rateioDiff)})
+                </span>
+              )}
+              <button type="button" onClick={() => setHelpOpen(!helpOpen)} className="p-1.5 rounded hover:bg-white/10 border border-white/20" title="Ajuda contrato">
+                <Icons.HelpCircle size={16} className="text-white/80" />
+              </button>
+            </div>
           </div>
           {helpOpen && (
             <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 space-y-1">
@@ -774,7 +788,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               <p><b>Regras:</b> valor <b>total no mês</b> (absoluto) ou <b>% do base total</b>. Ex: 1..5 R$2.500, 6..10 80% → R$3.200.</p>
               <p><b>Eventuais:</b> implantação parcelada (ex: R$15.000 em 3×) gera 3 parcelas em <code>contract_charges</code>.</p>
               <p><b>Fora do contrato:</b> regra &gt; base total pede confirmação.</p>
-              <p><b>Modificadores:</b> rateio informativo, não soma ao base.</p>
+              <p><b>Modificadores:</b> distribuição do total entre módulos (rateio, não soma). Ex: 4000 = Mod A 2500 + Mod B 1500.</p>
             </div>
           )}
 
@@ -809,11 +823,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             <div className="border border-border-tertiary rounded-lg overflow-hidden">
               <button type="button" onClick={() => setModOpen(!modOpen)} className="w-full flex items-center justify-between px-3 py-2.5 bg-bg-secondary hover:bg-bg-tertiary transition-colors">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-text-primary">Modificadores por módulo</span>
-                  <span className="text-xs text-text-tertiary">R$ adicional / unidade · rateio</span>
+                  <span className="text-sm font-medium text-text-primary">Rateio por módulo</span>
+                  <span className="text-xs text-text-tertiary hidden sm:inline">distribuição do total (ex: 4000 = 2500 + 1500)</span>
                   {!modOpen && Object.values(modPricing).filter(v=>v.active).length > 0 && (
-                    <span className="text-xs bg-donc-lime/20 text-donc-navy rounded px-1.5 py-0.5">
-                      {Object.values(modPricing).filter(v=>v.active).length} ativos
+                    <span className={`text-xs rounded px-1.5 py-0.5 border ${rateioOk ? 'bg-donc-verde/10 text-donc-verde border-donc-verde/20' : 'bg-donc-red/10 text-donc-red border-donc-red/20'}`}>
+                      {Object.values(modPricing).filter(v=>v.active).length} ativos · {fmtBRL(sumMods)} {rateioOk ? '✓' : `Δ ${fmtBRL(rateioDiff)}`}
                     </span>
                   )}
                 </div>
@@ -829,8 +843,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               </button>
               {modOpen && (
                 <div className="p-3 space-y-2 bg-white">
+                  <p className="text-xs text-text-tertiary">Distribua o total <b>{fmtBRL(baseTotal)}</b> entre os módulos. Ex: 4000 = 2500 + 1500. Soma deve fechar no total (rateio).</p>
                   {solucoes.map(sol => {
                     const mp = modPricing[sol.id] || { active: false, value: '' }
+                    const pct = baseTotal > 0 && mp.value ? ((Number(mp.value) / baseTotal) * 100).toFixed(1) : null
                     return (
                       <div key={sol.id} className="py-2 border-b border-border-tertiary last:border-0">
                         <div className="flex items-center gap-3">
@@ -858,17 +874,18 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                               <option value="descontinuado">Descontinuado</option>
                             </select>
                           )}
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
                             <span className="text-xs text-text-tertiary">R$</span>
                             <input
                               type="number"
                               value={mp.value}
                               onChange={e => setModValue(sol.id, e.target.value)}
                               disabled={!mp.active}
-                              placeholder={mp.active ? 'Valor' : '—'}
-                              className={`input-base w-24 text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
-                              min="0" step="0.0001"
+                              placeholder={mp.active ? '2500' : '—'}
+                              className={`input-base w-28 text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
+                              min="0" step="0.01"
                             />
+                            {mp.active && pct && <span className="text-xs text-text-tertiary whitespace-nowrap">{pct}%</span>}
                           </div>
                         </div>
                         {modErrors[sol.id] && (
@@ -877,18 +894,16 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                       </div>
                     )
                   })}
+                  <div className={`text-xs rounded px-2 py-1.5 border ${rateioOk ? 'bg-donc-verde/10 border-donc-verde/20 text-donc-verde' : 'bg-donc-red/10 border-donc-red/20 text-donc-red'}`}>
+                    Soma rateio: <b>{fmtBRL(sumMods)}</b> {rateioOk ? '✓ fecha em ' : '≠ divergente de '} {fmtBRL(baseTotal)} {rateioOk ? '' : ` (Δ ${fmtBRL(rateioDiff)})`}
+                    {!rateioOk && activeModList.length > 0 && <span className="ml-2">Ajuste os valores para fechar no total.</span>}
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          <div className="bg-donc-navy/5 rounded-lg p-3 border border-donc-navy/20">
-            <p className="text-xs text-text-tertiary mb-0.5">Valor unitário com módulos</p>
-            <p className="text-sm font-semibold text-text-primary">
-              {fmtBRL(unitValue)} / {form.billing_type === 'por_os' ? 'OS' : 'licença'}
-              {floor > 0 && <span className="text-text-tertiary font-normal"> · MRR total: {fmtBRL(mrrMinimo)}</span>}
-            </p>
-          </div>
+
         </div>
       )}
 
