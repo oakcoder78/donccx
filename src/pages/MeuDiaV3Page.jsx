@@ -69,7 +69,7 @@ function useAnalystTickets(effectiveRole) {
 
 export default function MeuDiaV3Page() {
   const { profile, effectiveRole } = useAuth()
-  const { isEnabled } = useFeatureFlags()
+  const { flags, isEnabled } = useFeatureFlags()
   const profileId = profile?.id
 
   const isAdminManager = effectiveRole === 'admin' || effectiveRole === 'manager'
@@ -157,6 +157,10 @@ export default function MeuDiaV3Page() {
               loading={overviewQ.isLoading}
               error={overviewQ.error}
               onRetry={overviewQ.refetch}
+              canSeeHealth={(() => {
+                const hasFlag = flags.some(f => f.key === 'health_cockpit')
+                return hasFlag ? isEnabled('health_cockpit', effectiveRole) : isEnabled('health', effectiveRole)
+              })()}
             />
           </BlockBoundary>
         </div>
@@ -170,7 +174,6 @@ export default function MeuDiaV3Page() {
               loading={projectsQ.isLoading}
               error={projectsQ.error}
               onRetry={projectsQ.refetch}
-              canSeeCockpit={isEnabled('projects_cockpit', effectiveRole)}
             />
           </BlockBoundary>
         </div>
@@ -192,6 +195,8 @@ export default function MeuDiaV3Page() {
               loading={overviewQ.isLoading}
               error={overviewQ.error}
               onRetry={overviewQ.refetch}
+              effectiveRole={effectiveRole}
+              profileId={profileId}
             />
           </BlockBoundary>
         </div>

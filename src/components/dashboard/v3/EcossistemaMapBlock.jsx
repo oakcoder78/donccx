@@ -1,13 +1,16 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { C } from '@/lib/scoring'
 import { Panel } from './primitives'
 import { ScopeLabel } from './ScopeLabel'
 import { BrazilMap } from '@/components/dashboard/BrazilMap'
+import { Drawer, drawerPushStyle } from '@/components/ui/Drawer'
+import { EcossistemaUfDrawer } from './EcossistemaUfDrawer'
 
-export function EcossistemaMapBlock({ clients = [], loading, error, onRetry }) {
+export function EcossistemaMapBlock({ clients = [], loading, error, onRetry, effectiveRole, profileId }) {
   const navigate = useNavigate()
-  const goToUF = uf => navigate(`/empresas?estado=${uf}`)
+  const [selectedUF, setSelectedUF] = useState(null)
+  const goToUF = uf => setSelectedUF(uf)
 
   const topStates = useMemo(() => {
     const m = {}
@@ -19,6 +22,8 @@ export function EcossistemaMapBlock({ clients = [], loading, error, onRetry }) {
   }, [clients])
 
   return (
+    <>
+    <div style={drawerPushStyle(!!selectedUF)}>
     <Panel as="section" aria-labelledby="v3-mapa-title">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 28 }}>
         <span style={{ minWidth: 0 }}>
@@ -39,7 +44,7 @@ export function EcossistemaMapBlock({ clients = [], loading, error, onRetry }) {
         )}
         {!loading && !error && (
           <>
-            <BrazilMap clients={clients} onSelectUF={goToUF} />
+            <BrazilMap clients={clients} onSelectUF={goToUF} selectedUF={selectedUF} />
             {topStates.length > 0 && (
               <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: '0.625rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: C.ink2 }}>
@@ -67,5 +72,12 @@ export function EcossistemaMapBlock({ clients = [], loading, error, onRetry }) {
         )}
       </div>
     </Panel>
+    </div>
+    <Drawer open={!!selectedUF} onClose={() => setSelectedUF(null)} ariaLabel={`Clientes em ${selectedUF || ''}`}>
+      {selectedUF && (
+        <EcossistemaUfDrawer uf={selectedUF} clients={clients} effectiveRole={effectiveRole} profileId={profileId} onClose={() => setSelectedUF(null)} />
+      )}
+    </Drawer>
+    </>
   )
 }

@@ -65,17 +65,18 @@ export default function ClientsPage() {
   const [showInactive,   setShowInactive]    = useState(false)
   const [lifecycleFilter, setLifecycleFilter] = useState('cliente')
   const [showForm,     setShowForm]     = useState(false)
+  const estadoParam = (searchParams.get('estado') || '').trim().toUpperCase() || null
 
   useEffect(() => {
     const f = searchParams.get('filter')
     if (f) setFilter(f)
   }, [searchParams])
 
-  const baseFilters = isAdminOrManager
-    ? { search }
-    : isSales
-      ? { comercial_id: profile?.id, search }
-      : { csm_id: profile?.id, search }
+  const baseFilters = {
+    ...(isAdminOrManager ? {} : isSales ? { comercial_id: profile?.id } : { csm_id: profile?.id }),
+    ...(search ? { search } : {}),
+    ...(estadoParam ? { address_state: estadoParam } : {}),
+  }
 
   // Call both hooks; enable only the relevant one (avoids conditional hook calls)
   const { data: activeClients = [], isLoading: loadingActive } =
@@ -100,6 +101,7 @@ export default function ClientsPage() {
       if (baseFilters.csm_id) q = q.eq('csm_id', baseFilters.csm_id)
       if (baseFilters.comercial_id) q = q.eq('comercial_id', baseFilters.comercial_id)
       if (baseFilters.search) q = q.or(`name.ilike.%${baseFilters.search}%,fantasy_name.ilike.%${baseFilters.search}%`)
+      if (baseFilters.address_state) q = q.eq('address_state', baseFilters.address_state)
       if (lifecycleFilter !== 'all') q = q.eq('lifecycle_stage', lifecycleFilter)
       q = q.eq('contract_active', false)
       const { count } = await q
@@ -113,13 +115,23 @@ export default function ClientsPage() {
 
   const useV2 = isEnabled('empresas_form_v2', effectiveRole)
 
+  const canMutateEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
+
   return (
     <div className="p-6">
       <PageHeader
         title="Empresas"
         subtitle={`${clients.length} empresa${clients.length !== 1 ? 's' : ''}`}
-        action={<Button onClick={() => useV2 ? navigate('/empresas/nova') : setShowForm(true)}>+ Nova Empresa</Button>}
+        action={canMutateEmpresas ? <Button onClick={() => useV2 ? navigate('/empresas/nova') : setShowForm(true)}>+ Nova Empresa</Button> : null}
       />
+      {estadoParam && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 600, color: '#173557', background: '#e8f6fd', border: '0.5px solid rgba(15,34,58,0.09)', borderRadius: 999, padding: '4px 10px' }}>
+            Filtrado por UF: {estadoParam}
+            <button type="button" onClick={() => navigate('/empresas')} style={{ background: 'none', border: 0, cursor: 'pointer', color: '#173557', fontWeight: 700, padding: '0 2px', fontSize: '0.875rem', lineHeight: 1 }} aria-label="Remover filtro">×</button>
+          </span>
+        </div>
+      )}
 
       {/* Search + inactive toggle */}
       <div className="flex items-center gap-3 mb-3 flex-wrap">

@@ -1,9 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { C } from '@/lib/scoring'
 import { Panel, SeeAll } from './primitives'
 import { ScopeLabel } from './ScopeLabel'
 import { canDrillIn } from './gating'
+import { Drawer } from '@/components/ui/Drawer'
+import { ProjetosAbertosDrawer } from './ProjetosAbertosDrawer'
 
 const STATUS = {
   on_time: { label: 'Em dia', color: C.green },
@@ -12,8 +14,9 @@ const STATUS = {
 }
 const RANK = { paused: 3, delayed: 2, on_time: 1 }
 
-export function ProjetosAbertosBlock({ rows = [], effectiveRole, profileId, loading, error, onRetry, canSeeCockpit }) {
+export function ProjetosAbertosBlock({ rows = [], effectiveRole, profileId, loading, error, onRetry }) {
   const navigate = useNavigate()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   const { total, top } = useMemo(() => {
     const t = rows.reduce((s, r) => s + (r.open_count || 1), 0)
@@ -92,8 +95,12 @@ export function ProjetosAbertosBlock({ rows = [], effectiveRole, profileId, load
       </div>
 
       <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${C.line}` }}>
-        <SeeAll onClick={() => navigate(canSeeCockpit ? '/projetos-cockpit' : '/cockpits')}>ver todos</SeeAll>
+        <SeeAll onClick={() => setDrawerOpen(true)}>ver todos</SeeAll>
       </div>
+
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} ariaLabel="Projetos em aberto">
+        <ProjetosAbertosDrawer rows={rows} effectiveRole={effectiveRole} profileId={profileId} onClose={() => setDrawerOpen(false)} />
+      </Drawer>
     </Panel>
   )
 }

@@ -36,6 +36,7 @@ export default function ClientDetail() {
   const [showEmail, setShowEmail] = useState(false)
   const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
+  const canEditEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
 
   const { data: client, isLoading } = useClient(id)
 
@@ -79,7 +80,9 @@ export default function ClientDetail() {
             <Icons.Mail className="w-3.5 h-3.5" />
             Enviar e-mail
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => isEnabled('empresas_form_v2', effectiveRole) ? navigate(`/empresas/${id}/editar`) : setShowEdit(true)}>Editar</Button>
+          {canEditEmpresas && (
+            <Button variant="secondary" size="sm" onClick={() => isEnabled('empresas_form_v2', effectiveRole) ? navigate(`/empresas/${id}/editar`) : setShowEdit(true)}>Editar</Button>
+          )}
         </div>
       </div>
 

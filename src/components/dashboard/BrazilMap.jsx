@@ -22,7 +22,7 @@ function stateColor(count) {
 const W = 400
 const H = 370
 
-export function BrazilMap({ clients, onSelectUF }) {
+export function BrazilMap({ clients, onSelectUF, selectedUF }) {
   const [tooltip, setTooltip] = useState(null)
   const containerRef = useRef()
 
@@ -127,13 +127,14 @@ export function BrazilMap({ clients, onSelectUF }) {
           const sigla = feat.properties.sigla
           const count = stateMap[sigla]?.length || 0
           const clickable = count > 0 && !!onSelectUF
+          const isSelected = selectedUF === sigla
           return (
             <path
               key={sigla || i}
               d={pathGen(feat) || ''}
               fill={stateColor(count)}
-              stroke="#fff"
-              strokeWidth={0.8}
+              stroke={isSelected ? '#173557' : '#fff'}
+              strokeWidth={isSelected ? 2 : 0.8}
               onMouseMove={e => handleMouseMove(e, feat)}
               onMouseLeave={() => setTooltip(null)}
               onClick={clickable ? () => onSelectUF(sigla) : undefined}

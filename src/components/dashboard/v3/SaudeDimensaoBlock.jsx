@@ -24,7 +24,7 @@ function band(score) {
   return 'ok'
 }
 
-export function SaudeDimensaoBlock({ clients = [], effectiveRole, profileId, loading, error, onRetry }) {
+export function SaudeDimensaoBlock({ clients = [], effectiveRole, profileId, loading, error, onRetry, canSeeHealth }) {
   const navigate = useNavigate()
   const [drawerClient, setDrawerClient] = useState(null)
 
@@ -126,9 +126,11 @@ export function SaudeDimensaoBlock({ clients = [], effectiveRole, profileId, loa
         )}
       </div>
 
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${C.line}` }}>
-        <SeeAll onClick={() => navigate('/health')}>abrir Health Score</SeeAll>
-      </div>
+      {canSeeHealth && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: `0.5px solid ${C.line}` }}>
+          <SeeAll onClick={() => navigate('/health')}>abrir Health Score</SeeAll>
+        </div>
+      )}
 
       <Drawer open={!!drawerClient} onClose={() => setDrawerClient(null)} ariaLabel="Detalhe de saúde do cliente">
         {drawerClient && <ClientHealthDrawer client={drawerClient} onClose={() => setDrawerClient(null)} />}

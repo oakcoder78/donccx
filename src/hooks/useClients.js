@@ -21,6 +21,7 @@ function buildClientsQuery(filters) {
   if (filters.search)   q = q.or(`name.ilike.%${filters.search}%,fantasy_name.ilike.%${filters.search}%`)
   if (filters.abc_class) q = q.eq('abc_class', filters.abc_class)
   if (filters.lifecycle_stage) q = q.eq('lifecycle_stage', filters.lifecycle_stage)
+  if (filters.address_state) q = q.eq('address_state', filters.address_state)
   return q
 }
 
