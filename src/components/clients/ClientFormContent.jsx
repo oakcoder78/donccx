@@ -8,6 +8,9 @@ import { useProfiles } from '@/hooks/useProfiles'
 import { useSegments, useSegmentsMutations } from '@/hooks/useSegments'
 import { useModulePricing, useModulePricingMutations } from '@/hooks/useModulePricing'
 import { supabase } from '@/lib/supabaseClient'
+import { useAuth } from '@/contexts/AuthContext'
+import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
+import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { calculateUnitValue } from '@/lib/billing'
 import { useContractCharges, useContractChargesMutations } from '@/hooks/useContractCharges'
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
@@ -19,8 +22,8 @@ import { InfoHint } from './form/InfoHint'
 import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, getBaseTotal, calculateRuleTotal, formatBRL4 } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
-// New tab order: Dados → Endereço → Contrato → Operacional
-export const TABS_V2 = ['Dados da Empresa', 'Endereço', 'Contrato', 'Operacional']
+// New tab order: Dados → Endereço → Contrato → Operacional → Anexos
+export const TABS_V2 = ['Dados da Empresa', 'Endereço', 'Contrato', 'Operacional', 'Anexos']
 
 const EMPTY = {
   name: '', fantasy_name: '', cnpj: '', segment_id: '',
@@ -123,6 +126,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [osTiers, setOsTiers] = useState([])
   const [eventuais, setEventuais] = useState([])
   const [navError, setNavError] = useState('')
+  const { profile } = useAuth()
+  const [pendingFiles, setPendingFiles] = useState([])
 
   useEffect(() => {
     if (existingModPricing.length > 0) {
@@ -427,6 +432,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     } else {
       const created = await create.mutateAsync(payload)
       clientId = created.id
+    }
+
+    // Upload pending anexos (nova empresa — salvar primeiro)
+    if (pendingFiles.length > 0 && clientId && profile?.id) {
+      try {
+        const res = await saveActivityAttachments({ activityId: null, clientId, userId: profile.id, files: pendingFiles })
+        if (!res.success) toast.error(`Anexos: ${res.error}`)
+        else toast.success(`${pendingFiles.length} anexo(s) enviado(s)`)
+      } catch (e) { toast.error(`Anexos: ${e.message}`) }
     }
 
     const items = Object.entries(modPricing)
@@ -1042,6 +1056,51 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               </div>
             </div>
           </FormSection>
+        </div>
+      )}
+
+      {/* ── ABA 4: Anexos ── */}
+      {activeTab === 4 && (
+        <div className="space-y-4">
+          {isEdit ? (
+            <ClientSubAnexos client={client} allowUpload />
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-text-secondary">Arquivos que serão enviados após salvar a empresa.</p>
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary cursor-pointer text-text-secondary">
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={e => {
+                      const files = Array.from(e.target.files || [])
+                      if (files.length === 0) return
+                      if (pendingFiles.length + files.length > 5) { toast.error('Máximo de 5 anexos'); return }
+                      setPendingFiles(prev => [...prev, ...files])
+                      e.target.value = ''
+                    }}
+                  />
+                  + Adicionar anexo
+                </label>
+              </div>
+              {pendingFiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3 text-text-tertiary border border-dashed border-border-secondary rounded-lg bg-bg-secondary/50">
+                  <span className="text-sm">Nenhum anexo selecionado.</span>
+                  <span className="text-xs">Máximo 5 arquivos — serão enviados ao salvar.</span>
+                </div>
+              ) : (
+                <ul className="space-y-2">
+                  {pendingFiles.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="flex items-center justify-between gap-2 px-3 py-2 bg-bg-secondary border border-border-tertiary rounded-md text-sm">
+                      <span className="truncate text-text-primary">{f.name} <span className="text-text-tertiary">({(f.size / 1024).toFixed(1)} KB)</span></span>
+                      <button type="button" onClick={() => setPendingFiles(prev => prev.filter((_, idx) => idx !== i))} className="text-xs text-red-500 hover:underline flex-shrink-0">Remover</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
         </div>
       )}
 

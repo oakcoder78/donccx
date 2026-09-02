@@ -35,8 +35,9 @@ export async function uploadActivityAttachments({
   .replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-zA-Z0-9._-]/g, "_")
 
+      const folder = activityId ?? 'avulso'
       const storagePath =
-        `${clientId}/${activityId}/${timestamp}_${safeName}`
+        `${clientId}/${folder}/${timestamp}_${safeName}`
 
       const { error } = await supabase
         .storage

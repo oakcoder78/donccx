@@ -45,12 +45,13 @@ export default function ClientDetail() {
   const isCliente = client?.lifecycle_stage === 'cliente'
 
   function setTab(t) {
-    if (!canAccessAllTabs && t !== 'overview') return
+    if (!canAccessAllTabs && !['overview', 'anexos'].includes(t)) return
     setSearchParams({ tab: t })
   }
 
+  const ALLOWED_FOR_ALL = ['overview', 'anexos']
   useEffect(() => {
-    if (!canAccessAllTabs && tab !== 'overview' && !isLoading && client) {
+    if (!canAccessAllTabs && !ALLOWED_FOR_ALL.includes(tab) && !isLoading && client) {
       setSearchParams({ tab: 'overview' }, { replace: true })
     }
   }, [tab, canAccessAllTabs, isLoading, client, setSearchParams])
@@ -105,9 +106,9 @@ export default function ClientDetail() {
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto overflow-y-hidden">
         {TABS.map(t => {
-          const isNonOverviewRestricted = !canAccessAllTabs && t.key !== 'overview'
-          const isDisabledTab = ((t.key === 'operacional' || t.key === 'health') && !isCliente) || isNonOverviewRestricted
-          const title = isNonOverviewRestricted ? 'Acesso restrito — apenas Visão Geral disponível' : undefined
+          const isRestricted = !canAccessAllTabs && !['overview', 'anexos'].includes(t.key)
+          const isDisabledTab = ((t.key === 'operacional' || t.key === 'health') && !isCliente) || isRestricted
+          const title = isRestricted ? 'Acesso restrito' : undefined
           return (
             <button
               key={t.key}
@@ -130,13 +131,13 @@ export default function ClientDetail() {
         })}
       </div>
 
-      {/* Tab Content — non-privileged only overview */}
+      {/* Tab Content — overview+anexos para todos, demais só admin/manager */}
       {tab === 'overview' && <ClientTabOverview client={client} />}
+      {tab === 'anexos' && <ClientSubAnexos client={client} allowUpload={canEditEmpresas} />}
       {canAccessAllTabs && tab === 'atividades' && <ClientTabActivities client={client} />}
       {canAccessAllTabs && tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
       {canAccessAllTabs && tab === 'health' && isCliente && <ClientTabHealth client={client} />}
       {canAccessAllTabs && tab === 'contatos' && <ClientTabContatos client={client} />}
-      {canAccessAllTabs && tab === 'anexos' && <ClientSubAnexos client={client} />}
 
       {showEdit && <ClientForm client={client} onClose={() => setShowEdit(false)} />}
     </div>

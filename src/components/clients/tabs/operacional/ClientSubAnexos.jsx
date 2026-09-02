@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Icons } from '@/lib/icons'
 import { supabase } from '@/lib/supabaseClient'
 import { getClientAttachments } from '@/services/activityAttachments/getClientAttachments'
 import { softDeleteActivityAttachment } from '@/services/activityAttachments/softDeleteActivityAttachment'
+import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { useProfiles } from '@/hooks/useProfiles'
+import { useAuth } from '@/contexts/AuthContext'
 import toast from 'react-hot-toast'
 
 const ACTIVITY_TYPE_LABEL = {
@@ -272,15 +274,18 @@ function AttachmentPanel({ file, onClose, onView, onDownload, onDelete }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function ClientSubAnexos({ client }) {
+export function ClientSubAnexos({ client, allowUpload = false }) {
   const [attachments, setAttachments] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [preview, setPreview] = useState(null)
   const [selected, setSelected] = useState(null)
   const [authUser, setAuthUser] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const fileRef = useRef(null)
 
   const { data: profiles = [] } = useProfiles()
   const profile = profiles.find(p => p.id === authUser?.id)
+  const { profile: authProfile } = useAuth()
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setAuthUser(data?.user ?? null))
@@ -343,15 +348,41 @@ export function ClientSubAnexos({ client }) {
     }
   }
 
+  async function handleUploadFiles(e) {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    if (files.length > 5) { toast.error('Máximo de 5 arquivos'); return }
+    if (!client?.id || !authProfile?.id) { toast.error('Cliente não encontrado'); return }
+    setUploading(true)
+    try {
+      const res = await saveActivityAttachments({ activityId: null, clientId: client.id, userId: authProfile.id, files })
+      if (!res.success) { toast.error(res.error); return }
+      const result = await getClientAttachments(client.id)
+      if (result.success) setAttachments(result.data)
+      toast.success(`${files.length} anexo(s) enviado(s)`)
+    } catch (err) { toast.error(err.message) }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
+  }
+
   if (isLoading) {
     return <div className="flex items-center justify-center py-16 text-text-tertiary text-sm">Carregando anexos...</div>
   }
 
   if (attachments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-tertiary">
-        <Icons.Paperclip className="w-8 h-8 opacity-40" strokeWidth={1.5} />
-        <p className="text-sm">Nenhum anexo encontrado para este cliente.</p>
+      <div>
+        {allowUpload && (
+          <div className="flex justify-end mb-3">
+            <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary cursor-pointer text-text-secondary ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <Icons.Paperclip className="w-3.5 h-3.5" /> {uploading ? 'Enviando...' : '+ Adicionar anexo'}
+              <input ref={fileRef} type="file" multiple className="hidden" onChange={handleUploadFiles} />
+            </label>
+          </div>
+        )}
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-text-tertiary">
+          <Icons.Paperclip className="w-8 h-8 opacity-40" strokeWidth={1.5} />
+          <p className="text-sm">Nenhum anexo encontrado para este cliente.</p>
+        </div>
       </div>
     )
   }
@@ -360,9 +391,17 @@ export function ClientSubAnexos({ client }) {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2 text-sm text-text-secondary">
-        <Icons.Paperclip className="w-4 h-4" strokeWidth={1.8} />
-        <span>{attachments.length} anexo{attachments.length !== 1 ? 's' : ''}</span>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-sm text-text-secondary">
+          <Icons.Paperclip className="w-4 h-4" strokeWidth={1.8} />
+          <span>{attachments.length} anexo{attachments.length !== 1 ? 's' : ''}</span>
+        </div>
+        {allowUpload && (
+          <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border-secondary rounded-md hover:bg-bg-secondary cursor-pointer text-text-secondary ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+            <Icons.Paperclip className="w-3.5 h-3.5" /> {uploading ? 'Enviando...' : '+ Adicionar anexo'}
+            <input ref={fileRef} type="file" multiple className="hidden" onChange={handleUploadFiles} />
+          </label>
+        )}
       </div>
 
       <div className="flex gap-6">
