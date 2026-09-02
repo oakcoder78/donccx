@@ -80,7 +80,34 @@ serve(async (req) => {
 
     if (existingUser) {
       console.log('User already exists in Auth:', email, 'id:', existingUser.id)
-      // Garantir que profiles reflita role/status correto (convite direto libera acesso)
+      // Check current profile status — if invited/pending, this is a resend (admin reenviou convite expirado)
+      const { data: existingProfile } = await adminClient
+        .from('profiles').select('status').eq('id', existingUser.id).maybeSingle()
+
+      if (existingProfile?.status === 'invited' || existingProfile?.status === 'pending') {
+        console.log('Resending invite for existing invited/pending user:', email, 'status:', existingProfile.status)
+        // Update profile to latest name/role before resending
+        await adminClient.from('profiles').update({ name, role, status: 'invited' }).eq('id', existingUser.id)
+        const resendRedirect = redirectTo || 'https://donccx.vercel.app/primeiro-acesso'
+        const { error: resendError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+          data: { role, name },
+          redirectTo: resendRedirect,
+        })
+        if (resendError) {
+          console.error('inviteUserByEmail resend error:', resendError.message)
+          const isRateLimited = /rate limit|too many|emails per hour/i.test(resendError.message)
+          return new Response(
+            JSON.stringify({ error: isRateLimited ? 'Limite de e-mails do Supabase atingido (2/h). Aguarde alguns minutos.' : resendError.message }),
+            { status: isRateLimited ? 429 : 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        return new Response(
+          JSON.stringify({ success: true, existing: true, resent: true, user_id: existingUser.id }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+
+      // Active/blocked user — just ensure profile is active (original behavior)
       const { error: upsertErr } = await adminClient
         .from('profiles')
         .upsert({ id: existingUser.id, name, email, role, status: 'active' }, { onConflict: 'id' })

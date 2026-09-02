@@ -30,6 +30,9 @@ verify_jwt = false
 [functions.sync-schedule]
 verify_jwt = false
 
+[functions.resend-invite]
+verify_jwt = false
+
 [auth]
 site_url = "https://donccx.vercel.app"
 additional_redirect_urls = ["https://donccx.vercel.app", "https://donccx.vercel.app/reset-password", "https://donccx.vercel.app/primeiro-acesso"]

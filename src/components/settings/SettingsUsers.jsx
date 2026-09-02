@@ -65,9 +65,11 @@ function InviteUserModal({ onClose, onDone }) {
 
       const userId = data.user_id || data.id
       await logAction('invite_user', 'user', userId || form.email, form.name, null, { role: form.role, email: form.email })
-      toast.success(data?.existing
-        ? `Acesso liberado diretamente para ${form.email}`
-        : `Convite enviado para ${form.email}`
+      toast.success(data?.resent
+        ? `Convite reenviado para ${form.email}`
+        : data?.existing
+          ? `Acesso liberado diretamente para ${form.email}`
+          : `Convite enviado para ${form.email}`
       )
       onDone?.()
       onClose()
@@ -182,6 +184,56 @@ function ApproveModal({ request, onClose, onDone }) {
 }
 
 
+function ResendInviteButton({ profile, onDone, isExpired }) {
+  const [loading, setLoading] = useState(false)
+  async function handleResend() {
+    setLoading(true)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) { toast.error('Sessão expirada. Faça login novamente.'); return }
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: profile.email,
+          role: profile.role,
+          name: profile.name,
+          redirectTo: 'https://donccx.vercel.app/primeiro-acesso',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok || data?.error) throw new Error(data?.error || 'Erro ao reenviar convite')
+      toast.success(data?.resent ? `Convite reenviado para ${profile.email}` : `Convite reenviado para ${profile.email}`)
+      onDone?.()
+    } catch (err) {
+      const msg = err.message || 'Erro ao reenviar'
+      if (/429|rate limit|too many/i.test(msg)) {
+        toast.error('Limite de e-mails atingido (2/h no Supabase). Aguarde alguns minutos.')
+      } else {
+        toast.error(msg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+  return (
+    <Button
+      size="sm"
+      variant={isExpired ? 'secondary' : 'secondary'}
+      disabled={loading}
+      onClick={handleResend}
+      title="Reenviar e-mail de convite"
+    >
+      {loading ? 'Enviando...' : 'Reenviar'}
+    </Button>
+  )
+}
+
 // ── Componente principal ──────────────────────────────────────────────────────
 export function SettingsUsers() {
   const UsersIcon = Icons.Users
@@ -287,18 +339,28 @@ export function SettingsUsers() {
             Convites enviados ({invitedProfiles.length})
           </h3>
           <div className="space-y-2">
-            {invitedProfiles.map(p => (
-              <div key={p.id} className="flex items-center gap-3 py-2 border-b border-border-tertiary last:border-0">
-                <Avatar name={p.name} size="md" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary">{p.name}</p>
-                  <p className="text-xs text-text-tertiary">{p.email} · {roleLabel[p.role] || '—'}</p>
+            {invitedProfiles.map(p => {
+              const ageHours = (Date.now() - new Date(p.created_at).getTime()) / 36e5
+              const isExpired = ageHours > 1
+              return (
+                <div key={p.id} className="flex items-center gap-3 py-2 border-b border-border-tertiary last:border-0">
+                  <Avatar name={p.name} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-text-primary">{p.name}</p>
+                    <p className="text-xs text-text-tertiary">{p.email} · {roleLabel[p.role] || '—'}</p>
+                    {isExpired && (
+                      <p className="text-xs text-amber-600">Link expirado há {Math.floor(ageHours)}h — reenvie</p>
+                    )}
+                  </div>
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${isExpired ? 'bg-amber-100 text-amber-700' : 'bg-donc-sky/15 text-donc-sky'}`}>
+                    {isExpired ? 'Expirado' : 'Convite enviado'}
+                  </span>
+                  {canManageUsers && (
+                    <ResendInviteButton profile={p} onDone={refetchAll} isExpired={isExpired} />
+                  )}
                 </div>
-                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-donc-sky/15 text-donc-sky whitespace-nowrap">
-                  Convite enviado
-                </span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
