@@ -32,7 +32,7 @@ const analystNavLinks = [
 export function Navbar({ googleOAuthSignal }) {
   const { user, profile, effectiveRole, impersonatedRole, isImpersonating, setImpersonation, clearImpersonation, signOut, refreshProfile } = useAuth()
   const { canViewSettings } = usePermissions()
-  const { isEnabled } = useFeatureFlags()
+  const { isEnabled, flags } = useFeatureFlags()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -54,14 +54,24 @@ export function Navbar({ googleOAuthSignal }) {
 
   const isAnalyst = effectiveRole === 'analyst'
 
-  const availableLinks = (links) => links.filter(link =>
-    (!link.featureFlag || isEnabled(link.featureFlag, effectiveRole)) &&
-    (!link.adminOnly || effectiveRole === 'admin')
-  )
+  const COCKPIT_FLAGS = ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit']
+  const hasHealthCockpitFlag = flags.some(f => f.key === 'health_cockpit')
+  const isCockpitEnabled = (k, role) => {
+    if (k === 'health_cockpit' && !hasHealthCockpitFlag) return isEnabled('health', role)
+    return isEnabled(k, role)
+  }
+  const hasAnyCockpit = COCKPIT_FLAGS.some(k => isCockpitEnabled(k, effectiveRole))
+
+  const availableLinks = (links) => links.filter(link => {
+    if (link.to === '/cockpits' && !hasAnyCockpit) return false
+    if (link.featureFlag && !isEnabled(link.featureFlag, effectiveRole)) return false
+    if (link.adminOnly && effectiveRole !== 'admin') return false
+    return true
+  })
 
   const links = isAnalyst
     ? availableLinks(analystNavLinks)
-    : canViewSettings && isEnabled('settings_menu', profile?.role)
+    : canViewSettings && isEnabled('settings_menu', effectiveRole)
       ? [...availableLinks(mainNavLinks), { to: '/configuracoes', label: 'Configurações' }]
       : availableLinks(mainNavLinks)
 

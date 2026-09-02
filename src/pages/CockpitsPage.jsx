@@ -6,8 +6,8 @@ import { PageHeader } from '@/components/ui/PageHeader'
 
 const cockpits = [
   {
-    key: 'health',
-    title: 'Health Score',
+    key: 'health_cockpit',
+    title: 'Cockpit – Health Score',
     description: 'Scorecard de saúde da carteira, tendências e alertas por dimensão',
     icon: Icons.Activity,
     href: '/health',
@@ -16,7 +16,7 @@ const cockpits = [
   },
   {
     key: 'cs_radar',
-    title: 'CS Radar',
+    title: 'Cockpit – CS Radar',
     description: 'Atividades, RMCs e avanço de projetos do time de CS',
     icon: Icons.BarChart3,
     href: '/cs-radar',
@@ -25,7 +25,7 @@ const cockpits = [
   },
   {
     key: 'projects_cockpit',
-    title: 'Projetos',
+    title: 'Cockpit – Projects',
     description: 'Status dos projetos ativos por cliente, fases, prazos e progresso',
     icon: Icons.FolderKanban,
     href: '/projetos-cockpit',
@@ -34,8 +34,8 @@ const cockpits = [
   },
   {
     key: 'profissionais_cockpit',
-    title: 'Profissionais',
-    description: 'Faturamento por profissionais ativos, acesso e OS no mes',
+    title: 'Cockpit – Professionals',
+    description: 'Faturamento por profissionais ativos, acesso e OS no mês',
     icon: Icons.UserCheck,
     href: '/profissionais-cockpit',
     color: 'text-donc-verde',
@@ -45,10 +45,15 @@ const cockpits = [
 
 export default function CockpitsPage() {
   const navigate = useNavigate()
-  const { profile } = useAuth()
-  const { isEnabled } = useFeatureFlags()
+  const { effectiveRole } = useAuth()
+  const { isEnabled, flags } = useFeatureFlags()
 
-  const visible = cockpits.filter(c => isEnabled(c.key, profile?.role))
+  const hasHealthCockpitFlag = flags.some(f => f.key === 'health_cockpit')
+  const isCockpitEnabled = (key, role) => {
+    if (key === 'health_cockpit' && !hasHealthCockpitFlag) return isEnabled('health', role)
+    return isEnabled(key, role)
+  }
+  const visible = cockpits.filter(c => isCockpitEnabled(c.key, effectiveRole))
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

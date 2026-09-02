@@ -15,7 +15,7 @@ const FLAG_GROUPS = {
   'Integrações': ['freshdesk', 'api_donc', 'asana'],
   'Comunicação': ['email_templates'],
   'Governança': ['logs', 'features'],
-  'Cockpits & Dashboards': ['health', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'dashboard_v3', 'financial_data'],
+  'Cockpits & Dashboards': ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'dashboard_v3', 'financial_data'],
 }
 
 export function SettingsFeatureFlags() {

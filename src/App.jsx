@@ -121,6 +121,19 @@ function AdminRoute() {
   return <Outlet />
 }
 
+function CockpitRoute({ flagKey }) {
+  const { effectiveRole } = useAuth()
+  const { isEnabled, flags, loading: flagsLoading } = useFeatureFlags()
+  if (flagsLoading) return null
+  // Transitional fallback: before migration health_cockpit may not exist yet, fall back to legacy 'health'
+  const hasHealthCockpitFlag = flags.some(f => f.key === 'health_cockpit')
+  const enabled = flagKey === 'health_cockpit' && !hasHealthCockpitFlag
+    ? isEnabled('health', effectiveRole)
+    : isEnabled(flagKey, effectiveRole)
+  if (!enabled) return <Navigate to="/module-unavailable" replace />
+  return <Outlet />
+}
+
 // Admin-strict guard (no manager branch, no flags) for /labs/dashboard —
 // the legacy monolith kept as an admin parity reference. See labs-dashboard-sdd.md §1.3.
 function AdminOnlyRoute() {
@@ -203,10 +216,18 @@ function AppRoutes() {
             <Route path="/labs/empresas_v2/:id/editar" element={<EmpresasV2Page />} />
           </Route>
           <Route path="/cockpits" element={<CockpitsPage />} />
-          <Route path="/health" element={<HealthDashboardPage />} />
-          <Route path="/cs-radar" element={<CsRadarPage />} />
-          <Route path="/projetos-cockpit" element={<ProjectCockpitPage />} />
-          <Route path="/profissionais-cockpit" element={<ProfissionaisCockpitPage />} />
+          <Route element={<CockpitRoute flagKey="health_cockpit" />}>
+            <Route path="/health" element={<HealthDashboardPage />} />
+          </Route>
+          <Route element={<CockpitRoute flagKey="cs_radar" />}>
+            <Route path="/cs-radar" element={<CsRadarPage />} />
+          </Route>
+          <Route element={<CockpitRoute flagKey="projects_cockpit" />}>
+            <Route path="/projetos-cockpit" element={<ProjectCockpitPage />} />
+          </Route>
+          <Route element={<CockpitRoute flagKey="profissionais_cockpit" />}>
+            <Route path="/profissionais-cockpit" element={<ProfissionaisCockpitPage />} />
+          </Route>
           <Route path="/empresas/nova" element={<ClientFormPage />} />
           <Route path="/empresas/:id/editar" element={<ClientFormPage />} />
           <Route path="/empresas" element={<ClientsPage />} />
