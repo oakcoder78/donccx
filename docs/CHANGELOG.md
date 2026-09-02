@@ -2,6 +2,11 @@
 
 ## 2026-09-02
 
+### Empresas — fix barra vertical nas abas de detalhe e edição
+
+- **Fix:** abas de `ClientDetail` (`/empresas/:id`) e `ClientFormContent` (`/empresas/:id/editar`, `/empresas/nova`, `/labs/empresas_v2`) exibiam barra de rolagem vertical fina à direita do card. Causa: `border-b-2 -mb-px` das abas + container `overflow-x-auto` sem trava vertical (`src/index.css:71` define `::-webkit-scrollbar { width:6px }`).
+- **Fix:** adicionado `overflow-y-hidden` aos containers de abas — `src/components/clients/ClientDetail.jsx:94` e `src/components/clients/ClientFormContent.jsx:506` (`overflow-x-auto overflow-y-hidden`). Mantém scroll horizontal em viewport estreita, elimina o vertical. `npm run build` ok.
+
 ### Empresas form v2 — flag ligada (admin/finance/sales)
 
 `feature_flags.empresas_form_v2` → `enabled = true`, `allowed_roles = ['admin','finance','sales']`.

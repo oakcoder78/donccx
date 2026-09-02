@@ -45,9 +45,10 @@ The Clients module provides the primary user interface for managing customer rec
 
 ## UI Architecture
 - **ClientsPage** renders a grid/list of client cards. Selecting a card navigates to **ClientDetail**.
-- **ClientDetail** shows a header with client meta‑info and a top‑level tab bar.
+- **ClientDetail** shows a header with client meta‑info and a top‑level tab bar (`overflow-x-auto overflow-y-hidden` — trava o eixo vertical para não exibir a scrollbar de 6px causada pelo `border-b-2 -mb-px` das abas; ver `src/index.css:71`).
 - Each top‑level tab loads its own component (Overview, Activities, Contacts, Health, Operacional).
 - **Operacional** tab contains a secondary tab bar for sub‑tabs (Dados, Onboarding, …) and can open **RegistrarDadosModal**.
+- **ClientFormContent** (v2 form, rotas `/empresas/nova` e `/empresas/:id/editar`) usa o mesmo padrão na barra `Dados da Empresa → Endereço → Contrato → Operacional` (`ClientFormContent.jsx:506`).
 - All components consume the `styles` object from `OnboardingStyles.js` for consistent layout and theming.
 
 ### Contact Panel (ClientTabContatos)

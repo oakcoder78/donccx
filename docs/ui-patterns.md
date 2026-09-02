@@ -697,7 +697,7 @@ Used in: ActivitiesPage, ClientDetail, ProjectCockpit sub-tabs, Settings sidebar
 
 ### Variation A — Border-bottom tab bar (ActivitiesPage, ClientDetail)
 ```jsx
-<div className="flex gap-0 border-b-2 border-border-tertiary mb-4 overflow-x-auto">
+<div className="flex gap-0 border-b-2 border-border-tertiary mb-4 overflow-x-auto overflow-y-hidden">
   {TABS.map(t => (
     <button
       key={t.key}
@@ -716,7 +716,7 @@ Used in: ActivitiesPage, ClientDetail, ProjectCockpit sub-tabs, Settings sidebar
 
 **ClientDetail navy variant:**
 ```jsx
-<div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto">
+<div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto overflow-y-hidden">
   <button className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
     tab === t.key
       ? 'text-donc-navy border-donc-navy'
@@ -728,6 +728,8 @@ Used in: ActivitiesPage, ClientDetail, ProjectCockpit sub-tabs, Settings sidebar
   </button>
 </div>
 ```
+
+> **Nota:** `overflow-y-hidden` é obrigatório em toda tab bar com `overflow-x-auto` + `border-b-2 -mb-px`/`-mb-0.5`. Sem ele, o `-1px` da aba ativa extrapola 1px e o `::-webkit-scrollbar { width:6px }` (`src/index.css:71`) aparece como barra vertical fina à direita (corrigido em `ClientDetail.jsx:94` e `ClientFormContent.jsx:506`).
 
 ### Variation B — Rounded sub-tabs (ProjectCockpit)
 ```jsx
@@ -773,7 +775,7 @@ Used in: ActivitiesPage, ClientDetail, ProjectCockpit sub-tabs, Settings sidebar
 ### Tab Bar Reference
 | Property | Border-bottom (ActivitiesPage) | Border-bottom (ClientDetail) | Rounded sub-tabs | Sidebar nav |
 |----------|-------------------------------|------------------------------|------------------|-------------|
-| Container | `flex gap-0 border-b-2 border-border-tertiary overflow-x-auto` | `flex gap-0 border-b border-border-tertiary overflow-x-auto` | `flex gap-1 border-b border-border-tertiary pb-2` | `space-y-4` |
+| Container | `flex gap-0 border-b-2 border-border-tertiary overflow-x-auto overflow-y-hidden` | `flex gap-0 border-b border-border-tertiary overflow-x-auto overflow-y-hidden` | `flex gap-1 border-b border-border-tertiary pb-2` | `space-y-4` |
 | Inactive | `text-text-tertiary border-transparent hover:text-text-primary` | `text-text-tertiary border-transparent hover:text-text-primary` | `text-text-tertiary hover:text-text-secondary` | `text-text-secondary hover:bg-bg-secondary` |
 | Active | `text-donc-hubspot border-donc-hubspot` | `text-donc-navy border-donc-navy` | `bg-donc-sky/10 text-donc-sky` | `bg-donc-navy text-white` |
 | Active indicator | `border-b-2 -mb-0.5` | `border-b-2 -mb-px` | `rounded-md` | `rounded-md` |
@@ -936,6 +938,7 @@ closes on outside click / Escape
 
 | Date | Changes |
 |------|---------|
+| 2026-09-02 | Fix tab bar vertical scrollbar — `overflow-x-auto overflow-y-hidden` em `ClientDetail` e `ClientFormContent` (barra de `border-b-2 -mb-px`) |
 | 2026-09-02 | Added Form Section (#25) — `<FormSection>` + `<InfoHint>`, error-only validation convention |
 | 2026-06-14 | Added Button (#18), Avatar (#19), Search Input (#20), Filter Bar (#21), Tab/Segmented Control (#22), Confirmation Dialog (#23), Toast/Notification (#24) |
 | 2026-06-14 | Initial pattern library extracted from existing implementations |
