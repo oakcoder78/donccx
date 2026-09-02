@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useClients, useAllClients } from '@/hooks/useClients'
 import { useAuth } from '@/contexts/AuthContext'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { PageHeader } from '../ui/PageHeader'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
@@ -52,7 +53,8 @@ function abcVariant(abc) {
 export default function ClientsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { profile } = useAuth()
+  const { profile, effectiveRole } = useAuth()
+  const { isEnabled } = useFeatureFlags()
   const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager' || profile?.role === 'finance'
   const isSales = profile?.role === 'sales'
 
@@ -89,12 +91,14 @@ export default function ClientsPage() {
   }
   const inactiveCount = allClients.filter(c => c.contract_active === false).length
 
+  const useV2 = isEnabled('empresas_form_v2', effectiveRole)
+
   return (
     <div className="p-6">
       <PageHeader
         title="Empresas"
         subtitle={`${clients.length} empresa${clients.length !== 1 ? 's' : ''}`}
-        action={<Button onClick={() => setShowForm(true)}>+ Nova Empresa</Button>}
+        action={<Button onClick={() => useV2 ? navigate('/empresas/nova') : setShowForm(true)}>+ Nova Empresa</Button>}
       />
 
       {/* Search + inactive toggle */}

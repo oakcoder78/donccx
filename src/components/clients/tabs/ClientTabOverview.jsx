@@ -196,7 +196,9 @@ function enrichDimLabel(rule, dimCls, usageCurr, usagePrev, supportCurr, contact
     }
     case 'mod_abandoned': case 'mod_new': return rule.label
     case 'nd_m1': case 'nd_m2': case 'nd_m3': {
-      const months = client.golive ? Math.floor(daysSince(client.golive) / 30) : 0
+      const projectStart = (client.projects ?? []).find(p => p.start_date)?.start_date || null
+      const refDate = client.golive || projectStart || client.contract_start
+      const months = refDate ? Math.floor(daysSince(refDate) / 30) : 0
       return `Sem decisor (${months > 0 ? `${months} meses` : 'desde o início'})`
     }
     case 'no_champ': return 'Sem champion identificado'
@@ -216,7 +218,9 @@ function enrichDimLabel(rule, dimCls, usageCurr, usagePrev, supportCurr, contact
       return lateFases.length > 0 ? `Milestones atrasadas: ${lateFases.length}` : rule.label
     }
     case 'ob_late': {
-      const ds = client.golive ? daysSince(client.golive) : null
+      const projectStart = (client.projects ?? []).find(p => p.start_date)?.start_date || null
+      const refDate = client.golive || projectStart || client.contract_start
+      const ds = refDate ? daysSince(refDate) : null
       return ds ? `Onboarding incompleto (${ds}d de go-live)` : rule.label
     }
     default:

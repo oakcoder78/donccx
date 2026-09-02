@@ -206,7 +206,8 @@ function calcRelacionamento(client: any, rules: Rule[]): { score: number; applie
 
   const hasDecisor = links.some((l: any) => l.papel?.toLowerCase() === 'decisor')
   if (!hasDecisor) {
-    const refDate = client.golive || client.contract_start
+    const projectStart = (client.projects ?? []).find((p: any) => p.start_date)?.start_date || null
+    const refDate = client.golive || projectStart || client.contract_start
     let monthsSince = 0
     if (refDate) {
       const d   = new Date(refDate + 'T00:00:00')
@@ -401,7 +402,7 @@ async function fetchClientArrays(admin: SupabaseClient, clientId: number) {
       .eq('client_id', clientId)
       .order('changed_at', { ascending: false }),
     admin.from('projects')
-      .select('id, status, end_date')
+      .select('id, status, start_date, end_date')
       .eq('client_id', clientId),
     admin.from('onboardings')
       .select('id, context, status, situacao_geral, created_at, end_date')

@@ -39,6 +39,7 @@ import ProjectCockpitPage from './pages/ProjectCockpitPage'
 import ProfissionaisCockpitPage from './pages/ProfissionaisCockpitPage'
 import LabsDashboardPage from './pages/labs/LabsDashboardPage'
 import EmpresasV2Page from './pages/labs/EmpresasV2Page'
+import ClientFormPage from './pages/ClientFormPage'
 
 const qc = new QueryClient({
   defaultOptions: {
@@ -206,6 +207,8 @@ function AppRoutes() {
           <Route path="/cs-radar" element={<CsRadarPage />} />
           <Route path="/projetos-cockpit" element={<ProjectCockpitPage />} />
           <Route path="/profissionais-cockpit" element={<ProfissionaisCockpitPage />} />
+          <Route path="/empresas/nova" element={<ClientFormPage />} />
+          <Route path="/empresas/:id/editar" element={<ClientFormPage />} />
           <Route path="/empresas" element={<ClientsPage />} />
           <Route path="/empresas/:id" element={<ClientDetail />} />
           <Route path="/empresas/:clientId/relatorios/:reportId/editar" element={<ReportEditorPage />} />

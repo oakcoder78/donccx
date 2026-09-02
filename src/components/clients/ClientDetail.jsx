@@ -15,6 +15,8 @@ import { ClientTabContatos } from './tabs/ClientTabContatos'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { EmailComposerModal } from '../email/EmailComposerModal'
 import { Icons } from '@/lib/icons'
+import { useAuth } from '@/contexts/AuthContext'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },
@@ -32,6 +34,8 @@ export default function ClientDetail() {
   const tab = searchParams.get('tab') || 'overview'
   const [showEdit, setShowEdit]   = useState(false)
   const [showEmail, setShowEmail] = useState(false)
+  const { effectiveRole } = useAuth()
+  const { isEnabled } = useFeatureFlags()
 
   const { data: client, isLoading } = useClient(id)
 
@@ -75,7 +79,7 @@ export default function ClientDetail() {
             <Icons.Mail className="w-3.5 h-3.5" />
             Enviar e-mail
           </Button>
-          <Button variant="secondary" size="sm" onClick={() => setShowEdit(true)}>Editar</Button>
+          <Button variant="secondary" size="sm" onClick={() => isEnabled('empresas_form_v2', effectiveRole) ? navigate(`/empresas/${id}/editar`) : setShowEdit(true)}>Editar</Button>
         </div>
       </div>
 

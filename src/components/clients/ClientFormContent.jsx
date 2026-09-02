@@ -947,14 +947,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 <option value="nao_possui">Não possui</option>
               </select>
             </div>
-            <div>
-              <label className="label-sm">Início Onboarding <span className="text-text-tertiary font-normal">(legado — será removido, usar Projetos)</span></label>
-              <input name="onb_start" type="date" value={form.onb_start} onChange={handleChange} className="input-base w-full" />
-            </div>
-            <div>
-              <label className="label-sm">Go Live <span className="text-text-tertiary font-normal">(legado)</span></label>
-              <input name="golive" type="date" value={form.golive} onChange={handleChange} className="input-base w-full" />
-            </div>
+
           </div>
 
           {(servicos.length > 0 || solucoes.length > 0) && (
@@ -1062,10 +1055,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               <div>
                 <label className="label-sm">Motivo da compra</label>
                 <textarea name="handover_motivo" value={form.handover_motivo} onChange={handleChange} rows={2} className="input-base w-full resize-none" placeholder="Por que escolheu nossa solução?" />
-              </div>
-              <div>
-                <label className="label-sm">Descrição do Projeto (legado — será substituído pelo Handoff acima)</label>
-                <textarea name="description" value={form.description} onChange={handleChange} rows={2} className="input-base w-full resize-none" placeholder="Contexto, objetivos, observações..." />
               </div>
             </div>
           </div>
