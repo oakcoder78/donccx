@@ -56,6 +56,31 @@ const FALLBACK_MODELS = [
 
 const TIMEOUT_MS = 30_000
 
+function extractContent(choice: any): string | null {
+  const msg = (choice as any)?.message ?? (choice as any)?.delta ?? {}
+  if (typeof msg.content === 'string' && msg.content.trim()) return msg.content
+  if (Array.isArray(msg.content)) {
+    const joined = (msg.content as any[]).map((b: any) => b.text ?? b.content ?? '').join('\n').trim()
+    if (joined) return joined
+  }
+  if (typeof msg.reasoning === 'string' && msg.reasoning.trim()) return msg.reasoning
+  if (typeof (msg as any).reasoning_content === 'string' && (msg as any).reasoning_content.trim()) return (msg as any).reasoning_content
+  if (Array.isArray((msg as any).reasoning_details)) {
+    const joined = ((msg as any).reasoning_details as any[]).map((r: any) => r.text ?? r.content ?? '').join('\n').trim()
+    if (joined) return joined
+  }
+  if (typeof (choice as any)?.text === 'string' && (choice as any).text.trim()) return (choice as any).text
+  return null
+}
+
+function choicePreview(choice: any): string {
+  try {
+    return JSON.stringify(choice)?.slice(0, 500) ?? String(choice).slice(0, 500)
+  } catch {
+    return String(choice).slice(0, 500)
+  }
+}
+
 function getSbKey(): string | null {
   return getServiceKey() ?? Deno.env.get('SUPABASE_ANON_KEY') ?? null
 }
@@ -306,12 +331,21 @@ try {
 
       // ── Sucesso ─────────────────────────────────────────────────────────
       const parsed = await orRes.json().catch(() => null)
-      if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed?.choices) || parsed.choices.length === 0 || typeof parsed.choices[0]?.message?.content !== 'string' || !parsed.choices[0].message.content.trim()) {
-        const errMsg = `invalid response structure from ${model}`
+      const rawChoice = (parsed as any)?.choices?.[0] ?? null
+      const content = extractContent(rawChoice)
+      if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as any)?.choices) || (parsed as any).choices.length === 0 || !content) {
+        const preview = choicePreview(rawChoice)
+        const errMsg = `invalid response structure from ${model} (choice=${preview})`
         console.warn('Falha no modelo:', model, errMsg)
         modelErrors.push(`${model}: ${errMsg}`)
         await logModel(model, 'fail', elapsed, errMsg)
         continue
+      }
+      // Normaliza para o frontend — garante que message.content contenha o texto extraído (reasoning fallback)
+      if (rawChoice?.message) {
+        (parsed as any).choices[0].message = { ...rawChoice.message, content }
+      } else if (rawChoice) {
+        ;(parsed as any).choices[0].message = { role: 'assistant', content }
       }
       allFailed = false
       console.log('Modelo utilizado:', model)

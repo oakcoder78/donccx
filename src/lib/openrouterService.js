@@ -189,7 +189,11 @@ Regras críticas:
         throw new Error(data.error)
       }
 
-      const raw = data?.choices?.[0]?.message?.content ?? ''
+      const msg = data?.choices?.[0]?.message ?? {}
+      const raw = (typeof msg.content === 'string' && msg.content.trim())
+        ? msg.content
+        : (typeof msg.reasoning === 'string' && msg.reasoning.trim() ? msg.reasoning
+          : (typeof msg.reasoning_content === 'string' && msg.reasoning_content.trim() ? msg.reasoning_content : ''))
 
       // Conteúdo vazio do modelo
       if (!raw.trim()) {
