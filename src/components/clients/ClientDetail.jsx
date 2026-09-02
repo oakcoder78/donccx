@@ -34,9 +34,9 @@ export default function ClientDetail() {
   const tab = searchParams.get('tab') || 'overview'
   const [showEdit, setShowEdit]   = useState(false)
   const [showEmail, setShowEmail] = useState(false)
-  const { effectiveRole } = useAuth()
+  const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
-  const canEditEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canEditGlobal = ['admin', 'manager', 'finance'].includes(effectiveRole)
   const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
   const canAccessAllTabs = ['admin', 'manager'].includes(effectiveRole)
 
@@ -58,6 +58,9 @@ export default function ClientDetail() {
 
   if (isLoading) return <PageSpinner />
   if (!client) return <div className="p-6 text-text-tertiary">Empresa não encontrada.</div>
+
+  const isSalesOwned = effectiveRole === 'sales' && (client.comercial_id === profile?.id || client.csm_id === profile?.id)
+  const canEditEmpresas = canEditGlobal || isSalesOwned
 
   const displayName = client.fantasy_name || client.name
 

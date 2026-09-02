@@ -126,8 +126,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [osTiers, setOsTiers] = useState([])
   const [eventuais, setEventuais] = useState([])
   const [navError, setNavError] = useState('')
-  const { profile } = useAuth()
+  const { profile, effectiveRole } = useAuth()
   const [pendingFiles, setPendingFiles] = useState([])
+
+  // Sales creating empresa: default comercial to self so RLS insert passes (carteira)
+  useEffect(() => {
+    if (!isEdit && profile?.id && effectiveRole === 'sales' && !form.comercial_id) {
+      setForm(prev => (prev.comercial_id ? prev : { ...prev, comercial_id: profile.id }))
+    }
+  }, [profile?.id, effectiveRole, isEdit])
 
   useEffect(() => {
     if (existingModPricing.length > 0) {

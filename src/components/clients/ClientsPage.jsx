@@ -58,7 +58,7 @@ export default function ClientsPage() {
   const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'finance'
-  const canMutateEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canMutateEmpresas = ['admin', 'manager', 'finance', 'sales'].includes(effectiveRole)
   const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
 
   const [search,          setSearch]          = useState('')
