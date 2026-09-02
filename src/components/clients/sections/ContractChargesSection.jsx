@@ -74,8 +74,8 @@ export function ContractChargesSection({ N, setN, rules, setRules, billingBaseVa
           <span className="col-span-2">De</span>
           <span className="col-span-2">Até</span>
           <span className="col-span-3">Modo</span>
-          <span className="col-span-3">Valor</span>
-          <span className="col-span-2">Ações</span>
+          <span className="col-span-4">Valor</span>
+          <span className="col-span-1">Ações</span>
         </div>
 
         {rules.length === 0 && (
@@ -83,30 +83,55 @@ export function ContractChargesSection({ N, setN, rules, setRules, billingBaseVa
         )}
 
         {rules.map((r, idx) => (
-          <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+          <div key={idx} className="grid grid-cols-12 gap-2 items-start">
             <input type="number" min="1" max={N} value={r.from} onChange={e => updateRule(idx, { from: Number(e.target.value) })} className="input-base col-span-2 text-center" />
             <input type="number" min="1" max={N} value={r.to} onChange={e => updateRule(idx, { to: Number(e.target.value) })} className="input-base col-span-2 text-center" />
-            <select value={r.mode} onChange={e => updateRule(idx, { mode: e.target.value })} className="input-base col-span-3">
+            <select value={r.mode} onChange={e => {
+              const newMode = e.target.value
+              // quando troca para percentual, clamp/convert: se valor atual >100, reseta para 100 ou calcula % equivalente
+              let newVal = r.value
+              if (newMode === 'percent' && Number(r.value) > 100) {
+                // se era absoluto (ex: 4000), sugere 100% ou calcula % do base
+                if (baseTotal > 0 && !isNaN(Number(r.value))) newVal = String(Math.min(100, Math.round((Number(r.value)/baseTotal)*100)))
+                else newVal = '100'
+              }
+              updateRule(idx, { mode: newMode, value: newVal })
+            }} className="input-base col-span-3">
               <option value="absolute">Valor total no mês (R$)</option>
               <option value="percent">% do base total</option>
               <option value="base">Valor base total</option>
             </select>
-            <div className="col-span-3 flex items-center gap-1">
-              <span className="text-xs text-text-tertiary">{r.mode === 'percent' ? '%' : 'R$'}</span>
-              <input type="number" step="0.01" min="0" value={r.value} onChange={e => updateRule(idx, { value: e.target.value })} className="input-base flex-1 text-right" placeholder={r.mode === 'percent' ? '80' : formatBRL4(baseTotal).replace('R$','').trim() || '2500'} />
-              {r.mode === 'percent' && baseTotal > 0 && (
-                <span className="text-[11px] font-medium text-donc-verde bg-donc-verde/10 border border-donc-verde/20 rounded px-1.5 py-0.5 whitespace-nowrap">
-                  → {formatBRL4(baseTotal * (Number(r.value) / 100))}
-                </span>
+            <div className="col-span-4">
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-text-tertiary">{r.mode === 'percent' ? '%' : 'R$'}</span>
+                <input
+                  type="number"
+                  step={r.mode === 'percent' ? '1' : '0.01'}
+                  min="0"
+                  max={r.mode === 'percent' ? '100' : undefined}
+                  value={r.value}
+                  onChange={e => {
+                    let v = e.target.value
+                    if (r.mode === 'percent' && Number(v) > 100) v = '100'
+                    updateRule(idx, { value: v })
+                  }}
+                  className="input-base flex-1 text-right"
+                  placeholder={r.mode === 'percent' ? '80' : formatBRL4(baseTotal).replace('R$','').trim() || '2500'}
+                />
+              </div>
+              {r.mode === 'percent' && baseTotal > 0 && r.value !== '' && (
+                <div className="mt-1 text-[11px] font-medium text-donc-verde bg-donc-verde/10 border border-donc-verde/20 rounded px-1.5 py-0.5 inline-block">
+                  → {formatBRL4(baseTotal * (Number(r.value) / 100))} no mês
+                </div>
               )}
-              {r.mode === 'absolute' && floor > 0 && basePerLicenca > 0 && (
-                <span className="text-[11px] text-text-tertiary whitespace-nowrap hidden xl:inline">
+              {r.mode === 'absolute' && floor > 0 && basePerLicenca > 0 && r.value !== '' && (
+                <div className="mt-1 text-[11px] text-text-tertiary">
                   → {formatBRL4(Number(r.value) / floor)}/lic.
-                </span>
+                </div>
               )}
             </div>
-            <div className="col-span-2 flex gap-1">
-              <button type="button" onClick={() => removeRule(idx)} className="px-2 py-1 text-xs border border-border-tertiary rounded hover:bg-bg-secondary">✕</button>
+            <div className="col-span-1 flex justify-center pt-1">
+              <button type="button" onClick={() => removeRule(idx)} className="px-2 py-1.5 text-xs border border-border-tertiary rounded hover:bg-bg-secondary leading-none">✕</button>
             </div>
           </div>
         ))}
