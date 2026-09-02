@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 const cockpits = [
   {
     key: 'health_cockpit',
-    title: 'Cockpit – Health Score',
+    title: 'Health Score',
     description: 'Scorecard de saúde da carteira, tendências e alertas por dimensão',
     icon: Icons.Activity,
     href: '/health',
@@ -16,7 +16,7 @@ const cockpits = [
   },
   {
     key: 'cs_radar',
-    title: 'Cockpit – CS Radar',
+    title: 'CS Radar',
     description: 'Atividades, RMCs e avanço de projetos do time de CS',
     icon: Icons.BarChart3,
     href: '/cs-radar',
@@ -25,7 +25,7 @@ const cockpits = [
   },
   {
     key: 'projects_cockpit',
-    title: 'Cockpit – Projects',
+    title: 'Projetos',
     description: 'Status dos projetos ativos por cliente, fases, prazos e progresso',
     icon: Icons.FolderKanban,
     href: '/projetos-cockpit',
@@ -34,7 +34,7 @@ const cockpits = [
   },
   {
     key: 'profissionais_cockpit',
-    title: 'Cockpit – Professionals',
+    title: 'Profissionais',
     description: 'Faturamento por profissionais ativos, acesso e OS no mês',
     icon: Icons.UserCheck,
     href: '/profissionais-cockpit',
