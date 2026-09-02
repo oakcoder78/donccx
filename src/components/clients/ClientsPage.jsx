@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useClients, useAllClients } from '@/hooks/useClients'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
+import { supabase } from '@/lib/supabaseClient'
 import { PageHeader } from '../ui/PageHeader'
 import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
@@ -55,8 +57,8 @@ export default function ClientsPage() {
   const [searchParams] = useSearchParams()
   const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager' || profile?.role === 'finance'
-  const isSales = profile?.role === 'sales'
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'finance'
+  const isSales = effectiveRole === 'sales'
 
   const [search,          setSearch]          = useState('')
   const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
@@ -89,7 +91,25 @@ export default function ClientsPage() {
   if (lifecycleFilter !== 'all') {
     filtered = filtered.filter(c => (c.lifecycle_stage || 'cliente') === lifecycleFilter)
   }
-  const inactiveCount = allClients.filter(c => c.contract_active === false).length
+  // Head-count query for badge — works even when toggle is OFF (allClients not loaded yet)
+  const { data: inactiveCountHead } = useQuery({
+    queryKey: ['clients_inactive_count', baseFilters, lifecycleFilter],
+    enabled: !!profile && isAdminOrManager,
+    queryFn: async () => {
+      let q = supabase.from('clients').select('id', { count: 'exact', head: true })
+      if (baseFilters.csm_id) q = q.eq('csm_id', baseFilters.csm_id)
+      if (baseFilters.comercial_id) q = q.eq('comercial_id', baseFilters.comercial_id)
+      if (baseFilters.search) q = q.or(`name.ilike.%${baseFilters.search}%,fantasy_name.ilike.%${baseFilters.search}%`)
+      if (lifecycleFilter !== 'all') q = q.eq('lifecycle_stage', lifecycleFilter)
+      q = q.eq('contract_active', false)
+      const { count } = await q
+      return count ?? 0
+    },
+    staleTime: 30_000,
+  })
+  const inactiveCount = showInactive
+    ? allClients.filter(c => c.contract_active === false).length
+    : (inactiveCountHead ?? 0)
 
   const useV2 = isEnabled('empresas_form_v2', effectiveRole)
 
@@ -126,19 +146,22 @@ export default function ClientsPage() {
         </select>
         {isAdminOrManager && (
           <button
+            type="button"
+            role="switch"
+            aria-checked={showInactive}
             onClick={() => setShowInactive(v => !v)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm border transition-colors ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border transition-colors ${
               showInactive
-                ? 'bg-text-tertiary/15 border-text-tertiary/30 text-text-secondary'
-                : 'bg-bg-primary border-border-secondary text-text-tertiary hover:border-text-tertiary/40'
+                ? 'bg-donc-navy/10 border-donc-navy/30 text-donc-navy'
+                : 'bg-bg-primary border-border-secondary text-text-secondary hover:border-border-tertiary'
             }`}
           >
-            <span className={`w-7 h-4 rounded-full transition-colors flex-shrink-0 relative ${showInactive ? 'bg-text-tertiary' : 'bg-border-secondary'}`}>
-              <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${showInactive ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+            <span className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors ${showInactive ? 'bg-donc-navy' : 'bg-border-secondary'}`}>
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showInactive ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
             </span>
             Mostrar inativas
-            {showInactive && inactiveCount > 0 && (
-              <span className="text-xs px-1.5 py-0.5 rounded-full bg-text-tertiary/20 text-text-tertiary">{inactiveCount}</span>
+            {inactiveCount > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${showInactive ? 'bg-donc-navy/15 text-donc-navy' : 'bg-bg-secondary text-text-tertiary border border-border-secondary'}`}>{inactiveCount}</span>
             )}
           </button>
         )}
