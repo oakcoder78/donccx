@@ -173,10 +173,14 @@ function calcRelacionamento(client, rules) {
 
   const links = client.contact_links ?? []
 
-  // Decisor
+  // Decisor — fallback: golive (legado) → projeto start_date → onboarding GoLive occurred_at → contract_start
   const hasDecisor = links.some(l => l.papel?.toLowerCase() === 'decisor')
   if (!hasDecisor) {
-    const refDate = client.golive || client.contract_start
+    const projectStart = (client.projects ?? []).find(p => p.start_date)?.start_date || null
+    const goLiveFaseDate = (client.onboardings ?? [])
+      .flatMap(o => o.onboarding_fases ?? [])
+      .find(f => f.fase_type_id === FASE_TYPE_IDS.GOLIVE && f.occurred_at)?.occurred_at?.slice(0,10) || null
+    const refDate = client.golive || projectStart || goLiveFaseDate || client.contract_start
     let monthsSince = 0
     if (refDate) {
       const d   = new Date(refDate + 'T00:00:00')

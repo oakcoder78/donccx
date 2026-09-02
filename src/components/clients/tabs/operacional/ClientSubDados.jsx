@@ -7,6 +7,7 @@ import { useCatalog } from '@/hooks/useCatalog'
 import { supabase } from '@/lib/supabaseClient'
 import { Icons } from '@/lib/icons'
 import { useClientHandovers } from '@/hooks/useClientHandovers'
+import { useLatestBillingPayment } from '@/hooks/useBillingPayments'
 import { HANDOVER_LABELS } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
@@ -260,6 +261,7 @@ export function ClientSubDados({ client }) {
   const canViewFinancialEffective = isEnabled('financial_data', effectiveRole)
   const { data: catalog = [] } = useCatalog()
   const { data: handover } = useClientHandovers(client.id)
+  const { data: latestPayment } = useLatestBillingPayment(client.id)
 
   const servicos = client.client_catalog
     ?.filter(cc => cc.catalog_items?.type === 'servico')
@@ -307,9 +309,14 @@ export function ClientSubDados({ client }) {
                 : client.contract_active === false ? 'Não bilhetável (legado)' : null
             }
           />
-          {client.delay_days > 0 && (
+          {latestPayment ? (
+            <InfoRow
+              label="Adimplência"
+              value={`${latestPayment.status === 'adimplente' ? 'Adimplente' : `Inadimplente (${latestPayment.delay_days}d)`} — ref ${latestPayment.ref_month}${latestPayment.paid_at ? ` · pago ${formatDate(latestPayment.paid_at)}` : ''}`}
+            />
+          ) : client.delay_days > 0 ? (
             <InfoRow label="Dias em Atraso" value={`${client.delay_days} dias`} />
-          )}
+          ) : null}
         </div>
         {(client.onb_start || client.golive) && (
           <p className="text-[11px] text-white/40 mt-3">Legado: Início Onboarding {formatDate(client.onb_start) || '—'} · Go Live {formatDate(client.golive) || '—'} (usar Projetos)</p>
