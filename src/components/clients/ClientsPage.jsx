@@ -58,6 +58,8 @@ export default function ClientsPage() {
   const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'finance'
+  const canMutateEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
 
   const [search,          setSearch]          = useState('')
   const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
@@ -113,9 +115,6 @@ export default function ClientsPage() {
     : (inactiveCountHead ?? 0)
 
   const useV2 = isEnabled('empresas_form_v2', effectiveRole)
-
-  const canMutateEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
-  const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
 
   return (
     <div className="p-6">
