@@ -54,6 +54,7 @@ export default function ClientFormPage() {
 
       <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
         <ClientFormContent
+          key={isEdit ? `edit-${client.id}` : 'new'}
           client={isEdit ? client : null}
           onSuccess={(clientId) => {
             navigate(clientId ? `/empresas/${clientId}` : '/empresas')

@@ -1,5 +1,70 @@
 # Changelog
 
+## 2026-09-02
+
+### Empresas form v2 — refatoração UI/UX da aba Contrato + correções
+
+`ClientFormContent` é compartilhado por `/labs/empresas_v2` (playground admin) e `/empresas/nova`
+(produção, atrás da flag `empresas_form_v2`, **off**). Sem mudança de schema. Uma mudança de regra
+de gravação (MRR — ver abaixo).
+
+**Novos primitivos** — `src/components/clients/form/`
+- `FormSection.jsx` — bloco de seção plano (título + traço fino + corpo; colapso opcional com
+  resumo de 1 linha; check discreto quando válido). Substitui os sub-cards aninhados.
+- `InfoHint.jsx` — popover `?`, único ponto de explicação/exemplo por seção.
+- Documentados em `docs/ui-patterns.md` #25.
+
+**Aba Contrato** — de 2 colapsáveis aninhando 4 níveis de caixa para ~6 blocos planos.
+- Linguagem de comercial/financeiro, sem nomes de tabela na tela:
+  "Motor de contrato — recorrência" → **Evolução da recorrência (MRR)**;
+  "Valores eventuais" → **Cobranças Eventuais**;
+  "Rateio por módulo" → **Divisão do MRR por produto**;
+  "Não bilhetável" → **Não cobrar**; "Mensalidade base" → **MRR base**.
+- Modo de regra na UI reduzido a "Valor fixo (R$)" / "% da recorrência" (o modo `base` do lib
+  segue suportado internamente).
+- Linhas em grid de colunas fixas (alinhamento consistente) + `overflow-x-auto` para telas
+  estreitas. Ações usam ícones lucide (`Icons.X` / `Icons.Plus` / `Icons.Eye`).
+- Validação: banner só em erro; sucesso = check no título. Removidos o painel `?` âmbar, os chips
+  por linha e o rodapé de exemplo `rules[0..2]` (corrige "R$ 0,00" espúrio com < 3 regras).
+  Preview do motor simplificado para `Mês | Recorrência`.
+- "Próximo →" mostra erro inline de regras/faixas (antes só barrava no submit).
+
+**Demais abas** — Dados / Endereço / Operacional agrupadas em `FormSection`; parênteses técnicos
+removidos. Toggle "Contrato ativo" **removido** da aba Dados — `contract_active` é derivado de
+`billing_status` no save; o toggle editável só confundia (era sobrescrito no submit).
+
+**Handover nunca é obrigatório** — nenhuma validação bloqueia o save por causa do handoff, em
+nenhum `lifecycle_stage`. A gravação em `client_handovers` dispara se **qualquer** um dos 10
+campos estiver preenchido (antes checava só 3) e erro real vira toast sem bloquear.
+
+**Regra de gravação — MRR** — `clients.mrr` passa a gravar **0** quando `billing_status != 'ativo'`
+(suspenso / não cobrar), em vez de sempre gravar o mínimo contratual.
+
+**`EmpresasV2Page`**
+- Seletor "Editar empresa existente" (busca por nome/fantasia via `useAllClients`, resultado
+  clicável → `/labs/empresas_v2/:id/editar`). Antes só editando pela URL na mão.
+- Banner enxugado; footnote "DDL pendente" removida — tudo já migrado (`contract_charges`,
+  `billing_os_tiers`, `client_handovers`, colunas `billing_status/erp/ti_tipo`).
+
+**Bugs corrigidos**
+- **Motor não persistia no cadastro novo**: `useContractChargesMutations` /
+  `useBillingOsTiersMutations` estavam presas ao `client?.id` (undefined na criação) → `DELETE
+  ...client_id=eq.undefined` (400). Agora aceitam `clientId` no payload; `handleSubmit` passa o id
+  recém-criado.
+- **Form não recarregava ao reeditar**: `ClientFormContent` semeia o state de `client` num
+  `useState` initializer (roda 1×) e o React reaproveitava a instância → form vazio até reload.
+  Fix: `key={edit-<id> | new}` em `<ClientFormContent>` (`EmpresasV2Page` + `ClientFormPage`) +
+  `qc.removeQueries(['client' | 'contract_charges' | 'billing_os_tiers', id])` no fim do save.
+- Coerção de `null → ''` no state de edição (elimina warning "value prop should not be null").
+
+**Limpeza** — removido o fallback "modo compatibilidade" (`labsPayload` → catch → `basePayload`),
+morto desde que as colunas foram migradas; `payload` único agora.
+
+**Verificado** (`/labs/empresas_v2`, admin, dados reais + diff no banco): cadastro por licença
+(períodos + cobrança eventual parcelada), cadastro por OS (faixas), edição de empresa legada
+(OSIRNET, `cliente`) sem perda de campo, reedição via seletor, aba Endereço, handover parcial.
+`npm run build` limpo.
+
 ## 2026-08-30
 
 ### Dashboard v3 — ajustes de interface + blocos "geral" para todos os papéis

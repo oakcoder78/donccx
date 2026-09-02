@@ -15,7 +15,9 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useCatalog.js` — fetch static catalog tables.
 - `useClient.js` — single client CRUD. Fetches extended client data including operational, health, catalog, onboarding, and activity data. Not all fetched data is always displayed; some modules depend on lifecycle_stage to determine whether data should be used.
 - `useClientReports.js` — fetch reports for a client.
-- `useClients.js` — list clients with optional filters.
+- `useClients.js` — `useClients(filters, opts)` lists active clients (`contract_active = true`); `useAllClients(filters, opts)` includes inactive (used by the labs Empresas v2 edit picker). `useClientMutations().update` fires `invalidate()` → `['clients']` + `['client']`.
+- `useContractCharges.js` — `useContractCharges(clientId)` reads `contract_charges` ordered by `month_index`; `useContractChargesMutations(clientId)` replaces all rows for the client (delete-all + insert). Mutation payload accepts a `clientId` override so the create flow can target the freshly created id.
+- `useBillingOsTiers.js` — `useBillingOsTiers(clientId)` reads `billing_os_tiers`; `useBillingOsTiersMutations(clientId)` replaces all tiers. Same `clientId` payload override as above.
 - `useContacts.js` — list contacts, manage contact links.
 - `useDashboardClients.js` — Dashboard v3 HERO clients in scope: thin wrapper over `useClients(labsFilterFor(profile))` (admin/manager/finance → all `cliente`; sales → `comercial_id`; csm → `csm_id`). RLS-scoped — carteira for csm/sales, base for admin/manager. Feeds only the HERO (Clientes, Health média).
 - `useDashboardOverview.js` — company-wide ("geral") sources for the blocks that show the same numbers to every role, via SECURITY DEFINER RPCs (migration `20260830000004`): `useDashboardClientsOverview()` (`get_dashboard_clients_overview` → Saúde por dimensão + Mapa) + `useOpenProjectsOverview()` (`get_open_projects_overview` → Projetos em aberto). No mrr/billing.

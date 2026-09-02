@@ -17,7 +17,13 @@ The Clients module provides the primary user interface for managing customer rec
 |----------|-----------------|
 | `ClientsPage.jsx` | Root page that lists clients and navigates to a client detail view. |
 | `ClientDetail.jsx` | Container for a single client’s detailed view; renders tab navigation. |
-| `ClientForm.jsx` | Form for creating or editing a client record. |
+| `ClientForm.jsx` | **Legacy** modal form (used while `empresas_form_v2` flag is off). |
+| `ClientFormContent.jsx` | Shared v2 form body — 4 tabs (Dados, Endereço, Contrato, Operacional). Rendered by `ClientFormPage` and `EmpresasV2Page`. |
+| `form/FormSection.jsx` | Flat form-section primitive (title + hairline + body; optional collapse). |
+| `form/InfoHint.jsx` | Discreet `?` popover — the only place a section carries an explanation. |
+| `sections/ContractChargesSection.jsx` | "Evolução da recorrência (MRR)" — per-period recurring value editor + month-by-month preview. |
+| `sections/EventuaisSection.jsx` | "Cobranças Eventuais" — one-off charges with installments. |
+| `sections/OsTiersSection.jsx` | "Faixas de preço por OS" — volume-band pricing (only when `billing_type = por_os`). |
 | `TemperaturaCSM.jsx` | UI widget (purpose not identifiable from provided code). |
 | **Tabs** (`tabs/`) | |
 | `ClientTabOverview.jsx` | Shows a summary overview and quick actions for the client. |
@@ -161,6 +167,49 @@ The `useClients.js` mutation was hardened against race conditions and RLS failur
 - **Error handling:** all `delete`/`insert`/`upsert` calls check and throw on error; `saveModPricing` has an explicit `onError` toast handler.
 - **Root cause:** `client_catalog_history` had RLS enabled but no INSERT policy. The trigger `trg_client_catalog_history` (AFTER INSERT/UPDATE on `client_catalog`) tried to insert into history and failed, rolling back the entire transaction. Fixed by migration `20260615000001`.
 
+### Empresas Form v2 — dedicated page (2026-09-02)
+
+The company create/edit form was moved out of the cramped `<Modal>` (`ClientForm.jsx`) into a
+dedicated page. Body logic lives in the shared **`ClientFormContent.jsx`**; two thin page shells
+render it:
+
+| Route | Shell | Gate |
+|-------|-------|------|
+| `/empresas/nova`, `/empresas/:id/editar` | `src/pages/ClientFormPage.jsx` | feature flag `empresas_form_v2` (off → `<Navigate to="/empresas">`) |
+| `/labs/empresas_v2`, `/labs/empresas_v2/:id/editar` | `src/pages/labs/EmpresasV2Page.jsx` | `<AdminOnlyRoute>` (no flag) |
+
+While the flag is off, `ClientsPage`/`ClientDetail` still open the legacy `<ClientForm>` modal
+(`isEnabled('empresas_form_v2', effectiveRole) ? navigate(...) : setShowForm(true)`). The labs
+shell adds an amber banner and a **"Editar empresa existente"** search (`useAllClients`) that links
+to `/labs/empresas_v2/:id/editar`.
+
+**Tabs** (new order): `Dados da Empresa → Endereço → Contrato → Operacional`.
+
+**Contrato tab** (business-language UI, no table/column names on screen):
+- *Plano de cobrança* — `billing_type` (por licença / por OS), valor base, piso, datas, índice.
+- *MRR base* (card navy) — `piso × valor base`.
+- *Status de cobrança* — 3 states `ativo | suspenso | nao_bilhetavel` ("Não cobrar"). `contract_active`
+  is derived on save (`= billing_status === 'ativo'`); `mrr` is written as `0` when not `ativo`.
+- *Evolução da recorrência (MRR)* — `ContractChargesSection`: contiguous per-period rules
+  (`from..to`, mode `absolute | percent`), expanded to one `contract_charges` row per month on save
+  via `expandRulesToCharges` (`src/lib/contractRules.js`). Month-by-month preview.
+- *Cobranças Eventuais* — `EventuaisSection`: one-off charges, optional installments →
+  `contract_charges` rows sharing an `installment_group`.
+- *Faixas de preço por OS* — `OsTiersSection` (only `por_os`) → `billing_os_tiers`.
+- *Divisão do MRR por produto* — per-solution split of the base MRR (`module_pricing`,
+  `mode: 'rateio'` — a breakdown of the total, **not** additive).
+
+**Operacional tab** — stage, unidades, ABC, ERP, TI, service/solution chips, and the 10-question
+**Handoff comercial → onboarding** (`client_handovers`). The handoff is **never required** — no
+`lifecycle_stage` blocks the save on it; answers persist when any field is filled.
+
+**Persistence note:** `ClientFormContent` seeds its form state from the `client` prop in a
+`useState` initializer (runs once). The page shells pass `key={isEdit ? 'edit-' + client.id : 'new'}`
+so React remounts the form when the target company changes; `handleSubmit` ends with
+`qc.removeQueries` for `['client' | 'contract_charges' | 'billing_os_tiers', id]` so the next edit
+mount reads fresh server data. The child-table mutations accept a `clientId` override in the
+payload (the create flow has no `client?.id` at mount).
+
 ### Flow: View Client Detail
 1. User clicks a client card.
 2. Router loads `ClientDetail` with client ID.
@@ -210,7 +259,15 @@ The `useClients.js` mutation was hardened against race conditions and RLS failur
 
 ## File Reference Map
 - `src/components/clients/ClientDetail.jsx`
-- `src/components/clients/ClientForm.jsx`
+- `src/components/clients/ClientForm.jsx` (legacy modal)
+- `src/components/clients/ClientFormContent.jsx` (shared v2 form body)
+- `src/components/clients/form/FormSection.jsx`
+- `src/components/clients/form/InfoHint.jsx`
+- `src/components/clients/sections/ContractChargesSection.jsx`
+- `src/components/clients/sections/EventuaisSection.jsx`
+- `src/components/clients/sections/OsTiersSection.jsx`
+- `src/pages/ClientFormPage.jsx`
+- `src/pages/labs/EmpresasV2Page.jsx`
 - `src/components/clients/ClientsPage.jsx`
 - `src/components/clients/TemperaturaCSM.jsx`
 - `src/components/clients/tabs/ClientTabActivities.jsx`

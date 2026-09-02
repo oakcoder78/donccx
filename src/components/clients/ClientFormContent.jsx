@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { useClientMutations } from '@/hooks/useClients'
 import { useStages } from '@/hooks/useStages'
@@ -13,8 +14,9 @@ import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillin
 import { ContractChargesSection } from './sections/ContractChargesSection'
 import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
+import { FormSection } from './form/FormSection'
+import { InfoHint } from './form/InfoHint'
 import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, getBaseTotal, calculateRuleTotal, formatBRL4 } from '@/lib/contractRules'
-import { Icons } from '@/lib/icons'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional
@@ -23,7 +25,7 @@ export const TABS_V2 = ['Dados da Empresa', 'Endereço', 'Contrato', 'Operaciona
 const EMPTY = {
   name: '', fantasy_name: '', cnpj: '', segment_id: '',
   unidades_total: '', unidades_donc: '',
-  abc_class: '', csm_id: '', comercial_id: '', site: '', contract_active: true,
+  abc_class: '', csm_id: '', comercial_id: '', site: '',
   logo_url: '',
   billing_type: 'por_licenca', billing_base_value: '',
   billing_floor: '', contract_signed_date: '', contract_start: '',
@@ -68,7 +70,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     isEdit
       ? {
           ...EMPTY,
-          ...client,
+          // never feed null into a controlled input — coerce to '' (keeps booleans/numbers)
+          ...Object.fromEntries(Object.entries(client).map(([k, v]) => [k, v == null ? '' : v])),
           unidades_total: client.unidades_total ?? '',
           unidades_donc: client.unidades_donc ?? '',
           billing_base_value: client.billing_base_value ?? '',
@@ -77,9 +80,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           csm_id: client.csm_id || '',
           comercial_id: client.comercial_id || '',
           stage_id: client.stage_id || '',
-          contract_active: client.contract_active !== false,
           lifecycle_stage: client.lifecycle_stage || 'lead',
-          // map billing_status fallback to contract_active for legacy records
+          // legacy records without billing_status: derive from the deprecated contract_active flag
           billing_status: client.billing_status || (client.contract_active === false ? 'nao_bilhetavel' : 'ativo'),
           billing_suspended_until: client.billing_suspended_until || '',
           erp: client.erp || '',
@@ -102,6 +104,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [modPricing, setModPricing] = useState({})
   const [modErrors, setModErrors] = useState({})
 
+  const qc = useQueryClient()
   const { create, update } = useClientMutations()
   const { data: stages = [] } = useStages()
   const { data: catalog = [] } = useCatalog()
@@ -119,9 +122,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [contractRules, setContractRules] = useState([])
   const [osTiers, setOsTiers] = useState([])
   const [eventuais, setEventuais] = useState([])
-  const [motorOpen, setMotorOpen] = useState(true)
-  const [modOpen, setModOpen] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
+  const [navError, setNavError] = useState('')
 
   useEffect(() => {
     if (existingModPricing.length > 0) {
@@ -338,7 +339,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     if (contractRules.length > 0) {
       const v = validateRulesContiguous(contractRules, contractN)
       if (!v.ok) { toast.error(v.error); setActiveTab(2); return }
-      // confirm values outside contract (total > base)
+      // confirm periods that charge more than the base monthly fee
       const baseTotal = getBaseTotal(form.billing_base_value, form.billing_floor)
       if (baseTotal > 0) {
         const exceeding = contractRules.filter(r => {
@@ -348,10 +349,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         if (exceeding.length > 0) {
           const details = exceeding.map(r => {
             const calc = calculateRuleTotal(r, baseTotal)
-            const shown = r.mode === 'percent' ? `${r.value}% → ${formatBRL4(calc)}` : formatBRL4(calc)
-            return `${r.from}..${r.to}: ${shown} > base ${formatBRL4(baseTotal)}`
+            return `meses ${r.from} a ${r.to}: ${formatBRL4(calc)}`
           }).join('; ')
-          if (!window.confirm(`Valores fora do contrato (maior que base total): ${details}. Confirmar lançamento?`)) return
+          if (!window.confirm(`Alguns períodos cobram acima da mensalidade base (${formatBRL4(baseTotal)}): ${details}. Confirmar mesmo assim?`)) return
         }
       }
     }
@@ -379,9 +379,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       [...servicesInCatalog, ...activeModItems].map(i => [i.catalog_item_id, i])
     ).values()]
 
-    // Labs additive fields (erp, ti_tipo, billing_status) are included only if columns exist.
-    // We attempt to persist them; if DB rejects unknown column, fallback without them.
-    const basePayload = {
+    const payload = {
       name: form.name,
       fantasy_name: form.fantasy_name || null,
       cnpj: form.cnpj || null,
@@ -393,7 +391,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       csm_id: form.csm_id || null,
       comercial_id: form.comercial_id || null,
       site: form.site || null,
-      contract_active: form.billing_status === 'ativo',
       billing_type: form.billing_type,
       billing_base_value: form.billing_base_value !== '' ? Number(form.billing_base_value) : 0,
       billing_floor: form.billing_floor !== '' ? Number(form.billing_floor) : 0,
@@ -401,7 +398,13 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       contract_start: form.contract_start || null,
       contract_renewal: form.contract_renewal || null,
       correction_index: form.correction_index || null,
-      mrr: mrrMinimo,
+      // billing_status drives contract contribution: only 'ativo' bills
+      billing_status: form.billing_status || 'ativo',
+      billing_suspended_until: form.billing_suspended_until || null,
+      contract_active: form.billing_status === 'ativo',
+      mrr: form.billing_status === 'ativo' ? mrrMinimo : 0,
+      erp: form.erp || null,
+      ti_tipo: form.ti_tipo || null,
       stage_id: form.stage_id ? Number(form.stage_id) : null,
       onb_start: form.onb_start || null,
       golive: form.golive || null,
@@ -417,41 +420,13 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       catalogItems,
     }
 
-    // Try with labs columns (billing_status, erp, ti_tipo) if migration already applied
-    const labsPayload = {
-      ...basePayload,
-      billing_status: form.billing_status || 'ativo',
-      billing_suspended_until: form.billing_suspended_until || null,
-      erp: form.erp || null,
-      ti_tipo: form.ti_tipo || null,
-    }
-
     let clientId
-    let usedLabsCols = true
-    try {
-      if (isEdit) {
-        await update.mutateAsync({ id: client.id, ...labsPayload })
-        clientId = client.id
-      } else {
-        const created = await create.mutateAsync(labsPayload)
-        clientId = created.id
-      }
-    } catch (err) {
-      const msg = String(err?.message || '')
-      // fallback: column does not exist yet (migration not pushed) → retry without labs cols
-      if (msg.includes('billing_status') || msg.includes('billing_suspended_until') || msg.includes('erp') || msg.includes('ti_tipo')) {
-        usedLabsCols = false
-        if (isEdit) {
-          await update.mutateAsync({ id: client.id, ...basePayload })
-          clientId = client.id
-        } else {
-          const created = await create.mutateAsync(basePayload)
-          clientId = created.id
-        }
-        toast('Campos labs (billing_status/ERP/TI) ainda não migrados — salvos no modo compatibilidade.', { icon: '⚠️' })
-      } else {
-        throw err
-      }
+    if (isEdit) {
+      await update.mutateAsync({ id: client.id, ...payload })
+      clientId = client.id
+    } else {
+      const created = await create.mutateAsync(payload)
+      clientId = created.id
     }
 
     const items = Object.entries(modPricing)
@@ -478,48 +453,49 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     })
     const allCharges = [...recorrenciaCharges, ...implantacaoCharges]
     if (allCharges.length > 0) {
-      try { await saveCharges({ charges: allCharges }) } catch (e) { toast.error(`Contrato: ${e.message}`) }
+      try { await saveCharges({ charges: allCharges, clientId }) } catch (e) { toast.error(`Contrato: ${e.message}`) }
     } else if (existingCharges.length > 0) {
-      try { await saveCharges({ charges: [] }) } catch (_) {}
+      try { await saveCharges({ charges: [], clientId }) } catch (_) {}
     }
     if (form.billing_type === 'por_os' && osTiers.length > 0) {
-      try { await saveTiers({ tiers: osTiers }) } catch (e) { toast.error(e.message) }
+      try { await saveTiers({ tiers: osTiers, clientId }) } catch (e) { toast.error(e.message) }
     } else if (existingTiers.length > 0 && osTiers.length === 0) {
-      try { await saveTiers({ tiers: [] }) } catch (_) {}
+      try { await saveTiers({ tiers: [], clientId }) } catch (_) {}
     }
 
-    // Persist handover to client_handovers table if migration exists (best-effort, non-blocking)
-    if (form.handover_contexto || form.handover_problemas || form.handover_pessoas) {
-      try {
-        const answers = {
-          contexto: form.handover_contexto || '',
-          como_trabalha: form.handover_como_trabalha || '',
-          problemas: form.handover_problemas || '',
-          impactos: form.handover_impactos || '',
-          necessidades: form.handover_necessidades || '',
-          resultados_esperados: form.handover_resultados || '',
-          criterios_sucesso: form.handover_criterios || '',
-          pessoas: form.handover_pessoas || '',
-          expectativas: form.handover_expectativas || '',
-          riscos: form.handover_riscos || '',
-          motivo_compra: form.handover_motivo || '',
-        }
-        // Only persist if any field filled
-        const hasAny = Object.values(answers).some(v => v.trim())
-        if (hasAny) {
-          const { error: handoverErr } = await supabase
-            .from('client_handovers')
-            .upsert({ client_id: clientId, answers, template_version: 'v1', updated_at: new Date().toISOString() }, { onConflict: 'client_id' })
-          if (handoverErr && !String(handoverErr.message).includes('does not exist')) throw handoverErr
-        }
-      } catch (_) {
-        // silent: handover table may not exist yet in labs without migration
+    // Persist handover answers (client_handovers). Never blocks the save — the
+    // handoff is informational and no field is required.
+    {
+      const answers = {
+        contexto: form.handover_contexto || '',
+        como_trabalha: form.handover_como_trabalha || '',
+        problemas: form.handover_problemas || '',
+        impactos: form.handover_impactos || '',
+        necessidades: form.handover_necessidades || '',
+        resultados_esperados: form.handover_resultados || '',
+        criterios_sucesso: form.handover_criterios || '',
+        pessoas: form.handover_pessoas || '',
+        expectativas: form.handover_expectativas || '',
+        riscos: form.handover_riscos || '',
+        motivo_compra: form.handover_motivo || '',
+      }
+      if (Object.values(answers).some(v => v.trim())) {
+        const { error: handoverErr } = await supabase
+          .from('client_handovers')
+          .upsert(
+            { client_id: clientId, answers, template_version: 'v1', updated_at: new Date().toISOString() },
+            { onConflict: 'client_id' },
+          )
+        if (handoverErr) toast.error(`Handoff não salvo: ${handoverErr.message}`)
       }
     }
 
-    if (!usedLabsCols) {
-      // keep behavior: still consider success
-    }
+    // Drop cached copies so a subsequent edit remounts with fresh server data
+    // (the form seeds its state from `client` once, at mount).
+    qc.removeQueries({ queryKey: ['client', clientId] })
+    qc.removeQueries({ queryKey: ['contract_charges', clientId] })
+    qc.removeQueries({ queryKey: ['billing_os_tiers', clientId] })
+    qc.invalidateQueries({ queryKey: ['clients'] })
 
     onSuccess?.(clientId)
   }
@@ -546,111 +522,108 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
       {/* ── ABA 0: Dados da Empresa ── */}
       {activeTab === 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <div
-              className="w-24 h-24 rounded-full overflow-hidden bg-bg-secondary border-2 border-dashed border-border-secondary flex items-center justify-center cursor-pointer hover:border-donc-sky transition-colors flex-shrink-0"
-              onClick={() => logoRef.current?.click()}
-            >
-              {logoPreview
-                ? <img src={logoPreview} alt="logo" className="w-full h-full object-cover" />
-                : <span className="text-text-tertiary text-xs text-center px-2">+ Logo</span>
-              }
-            </div>
-            <div>
-              <p className="text-sm text-text-secondary font-medium">Logo da empresa</p>
-              <p className="text-xs text-text-tertiary mb-1">PNG, JPG ou SVG · Exibição circular</p>
-              <button type="button" onClick={() => logoRef.current?.click()} className="text-xs text-donc-sky hover:underline">
-                {logoPreview ? 'Trocar imagem' : 'Selecionar imagem'}
-              </button>
-            </div>
-            <input ref={logoRef} type="file" accept=".png,.jpg,.jpeg,.svg" className="hidden" onChange={handleLogoChange} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="label-sm">Razão Social *</label>
-              <input name="name" value={form.name} onChange={handleChange} required className="input-base w-full" placeholder="Razão social" />
-            </div>
-            <div>
-              <label className="label-sm">Nome Fantasia</label>
-              <input name="fantasy_name" value={form.fantasy_name} onChange={handleChange} className="input-base w-full" placeholder="Nome fantasia (opcional)" />
-            </div>
-            <div>
-              <label className="label-sm">Tipo de empresa</label>
-              <select name="lifecycle_stage" value={form.lifecycle_stage} onChange={handleChange} className="input-base w-full">
-                <option value="lead">Lead</option>
-                <option value="prospect">Prospect</option>
-                <option value="cliente">Cliente</option>
-                <option value="parceiro">Parceiro</option>
-                <option value="teste">Conta teste</option>
-              </select>
-            </div>
-            <div>
-              <label className="label-sm">CNPJ</label>
-              <input name="cnpj" value={form.cnpj} onChange={handleChange} className="input-base w-full" placeholder="00.000.000/0000-00" />
-            </div>
-            <div>
-              {!addingSegment ? (
-                <>
-                  <label className="label-sm">Segmento</label>
-                  <select
-                    name="segment_id"
-                    value={form.segment_id}
-                    onChange={e => {
-                      if (e.target.value === '__new__') { setAddingSegment(true) }
-                      else { set('segment_id', e.target.value) }
-                    }}
-                    className="input-base w-full"
-                  >
-                    <option value="">— Selecionar —</option>
-                    {segments.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                    <option value="__new__">+ Novo segmento</option>
-                  </select>
-                </>
-              ) : (
-                <>
-                  <label className="label-sm">Novo Segmento</label>
-                  <div className="flex gap-1">
-                    <input value={newSegName} onChange={e => setNewSegName(e.target.value)} className="input-base flex-1" placeholder="Nome do segmento" autoFocus />
-                    <button type="button" onClick={handleAddSegment} className="px-2 py-1 bg-donc-navy text-white text-xs rounded-md">OK</button>
-                    <button type="button" onClick={() => setAddingSegment(false)} className="px-2 py-1 text-xs text-text-tertiary hover:text-text-primary">✕</button>
-                  </div>
-                </>
-              )}
-            </div>
-            <div>
-              <label className="label-sm">CSM Responsável</label>
-              <select name="csm_id" value={form.csm_id} onChange={handleChange} className="input-base w-full">
-                <option value="">Sem CSM</option>
-                {csms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label-sm">Comercial responsável</label>
-              <select name="comercial_id" value={form.comercial_id} onChange={handleChange} className="input-base w-full">
-                <option value="">Sem Comercial</option>
-                {comercials.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <p className="text-[11px] text-text-tertiary mt-0.5">Titularidade comercial (dual ownership)</p>
-            </div>
-            <div className="flex items-center gap-3 pt-5">
-              <button
-                type="button"
-                onClick={() => set('contract_active', !form.contract_active)}
-                className={`w-10 h-6 rounded-full transition-colors flex-shrink-0 ${form.contract_active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
+        <div className="space-y-6">
+          <FormSection title="Identificação">
+            <div className="flex items-center gap-4">
+              <div
+                className="w-24 h-24 rounded-full overflow-hidden bg-bg-secondary border-2 border-dashed border-border-secondary flex items-center justify-center cursor-pointer hover:border-donc-sky transition-colors flex-shrink-0"
+                onClick={() => logoRef.current?.click()}
               >
-                <span className={`block w-4 h-4 bg-white rounded-full shadow mx-1 transition-transform ${form.contract_active ? 'translate-x-4' : ''}`} />
-              </button>
-              <span className="text-sm text-text-secondary">Contrato ativo <span className="text-[11px] text-text-tertiary">(legado — espelha billing_status)</span></span>
+                {logoPreview
+                  ? <img src={logoPreview} alt="logo" className="w-full h-full object-cover" />
+                  : <span className="text-text-tertiary text-xs text-center px-2">+ Logo</span>
+                }
+              </div>
+              <div>
+                <p className="text-sm text-text-secondary font-medium">Logo da empresa</p>
+                <p className="text-xs text-text-tertiary mb-1">PNG, JPG ou SVG · Exibição circular</p>
+                <button type="button" onClick={() => logoRef.current?.click()} className="text-xs text-donc-sky hover:underline">
+                  {logoPreview ? 'Trocar imagem' : 'Selecionar imagem'}
+                </button>
+              </div>
+              <input ref={logoRef} type="file" accept=".png,.jpg,.jpeg,.svg" className="hidden" onChange={handleLogoChange} />
             </div>
-          </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className="label-sm">Razão Social *</label>
+                <input name="name" value={form.name} onChange={handleChange} required className="input-base w-full" placeholder="Razão social" />
+              </div>
+              <div>
+                <label className="label-sm">Nome Fantasia</label>
+                <input name="fantasy_name" value={form.fantasy_name} onChange={handleChange} className="input-base w-full" placeholder="Nome fantasia (opcional)" />
+              </div>
+              <div>
+                <label className="label-sm">Tipo de empresa</label>
+                <select name="lifecycle_stage" value={form.lifecycle_stage} onChange={handleChange} className="input-base w-full">
+                  <option value="lead">Lead</option>
+                  <option value="prospect">Prospect</option>
+                  <option value="cliente">Cliente</option>
+                  <option value="parceiro">Parceiro</option>
+                  <option value="teste">Conta teste</option>
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">CNPJ</label>
+                <input name="cnpj" value={form.cnpj} onChange={handleChange} className="input-base w-full" placeholder="00.000.000/0000-00" />
+              </div>
+              <div>
+                {!addingSegment ? (
+                  <>
+                    <label className="label-sm">Segmento</label>
+                    <select
+                      name="segment_id"
+                      value={form.segment_id}
+                      onChange={e => {
+                        if (e.target.value === '__new__') { setAddingSegment(true) }
+                        else { set('segment_id', e.target.value) }
+                      }}
+                      className="input-base w-full"
+                    >
+                      <option value="">— Selecionar —</option>
+                      {segments.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      <option value="__new__">+ Novo segmento</option>
+                    </select>
+                  </>
+                ) : (
+                  <>
+                    <label className="label-sm">Novo Segmento</label>
+                    <div className="flex gap-1">
+                      <input value={newSegName} onChange={e => setNewSegName(e.target.value)} className="input-base flex-1" placeholder="Nome do segmento" autoFocus />
+                      <button type="button" onClick={handleAddSegment} className="px-2 py-1 bg-donc-navy text-white text-xs rounded-md">OK</button>
+                      <button type="button" onClick={() => setAddingSegment(false)} className="px-2 py-1 text-xs text-text-tertiary hover:text-text-primary">✕</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </FormSection>
+
+          <FormSection title="Responsáveis">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-sm">CSM responsável</label>
+                <select name="csm_id" value={form.csm_id} onChange={handleChange} className="input-base w-full">
+                  <option value="">Sem CSM</option>
+                  {csms.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">Comercial responsável</label>
+                <select name="comercial_id" value={form.comercial_id} onChange={handleChange} className="input-base w-full">
+                  <option value="">Sem Comercial</option>
+                  {comercials.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <p className="text-[11px] text-text-tertiary mt-0.5">Pode ter mais de um responsável comercial.</p>
+              </div>
+            </div>
+          </FormSection>
         </div>
       )}
 
       {/* ── ABA 1: Endereço (nova posição 2) ── */}
       {activeTab === 1 && (
-        <div className="space-y-4">
+        <FormSection title="Endereço">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
               <label className="label-sm">CEP</label>
@@ -662,6 +635,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 className="input-base w-48"
                 placeholder="00000-000"
               />
+              <p className="text-[11px] text-text-tertiary mt-0.5">Preenche o endereço automaticamente.</p>
             </div>
             <div className="col-span-2">
               <label className="label-sm">Logradouro</label>
@@ -692,59 +666,78 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               <input name="site" value={form.site} onChange={handleChange} className="input-base w-full" placeholder="https://" />
             </div>
           </div>
-        </div>
+        </FormSection>
       )}
 
       {/* ── ABA 2: Contrato (nova posição 3) ── */}
       {activeTab === 2 && (
-        <div className="space-y-4">
-          <div>
-            <label className="label-sm block mb-2">Tipo de cobrança</label>
-            <div className="flex gap-4">
-              {[{ v: 'por_licenca', l: 'Por licença ativa (usuários)' }, { v: 'por_os', l: 'Por OS criada' }].map(opt => (
-                <label key={opt.v} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="billing_type" value={opt.v} checked={form.billing_type === opt.v} onChange={handleChange} />
-                  <span className="text-sm text-text-secondary">{opt.l}</span>
-                </label>
+        <div className="space-y-6">
+          <FormSection
+            title="Plano de cobrança"
+            hint="A cobrança pode ser por licença de usuário ou por OS (ordem de serviço). O piso é a quantidade mínima cobrada mesmo que o cliente use menos."
+          >
+            <div className="flex gap-2">
+              {[{ v: 'por_licenca', l: 'Por licença de usuário' }, { v: 'por_os', l: 'Por OS' }].map(opt => (
+                <button
+                  key={opt.v}
+                  type="button"
+                  onClick={() => set('billing_type', opt.v)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${form.billing_type === opt.v ? 'bg-donc-navy text-white border-donc-navy' : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
+                >
+                  {opt.l}
+                </button>
               ))}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label-sm">Valor base (R$ / {form.billing_type === 'por_os' ? 'OS' : 'licença'})</label>
-              <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.0001" placeholder="—" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-sm">Valor por {form.billing_type === 'por_os' ? 'OS' : 'licença'} (R$)</label>
+                <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.0001" placeholder="—" />
+              </div>
+              <div>
+                <label className="label-sm">Piso mínimo ({form.billing_type === 'por_os' ? 'OS/mês' : 'licenças'})</label>
+                <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
+              </div>
+              <div>
+                <label className="label-sm">Data de assinatura</label>
+                <input name="contract_signed_date" type="date" value={form.contract_signed_date} onChange={handleChange} className="input-base w-full" />
+              </div>
+              <div>
+                <label className="label-sm">Início do contrato</label>
+                <input name="contract_start" type="date" value={form.contract_start} onChange={handleChange} className="input-base w-full" />
+              </div>
+              <div>
+                <label className="label-sm">Renovação</label>
+                <input name="contract_renewal" type="date" value={form.contract_renewal} onChange={handleChange} className="input-base w-full" />
+              </div>
+              <div>
+                <label className="label-sm">Índice de reajuste</label>
+                <input name="correction_index" value={form.correction_index} onChange={handleChange} className="input-base w-full" placeholder="Ex: IPCA, IGP-M" />
+              </div>
             </div>
-            <div>
-              <label className="label-sm">Piso contratual (unidades mínimas)</label>
-              <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
-            </div>
-            <div>
-              <label className="label-sm">Data de assinatura</label>
-              <input name="contract_signed_date" type="date" value={form.contract_signed_date} onChange={handleChange} className="input-base w-full" />
-            </div>
-            <div>
-              <label className="label-sm">Início do contrato</label>
-              <input name="contract_start" type="date" value={form.contract_start} onChange={handleChange} className="input-base w-full" />
-            </div>
-            <div>
-              <label className="label-sm">Renovação</label>
-              <input name="contract_renewal" type="date" value={form.contract_renewal} onChange={handleChange} className="input-base w-full" />
-            </div>
-            <div>
-              <label className="label-sm">Índice de correção</label>
-              <input name="correction_index" value={form.correction_index} onChange={handleChange} className="input-base w-full" placeholder="Ex: IPCA, IGP-M" />
-            </div>
-          </div>
 
-          {/* Billing status 3 states — labs preview */}
-          <div className="border border-border-tertiary rounded-lg p-3 space-y-2">
-            <label className="label-sm block">Status de bilhetagem</label>
+            <div className="bg-donc-navy rounded-lg p-4 text-white">
+              <p className="text-xs text-white/60 mb-0.5">MRR base</p>
+              <p className="text-xl font-bold">
+                {fmtBRL(baseTotal)}<span className="text-sm font-normal text-white/70">/mês</span>
+              </p>
+              <p className="text-xs text-white/70">
+                {floor > 0
+                  ? `${floor} ${form.billing_type === 'por_os' ? 'OS' : 'licenças'} × ${fmtBRL(basePerLic)}`
+                  : `${fmtBRL(basePerLic)} por ${form.billing_type === 'por_os' ? 'OS' : 'licença'}`}
+              </p>
+            </div>
+          </FormSection>
+
+          <FormSection
+            title="Status de cobrança"
+            hint="Ativo: gera mensalidade normalmente. Suspenso: a mensalidade zera até a data informada e volta sozinha depois. Não cobrar: nunca gera mensalidade."
+          >
             <div className="flex gap-2 flex-wrap">
               {[
                 { v: 'ativo', l: 'Ativo', c: 'bg-donc-verde text-white border-donc-verde' },
                 { v: 'suspenso', l: 'Suspenso', c: 'bg-amber-500 text-white border-amber-500' },
-                { v: 'nao_bilhetavel', l: 'Não bilhetável', c: 'bg-border-secondary text-text-tertiary border-border-secondary' },
+                { v: 'nao_bilhetavel', l: 'Não cobrar', c: 'bg-border-secondary text-text-secondary border-border-secondary' },
               ].map(opt => (
                 <button
                   key={opt.v}
@@ -760,199 +753,192 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               <div>
                 <label className="label-sm">Suspenso até *</label>
                 <input name="billing_suspended_until" type="date" value={form.billing_suspended_until} onChange={handleChange} className="input-base w-48" />
-                <p className="text-[11px] text-text-tertiary mt-1">MRR zerado até esta data; reativa automaticamente após.</p>
               </div>
             )}
-          </div>
+          </FormSection>
 
-          <div className="bg-donc-navy rounded-lg p-4 text-white flex items-center justify-between">
-            <div>
-              <p className="text-xs text-white/60 mb-0.5">MRR Total do contrato</p>
-              <p className="text-xl font-bold">{fmtBRL(baseTotal)}</p>
-              <p className="text-xs text-white/70">{floor > 0 ? `${floor} × ${fmtBRL(basePerLic)} / licença` : `${fmtBRL(basePerLic)} / licença`}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {!rateioOk && activeModList.length > 0 && (
-                <span className="text-xs bg-donc-red/20 border border-donc-red/30 rounded px-2 py-1 text-white">
-                  Rateio diverge {fmtBRL(sumMods)} vs {fmtBRL(baseTotal)} (Δ {fmtBRL(rateioDiff)})
-                </span>
-              )}
-              <button type="button" onClick={() => setHelpOpen(!helpOpen)} className="p-1.5 rounded hover:bg-white/10 border border-white/20" title="Ajuda contrato">
-                <Icons.HelpCircle size={16} className="text-white/80" />
-              </button>
-            </div>
-          </div>
-          {helpOpen && (
-            <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 space-y-1">
-              <p><b>Base total:</b> piso × valor base (ex: 40 × R$100 = R$4.000).</p>
-              <p><b>Regras:</b> valor <b>total no mês</b> (absoluto) ou <b>% do base total</b>. Ex: 1..5 R$2.500, 6..10 80% → R$3.200.</p>
-              <p><b>Eventuais:</b> implantação parcelada (ex: R$15.000 em 3×) gera 3 parcelas em <code>contract_charges</code>.</p>
-              <p><b>Fora do contrato:</b> regra &gt; base total pede confirmação.</p>
-              <p><b>Modificadores:</b> distribuição do total entre módulos (rateio, não soma). Ex: 4000 = Mod A 2500 + Mod B 1500.</p>
-            </div>
+          <FormSection
+            title="Evolução da recorrência (MRR)"
+            hint="Defina quanto o cliente paga em cada período do contrato. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Sem períodos, a recorrência é sempre o MRR base."
+            valid={contractRules.length > 0 && validateRulesContiguous(contractRules, contractN).ok}
+            action={
+              <label className="flex items-center gap-1.5 text-xs text-text-secondary">
+                Contrato de
+                <input
+                  type="number" min="1" max="120" value={contractN}
+                  onChange={e => setContractN(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
+                  className="input-base w-16 text-center"
+                />
+                meses
+              </label>
+            }
+          >
+            <ContractChargesSection
+              N={contractN}
+              rules={contractRules}
+              setRules={setContractRules}
+              billingBaseValue={form.billing_base_value}
+              billingFloor={form.billing_floor}
+            />
+          </FormSection>
+
+          <FormSection
+            title="Cobranças Eventuais"
+            hint="Valores cobrados uma vez — implantação, setup, treinamento. Podem ser divididos em parcelas, a partir do início do contrato."
+            collapsible
+            defaultOpen={eventuais.length > 0}
+            summary={eventuais.length > 0
+              ? `${eventuais.length} ${eventuais.length > 1 ? 'cobranças' : 'cobrança'} · ${fmtBRL(eventuais.reduce((s, e) => s + (Number(e.total) || 0), 0))}`
+              : 'Nenhuma'}
+          >
+            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} />
+          </FormSection>
+
+          {form.billing_type === 'por_os' && (
+            <FormSection
+              title="Faixas de preço por OS"
+              hint="Preço fixo por faixa de volume de OS no mês. Acima da última faixa, cobra-se um valor por OS excedente. A franquia mínima é o limite da faixa 1."
+              valid={osTiers.length > 0 && validateOsTiers(osTiers).ok}
+              collapsible
+              defaultOpen={osTiers.length > 0}
+              summary={osTiers.length > 0 ? `${osTiers.length} ${osTiers.length > 1 ? 'faixas' : 'faixa'}` : 'Nenhuma'}
+            >
+              <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
+            </FormSection>
           )}
 
-          {/* Motor de contrato colapsável — acima dos modificadores */}
-          <div className="border border-border-tertiary rounded-lg overflow-hidden">
-            <button type="button" onClick={() => setMotorOpen(!motorOpen)} className="w-full flex items-center justify-between px-3 py-2.5 bg-bg-secondary hover:bg-bg-tertiary transition-colors">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-text-primary">Motor de contrato</span>
-                <span className="text-xs text-text-tertiary hidden sm:inline">eventuais + recorrência + faixas OS</span>
-                {!motorOpen && (
-                  <span className="text-xs bg-white border border-border-tertiary rounded px-1.5 py-0.5">
-                    {eventuais.length} eventuais · {contractRules.length} regras · {osTiers.length} tiers
-                  </span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-text-tertiary">{motorOpen ? 'Recolher' : 'Expandir'}</span>
-                <Icons.ChevronDown size={16} className={`transition-transform text-text-tertiary ${motorOpen ? 'rotate-180' : ''}`} />
-              </div>
-            </button>
-            {motorOpen && (
-              <div className="p-3 space-y-3 bg-white">
-                <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} />
-                <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} billingFloor={form.billing_floor} billingType={form.billing_type} />
-                <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
-              </div>
-            )}
-          </div>
-
-          {/* Modificadores por módulo — colapsável */}
           {solucoes.length > 0 && (
-            <div className="border border-border-tertiary rounded-lg overflow-hidden">
-              <button type="button" onClick={() => setModOpen(!modOpen)} className="w-full flex items-center justify-between px-3 py-2.5 bg-bg-secondary hover:bg-bg-tertiary transition-colors">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-text-primary">Rateio por módulo</span>
-                  <span className="text-xs text-text-tertiary hidden sm:inline">distribuição do total (ex: 4000 = 2500 + 1500)</span>
-                  {!modOpen && Object.values(modPricing).filter(v=>v.active).length > 0 && (
-                    <span className={`text-xs rounded px-1.5 py-0.5 border ${rateioOk ? 'bg-donc-verde/10 text-donc-verde border-donc-verde/20' : 'bg-donc-red/10 text-donc-red border-donc-red/20'}`}>
-                      {Object.values(modPricing).filter(v=>v.active).length} ativos · {fmtBRL(sumMods)} {rateioOk ? '✓' : `Δ ${fmtBRL(rateioDiff)}`}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <span onClick={(e)=>{e.stopPropagation(); toggleAll()}} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary">
-                    <span className={`w-7 h-4 rounded-full transition-colors flex-shrink-0 ${allActive ? 'bg-donc-lime' : 'bg-border-secondary'}`}>
-                      <span className={`block w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${allActive ? 'translate-x-3' : ''}`} style={{ marginTop: '3px', marginLeft: '3px' }} />
-                    </span>
-                    {allActive ? 'Desabilitar' : 'Habilitar todos'}
+            <FormSection
+              title="Divisão do MRR por produto"
+              hint="Distribui o MRR entre os produtos contratados. Divide o total, não soma. Ex: R$ 4.000 = R$ 2.500 + R$ 1.500."
+              valid={rateioOk && activeModList.length > 0}
+              collapsible
+              defaultOpen={activeModList.length > 0}
+              summary={activeModList.length > 0
+                ? `${activeModList.length} ${activeModList.length > 1 ? 'produtos' : 'produto'} · ${fmtBRL(sumMods)}`
+                : 'Nenhum'}
+              action={
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary"
+                >
+                  <span className={`w-7 h-4 rounded-full transition-colors flex-shrink-0 ${allActive ? 'bg-donc-lime' : 'bg-border-secondary'}`}>
+                    <span className={`block w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${allActive ? 'translate-x-3' : ''}`} style={{ marginTop: '3px', marginLeft: '3px' }} />
                   </span>
-                  <Icons.ChevronDown size={16} className={`transition-transform text-text-tertiary ${modOpen ? 'rotate-180' : ''}`} />
-                </div>
-              </button>
-              {modOpen && (
-                <div className="p-3 space-y-2 bg-white">
-                  <p className="text-xs text-text-tertiary">Distribua o total <b>{fmtBRL(baseTotal)}</b> entre os módulos. Ex: 4000 = 2500 + 1500. Soma deve fechar no total (rateio).</p>
-                  {solucoes.map(sol => {
-                    const mp = modPricing[sol.id] || { active: false, value: '' }
-                    const pct = baseTotal > 0 && mp.value ? ((Number(mp.value) / baseTotal) * 100).toFixed(1) : null
-                    return (
-                      <div key={sol.id} className="py-2 border-b border-border-tertiary last:border-0">
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => toggleMod(sol.id)}
-                            className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
-                          >
-                            <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
-                          </button>
-                          <span className="flex items-center gap-1.5 flex-1">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sol.color }} />
-                            <span className="text-sm text-text-primary">{sol.name}</span>
-                          </span>
-                          {mp.active && (
-                            <select
-                              value={mp.status || 'implantado'}
-                              onChange={e => setModStatus(sol.id, e.target.value)}
-                              className="input-base text-xs py-0.5 px-2 h-7"
-                            >
-                              <option value="implantado">Implantado</option>
-                              <option value="em_implantacao">Em implantação</option>
-                              <option value="pausado">Pausado</option>
-                              <option value="abandonado">Abandonado</option>
-                              <option value="descontinuado">Descontinuado</option>
-                            </select>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs text-text-tertiary">R$</span>
-                            <input
-                              type="number"
-                              value={mp.value}
-                              onChange={e => setModValue(sol.id, e.target.value)}
-                              disabled={!mp.active}
-                              placeholder={mp.active ? '2500' : '—'}
-                              className={`input-base w-28 text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
-                              min="0" step="0.01"
-                            />
-                            {mp.active && pct && <span className="text-xs text-text-tertiary whitespace-nowrap">{pct}%</span>}
-                          </div>
-                        </div>
-                        {modErrors[sol.id] && (
-                          <p className="text-xs text-red-500 mt-1 ml-12">{modErrors[sol.id]}</p>
-                        )}
+                  {allActive ? 'Desmarcar todos' : 'Marcar todos'}
+                </button>
+              }
+            >
+              {solucoes.map(sol => {
+                const mp = modPricing[sol.id] || { active: false, value: '' }
+                const pct = baseTotal > 0 && mp.value ? ((Number(mp.value) / baseTotal) * 100).toFixed(0) : null
+                return (
+                  <div key={sol.id}>
+                    <div className="grid grid-cols-[2.5rem_1fr_10rem_9rem_2.5rem] items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleMod(sol.id)}
+                        className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
+                      >
+                        <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
+                      </button>
+                      <span className="flex items-center gap-1.5 min-w-0">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sol.color }} />
+                        <span className="text-sm text-text-primary truncate">{sol.name}</span>
+                      </span>
+                      {mp.active ? (
+                        <select
+                          value={mp.status || 'implantado'}
+                          onChange={e => setModStatus(sol.id, e.target.value)}
+                          className="input-base w-full text-xs h-8"
+                        >
+                          <option value="implantado">Implantado</option>
+                          <option value="em_implantacao">Em implantação</option>
+                          <option value="pausado">Pausado</option>
+                          <option value="abandonado">Abandonado</option>
+                          <option value="descontinuado">Descontinuado</option>
+                        </select>
+                      ) : <span />}
+                      <div className="flex items-center gap-1">
+                        <span className="w-4 text-xs text-text-tertiary">R$</span>
+                        <input
+                          type="number"
+                          value={mp.value}
+                          onChange={e => setModValue(sol.id, e.target.value)}
+                          disabled={!mp.active}
+                          placeholder={mp.active ? '2500' : '—'}
+                          className={`input-base w-full text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
+                          min="0" step="0.01"
+                        />
                       </div>
-                    )
-                  })}
-                  <div className={`text-xs rounded px-2 py-1.5 border ${rateioOk ? 'bg-donc-verde/10 border-donc-verde/20 text-donc-verde' : 'bg-donc-red/10 border-donc-red/20 text-donc-red'}`}>
-                    Soma rateio: <b>{fmtBRL(sumMods)}</b> {rateioOk ? '✓ fecha em ' : '≠ divergente de '} {fmtBRL(baseTotal)} {rateioOk ? '' : ` (Δ ${fmtBRL(rateioDiff)})`}
-                    {!rateioOk && activeModList.length > 0 && <span className="ml-2">Ajuste os valores para fechar no total.</span>}
+                      <span className="text-right text-xs text-text-tertiary">{mp.active && pct ? `${pct}%` : ''}</span>
+                    </div>
+                    {modErrors[sol.id] && (
+                      <p className="text-xs text-red-500 mt-1 ml-[3.25rem]">{modErrors[sol.id]}</p>
+                    )}
                   </div>
-                </div>
+                )
+              })}
+              {!rateioOk && activeModList.length > 0 && (
+                <p className="text-xs text-donc-red bg-donc-red/10 border border-donc-red/20 rounded px-2 py-1.5">
+                  A soma dos produtos ({fmtBRL(sumMods)}) precisa bater com o MRR base ({fmtBRL(baseTotal)}). Diferença de {fmtBRL(rateioDiff)}.
+                </p>
               )}
-            </div>
+            </FormSection>
           )}
-
-
         </div>
       )}
 
       {/* ── ABA 3: Operacional (nova posição 4) ── */}
       {activeTab === 3 && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label-sm">Estágio</label>
-              <select name="stage_id" value={form.stage_id} onChange={handleChange} className="input-base w-full">
-                <option value="">Sem estágio</option>
-                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+        <div className="space-y-6">
+          <FormSection title="Operação">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label-sm">Estágio</label>
+                <select name="stage_id" value={form.stage_id} onChange={handleChange} className="input-base w-full">
+                  <option value="">Sem estágio</option>
+                  {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label-sm">Total de unidades/lojas da rede <span className="text-text-tertiary font-normal">(potencial de expansão)</span></label>
+                <input name="unidades_total" type="number" value={form.unidades_total} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
+              </div>
+              <div>
+                <label className="label-sm">Unidades previstas para o início do projeto</label>
+                <input name="unidades_donc" type="number" value={form.unidades_donc} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
+              </div>
+              <div>
+                <label className="label-sm">Classificação ABC</label>
+                <select name="abc_class" value={form.abc_class} onChange={handleChange} className="input-base w-full">
+                  <option value="">—</option>
+                  <option>A</option><option>B</option><option>C</option>
+                </select>
+              </div>
+              <div>
+                <span className="label-sm inline-flex items-center gap-1.5">
+                  ERP
+                  <InfoHint>Sistema de gestão que o cliente usa hoje. Informativo, não afeta a cobrança.</InfoHint>
+                </span>
+                <input name="erp" value={form.erp} onChange={handleChange} className="input-base w-full" placeholder="Ex: SAP, TOTVS, Senior" />
+              </div>
+              <div>
+                <label className="label-sm">Equipe de TI</label>
+                <select name="ti_tipo" value={form.ti_tipo} onChange={handleChange} className="input-base w-full">
+                  <option value="">— Selecionar —</option>
+                  <option value="interna">Interna</option>
+                  <option value="terceirizada">Terceirizada</option>
+                  <option value="hibrida">Híbrida</option>
+                  <option value="nao_possui">Não possui</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="label-sm">Total de unidades/lojas da rede <span className="text-text-tertiary font-normal">(potencial expansão)</span></label>
-              <input name="unidades_total" type="number" value={form.unidades_total} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
-            </div>
-            <div>
-              <label className="label-sm">Unidades previstas para início do projeto</label>
-              <input name="unidades_donc" type="number" value={form.unidades_donc} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
-            </div>
-            <div>
-              <label className="label-sm">Classificação ABC</label>
-              <select name="abc_class" value={form.abc_class} onChange={handleChange} className="input-base w-full">
-                <option value="">—</option>
-                <option>A</option><option>B</option><option>C</option>
-              </select>
-            </div>
-            <div>
-              <label className="label-sm">ERP (informativo)</label>
-              <input name="erp" value={form.erp} onChange={handleChange} className="input-base w-full" placeholder="Ex: SAP, TOTVS, Senior" />
-            </div>
-            <div>
-              <label className="label-sm">Equipe de TI</label>
-              <select name="ti_tipo" value={form.ti_tipo} onChange={handleChange} className="input-base w-full">
-                <option value="">— Selecionar —</option>
-                <option value="interna">Interna</option>
-                <option value="terceirizada">Terceirizada</option>
-                <option value="hibrida">Híbrida</option>
-                <option value="nao_possui">Não possui</option>
-              </select>
-            </div>
-
-          </div>
+          </FormSection>
 
           {(servicos.length > 0 || solucoes.length > 0) && (
-            <div>
-              <label className="label-sm block mb-2">Serviços e Soluções</label>
+            <FormSection title="Produtos e serviços">
               {servicos.length > 0 && (
                 <div className="mb-2">
                   <p className="text-xs text-text-tertiary mb-1">Serviços</p>
@@ -978,7 +964,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               {solucoes.length > 0 && (
                 <div className="mb-2">
                   <p className="text-xs text-text-tertiary mb-1">
-                    Soluções <span className="text-text-tertiary/60">(gerenciadas na aba Contrato)</span>
+                    Soluções <span className="text-text-tertiary/60">(definidas na aba Contrato)</span>
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {solucoes.map(item => {
@@ -1000,16 +986,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                   </div>
                 </div>
               )}
-            </div>
+            </FormSection>
           )}
 
-          {/* Handover 10 perguntas — labs preview */}
-          <div className="border border-border-tertiary rounded-lg overflow-hidden">
-            <div className="bg-bg-secondary px-3 py-2 border-b border-border-tertiary">
-              <p className="text-sm font-medium text-text-primary">Handoff Comercial → Onboarding</p>
-              <p className="text-xs text-text-tertiary">10 perguntas — template como brief. Obrigatório quando Tipo = Cliente. Migrará <code>description</code> → <code>contexto</code>.</p>
-            </div>
-            <div className="p-3 space-y-3">
+          <FormSection
+            title="Handoff comercial → onboarding"
+            hint="Informações da venda que ajudam o time de onboarding a começar bem. Preencha o que já souber — nenhum campo é obrigatório."
+          >
+            <div className="space-y-3">
               <div>
                 <label className="label-sm">Contexto</label>
                 <textarea name="handover_contexto" value={form.handover_contexto} onChange={handleChange} rows={2} className="input-base w-full resize-none" placeholder="Contexto geral..." />
@@ -1057,11 +1041,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 <textarea name="handover_motivo" value={form.handover_motivo} onChange={handleChange} rows={2} className="input-base w-full resize-none" placeholder="Por que escolheu nossa solução?" />
               </div>
             </div>
-          </div>
+          </FormSection>
         </div>
       )}
 
       {/* Footer */}
+      {navError && (
+        <p className="text-xs text-donc-red bg-donc-red/10 border border-donc-red/20 rounded px-2 py-1.5 mt-4">{navError}</p>
+      )}
       <div className="flex items-center justify-between pt-3 border-t border-border-tertiary mt-4">
         <div className="flex gap-1">
           {TABS_V2.map((_, i) => (
@@ -1073,7 +1060,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         <div className="flex gap-2">
           {onCancel && <Button type="button" variant="secondary" onClick={onCancel}>Cancelar</Button>}
           {activeTab > 0 && (
-            <Button type="button" variant="secondary" onClick={() => setActiveTab(t => t - 1)}>← Anterior</Button>
+            <Button type="button" variant="secondary" onClick={() => { setNavError(''); setActiveTab(t => t - 1) }}>← Anterior</Button>
           )}
           {activeTab < TABS_V2.length - 1 && (
             <Button type="button" onClick={() => {
@@ -1081,9 +1068,19 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 const errs = validateMods()
                 if (Object.keys(errs).length > 0) {
                   setModErrors(errs)
+                  setNavError('Ajuste os valores dos produtos antes de continuar.')
+                  return
+                }
+                if (contractRules.length > 0 && !validateRulesContiguous(contractRules, contractN).ok) {
+                  setNavError(`Os períodos da recorrência precisam cobrir do mês 1 ao ${contractN} sem falhas.`)
+                  return
+                }
+                if (form.billing_type === 'por_os' && osTiers.length > 0 && !validateOsTiers(osTiers).ok) {
+                  setNavError(validateOsTiers(osTiers).error || 'Revise as faixas de preço por OS.')
                   return
                 }
               }
+              setNavError('')
               setActiveTab(t => t + 1)
             }}>Próximo →</Button>
           )}

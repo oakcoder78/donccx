@@ -890,9 +890,52 @@ ActivityModal, ActivityDetailModal, ClientForm, UserEditModal, TemperaturaCSM, D
 
 ---
 
+## 25. Form Section Pattern — `<FormSection>` + `<InfoHint>`
+
+Flat form grouping — one level of visual hierarchy. Replaces nested "bordered box +
+grey header strip" sub-cards. Reference implementation: `src/components/clients/form/FormSection.jsx`,
+`src/components/clients/form/InfoHint.jsx` (used across the Empresas v2 form tabs).
+
+### FormSection structure
+
+```
+<section class="border-t border-border-tertiary pt-4 first:border-t-0 first:pt-0">
+  title row: flex items-center justify-between gap-3
+    left:  <span class="text-sm font-semibold text-text-primary"> + optional <InfoHint>
+           + optional <Icons.Check size={14} class="text-donc-verde">  (valid state)
+           + optional "· {summary}" (text-xs text-text-tertiary) when collapsed
+    right: optional {action} node (inline input, "marcar todos" toggle…)
+  body: mt-3 space-y-3   (hidden when collapsed)
+```
+
+- Siblings separated by the section's own top hairline; wrap the group in `space-y-6`.
+- Props: `title`, `hint`, `action`, `valid`, `collapsible`, `defaultOpen`, `summary`.
+- Collapsible: the title row becomes a `<button type="button">` with a trailing
+  `<Icons.ChevronDown size={16} class="transition-transform ${open ? 'rotate-180' : ''}">`.
+
+### InfoHint
+
+The **only** place a section carries an explanation or worked example — keeps headers
+clean and free of technical jargon (no table/column names in the UI).
+
+```
+<button> <Icons.HelpCircle size={14} class="text-text-tertiary hover:text-text-primary"> </button>
+popover: absolute top-6 z-50 w-64 rounded-md border border-border-tertiary bg-bg-primary
+         p-3 text-xs leading-relaxed text-text-secondary shadow-xl
+closes on outside click / Escape
+```
+
+### Validation copy convention (forms)
+
+- Show a red banner **only on error**: `text-xs text-donc-red bg-donc-red/10 border border-donc-red/20 rounded px-2 py-1.5`.
+- Success is silent — a subtle `<Icons.Check>` next to the section title (`valid` prop), never a standing green banner.
+
+---
+
 ## Version History
 
 | Date | Changes |
 |------|---------|
+| 2026-09-02 | Added Form Section (#25) — `<FormSection>` + `<InfoHint>`, error-only validation convention |
 | 2026-06-14 | Added Button (#18), Avatar (#19), Search Input (#20), Filter Bar (#21), Tab/Segmented Control (#22), Confirmation Dialog (#23), Toast/Notification (#24) |
 | 2026-06-14 | Initial pattern library extracted from existing implementations |

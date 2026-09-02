@@ -602,6 +602,10 @@ interface BillingPayment { ref_month: string, status: 'adimplente'|'inadimplente
 ### Production state
 
 - SDD v1.0 draft criado (this file). Nenhuma fase implementada. Next: Phase 1 `supabase migration new empresas_form_v2_core`.
+- **UI/UX pass (2026-09-02):** aba Contrato reorganizada em blocos planos `<FormSection>` (ver `docs/ui-patterns.md` #25) para linguagem de comercial/financeiro — sem nomes de tabela/coluna na tela ("Motor de contrato — recorrência" → "Evolução da recorrência (MRR)"; "Valores eventuais" → "Cobranças Eventuais"; "Rateio por módulo" → "Divisão do MRR por produto"; "Não bilhetável" → "Não cobrar"; "Mensalidade base" → "MRR base"). Explicações movidas para `<InfoHint>` (popover `?`); validação só exibe banner em erro. Toggle "Contrato ativo" removido da aba Dados (derivado de `billing_status` no save). Ver `docs/modules/clients.md` → "Empresas Form v2 — dedicated page".
+  - **Decisão revista — handover nunca é obrigatório.** As linhas "required if `lifecycle=cliente`" / "block save + scrollTo" / `validateHandover` (§3, §4.4, §5, §7) **não valem mais**: nenhum `lifecycle_stage` bloqueia o save por causa do handoff. Gravação em `client_handovers` dispara se qualquer um dos 10 campos estiver preenchido.
+  - **Regra de gravação — MRR:** `clients.mrr` grava `0` quando `billing_status != 'ativo'` (era: sempre o mínimo contratual).
+  - `EmpresasV2Page` ganhou seletor "Editar empresa existente" (`useAllClients`). Bugs corrigidos: motor não persistia no cadastro novo (`client_id=undefined`); form não recarregava ao reeditar (`key` + `removeQueries`).
 - `empresas_form_v2` flag não existe (criado Phase 1 `enabled false`).
 - `financial_data` enabled true; `cockpit_financeiro` pending (SDD Financeiro Phase 1).
 - `onb_start/golive/description` ainda em `clients` (serão dropados Phase 2/5).

@@ -21,14 +21,17 @@ export function useContractCharges(clientId) {
 export function useContractChargesMutations(clientId) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ charges }) => {
+    mutationFn: async ({ charges, clientId: overrideId }) => {
       // charges: expanded array of { month_index, kind, mode, amount, percent, label, installment_group, installments_total }
+      // clientId override lets the create flow target the freshly created client id
+      const id = overrideId || clientId
+      if (!id) throw new Error('Cliente não identificado para salvar o contrato')
       // Replace all recorrencia/implantacao for this client (simplest)
-      const { error: delErr } = await supabase.from('contract_charges').delete().eq('client_id', clientId)
+      const { error: delErr } = await supabase.from('contract_charges').delete().eq('client_id', id)
       if (delErr) throw delErr
       if (!charges || charges.length === 0) return []
       const payload = charges.map(c => ({
-        client_id: clientId,
+        client_id: id,
         kind: c.kind || 'recorrencia',
         mode: c.mode,
         month_index: c.month_index,
