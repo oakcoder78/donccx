@@ -6,6 +6,7 @@ import { getAsanaConfig, createAsanaTask } from '../lib/asanaConfig'
 import { Modal } from '../components/ui/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
+import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import toast from 'react-hot-toast'
 import { Icons } from "../lib/icons"
 
@@ -881,10 +882,18 @@ function Step3({ data, onChange, onBack, onSuccess }) {
     }).catch(() => {})
   }, [])
 
+  const { effectiveRole } = useAuth()
+  const { isEnabled: isFlagEnabled } = useFeatureFlags()
+  const canUseAsanaFlag = isFlagEnabled('asana', effectiveRole)
+  const showAsana = canUseAsanaFlag && asanaEnabled
+
   useEffect(() => {
     getAsanaConfig()
       .then(cfg => setAsanaEnabled(cfg?.enabled === true))
-      .catch(() => setAsanaEnabled(false))
+      .catch(e => {
+        console.warn('[Atendimento] getAsanaConfig', e?.message)
+        setAsanaEnabled(false)
+      })
   }, [])
 
   async function handleCreate() {
@@ -1075,7 +1084,7 @@ function Step3({ data, onChange, onBack, onSuccess }) {
             <p style={{ fontSize: 13, color: '#888780', marginBottom: 28, fontStyle: 'italic' }}>"{createdTicket.subject}"</p>
           )}
 
-          {asanaEnabled && (
+          {showAsana && (
             <div style={{ marginBottom: 24 }}>
               {asanaTask ? (
                 <div style={{ fontSize: 13, color: '#888780', marginBottom: 16 }}>

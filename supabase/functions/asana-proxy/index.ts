@@ -53,7 +53,15 @@ serve(async (req) => {
     }
 
     const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).maybeSingle()
-    if (!['admin', 'manager', 'analyst'].includes(profile?.role ?? '')) return json({ error: 'Forbidden' }, 403)
+    const userRole = profile?.role ?? ''
+    // Flag-aware: allow any role that is enabled in feature_flags 'asana' or 'whatsapp_atendimento'
+    // Falls back to legacy hard-coded list for safety during rollout
+    const { data: asanaFlag } = await admin.from('feature_flags').select('enabled,allowed_roles').eq('key','asana').maybeSingle()
+    const { data: atendimentoFlag } = await admin.from('feature_flags').select('enabled,allowed_roles').eq('key','whatsapp_atendimento').maybeSingle()
+    const allowedByFlag = (asanaFlag?.enabled && asanaFlag.allowed_roles?.includes(userRole))
+      || (atendimentoFlag?.enabled && atendimentoFlag.allowed_roles?.includes(userRole))
+    const allowedByLegacy = ['admin','manager','analyst'].includes(userRole)
+    if (!allowedByFlag && !allowedByLegacy) return json({ error: 'Forbidden' }, 403)
 
     // ── Parse body ──────────────────────────────────────────────────────────
     const { path, params = {}, method = 'GET', body: asanaBody } = await req.json()
