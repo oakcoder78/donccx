@@ -82,6 +82,20 @@ export function validateOsTiers(tiers) {
   return { ok: true }
 }
 
+export function getBaseTotal(billingBaseValue, billingFloor) {
+  const per = Number(billingBaseValue) || 0
+  const floor = Number(billingFloor) || 0
+  if (floor > 0) return per * floor
+  return per
+}
+
+export function calculateRuleTotal(rule, baseTotal) {
+  if (!rule || baseTotal == null) return null
+  if (rule.mode === 'percent') return baseTotal * (Number(rule.value) / 100)
+  if (rule.mode === 'base') return baseTotal
+  return Number(rule.value)
+}
+
 export function formatBRL4(n) {
   return Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 4 })
 }

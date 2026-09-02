@@ -798,7 +798,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             </div>
           )}
 
-          <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} />
+          <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} billingFloor={form.billing_floor} billingType={form.billing_type} />
           <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
 
           <div className="bg-donc-navy/5 rounded-lg p-3 border border-donc-navy/20">
