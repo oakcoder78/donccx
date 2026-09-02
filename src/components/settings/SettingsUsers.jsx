@@ -340,20 +340,29 @@ export function SettingsUsers() {
           </h3>
           <div className="space-y-2">
             {invitedProfiles.map(p => {
-              const ageHours = (Date.now() - new Date(p.created_at).getTime()) / 36e5
+              const baseTs = p.last_invite_at || p.created_at
+              const ageHours = (Date.now() - new Date(baseTs).getTime()) / 36e5
               const isExpired = ageHours > 1
+              const isResent = !!p.last_invite_at && p.last_invite_at !== p.created_at
+              const ageLabel = ageHours < 1
+                ? `há ${Math.max(1, Math.round(ageHours * 60))} min`
+                : `há ${Math.floor(ageHours)}h`
               return (
                 <div key={p.id} className="flex items-center gap-3 py-2 border-b border-border-tertiary last:border-0">
                   <Avatar name={p.name} size="md" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text-primary">{p.name}</p>
                     <p className="text-xs text-text-tertiary">{p.email} · {roleLabel[p.role] || '—'}</p>
-                    {isExpired && (
-                      <p className="text-xs text-amber-600">Link expirado há {Math.floor(ageHours)}h — reenvie</p>
+                    {isExpired ? (
+                      <p className="text-xs text-amber-600">Link expirado {ageLabel} — reenvie</p>
+                    ) : isResent ? (
+                      <p className="text-xs text-green-600">Reenviado {ageLabel}</p>
+                    ) : (
+                      <p className="text-xs text-text-tertiary">Enviado {ageLabel}</p>
                     )}
                   </div>
-                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${isExpired ? 'bg-amber-100 text-amber-700' : 'bg-donc-sky/15 text-donc-sky'}`}>
-                    {isExpired ? 'Expirado' : 'Convite enviado'}
+                  <span className={`px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap ${isExpired ? 'bg-amber-100 text-amber-700' : isResent ? 'bg-green-100 text-green-700' : 'bg-donc-sky/15 text-donc-sky'}`}>
+                    {isExpired ? 'Expirado' : isResent ? 'Reenviado' : 'Convite enviado'}
                   </span>
                   {canManageUsers && (
                     <ResendInviteButton profile={p} onDone={refetchAll} isExpired={isExpired} />

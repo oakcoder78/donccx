@@ -86,8 +86,9 @@ serve(async (req) => {
 
       if (existingProfile?.status === 'invited' || existingProfile?.status === 'pending') {
         console.log('Resending invite for existing invited/pending user:', email, 'status:', existingProfile.status)
-        // Update profile to latest name/role before resending
-        await adminClient.from('profiles').update({ name, role, status: 'invited' }).eq('id', existingUser.id)
+        // Update profile to latest name/role and bump last_invite_at before resending (resets contador)
+        const nowIso = new Date().toISOString()
+        await adminClient.from('profiles').update({ name, role, status: 'invited', last_invite_at: nowIso }).eq('id', existingUser.id)
         const resendRedirect = redirectTo || 'https://donccx.vercel.app/primeiro-acesso'
         const { error: resendError } = await adminClient.auth.admin.inviteUserByEmail(email, {
           data: { role, name },
@@ -142,9 +143,10 @@ serve(async (req) => {
 
     // Garantir profiles com status invited (trigger handle_new_user cria pending, aqui promovemos para invited)
     if (data.user?.id) {
+      const nowIso = new Date().toISOString()
       const { error: upsertErr } = await adminClient
         .from('profiles')
-        .upsert({ id: data.user.id, name, email, role, status: 'invited' }, { onConflict: 'id' })
+        .upsert({ id: data.user.id, name, email, role, status: 'invited', last_invite_at: nowIso }, { onConflict: 'id' })
       if (upsertErr) {
         console.error('profiles upsert (invited) error:', upsertErr.message)
       } else {
@@ -152,7 +154,7 @@ serve(async (req) => {
       }
       // Fallback: se trigger ainda não criou, forçar update caso upsert não pegue por race
       // (upsert já cobre, mas garantir status invited mesmo se linha já existia como pending)
-      await adminClient.from('profiles').update({ name, role, status: 'invited' }).eq('id', data.user.id)
+      await adminClient.from('profiles').update({ name, role, status: 'invited', last_invite_at: nowIso }).eq('id', data.user.id)
     }
 
     return new Response(

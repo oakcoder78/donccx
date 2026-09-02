@@ -110,6 +110,10 @@ serve(async (req) => {
     const redirectTo = 'https://donccx.vercel.app/primeiro-acesso'
     console.log('resend-invite: resending to', cleanEmail, 'user_id:', existingUser.id, 'status:', profile.status)
 
+    // Bump last_invite_at before sending (resets contador)
+    const nowIso = new Date().toISOString()
+    await adminClient.from('profiles').update({ last_invite_at: nowIso }).eq('id', existingUser.id)
+
     const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
       cleanEmail,
       { data: { role: profile.role, name: profile.name }, redirectTo }
