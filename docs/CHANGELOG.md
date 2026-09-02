@@ -2,6 +2,19 @@
 
 ## 2026-09-02
 
+### Empresas form v2 — flag ligada (admin/finance/sales)
+
+`feature_flags.empresas_form_v2` → `enabled = true`, `allowed_roles = ['admin','finance','sales']`.
+A partir de agora, para esses papéis, `/empresas` "+ Nova Empresa" e o "Editar" de `/empresas/:id`
+abrem a página nova (`ClientFormPage`, sem banner labs) em vez do modal legado.
+
+- **`manager` e `csm` ficam de fora** de propósito: as políticas RLS de escrita das tabelas do
+  motor são `admin/finance/sales` (`contract_charges` `charges_write`, `billing_os_tiers`
+  `os_tiers_write`). Esses papéis continuam no modal legado (`ClientForm`), que não tem motor.
+  Para incluí-los, ampliar as policies OU esconder o motor/handoff da UI para papéis read-only.
+- `/labs/empresas_v2` segue admin-only, independente da flag.
+- Reversível: `update feature_flags set enabled=false where key='empresas_form_v2'`.
+
 ### Empresas form v2 — refatoração UI/UX da aba Contrato + correções
 
 `ClientFormContent` é compartilhado por `/labs/empresas_v2` (playground admin) e `/empresas/nova`

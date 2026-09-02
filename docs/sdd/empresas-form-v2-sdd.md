@@ -606,7 +606,7 @@ interface BillingPayment { ref_month: string, status: 'adimplente'|'inadimplente
   - **Decisão revista — handover nunca é obrigatório.** As linhas "required if `lifecycle=cliente`" / "block save + scrollTo" / `validateHandover` (§3, §4.4, §5, §7) **não valem mais**: nenhum `lifecycle_stage` bloqueia o save por causa do handoff. Gravação em `client_handovers` dispara se qualquer um dos 10 campos estiver preenchido.
   - **Regra de gravação — MRR:** `clients.mrr` grava `0` quando `billing_status != 'ativo'` (era: sempre o mínimo contratual).
   - `EmpresasV2Page` ganhou seletor "Editar empresa existente" (`useAllClients`). Bugs corrigidos: motor não persistia no cadastro novo (`client_id=undefined`); form não recarregava ao reeditar (`key` + `removeQueries`).
-- `empresas_form_v2` flag não existe (criado Phase 1 `enabled false`).
+- **Flag `empresas_form_v2` LIGADA (2026-09-02):** `enabled = true`, `allowed_roles = ['admin','finance','sales']` — os papéis com escrita RLS nas tabelas do motor (`charges_write`/`os_tiers_write` = admin/finance/sales). `manager` e `csm` seguem no modal legado até as policies serem ampliadas ou o motor ser escondido para read-only. Modal legado (`ClientForm`) ainda existe, sunset pendente (Phase 5). Reversível via `update feature_flags`.
 - `financial_data` enabled true; `cockpit_financeiro` pending (SDD Financeiro Phase 1).
 - `onb_start/golive/description` ainda em `clients` (serão dropados Phase 2/5).
 
