@@ -2,15 +2,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
 
-export function useClient(id) {
-  return useQuery({
-    queryKey: ['client', id],
-    enabled: !!id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select(`
-          *,
+const FINANCIAL_COLS_DETAIL = 'mrr,licencas,valor_lic,billing_type,billing_base_value,billing_floor,correction_index,billing_status,billing_suspended_until'
+const SAFE_CLIENT_COLS_DETAIL = 'id,name,cnpj,segment,csm_id,stage_id,stage_override,abc_class,contract_start,contract_renewal,delay_days,onb_start,golive,health_uso,health_suporte,health_relacionamento,health_financeiro,health_projeto,health_total,created_at,updated_at,fantasy_name,logo_url,contract_active,unidades_total,unidades_donc,segment_id,site,address_cep,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,contract_signed_date,description,freshdesk_company_id,health_calculated_at,freshdesk_company_ids,csm_temperature,temperature_updated_at,temperature_note,lifecycle_stage,comercial_id,erp,ti_tipo'
+
+function getClientDetailSelect(includeFinancial) {
+  const cols = includeFinancial ? '*' : SAFE_CLIENT_COLS_DETAIL
+  return `
+          ${cols},
           stage:stages(*),
           csm:profiles!clients_csm_id_fkey(id, name, email),
           comercial:profiles!clients_comercial_id_fkey(id, name, email),
@@ -22,7 +20,18 @@ export function useClient(id) {
           client_support(*),
           client_catalog_history(*, catalog_items(type)),
           onboardings(id, context, status, situacao_geral, created_at, end_date)
-        `)
+        `
+}
+
+export function useClient(id, options = {}) {
+  const includeFinancial = options.includeFinancial ?? true
+  return useQuery({
+    queryKey: ['client', id, includeFinancial],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select(getClientDetailSelect(includeFinancial))
         .eq('id', id)
         .single()
       if (error) { console.error('[useClient] query error:', error); throw error }

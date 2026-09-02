@@ -58,7 +58,6 @@ export default function ClientsPage() {
   const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'finance'
-  const isSales = effectiveRole === 'sales'
 
   const [search,          setSearch]          = useState('')
   const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
@@ -72,17 +71,17 @@ export default function ClientsPage() {
     if (f) setFilter(f)
   }, [searchParams])
 
+  // Global read (Opção A): todos veem todos os cards — sem filtro por carteira
   const baseFilters = {
-    ...(isAdminOrManager ? {} : isSales ? { comercial_id: profile?.id } : { csm_id: profile?.id }),
     ...(search ? { search } : {}),
     ...(estadoParam ? { address_state: estadoParam } : {}),
   }
 
   // Call both hooks; enable only the relevant one (avoids conditional hook calls)
   const { data: activeClients = [], isLoading: loadingActive } =
-    useClients(baseFilters, { enabled: !!profile && !showInactive })
+    useClients(baseFilters, { enabled: !!profile && !showInactive, includeFinancial: canSeeFinancial })
   const { data: allClients = [],    isLoading: loadingAll    } =
-    useAllClients(baseFilters, { enabled: !!profile && showInactive })
+    useAllClients(baseFilters, { enabled: !!profile && showInactive, includeFinancial: canSeeFinancial })
 
   const clients   = showInactive ? allClients   : activeClients
   const isLoading = showInactive ? loadingAll   : loadingActive
@@ -116,6 +115,7 @@ export default function ClientsPage() {
   const useV2 = isEnabled('empresas_form_v2', effectiveRole)
 
   const canMutateEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
 
   return (
     <div className="p-6">
@@ -199,7 +199,7 @@ export default function ClientsPage() {
       {isLoading ? <PageSpinner /> : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map(c => (
-            <CompanyCard key={c.id} client={c} onClick={() => navigate(`/empresas/${c.id}`)} />
+            <CompanyCard key={c.id} client={c} canSeeFinancial={canSeeFinancial} onClick={() => navigate(`/empresas/${c.id}?tab=overview`)} />
           ))}
           {filtered.length === 0 && (
             <div className="col-span-3 text-center py-16 text-text-tertiary">Nenhuma empresa encontrada.</div>
@@ -212,7 +212,7 @@ export default function ClientsPage() {
   )
 }
 
-function CompanyCard({ client: c, onClick }) {
+function CompanyCard({ client: c, onClick, canSeeFinancial }) {
   const isInactive   = c.contract_active === false
   const isCliente    = c.lifecycle_stage === 'cliente'
   const displayName  = c.fantasy_name || c.name
@@ -261,7 +261,7 @@ function CompanyCard({ client: c, onClick }) {
         <div className="flex items-center gap-2 flex-wrap mb-3">
           {c.abc_class && <Badge variant={abcVariant(c.abc_class)}>ABC {c.abc_class}</Badge>}
           <HealthScore score={c.health_total || 0} />
-          {c.mrr > 0 && (
+          {canSeeFinancial && c.mrr > 0 && (
             <span className="text-xs text-text-tertiary">
               {c.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
             </span>

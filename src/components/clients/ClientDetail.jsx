@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useClient } from '@/hooks/useClient'
 import { PageSpinner } from '../ui/Spinner'
@@ -37,14 +37,23 @@ export default function ClientDetail() {
   const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const canEditEmpresas = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canAccessAllTabs = ['admin', 'manager'].includes(effectiveRole)
 
-  const { data: client, isLoading } = useClient(id)
+  const { data: client, isLoading } = useClient(id, { includeFinancial: canSeeFinancial })
 
   const isCliente = client?.lifecycle_stage === 'cliente'
 
   function setTab(t) {
+    if (!canAccessAllTabs && t !== 'overview') return
     setSearchParams({ tab: t })
   }
+
+  useEffect(() => {
+    if (!canAccessAllTabs && tab !== 'overview' && !isLoading && client) {
+      setSearchParams({ tab: 'overview' }, { replace: true })
+    }
+  }, [tab, canAccessAllTabs, isLoading, client, setSearchParams])
 
   if (isLoading) return <PageSpinner />
   if (!client) return <div className="p-6 text-text-tertiary">Empresa não encontrada.</div>
@@ -96,13 +105,16 @@ export default function ClientDetail() {
       {/* Tabs */}
       <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto overflow-y-hidden">
         {TABS.map(t => {
-          const isDisabledTab = (t.key === 'operacional' || t.key === 'health') && !isCliente
+          const isNonOverviewRestricted = !canAccessAllTabs && t.key !== 'overview'
+          const isDisabledTab = ((t.key === 'operacional' || t.key === 'health') && !isCliente) || isNonOverviewRestricted
+          const title = isNonOverviewRestricted ? 'Acesso restrito — apenas Visão Geral disponível' : undefined
           return (
             <button
               key={t.key}
               onClick={() => {
                 if (!isDisabledTab) setTab(t.key)
               }}
+              title={title}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 tab === t.key
                   ? 'text-donc-navy border-donc-navy'
@@ -118,13 +130,13 @@ export default function ClientDetail() {
         })}
       </div>
 
-      {/* Tab Content */}
+      {/* Tab Content — non-privileged only overview */}
       {tab === 'overview' && <ClientTabOverview client={client} />}
-      {tab === 'atividades' && <ClientTabActivities client={client} />}
-      {tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
-      {tab === 'health' && isCliente && <ClientTabHealth client={client} />}
-      {tab === 'contatos' && <ClientTabContatos client={client} />}
-      {tab === 'anexos' && <ClientSubAnexos client={client} />}
+      {canAccessAllTabs && tab === 'atividades' && <ClientTabActivities client={client} />}
+      {canAccessAllTabs && tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
+      {canAccessAllTabs && tab === 'health' && isCliente && <ClientTabHealth client={client} />}
+      {canAccessAllTabs && tab === 'contatos' && <ClientTabContatos client={client} />}
+      {canAccessAllTabs && tab === 'anexos' && <ClientSubAnexos client={client} />}
 
       {showEdit && <ClientForm client={client} onClose={() => setShowEdit(false)} />}
     </div>
