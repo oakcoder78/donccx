@@ -91,7 +91,7 @@ export default function ClientDetail() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto">
+      <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto overflow-y-hidden">
         {TABS.map(t => {
           const isDisabledTab = (t.key === 'operacional' || t.key === 'health') && !isCliente
           return (

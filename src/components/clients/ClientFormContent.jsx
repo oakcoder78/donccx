@@ -503,7 +503,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Tab bar */}
-      <div className="flex border-b border-border-tertiary mb-5 -mt-1 overflow-x-auto">
+      <div className="flex border-b border-border-tertiary mb-5 -mt-1 overflow-x-auto overflow-y-hidden">
         {TABS_V2.map((t, i) => (
           <button
             key={i}
