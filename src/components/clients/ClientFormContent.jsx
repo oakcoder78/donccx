@@ -13,7 +13,8 @@ import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillin
 import { ContractChargesSection } from './sections/ContractChargesSection'
 import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
-import { validateRulesContiguous, validateOsTiers, expandRulesToCharges } from '@/lib/contractRules'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, getBaseTotal, calculateRuleTotal, formatBRL4 } from '@/lib/contractRules'
+import { Icons } from '@/lib/icons'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional
@@ -118,6 +119,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [contractRules, setContractRules] = useState([])
   const [osTiers, setOsTiers] = useState([])
   const [eventuais, setEventuais] = useState([])
+  const [motorOpen, setMotorOpen] = useState(true)
+  const [modOpen, setModOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   useEffect(() => {
     if (existingModPricing.length > 0) {
@@ -328,6 +332,22 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     if (contractRules.length > 0) {
       const v = validateRulesContiguous(contractRules, contractN)
       if (!v.ok) { toast.error(v.error); setActiveTab(2); return }
+      // confirm values outside contract (total > base)
+      const baseTotal = getBaseTotal(form.billing_base_value, form.billing_floor)
+      if (baseTotal > 0) {
+        const exceeding = contractRules.filter(r => {
+          const calc = calculateRuleTotal(r, baseTotal)
+          return calc != null && calc > baseTotal
+        })
+        if (exceeding.length > 0) {
+          const details = exceeding.map(r => {
+            const calc = calculateRuleTotal(r, baseTotal)
+            const shown = r.mode === 'percent' ? `${r.value}% → ${formatBRL4(calc)}` : formatBRL4(calc)
+            return `${r.from}..${r.to}: ${shown} > base ${formatBRL4(baseTotal)}`
+          }).join('; ')
+          if (!window.confirm(`Valores fora do contrato (maior que base total): ${details}. Confirmar lançamento?`)) return
+        }
+      }
     }
     if (form.billing_type === 'por_os' && osTiers.length > 0) {
       const v2 = validateOsTiers(osTiers)
@@ -619,9 +639,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               <span className="text-sm text-text-secondary">Contrato ativo <span className="text-[11px] text-text-tertiary">(legado — espelha billing_status)</span></span>
             </div>
           </div>
-          <p className="text-[11px] text-text-tertiary bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            Labs v2: <strong>Classificação ABC</strong> movida para Operacional · <strong>Site</strong> movido para Endereço · <strong>Total de unidades</strong> movido para Operacional (potencial expansão).
-          </p>
         </div>
       )}
 
@@ -639,7 +656,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 className="input-base w-48"
                 placeholder="00000-000"
               />
-              <p className="text-[11px] text-text-tertiary mt-1">Preenchimento automático via ViaCEP</p>
             </div>
             <div className="col-span-2">
               <label className="label-sm">Logradouro</label>
@@ -668,7 +684,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             <div className="col-span-2">
               <label className="label-sm">Site</label>
               <input name="site" value={form.site} onChange={handleChange} className="input-base w-full" placeholder="https://" />
-              <p className="text-[11px] text-text-tertiary mt-1">Movido de Dados da Empresa → Endereço (v2)</p>
             </div>
           </div>
         </div>
@@ -693,7 +708,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             <div>
               <label className="label-sm">Valor base (R$ / {form.billing_type === 'por_os' ? 'OS' : 'licença'})</label>
               <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.0001" placeholder="—" />
-              <p className="text-[11px] text-text-tertiary mt-1">4 casas decimais (ex: 1,2345)</p>
             </div>
             <div>
               <label className="label-sm">Piso contratual (unidades mínimas)</label>
@@ -743,89 +757,130 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 <p className="text-[11px] text-text-tertiary mt-1">MRR zerado até esta data; reativa automaticamente após.</p>
               </div>
             )}
-            <p className="text-[11px] text-text-tertiary">
-              Labs: <code>billing_status</code> migra para coluna dedicada na Phase 1. Sem migration, mapeia para <code>contract_active</code> (compat).
-            </p>
           </div>
 
-          <div className="bg-bg-secondary rounded-lg p-3 border border-border-tertiary">
-            <p className="text-xs text-text-tertiary mb-0.5">MRR mínimo garantido (piso × valor unitário)</p>
-            <p className="text-lg font-bold text-donc-navy">{fmtBRL(mrrMinimo)}</p>
-          </div>
-
-          {/* Modificadores por módulo */}
-          {solucoes.length > 0 && (
+          <div className="bg-bg-secondary rounded-lg p-3 border border-border-tertiary flex items-center justify-between">
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="label-sm">Modificadores por módulo (R$ adicional / unidade)</label>
-                <button
-                  type="button"
-                  onClick={toggleAll}
-                  className="flex items-center gap-2 text-xs text-text-secondary hover:text-text-primary transition-colors"
-                >
-                  <span className={`w-8 h-4 rounded-full transition-colors flex-shrink-0 ${allActive ? 'bg-donc-lime' : 'bg-border-secondary'}`}>
-                    <span className={`block w-2.5 h-2.5 bg-white rounded-full shadow mt-0.75 mx-0.75 transition-transform ${allActive ? 'translate-x-4' : ''}`} style={{ marginTop: '3px' }} />
-                  </span>
-                  <span>{allActive ? 'Desabilitar todos' : 'Habilitar todos'}</span>
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {solucoes.map(sol => {
-                  const mp = modPricing[sol.id] || { active: false, value: '' }
-                  return (
-                    <div key={sol.id} className="py-2 border-b border-border-tertiary last:border-0">
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleMod(sol.id)}
-                          className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
-                        >
-                          <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
-                        </button>
-                        <span className="flex items-center gap-1.5 flex-1">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sol.color }} />
-                          <span className="text-sm text-text-primary">{sol.name}</span>
-                        </span>
-                        {mp.active && (
-                          <select
-                            value={mp.status || 'implantado'}
-                            onChange={e => setModStatus(sol.id, e.target.value)}
-                            className="input-base text-xs py-0.5 px-2 h-7"
-                          >
-                            <option value="implantado">Implantado</option>
-                            <option value="em_implantacao">Em implantação</option>
-                            <option value="pausado">Pausado</option>
-                            <option value="abandonado">Abandonado</option>
-                            <option value="descontinuado">Descontinuado</option>
-                          </select>
-                        )}
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-text-tertiary">R$</span>
-                          <input
-                            type="number"
-                            value={mp.value}
-                            onChange={e => setModValue(sol.id, e.target.value)}
-                            disabled={!mp.active}
-                            placeholder={mp.active ? 'Valor' : '—'}
-                            className={`input-base w-24 text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
-                            min="0" step="0.0001"
-                          />
-                        </div>
-                      </div>
-                      {modErrors[sol.id] && (
-                        <p className="text-xs text-red-500 mt-1 ml-12">{modErrors[sol.id]}</p>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
+              <p className="text-xs text-text-tertiary mb-0.5">MRR mínimo garantido (piso × valor unitário)</p>
+              <p className="text-lg font-bold text-donc-navy">{fmtBRL(mrrMinimo)}</p>
+            </div>
+            <button type="button" onClick={() => setHelpOpen(!helpOpen)} className="p-1.5 rounded hover:bg-white border border-transparent hover:border-border-tertiary" title="Ajuda contrato">
+              <Icons.HelpCircle size={16} className="text-text-tertiary" />
+            </button>
+          </div>
+          {helpOpen && (
+            <div className="text-xs bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 space-y-1">
+              <p><b>Base total:</b> piso × valor base (ex: 40 × R$100 = R$4.000).</p>
+              <p><b>Regras:</b> valor <b>total no mês</b> (absoluto) ou <b>% do base total</b>. Ex: 1..5 R$2.500, 6..10 80% → R$3.200.</p>
+              <p><b>Eventuais:</b> implantação parcelada (ex: R$15.000 em 3×) gera 3 parcelas em <code>contract_charges</code>.</p>
+              <p><b>Fora do contrato:</b> regra &gt; base total pede confirmação.</p>
+              <p><b>Modificadores:</b> rateio informativo, não soma ao base.</p>
             </div>
           )}
 
-          <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} />
-          <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} billingFloor={form.billing_floor} billingType={form.billing_type} />
-          <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
+          {/* Motor de contrato colapsável — acima dos modificadores */}
+          <div className="border border-border-tertiary rounded-lg overflow-hidden">
+            <button type="button" onClick={() => setMotorOpen(!motorOpen)} className="w-full flex items-center justify-between px-3 py-2.5 bg-bg-secondary hover:bg-bg-tertiary transition-colors">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-text-primary">Motor de contrato</span>
+                <span className="text-xs text-text-tertiary hidden sm:inline">eventuais + recorrência + faixas OS</span>
+                {!motorOpen && (
+                  <span className="text-xs bg-white border border-border-tertiary rounded px-1.5 py-0.5">
+                    {eventuais.length} eventuais · {contractRules.length} regras · {osTiers.length} tiers
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-tertiary">{motorOpen ? 'Recolher' : 'Expandir'}</span>
+                <Icons.ChevronDown size={16} className={`transition-transform text-text-tertiary ${motorOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+            {motorOpen && (
+              <div className="p-3 space-y-3 bg-white">
+                <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} />
+                <ContractChargesSection N={contractN} setN={setContractN} rules={contractRules} setRules={setContractRules} billingBaseValue={form.billing_base_value} billingFloor={form.billing_floor} billingType={form.billing_type} />
+                <OsTiersSection billingType={form.billing_type} tiers={osTiers} setTiers={setOsTiers} />
+              </div>
+            )}
+          </div>
+
+          {/* Modificadores por módulo — colapsável */}
+          {solucoes.length > 0 && (
+            <div className="border border-border-tertiary rounded-lg overflow-hidden">
+              <button type="button" onClick={() => setModOpen(!modOpen)} className="w-full flex items-center justify-between px-3 py-2.5 bg-bg-secondary hover:bg-bg-tertiary transition-colors">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-text-primary">Modificadores por módulo</span>
+                  <span className="text-xs text-text-tertiary">R$ adicional / unidade · rateio</span>
+                  {!modOpen && Object.values(modPricing).filter(v=>v.active).length > 0 && (
+                    <span className="text-xs bg-donc-lime/20 text-donc-navy rounded px-1.5 py-0.5">
+                      {Object.values(modPricing).filter(v=>v.active).length} ativos
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <span onClick={(e)=>{e.stopPropagation(); toggleAll()}} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary">
+                    <span className={`w-7 h-4 rounded-full transition-colors flex-shrink-0 ${allActive ? 'bg-donc-lime' : 'bg-border-secondary'}`}>
+                      <span className={`block w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${allActive ? 'translate-x-3' : ''}`} style={{ marginTop: '3px', marginLeft: '3px' }} />
+                    </span>
+                    {allActive ? 'Desabilitar' : 'Habilitar todos'}
+                  </span>
+                  <Icons.ChevronDown size={16} className={`transition-transform text-text-tertiary ${modOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+              {modOpen && (
+                <div className="p-3 space-y-2 bg-white">
+                  {solucoes.map(sol => {
+                    const mp = modPricing[sol.id] || { active: false, value: '' }
+                    return (
+                      <div key={sol.id} className="py-2 border-b border-border-tertiary last:border-0">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleMod(sol.id)}
+                            className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
+                          >
+                            <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
+                          </button>
+                          <span className="flex items-center gap-1.5 flex-1">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: sol.color }} />
+                            <span className="text-sm text-text-primary">{sol.name}</span>
+                          </span>
+                          {mp.active && (
+                            <select
+                              value={mp.status || 'implantado'}
+                              onChange={e => setModStatus(sol.id, e.target.value)}
+                              className="input-base text-xs py-0.5 px-2 h-7"
+                            >
+                              <option value="implantado">Implantado</option>
+                              <option value="em_implantacao">Em implantação</option>
+                              <option value="pausado">Pausado</option>
+                              <option value="abandonado">Abandonado</option>
+                              <option value="descontinuado">Descontinuado</option>
+                            </select>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-text-tertiary">R$</span>
+                            <input
+                              type="number"
+                              value={mp.value}
+                              onChange={e => setModValue(sol.id, e.target.value)}
+                              disabled={!mp.active}
+                              placeholder={mp.active ? 'Valor' : '—'}
+                              className={`input-base w-24 text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
+                              min="0" step="0.0001"
+                            />
+                          </div>
+                        </div>
+                        {modErrors[sol.id] && (
+                          <p className="text-xs text-red-500 mt-1 ml-12">{modErrors[sol.id]}</p>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="bg-donc-navy/5 rounded-lg p-3 border border-donc-navy/20">
             <p className="text-xs text-text-tertiary mb-0.5">Valor unitário com módulos</p>
@@ -851,7 +906,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             <div>
               <label className="label-sm">Total de unidades/lojas da rede <span className="text-text-tertiary font-normal">(potencial expansão)</span></label>
               <input name="unidades_total" type="number" value={form.unidades_total} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
-              <p className="text-[11px] text-text-tertiary mt-1">Movido de Dados → Operacional (v2)</p>
             </div>
             <div>
               <label className="label-sm">Unidades previstas para início do projeto</label>
@@ -863,7 +917,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 <option value="">—</option>
                 <option>A</option><option>B</option><option>C</option>
               </select>
-              <p className="text-[11px] text-text-tertiary mt-1">Movido de Dados → Operacional (v2)</p>
             </div>
             <div>
               <label className="label-sm">ERP (informativo)</label>

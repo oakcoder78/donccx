@@ -180,9 +180,6 @@ export function ContractChargesSection({ N, setN, rules, setRules, billingBaseVa
           </div>
         )}
 
-        <p className="text-[11px] text-text-tertiary bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          Labs: persistência em <code>contract_charges(month_index, mode, amount/percent)</code> via <code>expandRulesToCharges</code>. Cockpit lê <code>month_index = months_between(contract_start, ref_month)</code>.
-        </p>
       </div>
     </div>
   )

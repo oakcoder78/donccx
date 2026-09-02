@@ -68,9 +68,6 @@ export function OsTiersSection({ billingType, tiers, setTiers }) {
         {!validation.ok && <p className="text-xs text-donc-red bg-donc-red/10 border border-donc-red/20 rounded px-2 py-1">{validation.error}</p>}
         {validation.ok && tiers.length > 0 && <p className="text-xs text-donc-verde bg-donc-verde/10 border border-donc-verde/20 rounded px-2 py-1">Tiers crescentes ✓</p>}
 
-        <p className="text-[11px] text-text-tertiary bg-amber-50 border border-amber-200 rounded px-2 py-1">
-          Persistência em <code>billing_os_tiers(client_id, tier_order, limit_to, fixed_value, excess_unit_price)</code>. Só visível quando Tipo = Por OS criada.
-        </p>
       </div>
     </div>
   )
