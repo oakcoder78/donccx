@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
-import { formatBRL4, refMonth, monthDate, diffMonths } from '@/lib/contractRules'
+import { formatBRL4, refMonth, diffMonths } from '@/lib/contractRules'
 import { fmtMonthShortYear } from '@/lib/scoring'
 import { Icons } from '@/lib/icons'
 
-const ROW = 'grid grid-cols-[12rem_8rem_9rem_5rem_6rem_8rem_2rem] items-center gap-2 min-w-[52rem]'
+const ROW = 'grid grid-cols-[16rem_8rem_9rem_5rem_6rem_1fr_2rem] items-center gap-2 min-w-[54rem]'
 
 /**
  * "Cobranças Eventuais" — one-off charges (implantação, setup, treinamento),
@@ -16,9 +16,9 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
     if (!billingStart) return null
     try { return fmtMonthShortYear(refMonth(billingStart, monthIndex)) } catch { return null }
   }
-  function dateValue(startMonth) {
+  function monthValue(startMonth) {
     if (!billingStart) return ''
-    try { return monthDate(billingStart, startMonth ?? 1) } catch { return '' }
+    try { return refMonth(billingStart, startMonth ?? 1) } catch { return '' }
   }
   function update(idx, patch) {
     setEventuais(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
@@ -81,10 +81,10 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
               />
             </div>
             <input
-              type="date"
-              value={dateValue(e.startMonth ?? 1)}
-              title="Data da primeira parcela (define o mês de início)"
-              onChange={ev => onDateChange(idx, ev.target.value)}
+              type="month"
+              value={monthValue(e.startMonth ?? 1)}
+              title="Mês da primeira parcela (define o mês de início)"
+              onChange={ev => onDateChange(idx, ev.target.value ? `${ev.target.value}-01` : '')}
               disabled={readOnly || !billingStart}
               className="input-base w-full disabled:opacity-50"
             />
