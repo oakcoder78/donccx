@@ -187,6 +187,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       tier_order: t.tier_order, limit_to: t.limit_to,
       fixed_value: Number(t.fixed_value), excess_unit_price: Number(t.excess_unit_price),
     }))
+    // Serviços (client_catalog, sem série no banco) → seed na original
+    const servicoIds = new Set((catalog || []).filter(c => c.type === 'servico').map(c => c.id))
+    const seedServices = (client?.client_catalog || [])
+      .map(cc => cc.catalog_item_id)
+      .filter(id => servicoIds.has(id))
     let built = existingSeries.map(s => {
       const ch = bySeries[s.id] || []
       const { rules, N } = regroupRecorrencia(ch)
@@ -198,6 +203,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         endDirty: !!(s.billing_end || s.auto_renew),
         N: Math.max(N, maxEv, 1), rules, eventuais: evs,
         mods: toMods(modsBySeries[s.id] || []), tiers: toTiers(tiersBySeries[s.id] || []),
+        services: s.kind === 'original' ? [...seedServices] : [],
       }
     })
     // Órfãos (legado sem série) → série original
@@ -227,7 +233,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         billing_type: 'por_licenca', billing_base_value: '', billing_floor: '',
         contract_signed_date: '', contract_renewal: '', correction_index: '',
         billing_status: 'ativo', billing_suspended_until: '',
-        N: 36, rules: [], eventuais: [], mods: {}, tiers: [],
+        N: 36, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
       }]
     }
     // Original primeiro — buffer espelha a original (mirror de clients.*)
@@ -240,6 +246,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     setEventuais(first.eventuais || [])
     setModPricing(first.mods || {})
     setOsTiers(first.tiers || [])
+    setSelectedCatalog(first.services || [])
     setModErrors({})
     setActiveSeriesIdx(0)
     setSeriesReady(true)
@@ -297,7 +304,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   }
   function seriesWithBuffer() {
     return seriesList.map((s, i) => (i === activeSeriesIdx
-      ? { ...s, ...planFromForm(form), N: contractN, rules: contractRules, eventuais, mods: modPricing, tiers: osTiers }
+      ? { ...s, ...planFromForm(form), N: contractN, rules: contractRules, eventuais, mods: modPricing, tiers: osTiers, services: selectedCatalog }
       : s))
   }
   function switchSeries(next) {
@@ -311,6 +318,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     setEventuais(t.eventuais || [])
     setModPricing(t.mods || {})
     setOsTiers(t.tiers || [])
+    setSelectedCatalog(t.services || [])
     setModErrors({})
     setNavError('')
     setActiveSeriesIdx(next)
@@ -339,7 +347,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       billing_floor: form.billing_floor || '',
       contract_signed_date: '', contract_renewal: '', correction_index: '',
       billing_status: 'ativo', billing_suspended_until: '',
-      N: 12, rules: [], eventuais: [], mods: {}, tiers: [],
+      N: 12, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
     }
     const next = [...seriesWithBuffer(), draft]
     setSeriesList(next)
@@ -349,6 +357,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     setEventuais([])
     setModPricing({})
     setOsTiers([])
+    setSelectedCatalog([])
     setModErrors({})
     setNavError('')
     setActiveSeriesIdx(next.length - 1)
@@ -469,10 +478,17 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     setModErrors(prev => ({ ...prev, [itemId]: undefined }))
   }
 
-  function setModStatus(itemId, status) {
+  // Status do módulo acompanha no Operacional (espelho): reflete em todas as
+  // séries que contêm a solução + buffer da ativa (submit usa a união)
+  function setModuleStatus(itemId, status) {
     setModPricing(prev => ({
       ...prev,
       [itemId]: { ...prev[itemId], status },
+    }))
+    setSeriesList(prev => prev.map((s, i) => {
+      if (i === activeSeriesIdx) return s // buffer cobre na hora do submit
+      if (!s.mods?.[itemId]?.active) return s
+      return { ...s, mods: { ...s.mods, [itemId]: { ...s.mods[itemId], status } } }
     }))
   }
 
@@ -501,13 +517,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     // Séries contratuais: valida todas (buffer da ativa + demais)
     const finalSeries = seriesWithBuffer()
 
-    if (form.lifecycle_stage === 'cliente') {
-      const hasActiveSolutions = finalSeries.some(s => Object.values(s.mods || {}).some(v => v.active))
-      if (selectedCatalog.length === 0 && !hasActiveSolutions) {
-        toast.error('Clientes devem possuir ao menos um serviço ou solução selecionado.')
-        return
-      }
-    }
     const seriesErr = validateSeriesList(finalSeries)
     if (seriesErr) { toast.error(seriesErr); setActiveTab(2); return }
     const origForMirror = finalSeries.find(s => s.kind === 'original') || finalSeries[0] || {}
@@ -537,10 +546,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     }
 
     const solucaoIdSet = new Set(solucoes.map(s => s.id))
-    const servicesInCatalog = selectedCatalog
+    // client_catalog é por cliente: união dos serviços e soluções de todas as séries
+    const allServiceIds = [...new Set(finalSeries.flatMap(s => s.services || []))]
       .filter(id => !solucaoIdSet.has(id))
+    const servicesInCatalog = allServiceIds
       .map(id => ({ catalog_item_id: id, status: 'implantado' }))
-    // client_catalog é por cliente: união das soluções ativas de todas as séries
     const allModItems = finalSeries.flatMap(s => Object.entries(s.mods || {})
       .filter(([, v]) => v.active)
       .map(([id, v]) => ({ catalog_item_id: Number(id), status: v.status || 'implantado' })))
@@ -621,6 +631,12 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       if (!existingTiersBySeries[k]) existingTiersBySeries[k] = []
       existingTiersBySeries[k].push(t)
     })
+    const existingModsBySeries = {}
+    existingModPricing.forEach(mp => {
+      const k = mp.series_id || 'none'
+      if (!existingModsBySeries[k]) existingModsBySeries[k] = []
+      existingModsBySeries[k].push(mp)
+    })
     for (let i = 0; i < finalSeries.length; i++) {
       const s = finalSeries[i]
       const end = s.auto_renew ? (s.billing_end || null) : (s.billing_end || billingEnd(s.billing_start, s.N) || null)
@@ -667,7 +683,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           await saveTiers({ tiers: [], clientId, seriesId: saved.id })
         }
       } catch (e) { toast.error(`Faixas OS (${saved.label}): ${e.message}`) }
-      // Mods (divisão MRR) por série; original também limpa linhas legadas sem série
+      // Mods por série; só persiste quando há itens ou havia linhas (nunca wipe cego)
       const modItems = Object.entries(s.mods || {})
         .filter(([, v]) => v.active)
         .map(([cid, v]) => ({
@@ -675,11 +691,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           catalog_item_id: Number(cid),
           additional_value: Number(v.value) || 0,
         }))
+      const hadMods = (existingModsBySeries[s.id] || []).length > 0
       try {
-        await saveModPricing.mutateAsync({
-          clientId, items: modItems, seriesId: saved.id,
-          clearNulls: s.kind === 'original',
-        })
+        if (modItems.length > 0 || hadMods) {
+          await saveModPricing.mutateAsync({
+            clientId, items: modItems, seriesId: saved.id,
+            clearNulls: s.kind === 'original' && modItems.length > 0,
+          })
+        }
       } catch (e) { toast.error(`Produtos (${saved.label}): ${e.message}`) }
       // Auditoria: série criada ou encerrada
       try {
@@ -1179,15 +1198,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             </FormSection>
           )}
 
-          {solucoes.length > 0 && (
+          {(servicos.length > 0 || solucoes.length > 0) && (
             <FormSection
-              title="Divisão do MRR por produto"
-              hint="Distribui o MRR entre os produtos contratados. Divide o total, não soma. Ex: R$ 4.000 = R$ 2.500 + R$ 1.500."
-              valid={rateioOk && activeModList.length > 0}
+              title="Produtos e serviços"
+              hint="O que o cliente contratou nesta série. Serviços são presença/ausência; soluções dividem o MRR base, não somam. Ex: R$ 4.000 = R$ 2.500 + R$ 1.500. O status de cada módulo é acompanhado na aba Operacional."
+              valid={rateioOk && (activeModList.length > 0 || selectedCatalog.length > 0)}
               collapsible
-              defaultOpen={activeModList.length > 0}
-              summary={activeModList.length > 0
-                ? `${activeModList.length} ${activeModList.length > 1 ? 'produtos' : 'produto'} · ${fmtBRL(sumMods)}`
+              defaultOpen={activeModList.length > 0 || selectedCatalog.length > 0}
+              summary={activeModList.length > 0 || selectedCatalog.length > 0
+                ? `${selectedCatalog.length + activeModList.length} ${(selectedCatalog.length + activeModList.length) > 1 ? 'itens' : 'item'}${activeModList.length > 0 ? ` · ${fmtBRL(sumMods)}` : ''}`
                 : 'Nenhum'}
               action={
                 <button
@@ -1202,16 +1221,43 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 </button>
               }
             >
+              {servicos.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-text-tertiary mb-1">Serviços</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {servicos.map(item => (
+                      <button
+                        type="button"
+                        key={item.id}
+                        onClick={() => toggleCatalog(item.id)}
+                        disabled={activeReadOnly}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 ${
+                          selectedCatalog.includes(item.id)
+                            ? 'text-white border-transparent'
+                            : 'text-text-secondary border-border-secondary hover:border-text-tertiary'
+                        }`}
+                        style={selectedCatalog.includes(item.id) ? { backgroundColor: item.color, borderColor: item.color } : {}}
+                      >
+                        {item.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {solucoes.length > 0 && (
+              <div>
+              <p className="text-xs text-text-tertiary mb-1">Soluções — dividem o MRR base</p>
               {solucoes.map(sol => {
                 const mp = modPricing[sol.id] || { active: false, value: '' }
                 const pct = baseTotal > 0 && mp.value ? ((Number(mp.value) / baseTotal) * 100).toFixed(0) : null
                 return (
                   <div key={sol.id}>
-                    <div className="grid grid-cols-[2.5rem_1fr_10rem_9rem_2.5rem] items-center gap-2">
+                    <div className="grid grid-cols-[2.5rem_1fr_9rem_2.5rem] items-center gap-2">
                       <button
                         type="button"
                         onClick={() => toggleMod(sol.id)}
-                        className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
+                        disabled={activeReadOnly}
+                        className={`w-9 h-5 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${mp.active ? 'bg-donc-lime' : 'bg-border-secondary'}`}
                       >
                         <span className={`block w-3 h-3 bg-white rounded-full shadow mx-1 transition-transform ${mp.active ? 'translate-x-4' : ''}`} />
                       </button>
@@ -1219,26 +1265,13 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sol.color }} />
                         <span className="text-sm text-text-primary truncate">{sol.name}</span>
                       </span>
-                      {mp.active ? (
-                        <select
-                          value={mp.status || 'implantado'}
-                          onChange={e => setModStatus(sol.id, e.target.value)}
-                          className="input-base w-full text-xs h-8"
-                        >
-                          <option value="implantado">Implantado</option>
-                          <option value="em_implantacao">Em implantação</option>
-                          <option value="pausado">Pausado</option>
-                          <option value="abandonado">Abandonado</option>
-                          <option value="descontinuado">Descontinuado</option>
-                        </select>
-                      ) : <span />}
                       <div className="flex items-center gap-1">
                         <span className="w-4 text-xs text-text-tertiary">R$</span>
                         <input
                           type="number"
                           value={mp.value}
                           onChange={e => setModValue(sol.id, e.target.value)}
-                          disabled={!mp.active}
+                          disabled={!mp.active || activeReadOnly}
                           placeholder={mp.active ? '2500' : '—'}
                           className={`input-base w-full text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
                           min="0" step="0.01"
@@ -1252,6 +1285,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                   </div>
                 )
               })}
+              </div>
+              )}
               {!rateioOk && activeModList.length > 0 && (
                 <p className="text-xs text-donc-red bg-donc-red/10 border border-donc-red/20 rounded px-2 py-1.5">
                   A soma dos produtos ({fmtBRL(sumMods)}) precisa bater com o MRR base ({fmtBRL(baseTotal)}). Diferença de {fmtBRL(rateioDiff)}.
@@ -1310,49 +1345,74 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           </FormSection>
 
           {(servicos.length > 0 || solucoes.length > 0) && (
-            <FormSection title="Produtos e serviços">
+            <FormSection
+              title="Produtos e serviços"
+              hint="Espelho do contratado em cada série (aba Contrato). Aqui se acompanha o status de cada módulo na conta."
+            >
               {servicos.length > 0 && (
                 <div className="mb-2">
                   <p className="text-xs text-text-tertiary mb-1">Serviços</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {servicos.map(item => (
-                      <button
-                        type="button"
-                        key={item.id}
-                        onClick={() => toggleCatalog(item.id)}
-                        className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                          selectedCatalog.includes(item.id)
-                            ? 'text-white border-transparent'
-                            : 'text-text-secondary border-border-secondary hover:border-text-tertiary'
-                        }`}
-                        style={selectedCatalog.includes(item.id) ? { backgroundColor: item.color, borderColor: item.color } : {}}
-                      >
-                        {item.name}
-                      </button>
-                    ))}
+                    {servicos.map(item => {
+                      const inAny = seriesWithBuffer().some(s => (s.services || []).includes(item.id))
+                      return (
+                        <span
+                          key={item.id}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border select-none ${
+                            inAny
+                              ? 'text-white border-transparent'
+                              : 'text-text-tertiary border-border-tertiary opacity-40'
+                          }`}
+                          style={inAny ? { backgroundColor: item.color, borderColor: item.color } : {}}
+                        >
+                          {item.name}
+                        </span>
+                      )
+                    })}
                   </div>
                 </div>
               )}
               {solucoes.length > 0 && (
                 <div className="mb-2">
-                  <p className="text-xs text-text-tertiary mb-1">
-                    Soluções <span className="text-text-tertiary/60">(definidas na aba Contrato)</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
+                  <p className="text-xs text-text-tertiary mb-1">Soluções <span className="text-text-tertiary/60">(status por módulo)</span></p>
+                  <div className="space-y-1.5">
                     {solucoes.map(item => {
-                      const active = modPricing[item.id]?.active
+                      const owners = seriesWithBuffer()
+                        .map((s, i) => ({ s, i }))
+                        .filter(({ s }) => s.mods?.[item.id]?.active)
+                      if (owners.length === 0) {
+                        return (
+                          <div key={item.id} className="flex items-center gap-2 opacity-40">
+                            <span className="px-2.5 py-1 rounded-full text-xs font-medium border border-border-tertiary text-text-tertiary select-none">
+                              {item.name}
+                            </span>
+                          </div>
+                        )
+                      }
+                      const cur = owners[owners.length - 1].s.mods[item.id]
+                      const from = owners.map(({ s }) => s.label || KIND_LABELS[s.kind]).join(', ')
                       return (
-                        <span
-                          key={item.id}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium border ${
-                            active
-                              ? 'text-white border-transparent'
-                              : 'text-text-tertiary border-border-tertiary opacity-40'
-                          }`}
-                          style={active ? { backgroundColor: item.color, borderColor: item.color } : {}}
-                        >
-                          {item.name}
-                        </span>
+                        <div key={item.id} className="flex items-center gap-2">
+                          <span
+                            className="px-2.5 py-1 rounded-full text-xs font-medium border border-transparent text-white select-none"
+                            style={{ backgroundColor: item.color, borderColor: item.color }}
+                            title={from}
+                          >
+                            {item.name}
+                          </span>
+                          <select
+                            value={cur.status || 'implantado'}
+                            onChange={e => setModuleStatus(item.id, e.target.value)}
+                            className="input-base text-xs h-8"
+                            title={`Status na conta (${from})`}
+                          >
+                            <option value="implantado">Implantado</option>
+                            <option value="em_implantacao">Em implantação</option>
+                            <option value="pausado">Pausado</option>
+                            <option value="abandonado">Abandonado</option>
+                            <option value="descontinuado">Descontinuado</option>
+                          </select>
+                        </div>
                       )
                     })}
                   </div>

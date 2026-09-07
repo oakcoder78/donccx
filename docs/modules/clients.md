@@ -17,8 +17,7 @@ The Clients module provides the primary user interface for managing customer rec
 |----------|-----------------|
 | `ClientsPage.jsx` | Root page that lists clients and navigates to a client detail view. |
 | `ClientDetail.jsx` | Container for a single client’s detailed view; renders tab navigation. |
-| `ClientForm.jsx` | **Legacy** modal form (used while `empresas_form_v2` flag is off). |
-| `ClientFormContent.jsx` | Shared v2 form body — 4 tabs (Dados, Endereço, Contrato, Operacional). Rendered by `ClientFormPage` and `EmpresasV2Page`. |
+| `ClientFormContent.jsx` | V2 form body — 5 tabs (Dados, Endereço, Contrato, Operacional, Anexos). Rendered by `ClientFormPage` and `EmpresasV2Page`. Único form em produção (legado `ClientForm.jsx` removido). |
 | `form/FormSection.jsx` | Flat form-section primitive (title + hairline + body; optional collapse). |
 | `form/InfoHint.jsx` | Discreet `?` popover — the only place a section carries an explanation. |
 | `sections/ContractChargesSection.jsx` | "Evolução da recorrência (MRR)" — per-period recurring value editor + month-by-month preview. |
@@ -65,7 +64,7 @@ The Contacts tab (`ClientTabContatos`) displays client contacts with:
 2. Clicking a client triggers navigation to `/clients/:id`.
 3. `ClientDetail` fetches the specific client record (and possibly related entities) via `useClient(id)`.
 4. Tab components receive the client data as props or via context and may trigger additional Supabase queries for their specific slice (activities, contacts, health scores, operational data).
-5. `ClientForm` submits new or edited data to Supabase (`insert`/`update`). On success the client list/detail cache is refreshed.
+5. `ClientFormContent` submits new or edited data to Supabase (`insert`/`update`). On success the client list/detail cache is refreshed.
 6. `RegistrarDadosModal` captures operational input, posts it to Supabase, and on success signals the parent tab to reload its data.
 7. State is lifted to the highest component that needs it (`ClientDetail`) and passed down; loading/error flags are handled locally in each component.
 
@@ -87,7 +86,7 @@ Clients can now be created without selecting services or solutions. This enables
 - Prospect registration
 - Pre-contract workflows
 
-Catalog assignment is no longer mandatory at client creation. However, when `lifecycle_stage` is set to "cliente", the system may require at least one service to be selected for validation purposes.
+Catalog assignment is optional at client creation and on edit — no presence gate blocks the save (nem para `cliente`). Hard-error só para inconsistência ativa (produto ativo sem valor, soma do rateio ≠ MRR base).
 
 ### Automatic Catalog Initialization
 When a client is created with `lifecycle_stage = "cliente"`, the system may initialize default catalog entries based on selected solutions. If `lifecycle_stage` is not "cliente", catalog initialization is skipped to prevent unnecessary data for leads and prospects.
@@ -147,14 +146,14 @@ This ensures early-stage clients do not see irrelevant information and the inter
 ## Main User Flows
 ### Flow: Create Client
 1. User opens Clients page and clicks “New Client”.
-2. `ClientForm` opens (modal or route).
+2. `ClientFormPage` route opens (`/empresas/nova`).
 3. User fills fields; client‑side validation runs.
 4. On submit, form calls Supabase `insert`.
 5. List refreshes to show the new client.
 
 ### Flow: Edit Client
 1. From list or detail view, user selects “Edit”.
-2. `ClientForm` loads existing data.
+2. `ClientFormPage` loads existing data (`/empresas/:id/editar`).
 3. User modifies fields and submits.
 4. Form calls Supabase `update`.
 5. Detail view updates with new data.
@@ -170,19 +169,17 @@ The `useClients.js` mutation was hardened against race conditions and RLS failur
 
 ### Empresas Form v2 — dedicated page (2026-09-02)
 
-The company create/edit form was moved out of the cramped `<Modal>` (`ClientForm.jsx`) into a
-dedicated page. Body logic lives in the shared **`ClientFormContent.jsx`**; two thin page shells
+The company create/edit form lives in a dedicated page (legacy `<Modal>` removed). Body logic lives in the shared **`ClientFormContent.jsx`**; two thin page shells
 render it:
 
 | Route | Shell | Gate |
 |-------|-------|------|
-| `/empresas/nova`, `/empresas/:id/editar` | `src/pages/ClientFormPage.jsx` | feature flag `empresas_form_v2` (off → `<Navigate to="/empresas">`) |
+| `/empresas/nova`, `/empresas/:id/editar` | `src/pages/ClientFormPage.jsx` | sem gate (V2 em produção) |
 | `/labs/empresas_v2`, `/labs/empresas_v2/:id/editar` | `src/pages/labs/EmpresasV2Page.jsx` | `<AdminOnlyRoute>` (no flag) |
 
-While the flag is off, `ClientsPage`/`ClientDetail` still open the legacy `<ClientForm>` modal
-(`isEnabled('empresas_form_v2', effectiveRole) ? navigate(...) : setShowForm(true)`). The labs
-shell adds an amber banner and a **"Editar empresa existente"** search (`useAllClients`) that links
-to `/labs/empresas_v2/:id/editar`.
+`ClientsPage` (`+ Nova Empresa`) e `ClientDetail` (`Editar`) navegam sempre para as rotas V2.
+O modal legado foi removido. The labs shell adds an amber banner and a **"Editar empresa existente"**
+search (`useAllClients`) that links to `/labs/empresas_v2/:id/editar`.
 
 **Tabs** (new order): `Dados da Empresa → Endereço → Contrato → Operacional → Anexos`.
 (`Anexos` em `/nova`: arquivos pendentes enviados após salvar; em `/editar`: lista + upload.)
@@ -204,13 +201,16 @@ flush/load ao trocar de série); `clients.*` é espelho da série original:
 - *Cobranças Eventuais* — `EventuaisSection` com competência por linha (`out/26 → dez/26`).
 - *Faixas de preço por OS* — `OsTiersSection` por série (PK `(client, series, order)`),
   `readOnly` em série encerrada.
-- *Divisão do MRR por produto* — `module_pricing.series_id` (linhas legadas sem série
-  absorvidas pela original no save); rateio validado contra a base da série.
+- *Produtos e serviços* — por série ativa: Serviços (chips presença/ausência →
+  `series.services`, união no submit) + Soluções (toggle + R$ + %; **sem coluna de status**,
+  `module_pricing.series_id`, rateio validado contra a base da série; vazio é válido).
 - Renegociações ativas não podem se sobrepor (validado no form); renovação por X meses =
   nova série; mês a mês = `billing_end NULL + auto_renew`.
 - Auditoria: `logAction('create_series' | 'encerrar_serie', 'contract_series', …)` em `audit_logs`.
 
-**Operacional tab** — stage, unidades, ABC, ERP, TI, service/solution chips, and the 10-question
+**Operacional tab** — stage, unidades, ABC, ERP, TI, espelho read-only de presença por série
++ **status por módulo** (dropdown `implantado/em_implantação/pausado/abandonado/descontinuado`
+por solução, persiste em `client_catalog` via união do submit), and the 10-question
 **Handoff comercial → onboarding** (`client_handovers`). The handoff is **never required** — no
 `lifecycle_stage` blocks the save on it; answers persist when any field is filled.
 
@@ -277,7 +277,6 @@ agrega `(série, competência)`: renegociação exibe `original − desconto = a
 
 ## File Reference Map
 - `src/components/clients/ClientDetail.jsx`
-- `src/components/clients/ClientForm.jsx` (legacy modal)
 - `src/components/clients/ClientFormContent.jsx` (shared v2 form body)
 - `src/components/clients/form/FormSection.jsx`
 - `src/components/clients/form/InfoHint.jsx`

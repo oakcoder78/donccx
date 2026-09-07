@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useClients, useAllClients } from '@/hooks/useClients'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { supabase } from '@/lib/supabaseClient'
 import { PageHeader } from '../ui/PageHeader'
 import { Button } from '../ui/Button'
@@ -13,7 +12,6 @@ import { HealthBar, HealthScore } from '../ui/HealthBar'
 import { Avatar } from '../ui/Avatar'
 import { Icons } from '@/lib/icons'
 import { PageSpinner } from '../ui/Spinner'
-import { ClientForm } from './ClientForm'
 
 const CHIPS = [
   { key: 'todos',     label: 'Todos'           },
@@ -56,7 +54,6 @@ export default function ClientsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { profile, effectiveRole } = useAuth()
-  const { isEnabled } = useFeatureFlags()
   const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'finance'
   const canMutateEmpresas = ['admin', 'manager', 'finance', 'sales'].includes(effectiveRole)
   const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
@@ -65,7 +62,6 @@ export default function ClientsPage() {
   const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
   const [showInactive,   setShowInactive]    = useState(false)
   const [lifecycleFilter, setLifecycleFilter] = useState('cliente')
-  const [showForm,     setShowForm]     = useState(false)
   const estadoParam = (searchParams.get('estado') || '').trim().toUpperCase() || null
 
   useEffect(() => {
@@ -114,14 +110,12 @@ export default function ClientsPage() {
     ? allClients.filter(c => c.contract_active === false).length
     : (inactiveCountHead ?? 0)
 
-  const useV2 = isEnabled('empresas_form_v2', effectiveRole)
-
   return (
     <div className="p-6">
       <PageHeader
         title="Empresas"
         subtitle={`${clients.length} empresa${clients.length !== 1 ? 's' : ''}`}
-        action={canMutateEmpresas ? <Button onClick={() => useV2 ? navigate('/empresas/nova') : setShowForm(true)}>+ Nova Empresa</Button> : null}
+        action={canMutateEmpresas ? <Button onClick={() => navigate('/empresas/nova')}>+ Nova Empresa</Button> : null}
       />
       {estadoParam && (
         <div style={{ marginBottom: 12 }}>
@@ -205,8 +199,6 @@ export default function ClientsPage() {
           )}
         </div>
       )}
-
-      {showForm && <ClientForm onClose={() => setShowForm(false)} />}
     </div>
   )
 }

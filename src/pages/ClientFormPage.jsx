@@ -1,27 +1,17 @@
-import { useParams, useNavigate, Navigate } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useClient } from '@/hooks/useClient'
-import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { ClientFormContent } from '@/components/clients/ClientFormContent'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/lib/icons'
 
-// /empresas/nova and /empresas/:id/editar — produção quando flag empresas_form_v2 habilitar
-// Reuso total de ClientFormContent (mesmo que labs). Gate por feature flag.
-// Labs /labs/empresas_v2 permanece admin-only sem flag (ver App.jsx AdminOnlyRoute).
+// /empresas/nova and /empresas/:id/editar — V2 em produção (sem volta).
+// Labs /labs/empresas_v2 permanece admin-only (ver App.jsx AdminOnlyRoute).
 
 export default function ClientFormPage() {
   const { id } = useParams()
   const isEdit = !!id
   const navigate = useNavigate()
-  const { effectiveRole } = useAuth()
-  const { isEnabled, loading } = useFeatureFlags()
   const { data: client, isPending } = useClient(id)
-
-  if (loading) return null
-  if (!isEnabled('empresas_form_v2', effectiveRole)) {
-    return <Navigate to="/empresas" replace />
-  }
 
   if (isEdit && isPending) {
     return (

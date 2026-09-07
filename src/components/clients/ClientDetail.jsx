@@ -6,7 +6,6 @@ import { StagePill } from '../ui/StagePill'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { HealthScore } from '../ui/HealthBar'
-import { ClientForm } from './ClientForm'
 import { ClientTabOverview } from './tabs/ClientTabOverview'
 import { ClientTabActivities } from './tabs/ClientTabActivities'
 import { ClientTabOperacional } from './tabs/ClientTabOperacional'
@@ -16,7 +15,6 @@ import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { EmailComposerModal } from '../email/EmailComposerModal'
 import { Icons } from '@/lib/icons'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },
@@ -32,10 +30,8 @@ export default function ClientDetail() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const tab = searchParams.get('tab') || 'overview'
-  const [showEdit, setShowEdit]   = useState(false)
   const [showEmail, setShowEmail] = useState(false)
   const { profile, effectiveRole } = useAuth()
-  const { isEnabled } = useFeatureFlags()
   const canEditGlobal = ['admin', 'manager', 'finance'].includes(effectiveRole)
   const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
   const canAccessAllTabs = ['admin', 'manager'].includes(effectiveRole)
@@ -94,7 +90,7 @@ export default function ClientDetail() {
             Enviar e-mail
           </Button>
           {canEditEmpresas && (
-            <Button variant="secondary" size="sm" onClick={() => isEnabled('empresas_form_v2', effectiveRole) ? navigate(`/empresas/${id}/editar`) : setShowEdit(true)}>Editar</Button>
+            <Button variant="secondary" size="sm" onClick={() => navigate(`/empresas/${id}/editar`)}>Editar</Button>
           )}
         </div>
       </div>
@@ -141,8 +137,6 @@ export default function ClientDetail() {
       {canAccessAllTabs && tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
       {canAccessAllTabs && tab === 'health' && isCliente && <ClientTabHealth client={client} />}
       {canAccessAllTabs && tab === 'contatos' && <ClientTabContatos client={client} />}
-
-      {showEdit && <ClientForm client={client} onClose={() => setShowEdit(false)} />}
     </div>
   )
 }
