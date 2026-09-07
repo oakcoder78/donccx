@@ -116,14 +116,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const { data: profiles = [] } = useProfiles()
   const { data: segments = [] } = useSegments()
   const { create: createSegment } = useSegmentsMutations()
-  const { data: existingModPricing = [] } = useModulePricing(client?.id)
+  const { data: existingModPricing = [], isLoading: modsLoading } = useModulePricing(client?.id)
   const { saveAll: saveModPricing } = useModulePricingMutations()
   const { data: existingCharges = [], isLoading: chargesLoading } = useContractCharges(client?.id)
   const { mutateAsync: saveCharges } = useContractChargesMutations(client?.id)
   const { data: existingSeries = [], isLoading: seriesLoading } = useContractSeries(client?.id)
   const { mutateAsync: saveSeries } = useContractSeriesMutations(client?.id)
   const { logAction } = useAuditLog()
-  const { data: existingTiers = [] } = useBillingOsTiers(client?.id)
+  const { data: existingTiers = [], isLoading: tiersLoading } = useBillingOsTiers(client?.id)
   const { mutateAsync: saveTiers } = useBillingOsTiersMutations(client?.id)
 
   // Buffer de edição da série ativa (regras/N/eventuais) — molde antigo preservado
@@ -151,7 +151,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   // Initialize series (group charges by series_id) — buffer carrega a 1ª série
   useEffect(() => {
     if (seriesReady) return
-    if (isEdit && (seriesLoading || chargesLoading)) return
+    if (isEdit && (seriesLoading || chargesLoading || modsLoading || tiersLoading)) return
     const bySeries = {}
     existingCharges.forEach(c => {
       const k = c.series_id || 'none'
@@ -243,7 +243,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     setModErrors({})
     setActiveSeriesIdx(0)
     setSeriesReady(true)
-  }, [seriesReady, isEdit, existingSeries, existingCharges, existingModPricing, existingTiers, seriesLoading, chargesLoading])
+  }, [seriesReady, isEdit, existingSeries, existingCharges, existingModPricing, existingTiers, seriesLoading, chargesLoading, modsLoading, tiersLoading])
 
 
 
@@ -492,16 +492,22 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   async function handleSubmit(e) {
     e.preventDefault()
 
+    // Guard: nunca persiste buffer não-inicializado (evita wipe de mods/catálogo)
+    if (isEdit && !seriesReady) {
+      toast.error('Aguarde o carregamento do contrato antes de salvar.')
+      return
+    }
+
+    // Séries contratuais: valida todas (buffer da ativa + demais)
+    const finalSeries = seriesWithBuffer()
+
     if (form.lifecycle_stage === 'cliente') {
-      const hasActiveSolutions = Object.values(modPricing).some(v => v.active)
+      const hasActiveSolutions = finalSeries.some(s => Object.values(s.mods || {}).some(v => v.active))
       if (selectedCatalog.length === 0 && !hasActiveSolutions) {
         toast.error('Clientes devem possuir ao menos um serviço ou solução selecionado.')
         return
       }
     }
-
-    // Séries contratuais: valida todas (buffer da ativa + demais)
-    const finalSeries = seriesWithBuffer()
     const seriesErr = validateSeriesList(finalSeries)
     if (seriesErr) { toast.error(seriesErr); setActiveTab(2); return }
     const origForMirror = finalSeries.find(s => s.kind === 'original') || finalSeries[0] || {}
@@ -1492,8 +1498,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               setActiveTab(t => t + 1)
             }}>Próximo →</Button>
           )}
-          <Button type="submit" disabled={isMutating || uploadingLogo}>
-            {isMutating || uploadingLogo ? 'Salvando...' : isEdit ? 'Salvar' : 'Criar Empresa'}
+          <Button type="submit" disabled={isMutating || uploadingLogo || (isEdit && !seriesReady)} title={isEdit && !seriesReady ? 'Aguarde o carregamento do contrato' : undefined}>
+            {isMutating || uploadingLogo ? 'Salvando...' : isEdit && !seriesReady ? 'Carregando...' : isEdit ? 'Salvar' : 'Criar Empresa'}
           </Button>
         </div>
       </div>
