@@ -48,7 +48,8 @@ Action:
 
 Invoke docs-writer.
 
-Update module documentation.
+Update module documentation (`docs/modules/<domain>.md`,
+matching section — never a new file for an existing domain).
 
 ---
 
@@ -69,6 +70,9 @@ Invoke:
 docs-writer  
 supabase-guard (if schema affected)
 
+`moderate/major` writes require front-matter
+(`status` + `verified`) on the touched live doc.
+
 ---
 
 ## Output
@@ -76,4 +80,6 @@ supabase-guard (if schema affected)
 Return:
 
 - change level: minor | moderate | major
+- docs target (file + section, or "none")
+- `index-updater`: yes (new domain/file) | no
 - recommended downstream actions

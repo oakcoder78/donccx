@@ -104,7 +104,6 @@ CsRadarPage
 
 ## Related Modules
 
-- `docs/modules/health-score-dashboard.md` — Health Score Dashboard (companion cockpit)
-- `docs/modules/health-score.md` — Health score calculation engine
+- `docs/modules/health-score-dashboard.md` — Health Score Dashboard + engine (fundidos em 2026-09-07)
 - `docs/modules/activities.md` — Activity entity module
 - `docs/modules/clients.md` — Client entity module

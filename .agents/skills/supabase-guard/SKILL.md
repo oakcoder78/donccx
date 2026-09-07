@@ -66,9 +66,11 @@ Always:
 
 Create migration first.
 
-Command:
+Project flow (production-direct, no local stack — see `AGENTS.md`):
 
-supabase migration new <descriptive_name>
+- sequential file: `supabase/migrations/YYYYMMDDHHMMSS_<descriptive_name>.sql`
+- apply: `supabase db push --include-all`
+- data-changing migrations: prefer `supabase_apply_migration` + verify query
 
 ---
 
@@ -97,14 +99,11 @@ temp
 
 Step 4 — Documentation Awareness
 
-If schema changes:
+If schema changes, route docs via `docs-writer` Target Resolution:
 
-Check:
-
-docs/modules/  
-docs/system/
-
-Update documentation if structure changes.
+- `docs/architecture/backend.md` (tables, RLS, functions)
+- one line in `docs/modules/<domain>.md##Data Interaction`
+- migration name + affected tables + relationship updates
 
 ---
 
@@ -130,8 +129,9 @@ Always:
 Return:
 
 - migration required: yes/no
-- suggested migration name
+- suggested migration name (sequential `YYYYMMDDHHMMSS_<name>.sql`)
 - affected tables
+- docs target (`docs/architecture/backend.md` + domain line)
 - potential risks
 
 ### Supabase Auth Protection

@@ -452,6 +452,7 @@ Reuso obrigatório (terse, `docs/ui-patterns.md`):
 | 0.1 | 2026-08-31 | DoncCX Hub | Draft inicial pós-discovery (Profissionais + Contrato + roles) |
 | 0.2 | 2026-08-31 | DoncCX Hub | Incorporadas respostas Q1–Q6 do solicitante; rateio módulos; correção com toggle; sales candidato |
 | 0.3 | 2026-09-01 | DoncCX Hub | Validações finais Q4a/Q4b/Q6: sales escrita total (admin/finance/sales), manager leitura, retroatividade reprocessa e corrige passado (reemissão com delta), flag dedicada cockpit_financeiro confirmada; header validado |
+| 0.4 | 2026-09-07 | DoncCX Hub | Adendo: `ClientForm.jsx` citado no §3.1 deletado (`aa87554`) — ler como `ClientFormContent.jsx`; rateio Q2 resolvido (`rateio`, soma vs base da série, valor opcional); séries em `docs/modules/clients.md` |
 
 ---
 

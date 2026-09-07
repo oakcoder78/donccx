@@ -65,39 +65,61 @@ Do NOT use for:
 
 ## Target Resolution
 
-Determine documentation location based on change type.
+Determine documentation location by change type (`change-classifier` levels).
+Never create `step-NN-*.md`, `roadmap-v2`, or one-off `*-spec.md` files —
+append a section to the live doc, or write a 1-page ADR in `docs/decisions/`.
 
-If change affects:
+If `moderate` (UI/workflow/service logic in an existing domain):
 
-src/modules/<module-name>/
+Update the matching section in:
 
-Write to:
-
-docs/modules/<module-name>.md
-
----
-
-If change affects:
-
-system architecture
-integration logic
-core workflows
-
-Write to:
-
-docs/system/
+docs/modules/<domain>.md
 
 ---
 
-If change affects:
+If `major/schema` (table/column/RLS/migration/Edge Function):
 
-file upload
-activity attachments
-step-based workflows
+Update:
 
-Write to:
+docs/architecture/backend.md
 
-docs/activity-attachments/
+Plus one line in:
+
+docs/modules/<domain>.md##Data Interaction
+
+---
+
+If `major/cross-cutting` (auth, flags, integrations, deploy, env):
+
+Update:
+
+docs/architecture/{overview,integrations,auth-flags}.md
+or docs/operations/* (runbooks)
+
+---
+
+If new decision / rejected alternative / pre-code context:
+
+Write 1-page ADR:
+
+docs/decisions/NNN-<slug>.md (status Proposed→Accepted)
+
+Link it from `docs/backlog.md`. Never rewrite a shipped ADR —
+a correction is a new ADR.
+
+---
+
+If pre-prioritization debt/idea:
+
+Add to `docs/backlog.md` (TD-/IDEA-). No docs-writer output
+beyond the backlog entry; `index-updater=no`.
+
+---
+
+If genuinely new business domain (new file under `docs/modules/`):
+
+Create it, then run `index-updater` (`index-updater=yes`).
+Otherwise `index-updater=no`.
 
 ---
 
@@ -255,59 +277,25 @@ Skip documentation update when:
 
 ## Index Registration Workflow
 
-After creating new module documentation:
+`.agents/docs-index.md` is GENERATED — never edit it by hand.
+`index-updater` is its sole writer. This skill only reports
+`index-updater=yes/no` in its output (see Target Resolution).
 
-Target:
+## Living-Doc Front-Matter
 
-.agents/docs-index.md
+Every live doc (`docs/product/`, `docs/architecture/`, `docs/modules/`,
+`docs/operations/`) carries:
 
+```md
 ---
-
-## Mandatory Safe Update Procedure
-
-Before writing:
-
-1 — Read full existing index file
-
-2 — Locate section:
-
-## Module Documentation
-
-3 — Validate:
-
-- Section exists
-- Existing modules preserved
-- Module not already listed
-
-If module already exists:
-
-Do nothing.
-
+status: vivo | congelado | arquivado
+owner: <domain/team>
+verified: YYYY-MM-DD
+expires: YYYY-MM-DD
+supersedes: []
 ---
+```
 
-## Update Rules
-
-When updating:
-
-- Insert only missing module name
-- Maintain alphabetical order
-- Preserve all existing content
-- Keep section structure intact
-
-Never:
-
-- overwrite entire file
-- recreate full index
-- duplicate sections
-- remove existing modules
-- create new "Module Documentation" section if one already exists
-
----
-
-## Expected Result
-
-After update:
-
-- Module appears exactly once
-- Existing modules remain unchanged
-- File structure preserved
+Update `verified`/`expires` on every write. No doc without
+`status + verified` — unowned content goes to `docs/backlog.md`,
+not to `docs/`.

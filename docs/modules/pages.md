@@ -13,7 +13,7 @@ The **Pages** module groups the top‑level UI screens of the application. Each 
 
 ## Module Structure
 - **AtendimentoPage.jsx** – multi‑step wizard for creating Freshdesk tickets from WhatsApp conversations.
-- **ClientFormPage.jsx** – dedicated company create/edit page (`/empresas/nova`, `/empresas/:id/editar`), gated by the `empresas_form_v2` feature flag (off → redirects to `/empresas`). Thin shell around `ClientFormContent`. See `docs/modules/clients.md` → "Empresas Form v2".
+- **ClientFormPage.jsx** – dedicated company create/edit page (`/empresas/nova`, `/empresas/:id/editar`), V2 em produção sem gate. Thin shell around `ClientFormContent`. See `docs/modules/clients.md` → "Empresas Form v2".
 - **labs/EmpresasV2Page.jsx** – admin-only playground for the same v2 form (`/labs/empresas_v2`, `/labs/empresas_v2/:id/editar`), with a labs banner and an "Editar empresa existente" search.
 - **CockpitsPage.jsx** – gateway page at `/cockpits` with cards linking to Health Score and CS Radar.
 - **CsRadarPage.jsx** – CS Radar dashboard (activities, RMCs, project progress) — complete with filters, charts, heatmap, and client table.

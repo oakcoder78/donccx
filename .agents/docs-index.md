@@ -1,228 +1,74 @@
 # doncCX Hub — Documentation Index
 
+> GENERATED — do not edit by hand. Sole writer: `index-updater` skill.
+> last-verified: 2026-09-07
+
 ## Purpose
 
-Provide lightweight reference mapping
-for documentation lookup.
-
-Avoid loading full documentation files.
-
-Guide agents toward minimal,
-relevant documentation retrieval.
+Lightweight routing map for documentation lookup. Avoid loading full files.
+Flow: `module-detector` → this index → retrieve minimal sections.
 
 ---
 
-# Core Documents
+## Start here
 
-## core-concepts.md
+- `docs/README.md` — map: timeline, backlog, legacy, domains, operations, decisions
+- `docs/backlog.md` — open debt/ideas (TD-/IDEA-), status map
+- `docs/CHANGELOG.md` — monthly index (`CHANGELOG-2026-MM.md`)
+- `docs/LEGACY.md` — what was retired, when, where it lives now
 
-Location:
+## Product
 
-docs/core-concepts.md
+- `docs/product/` — planned (vision, glossary, roadmap); today: `docs/core-concepts.md`, `docs/platform-overview.md`
+- `docs/operations/` — `deploy.md`, `storage.md`
+- `docs/security/` — `RLS-EMPRESAS-SERIES.md`, `SDD-AUDIT.md`, `SECURITY_REMEDIATION_PLAN.md`
+- `docs/ui-patterns.md` — component patterns (Table, Toggle, Drawer, Health Legend…)
 
-Contains:
+## Modules (`docs/modules/`, one file per business domain)
 
-- system core concepts
-- domain-level definitions
-- shared architectural language
-
-Use when:
-
-- system terminology unclear
-- feature logic references core abstractions
-- module responsibilities overlap
-
----
-
-## platform-overview.md
-
-Location:
-
-docs/platform-overview.md
-
-Contains:
-
-- platform-wide architecture
-- high-level structure
-- cross-module relationships
-
-Use when:
-
-- architectural context required
-- understanding module relationships
-- planning new features
-
----
-
-# Module Documentation
-
-Location:
-
-docs/modules/
-
-Pattern:
-
-docs/modules/<module-name>.md
-
-Contains:
-
-- module responsibilities
-- key components
-- data interaction patterns
-- UI behavior
-- dependencies
-
-Available Modules:
-
-- activities
-- activity-attachments
+- activities (incl. attachments — steps archived)
+- activity-attachments (summary; steps → `docs/archive/`)
+- activity-modal
 - brief
-- clients
-- contexts
+- clients (empresas, contrato/séries, RLS model)
+- components, contexts, hooks, layout, lib, pages, services, settings, sync
+- cs-radar
 - donkie
-- greeting-engine
-- health-score
-- hooks
-- layout
-- lib
-- meu-dia-dashboard
-- pages
+- email
+- greeting-engine (hub) + content, debug, phase-1-spec, roadmap-v2, runtime, tone-guide
+- health-score-dashboard (engine + dashboard merged)
+- meu-dia-dashboard (dashboard v3)
 - projects
-- services
-- settings
-- ui
+- report-ai-analysis
 
-Use when:
+## Architecture (`docs/system/`, to be consolidated into `docs/architecture/`)
 
-- modifying existing module
-- updating UI behavior
-- adjusting workflows
-- integrating services
+- core-modules, data-flow, deployment-context, future-architecture, high-level-architecture, integration-points, operational-parser-reference, shared-modules, sync-pipeline, system-overview, system-purpose
 
----
+## Decisions (frozen; addenda only)
 
-# System Documentation
+- `docs/sdd/` — 15 SDDs (see `docs/sdd/` listing; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
+- `docs/brd/brd-financeiro-cockpit.md` (+ 0.4 addendum)
+- `docs/decisions/` — planned (numbered ADRs)
 
-Location:
+## Not indexed (history only)
 
-docs/system/
-
-Contains:
-
-- architecture layers
-- data flow
-- integration points
-- shared modules
-
-Available Topics:
-
-- core-modules
-- data-flow
-- deployment-context
-- future-architecture
-- high-level-architecture
-- integration-points
-- shared-modules
-- system-overview
-- system-purpose
-
-Use when:
-
-- updating architecture
-- modifying integrations
-- analyzing system behavior
+`docs/archive/` — steps, mocks v1/v2, `.plans`, superpowers specs, roadmap v1, `brd/*.html`, retired skills. Never a lookup target.
 
 ---
 
-# Activity Attachments Domain
-
-Location:
-
-docs/activity-attachments/
-
-Contains:
-
-- step-based workflows
-- attachment processing logic
-- storage handling flows
-
-Use when:
-
-- working with file uploads
-- modifying activity workflows
-- handling media or attachments
-
-Deferred Loading:
-
-Index only when relevant.
-
----
-
-# Email Templates Domain
-
-Location:
-
-docs/email-templates/
-
-Contains:
-
-- email content templates
-- authentication flows
-- user messaging
-
-Use when:
-
-- modifying authentication emails
-- updating notification templates
-
-Deferred Loading:
-
-Index only when relevant.
-
----
-
-# Security Documentation
-
-Location:
-
-docs/security/
-
-Contains:
-
-- SECURITY_REMEDIATION_PLAN.md — audit findings, credential rotation, RLS/CORS/error-leak fixes, phased remediation (Phase 0+1 ✅, Phase 2 pending)
-
-Use when:
-
-- modifying Edge Functions (auth, CORS, error handling)
-- changing RLS policies or GRANT permissions
-- handling credentials or secrets
-- auditing security posture
-
----
-
-# Lookup Strategy
+## Lookup Strategy
 
 Always:
 
-1 — Detect module  
-2 — Consult documentation index  
-3 — Retrieve minimal relevant file  
-4 — Summarize only required sections  
+1 — Detect module
+2 — Consult this index
+3 — Retrieve minimal relevant file
+4 — Summarize only required sections
 
 Never:
 
 - load full directories
 - retrieve unrelated files
 - duplicate documentation content
-
----
-
-# Index Version
-
-Version:
-
-1.0
-
-Generated:
-
-Initial baseline index.
+- hand-edit this file

@@ -632,6 +632,12 @@ When resuming this document for implementation:
 
 ---
 
+## Adendo 2026-09-07 — V2 definitivo + séries (corpo acima = histórico)
+
+- `ClientForm.jsx` citado neste SDD foi **deletado** (`aa87554`); a aba Contrato vive em `ClientFormContent.jsx` (rotas `/empresas/nova`, `/empresas/:id/editar`, sem flag). Ler `ClientForm.jsx:<linha>` como `ClientFormContent.jsx` (mesma aba Contrato).
+- "Exceções" como seção do form legado: reavaliar contra o modelo de séries (`contract_series` + `Cronograma de cobrança` em `ClientSubDados`) antes de implementar — ver `docs/modules/clients.md`.
+- Rateio (Q2, § rateio vs soma): resolvido — `mode: 'rateio'`, soma validada contra a base da série; valor por solução opcional (2026-09-07).
+
 ## Validation checklist — before publishing (Sdd-specification § Validation)
 
 - [x] Section 0 reflects actual current state (verified `20260503031721`, `20260726*`, `20260830*` migrations, `ProfissionaisCockpitPage.jsx:1-736`)

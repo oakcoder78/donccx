@@ -32,20 +32,26 @@ All agents must use shared skills located at:
 
 ./.agents/skills/
 
-Available core skills:
+Available core skills (project-owned, `.agents/skills/`):
 
 - docs-lookup
 - change-classifier
 - module-detector
 - docs-writer
 - supabase-guard
+- index-updater
+- ui-guard (advisory, non-blocking)
 - caveman
 - caveman-review
 - caveman-commit
 - caveman-help
 - caveman-compress
-- compress
-- find-skills
+
+Retired (see `docs/archive/skills/_retired.md`): `compress` (merged into
+`caveman-compress`), `module-generator` (unused), `find-skills` (stale pin —
+use the global skill). Third-party/global skills (`huashu-design`,
+`supabase`, `supabase-postgres-best-practices`, `caveman` family) are
+consumed as-is and never edited here.
 
 Rules:
 
@@ -148,8 +154,28 @@ If change is minor:
 
 If change is moderate or major:
 
-- documentation update required
+- documentation update required (target file + section from classifier output)
 - database validation may be required
+
+If change touches UI (components, layout, form fields, modals, drawers):
+
+Invoke skill (advisory, non-blocking):
+
+ui-guard
+
+---
+
+Step 3.6 — New Documentation Domain
+
+If the change introduces a genuinely new domain (new file under
+`docs/modules/`, `docs/architecture/`, `docs/operations/` or
+`docs/decisions/`):
+
+Invoke skill:
+
+index-updater
+
+Otherwise (`index-updater=no` from the classifier): skip.
 
 ---
 

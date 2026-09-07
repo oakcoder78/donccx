@@ -7,15 +7,18 @@ description: Maintain documentation index consistency after documentation change
 
 ## Purpose
 
+Sole writer of `.agents/docs-index.md` (GENERATED — never edit by hand).
+
 Maintain synchronization between:
 
-docs/
+docs/product/ docs/architecture/ docs/modules/ docs/operations/ docs/decisions/
+docs/backlog.md docs/CHANGELOG*.md
 
 and:
 
 .agents/docs-index.md
 
-Prevent outdated index references.
+Prevent outdated index references. Never index `docs/archive/`.
 
 ---
 
@@ -42,14 +45,14 @@ Step 1 — Scan Documentation Structure
 
 Check:
 
-docs/modules/
-docs/system/
+docs/product/ docs/architecture/ docs/modules/ docs/operations/ docs/decisions/
+docs/backlog.md docs/CHANGELOG*.md docs/LEGACY.md
 
 Detect:
 
-- new module files
-- new system topics
-- new documentation categories
+- new files, new domains
+- missing front-matter (`status` + `verified`) on live docs
+- dead links (target moved to `docs/archive/`)
 
 ---
 
@@ -59,39 +62,30 @@ Open:
 
 .agents/docs-index.md
 
-Check:
-
-- existing module entries
-- existing system topics
-
 Detect:
 
 - missing entries
-- outdated references
+- outdated references (target no longer exists)
+- entries pointing into `docs/archive/` (remove — archive is not indexed)
 
 ---
 
-Step 3 — Update Index
+Step 3 — Regenerate Index
 
-If new documentation detected:
-
-Add entry under:
-
-Module Documentation  
-or  
-System Documentation
+Rewrite `.agents/docs-index.md` fully from the scan
+(header `GENERATED — do not edit` + `last-verified` date).
 
 Maintain:
 
-- alphabetical ordering
+- alphabetical ordering per section
 - consistent naming
-- minimal descriptions
+- minimal descriptions (1 line each)
 
 Never:
 
 - duplicate entries
-- rewrite entire index
-- remove existing entries
+- hand-edit around the generator
+- index `docs/archive/`
 
 ---
 
@@ -100,5 +94,6 @@ Never:
 Return:
 
 - index updated: yes/no
-- new entries added
+- entries added / removed / fixed
+- live docs missing front-matter
 - affected documentation domains

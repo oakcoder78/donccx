@@ -1,4 +1,15 @@
+---
+status: vivo
+owner: backend
+verified: 2026-09-07
+expires: 2026-12-07
+supersedes: []
+---
+
 # Setup de Storage e Edge Functions
+
+> Buckets `activity-attachments` e `project-briefs` são criados via migrations.
+> Só `company-logos` e `user-avatars` exigem criação manual (one-shot, já feito em prod).
 
 ## 1. Buckets de Storage
 

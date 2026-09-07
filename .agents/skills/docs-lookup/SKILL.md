@@ -66,69 +66,61 @@ Classify the request into one of the following domains.
 
 ---
 
-### Module Logic Domain
+### Product Domain (porquê / o quê)
 
 Use when related to:
 
-- feature logic
-- UI behavior
-- module changes
-- hooks
-- services
-- layouts
-- page behavior
+- product vision, glossary, roadmap
+- backlog state (TD-/IDEA-), changelog
+- legacy map (what was retired, where it lives now)
 
 Search:
 
-docs/modules/
+docs/product/ (vision.md, glossary.md, roadmap.md)
+docs/backlog.md, docs/CHANGELOG*.md, docs/LEGACY.md
 
 ---
 
-### Architecture Domain
+### Architecture Domain (como o sistema funciona)
 
 Use when related to:
 
-- architecture
-- system structure
-- data flow
-- integration logic
-- application lifecycle
-- shared modules
+- architecture, system structure, data flow
+- integration logic, application lifecycle
+- auth, feature flags, backend, Supabase, RLS
+- operations (deploy, env, testing, security)
 
 Search:
 
-docs/system/
+docs/architecture/ (overview.md, data-flow.md, integrations.md, frontend.md, backend.md, auth-flags.md)
+docs/operations/ (deploy.md, env-secrets.md, testing.md, security.md)
 
 ---
 
-### Attachment System Domain
+### Module Domain (estado vivo por domínio de negócio)
 
 Use when related to:
 
-- file uploads
-- activity attachments
-- media handling
-- storage flows
-- preview/download logic
+- feature logic, UI behavior, module changes
+- hooks, services, layouts, page behavior
 
 Search:
 
-docs/activity-attachments/
+docs/modules/ (one file per business domain, ~10 files)
 
 ---
 
-### Email Template Domain
+### Decisions Domain (decisões congeladas)
 
 Use when related to:
 
-- email rendering
-- notifications
-- authentication templates
-- user messaging
+- why a past decision was made, rejected alternatives
+- pre-code context, SDD/BRD history
 
 Search:
 
-docs/email-templates/
+docs/decisions/ (ADR index README-index.md + NNN-<slug>.md)
+`docs/archive/` for superseded material (read-only history)
 
 ---
 
@@ -142,8 +134,8 @@ Use when:
 
 Search:
 
-docs/core-concepts.md
-docs/platform-overview.md
+docs/product/vision.md
+docs/product/glossary.md
 
 ---
 
@@ -152,6 +144,7 @@ docs/platform-overview.md
 Index documentation only when necessary.
 
 Never index the entire docs directory blindly.
+Never index `docs/archive/` (history only, excluded from lookup).
 
 ---
 
@@ -159,15 +152,16 @@ Never index the entire docs directory blindly.
 
 On first use, index only:
 
+docs/product/
+docs/architecture/
 docs/modules/
-docs/system/
-docs/core-concepts.md
-docs/platform-overview.md
+docs/backlog.md
 
 Reason:
 
 These locations contain:
 
+- product definitions and backlog state
 - architectural definitions
 - module behavior
 - integration rules
@@ -181,16 +175,15 @@ They provide maximum value with minimal noise.
 
 Index only when explicitly needed:
 
-docs/activity-attachments/
-docs/email-templates/
+docs/operations/
+docs/decisions/
 
 Reason:
 
 These areas contain:
 
-- procedural steps
-- static content
-- specialized workflows
+- runbooks and procedures
+- frozen decision history
 
 Indexing prematurely increases noise.
 

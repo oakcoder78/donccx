@@ -26,13 +26,21 @@
 | TD-008 | Tech Debt | Fechamento Phase 4 — remover wrappers legados em monthly-sync | M | Backlog | `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` |
 | TD-009 | Refactor | Remover modal legado `ClientForm.jsx` (V2 definitivo) | M | Done | `docs/sdd/empresas-form-v2-sdd.md` |
 
+### Por status (2026-09-07)
+
+- **Em aberto — features/ideias:** IDEA-001 (Ready), IDEA-002 (Active — restam fases 4 e 6)
+- **Em aberto — débito técnico:** TD-004 (L), TD-005 (H, com data: out/2026), TD-007 (L), TD-008 (M)
+- **Em aberto — follow-up sem ID:** TD-006 fase 2 (migrar `SettingsSyncStatus` para `sync_service_log`)
+- **Concluído:** TD-001, TD-002, TD-003, TD-006 (fase 1), TD-009
+
 ---
 
 ## TD-006 — Tabela `sync_service_log` para rastreamento independente por serviço
 
 **Type:** Refactor
 **Priority:** H
-**Status:** Backlog
+**Status:** Done
+**Closed:** 2026-07-28 (ver subsection `Closed` abaixo; fase 2 — migrar `SettingsSyncStatus` — segue em aberto como follow-up)
 **Origin:** 2026-07-27 — sync_log atual só rastreia o orquestrador `monthly-sync`, não cada serviço individual. Serviços podem ser executados manualmente em datas diferentes e precisam de timestamps independentes.
 **Linked SDD:** —
 **Related commits:** —
@@ -232,7 +240,7 @@ O health score calcula a dimensão "Uso" usando `client_usage.active_users` (con
 - `src/lib/healthScore.js` (Modify — idem)
 - `src/hooks/useHealthScore.js` (Modify — select profissionais_ativos)
 - `src/hooks/useDonkie.jsx` (Modify — idem, 2 lugares)
-- `docs/modules/health-score.md` (Modify — documentar nova coluna)
+- `docs/modules/health-score-dashboard.md` (Modify — documentar nova coluna; engine fundido aqui em 2026-09-07)
 - `docs/sdd/health-score-dashboard-sdd.md` (Modify — atualizar spec)
 
 ### Risks
@@ -242,6 +250,32 @@ O health score calcula a dimensão "Uso" usando `client_usage.active_users` (con
 - Comunicar CSMs com 1 semana de antecedência se scores mudarem >5 pts em clientes ABC-A
 | IDEA-001 | Idea | UI Pattern Library — Phase 2 (8 patterns restantes) | M | Ready | `docs/sdd/ui-patterns-phase2-sdd.md` |
 | IDEA-002 | Feature | Dashboard v3 (`/dashboard` para todos) + monolito → `/labs` admin-only | H | Active | `docs/sdd/labs-dashboard-sdd.md` |
+
+---
+
+## TD-004 — Adicionar validação Zod no operational-report-sync
+
+**Type:** Tech Debt
+**Priority:** L
+**Status:** Backlog
+**Origin:** 2026-06-12 — schema do n8n ainda em evolução; postergado até formato estabilizar
+**Linked SDD:** —
+**Related commits:** —
+
+### Context
+O payload do n8n (`data_os`, `data_produtividade`, `data_problemas`) não tem validação de schema — é `Record<string, unknown>` na edge function. Erros de formato só aparecem no frontend. O `por_tipo` ainda é normalizado ad-hoc no frontend (`reportGenerator.js:572-574`).
+
+### Proposed approach
+1. Adicionar Zod schema em `operational-report-sync/index.ts`
+2. Normalizar `por_tipo` na edge function (remover adaptação do frontend)
+3. Retornar 400 com detalhes se payload não validar
+
+### Files
+- `supabase/functions/operational-report-sync/index.ts` (Modify — adicionar validação Zod)
+
+### Risks
+- Quebrar pipeline se n8n enviar campo novo que o schema rejeite
+- Esperar formato do n8n estabilizar antes de implementar
 
 ---
 
@@ -408,32 +442,6 @@ A tabela canônica é `client_donc_instances`, que carrega esses campos por cont
 
 ### Remaining
 - Validação Zod do payload n8n postergada → TD-004
-
----
-
-## TD-004 — Adicionar validação Zod no operational-report-sync
-
-**Type:** Tech Debt
-**Priority:** L
-**Status:** Backlog
-**Origin:** 2026-06-12 — schema do n8n ainda em evolução; postergado até formato estabilizar
-**Linked SDD:** —
-**Related commits:** —
-
-### Context
-O payload do n8n (`data_os`, `data_produtividade`, `data_problemas`) não tem validação de schema — é `Record<string, unknown>` na edge function. Erros de formato só aparecem no frontend. O `por_tipo` ainda é normalizado ad-hoc no frontend (`reportGenerator.js:572-574`).
-
-### Proposed approach
-1. Adicionar Zod schema em `operational-report-sync/index.ts`
-2. Normalizar `por_tipo` na edge function (remover adaptação do frontend)
-3. Retornar 400 com detalhes se payload não validar
-
-### Files
-- `supabase/functions/operational-report-sync/index.ts` (Modify — adicionar validação Zod)
-
-### Risks
-- Quebrar pipeline se n8n enviar campo novo que o schema rejeite
-- Esperar formato do n8n estabilizar antes de implementar
 
 ---
 

@@ -9,9 +9,9 @@ The Health Score Dashboard (`/health`) provides a centralized view of the client
 |---|---|
 | Route | `/health` |
 | Navbar | Acessado via "Cockpits" → `/cockpits` (gateway page com cards para Health Score e CS Radar) |
-| Feature flag | `health` (table `feature_flags`) |
-| Roles | `admin`, `manager` (analyst blocked via redirect in component) |
-| Guard | Internal `useEffect` redirects to `/dashboard` if `isEnabled('health', role)` is false |
+| Feature flag | `health_cockpit` (table `feature_flags`; fallback `health` pré-migration) |
+| Roles | `admin`, `manager`, `csm` (demais redirecionam a `/module-unavailable` via `CockpitRoute`) |
+| Guard | `CockpitRoute flagKey="health_cockpit"` em `App.jsx` (o `useEffect` interno legado permanece) |
 
 ## Page Structure
 
@@ -237,9 +237,20 @@ The `MetricRow` component renders each metric as `<label> <value>` row.
 | `supabase/functions/health-recalc/index.ts` | Edge function that calculates health scores |
 | `docs/sdd/health-score-dashboard-sdd.md` | SDD (single source of truth for feature spec) |
 
+## Engine (`src/lib/healthScore.js`)
+
+Calculates total (0–100) + 5 dimension scores (0–20) + CSM temperature.
+Full engine reference merged here from `health-score.md` (2026-09-07).
+
+- **Stage groups** (`resolveStageGroup`): `onboarding` (só Financeiro/Projeto contam), `producao` (todas as dimensões), `producao_sem_projeto`. Neutral stages (`sem estágio`, `onboarding`, `estabilização`, `em espera`, `churned`) bypass Uso/Suporte/Relacionamento/Projeto → 20.
+- **Algorithm:** contract inactive → zeroed; resolve stage group → load weights (`health_dimension_weights`, overridable) → per-dimension calc (`calcUso/Suporte/Relacionamento/Financeiro/Projeto`, `{score, appliedRules}`) → weighted `(score/20)*weight` → total rounded/clamped.
+- **Project rules** (`calcProjeto`): `no_proj`, `onb_travado`, `onb_atencao`, `mp_late` (≤3 fases com `planned_end` vencido), `onb_atividade_vencida`, `ob_late` (go-live >90d + fases pendentes), `projeto_atrasado`.
+- **Temperatura CSM** (`calcTemperatura`): 0 se `temperature_updated_at` nulo ou >30 dias; senão valor bruto (0–10 escalado a 0–20).
+- Helpers: `clamp`, `applyRule`, `isNeutralStage`, `calcTemperatura`; custom `weights` param; `appliedRules` map para auditoria.
+- Edge cases: `contract_active === false` → tudo 0; `ob_late` exige `occurred_at` do Go-Live, não só planned.
+
 ## Related Modules
 
-- `docs/modules/health-score.md` — Health score calculation engine (`src/lib/healthScore.js`)
 - `docs/modules/clients.md` — Client entity module
 - `docs/sdd/health-score-dashboard-sdd.md` — SDD (single source of truth for feature spec)
 - `docs/sdd/cs-activity-cockpit-sdd.md` — SDD for CS Radar (companion cockpit)

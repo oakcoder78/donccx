@@ -1,15 +1,16 @@
 # doncCX Hub — AGENTS.md
 
-Routing rules in `.agents\core-agents.md`.
+Single agent contract. Supplements (not substitutes): skill files under
+`.agents/skills/`. Docs map: `docs/README.md` (start here for docs).
 
 ## Project
 
-Stack: React 18 + Vite 6 + TailwindCSS 3 + Supabase + TanStack Query v5 + react-router-dom v7  
-Root: `/home/oak/projects/donc/donccx`  
-Entry: `src/main.jsx` → `src/App.jsx`  
-Dev: `npm run dev`  
-Build (only verification step): `npm run build`  
-No local Supabase stack — all DB/functions changes go directly to production.  
+Stack: React 18 + Vite 6 + TailwindCSS 3 + Supabase + TanStack Query v5 + react-router-dom v7
+Root: `/home/oak/projects/donc/donccx`
+Entry: `src/main.jsx` → `src/App.jsx`
+Dev: `npm run dev`
+Build (only verification step): `npm run build`
+No local Supabase stack — all DB/functions changes go directly to production.
 Test directly on https://donccx-donccx.vercel.app after deploy.
 
 ## Rules
@@ -17,6 +18,20 @@ Test directly on https://donccx-donccx.vercel.app after deploy.
 - Chat always in **pt-br**; code and comments in **English**.
 - Work on `main` directly — no branches, no worktrees. Push to `origin main`.
 - Do NOT trust root `README.md` for app behavior (it's upstream Supabase CLI docs, not this app).
+
+## Mandatory workflow (skills in `.agents/skills/`)
+
+Before implementing anything in `src/` or `supabase/`:
+
+1. `module-detector` → active module + docs target
+2. `docs-lookup` → patterns before coding (consult `.agents/docs-index.md` first)
+3. `supabase-guard` → if schema/storage affected (migration-first, sequential files, `supabase db push --include-all`)
+4. `change-classifier` → minor skips docs; moderate/major require docs (+ `ui-guard` advisory for UI)
+5. `docs-writer` → update per Target Resolution table (never `step-NN-*` files)
+6. `index-updater` → only when a new domain/file is introduced
+
+Third-party/global skills (`huashu-design`, `supabase`, `supabase-postgres-best-practices`,
+`caveman` family) are consumed as-is — never edited here.
 
 ## Icons (`src/lib/icons.js`)
 
@@ -57,7 +72,7 @@ Feature flags: `useFeatureFlags` hook controls feature availability per role (e.
 
 - Migrations: `supabase/migrations/` (sequential numbered SQL files). Deploy with `supabase db push --include-all`.
 - Edge Functions: `supabase/functions/*` (14 functions + `_shared`). Deploy with `supabase functions deploy <name>`. Several have `verify_jwt = false` in `config.toml` but perform their own bearer-token + role checks in code.
-- Storage: Manual bucket setup (`company-logos`, `user-avatars`). See `STORAGE_SETUP.md`.
+- Storage: buckets `company-logos`, `user-avatars` (manual one-shot), `activity-attachments`, `project-briefs` (via migrations). See `docs/operations/storage.md`.
 - No Docker — all changes go directly to production, no local Supabase stack.
 
 ## Deploy Workflow (production-only)

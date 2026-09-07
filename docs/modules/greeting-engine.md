@@ -1,5 +1,10 @@
 # Greeting Engine
 
+> Status: vivo (hub). Especializações: `greeting-engine-tone-guide.md` (voz),
+> `greeting-engine-content.md` (conteúdo), `greeting-engine-debug.md` (debug),
+> `greeting-engine-runtime.md` (runtime), `greeting-engine-roadmap-v2.md` (roadmap;
+> v1 arquivada). Não criar novas variantes — estender estas.
+
 ## Purpose
 
 The Greeting Engine is a contextual experience layer responsible for generating personalized, multi-dimensional greetings across the doncCX Hub interface. It transforms simple time-based salutations into a strategic engagement tool that acknowledges user identity, operational state, and temporal context.
