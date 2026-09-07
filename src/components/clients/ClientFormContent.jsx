@@ -1156,7 +1156,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               ? `${eventuais.length} ${eventuais.length > 1 ? 'cobranças' : 'cobrança'} · ${fmtBRL(eventuais.reduce((s, e) => s + (Number(e.total) || 0), 0))}`
               : 'Nenhuma'}
           >
-            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} readOnly={activeReadOnly} billingStart={activeSeries?.billing_start || null} />
+            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} readOnly={activeReadOnly} billingStart={activeSeries?.billing_start || null} dueDay={activeSeries?.due_day || 5} />
           </FormSection>
 
           {form.billing_type === 'por_os' && (

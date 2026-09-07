@@ -11,10 +11,18 @@ const ROW = 'grid grid-cols-[16rem_8rem_9rem_5rem_6rem_1fr_2rem] items-center ga
  * The date input is primary; startMonth (relative to the series) derives from it.
  * Parent wraps this in a <FormSection>.
  */
-export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null }) {
+export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null, dueDay = 5 }) {
   function refLabel(monthIndex) {
     if (!billingStart) return null
     try { return fmtMonthShortYear(refMonth(billingStart, monthIndex)) } catch { return null }
+  }
+  // Data cheia de vencimento: dia da série + competência (o dia se edita em "Dia do vencimento")
+  function fullDate(monthIndex) {
+    if (!billingStart) return null
+    try {
+      const [y, m] = refMonth(billingStart, monthIndex).split('-')
+      return `${String(dueDay).padStart(2, '0')}/${m}/${y}`
+    } catch { return null }
   }
   function monthValue(startMonth) {
     if (!billingStart) return ''
@@ -96,9 +104,9 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
                 className="input-base w-full text-center disabled:opacity-50"
                 disabled={readOnly}
               />
-              {Number(e.installments) > 1 && refLabel((e.startMonth ?? 1) + Number(e.installments) - 1) && (
+              {fullDate(e.startMonth ?? 1) && (
                 <span className="text-[10px] text-text-tertiary text-center leading-none">
-                  → {refLabel((e.startMonth ?? 1) + Number(e.installments) - 1)}
+                  vence {fullDate(e.startMonth ?? 1)}{Number(e.installments) > 1 && fullDate((e.startMonth ?? 1) + Number(e.installments) - 1) ? ` → ${fullDate((e.startMonth ?? 1) + Number(e.installments) - 1)}` : ''}
                 </span>
               )}
             </div>
