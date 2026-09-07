@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import { formatBRL4, refMonth, diffMonths } from '@/lib/contractRules'
-import { fmtMonthShortYear } from '@/lib/scoring'
+import { formatBRL4, diffMonths } from '@/lib/contractRules'
 import { Icons } from '@/lib/icons'
 
 const ROW = 'grid grid-cols-[16rem_8rem_9rem_5rem_6rem_1fr_2rem] items-center gap-2 min-w-[54rem]'
@@ -11,36 +10,22 @@ const ROW = 'grid grid-cols-[16rem_8rem_9rem_5rem_6rem_1fr_2rem] items-center ga
  * The date input is primary; startMonth (relative to the series) derives from it.
  * Parent wraps this in a <FormSection>.
  */
-export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null, dueDay = 5 }) {
-  function refLabel(monthIndex) {
-    if (!billingStart) return null
-    try { return fmtMonthShortYear(refMonth(billingStart, monthIndex)) } catch { return null }
-  }
-  // Data cheia de vencimento: dia da série + competência (o dia se edita em "Dia do vencimento")
-  function fullDate(monthIndex) {
-    if (!billingStart) return null
-    try {
-      const [y, m] = refMonth(billingStart, monthIndex).split('-')
-      return `${String(dueDay).padStart(2, '0')}/${m}/${y}`
-    } catch { return null }
-  }
-  function monthValue(startMonth) {
-    if (!billingStart) return ''
-    try { return refMonth(billingStart, startMonth ?? 1) } catch { return '' }
+export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null }) {
+  // Mês derivado só para exibição; a data cheia (startDate) é a fonte de verdade
+  function derivedMonth(startDate, fallback) {
+    if (startDate && billingStart) {
+      try { return diffMonths(billingStart, startDate) } catch { return fallback }
+    }
+    return fallback
   }
   function update(idx, patch) {
     setEventuais(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
-  }
-  function onDateChange(idx, iso) {
-    if (!iso || !billingStart) return
-    const m = Math.min(120, diffMonths(billingStart, iso))
-    update(idx, { startMonth: m })
   }
   function remove(idx) {
     setEventuais(prev => prev.filter((_, i) => i !== idx))
   }
   function add() {
-    setEventuais(prev => [...prev, { label: 'Implantação', total: '', installments: 1, startMonth: 1 }])
+    setEventuais(prev => [...prev, { label: 'Implantação', total: '', installments: 1, startMonth: 1, startDate: billingStart || '' }])
   }
 
   const totalEventuais = useMemo(
@@ -89,27 +74,20 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
               />
             </div>
             <input
-              type="month"
-              value={monthValue(e.startMonth ?? 1)}
-              title="Mês da primeira parcela (define o mês de início)"
-              onChange={ev => onDateChange(idx, ev.target.value ? `${ev.target.value}-01` : '')}
-              disabled={readOnly || !billingStart}
+              type="date"
+              value={e.startDate || ''}
+              title="Data da primeira parcela"
+              onChange={ev => update(idx, { startDate: ev.target.value })}
+              disabled={readOnly}
               className="input-base w-full disabled:opacity-50"
             />
-            <div className="flex flex-col gap-0.5">
-              <input
-                type="number" min="1" max="120" value={e.startMonth ?? 1}
-                title="Mês de início (relativo à série)"
-                onChange={ev => update(idx, { startMonth: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}
-                className="input-base w-full text-center disabled:opacity-50"
-                disabled={readOnly}
-              />
-              {fullDate(e.startMonth ?? 1) && (
-                <span className="text-[10px] text-text-tertiary text-center leading-none">
-                  vence {fullDate(e.startMonth ?? 1)}{Number(e.installments) > 1 && fullDate((e.startMonth ?? 1) + Number(e.installments) - 1) ? ` → ${fullDate((e.startMonth ?? 1) + Number(e.installments) - 1)}` : ''}
-                </span>
-              )}
-            </div>
+            <input
+              type="number" min="1" max="120"
+              value={derivedMonth(e.startDate, e.startMonth ?? 1)}
+              title="Mês de início (derivado da data)"
+              disabled
+              className="input-base w-full text-center disabled:opacity-50"
+            />
             <input
               type="number" min="1" max="120" value={e.installments}
               onChange={ev => update(idx, { installments: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}

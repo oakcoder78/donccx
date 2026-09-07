@@ -21,7 +21,7 @@ import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
-import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional → Anexos
@@ -369,9 +369,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       }
       for (const ev of s.eventuais) {
         if (!(Number(ev.total) > 0)) continue
-        const start = Number(ev.startMonth) || 1
+        const { startDate, startMonth } = eventualStart(ev, s.billing_start)
+        if (!startDate) return `Cobrança "${ev.label || 'eventual'}"${tag} sem data.`
         const inst = Number(ev.installments) || 1
-        if (start + inst - 1 > s.N) return `Cobrança "${ev.label || 'eventual'}"${tag} ultrapassa os ${s.N} meses da série.`
+        if (startMonth + inst - 1 > s.N) return `Cobrança "${ev.label || 'eventual'}"${tag} ultrapassa os ${s.N} meses da série.`
       }
       for (const [cid, v] of Object.entries(s.mods || {})) {
         if (v?.active && (v.value === '' || isNaN(Number(v.value)))) {
@@ -1156,7 +1157,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               ? `${eventuais.length} ${eventuais.length > 1 ? 'cobranças' : 'cobrança'} · ${fmtBRL(eventuais.reduce((s, e) => s + (Number(e.total) || 0), 0))}`
               : 'Nenhuma'}
           >
-            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} readOnly={activeReadOnly} billingStart={activeSeries?.billing_start || null} dueDay={activeSeries?.due_day || 5} />
+            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} readOnly={activeReadOnly} billingStart={activeSeries?.billing_start || null} />
           </FormSection>
 
           {form.billing_type === 'por_os' && (

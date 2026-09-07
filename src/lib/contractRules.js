@@ -128,43 +128,73 @@ export function regroupRecorrencia(charges) {
   return { rules, N: Math.max(...sorted.map(c => c.month_index)) }
 }
 
-/** Reagrupa charges de implantação em eventuais (startMonth = menor month_index do grupo) */
+/** Soma meses com clamp no fim do mês → 'YYYY-MM-DD' */
+export function addMonthsClamped(dateISO, add) {
+  const [y, m, d] = String(dateISO || '').split('-').map(Number)
+  if (!y || !m || !d) return ''
+  const dt = new Date(y, m - 1 + (Number(add) || 0), 1)
+  const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate()
+  const day = Math.min(d, last)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+/** Origem temporal de um eventual: data cheia manda; sem data, deriva do mês + billing_start */
+export function eventualStart(ev, billingStart) {
+  if (ev.startDate) {
+    return {
+      startDate: ev.startDate,
+      startMonth: billingStart ? diffMonths(billingStart, ev.startDate) : (Number(ev.startMonth) || 1),
+    }
+  }
+  const sm = Math.max(1, Number(ev.startMonth) || 1)
+  return {
+    startDate: billingStart ? `${refMonth(billingStart, sm)}-01` : '',
+    startMonth: sm,
+  }
+}
+
+/** Reagrupa charges de implantação em eventuais (startDate = due_date da 1ª parcela) */
 export function regroupEventuais(charges) {
   const impl = (charges || []).filter(c => c.kind === 'implantacao')
   if (impl.length === 0) return []
   const groups = {}
   impl.forEach((c, idx) => {
     const g = c.installment_group || `legacy-${c.id ?? idx}`
-    if (!groups[g]) groups[g] = { label: c.label || 'Implantação', total: 0, installments: 0, startMonth: c.month_index, group: c.installment_group || null }
+    if (!groups[g]) groups[g] = { label: c.label || 'Implantação', total: 0, installments: 0, startMonth: c.month_index, startDate: c.due_date || '', group: c.installment_group || null }
     groups[g].total += Number(c.amount) || 0
     groups[g].installments += 1
-    groups[g].startMonth = Math.min(groups[g].startMonth, c.month_index)
+    if (c.month_index < groups[g].startMonth) {
+      groups[g].startMonth = c.month_index
+      groups[g].startDate = c.due_date || groups[g].startDate
+    }
   })
   return Object.values(groups).map(g => ({
     label: g.label, total: String(Math.round(g.total * 100) / 100),
-    installments: g.installments, startMonth: g.startMonth, _group: g.group,
+    installments: g.installments, startMonth: g.startMonth, startDate: g.startDate, _group: g.group,
   }))
 }
 
-/** Expande eventuais em parcelas com mês de início próprio (centavos ajustados na última parcela) */
+/** Expande eventuais em parcelas a partir da data cheia (centavos na última parcela) */
 export function expandEventuais(list, { seriesId = null, billingStart = null } = {}) {
   const out = []
   ;(list || []).forEach(ev => {
     const total = Number(ev.total) || 0
     const inst = Math.max(1, Number(ev.installments) || 1)
-    const start = Math.max(1, Number(ev.startMonth) || 1)
+    const { startDate, startMonth } = eventualStart(ev, billingStart)
     const group = ev._group || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ev-${Date.now()}-${Math.random()}`)
     const per = Math.floor((total / inst) * 100) / 100
     for (let i = 0; i < inst; i++) {
       const isLast = i === inst - 1
       const amount = isLast ? Number((total - per * (inst - 1)).toFixed(2)) : per
-      const m = start + i
+      const due = startDate ? addMonthsClamped(startDate, i) : ''
+      const m = due && billingStart ? diffMonths(billingStart, due) : startMonth + i
       out.push({
         month_index: m, kind: 'implantacao', mode: 'absolute', amount,
         label: ev.label || 'Implantação',
         installment_group: group, installments_total: inst,
+        due_date: due || null,
         ...(seriesId ? { series_id: seriesId } : {}),
-        ...(billingStart ? { ref_month: refMonth(billingStart, m) } : {}),
+        ...(billingStart && due ? { ref_month: due.slice(0, 7) } : (billingStart ? { ref_month: refMonth(billingStart, m) } : {})),
       })
     }
   })

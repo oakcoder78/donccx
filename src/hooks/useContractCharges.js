@@ -109,6 +109,7 @@ export function useContractChargesMutations(clientId) {
         mode: c.mode,
         month_index: c.month_index,
         ref_month: c.ref_month || null,
+        due_date: c.due_date || null,
         amount: c.mode === 'absolute' ? c.amount : null,
         percent: c.mode === 'percent' ? c.percent : null,
         installment_group: c.installment_group || null,
