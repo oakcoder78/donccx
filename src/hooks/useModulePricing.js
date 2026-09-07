@@ -22,11 +22,22 @@ export function useModulePricingMutations() {
   const qc = useQueryClient()
 
   const saveAll = useMutation({
-    mutationFn: async ({ clientId, items }) => {
-      const { error: delErr } = await supabase.from('module_pricing').delete().eq('client_id', clientId)
+    mutationFn: async ({ clientId, items, seriesId, clearNulls }) => {
+      // Scoped por série quando informado; legado (sem série) só toca linhas sem série.
+      // clearNulls (original): absorve linhas legadas sem série na série original.
+      let del = supabase.from('module_pricing').delete().eq('client_id', clientId)
+      if (seriesId && clearNulls) {
+        del = del.or(`series_id.eq.${seriesId},series_id.is.null`)
+      } else if (seriesId) {
+        del = del.eq('series_id', seriesId)
+      } else {
+        del = del.is('series_id', null)
+      }
+      const { error: delErr } = await del
       if (delErr) throw delErr
       if (items.length > 0) {
-        const { error } = await supabase.from('module_pricing').insert(items)
+        const payload = items.map(i => ({ ...i, series_id: i.series_id || seriesId || null }))
+        const { error } = await supabase.from('module_pricing').insert(payload)
         if (error) throw error
       }
     },

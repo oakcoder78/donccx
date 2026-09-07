@@ -9,7 +9,7 @@ const ROW = 'grid grid-cols-[2rem_2.5rem_6rem_2.5rem_10rem_10rem_2rem] items-cen
  * above the last band. Parent wraps this in a <FormSection>; renders nothing
  * unless billing is por OS.
  */
-export function OsTiersSection({ billingType, tiers, setTiers }) {
+export function OsTiersSection({ billingType, tiers, setTiers, readOnly = false }) {
   const isOs = billingType === 'por_os'
   const validation = useMemo(() => validateOsTiers(tiers), [tiers])
 
@@ -59,7 +59,8 @@ export function OsTiersSection({ billingType, tiers, setTiers }) {
           <input
             type="number" min="1" value={t.limit_to}
             onChange={e => updateTier(idx, { limit_to: Number(e.target.value) })}
-            className="input-base w-full text-center"
+            className="input-base w-full text-center disabled:opacity-50"
+            disabled={readOnly}
           />
           <span className="text-center text-xs text-text-tertiary">=</span>
           <div className="flex items-center gap-1">
@@ -67,7 +68,8 @@ export function OsTiersSection({ billingType, tiers, setTiers }) {
             <input
               type="number" step="0.01" min="0" value={t.fixed_value}
               onChange={e => updateTier(idx, { fixed_value: Number(e.target.value) })}
-              className="input-base w-full text-right"
+              className="input-base w-full text-right disabled:opacity-50"
+              disabled={readOnly}
             />
           </div>
           <div className="flex items-center gap-1">
@@ -75,27 +77,32 @@ export function OsTiersSection({ billingType, tiers, setTiers }) {
             <input
               type="number" step="0.0001" min="0" value={t.excess_unit_price}
               onChange={e => updateTier(idx, { excess_unit_price: Number(e.target.value) })}
-              className="input-base w-full text-right"
+              className="input-base w-full text-right disabled:opacity-50"
+              disabled={readOnly}
               placeholder="0.95"
             />
           </div>
-          <button
-            type="button" onClick={() => removeTier(idx)}
-            className="inline-flex items-center justify-center h-8 w-8 rounded border border-border-tertiary text-text-tertiary hover:bg-bg-secondary hover:text-donc-red"
-            aria-label="Remover faixa"
-          >
-            <Icons.X size={14} />
-          </button>
+          {!readOnly && (
+            <button
+              type="button" onClick={() => removeTier(idx)}
+              className="inline-flex items-center justify-center h-8 w-8 rounded border border-border-tertiary text-text-tertiary hover:bg-bg-secondary hover:text-donc-red"
+              aria-label="Remover faixa"
+            >
+              <Icons.X size={14} />
+            </button>
+          )}
         </div>
       ))}
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
+        {!readOnly && (
         <button
           type="button" onClick={addTier} disabled={tiers.length >= 5}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-dashed border-border-secondary rounded hover:bg-bg-secondary disabled:opacity-40"
         >
           <Icons.Plus size={13} /> Adicionar faixa
         </button>
+        )}
         {tiers.length > 0 && (
           <span className="text-xs text-text-tertiary">
             Franquia mínima: {tiers[0]?.limit_to || '—'} OS (faixa 1)

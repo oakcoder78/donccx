@@ -85,6 +85,14 @@ export function currentRefMonth(from = new Date()) {
   return `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** Último dia de billing_start + (N-1) meses → 'YYYY-MM-DD' (fim da cobrança) */
+export function billingEnd(billingStartISO, N) {
+  const [y, m] = String(billingStartISO || '').split('-').map(Number)
+  if (!y || !m) return ''
+  const dt = new Date(y, m + (Number(N) || 1) - 1, 0)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
 /** Reagrupa charges de recorrência em regras contíguas (inverso de expandRulesToCharges) */
 export function regroupRecorrencia(charges) {
   const sorted = [...(charges || [])]
@@ -167,8 +175,8 @@ export function seriesMonthTotal(seriesCharges, refMonthStr, baseTotal) {
 }
 
 /**
- * MRR derivado = soma das séries ativas no mês corrente.
- * Sem regras em nenhuma série → MRR base (comportamento legado).
+ * MRR derivado = soma das séries ativas no mês corrente (base própria por série).
+ * Sem regras em nenhuma série → MRR base da original (comportamento legado).
  * Série original sem regras + outra série com regras → base + valores.
  * Mês coberto por renegociação → original pausada (só a renegociação conta).
  */
@@ -186,9 +194,11 @@ export function resolveMRR({ billingStatus, baseTotal, series, refMonthStr }) {
     })
   })
   return list.reduce((sum, s) => {
+    const base = s.baseTotal ?? baseTotal
+    if (s.billingStatus && s.billingStatus !== 'ativo') return sum // série suspensa/não bilhetável
     if (s.kind === 'original' && renegMonths.has(ref)) return sum // pausada na janela
-    if (s.hasAnyRules) return sum + seriesMonthTotal(s.charges, ref, baseTotal)
-    return sum + (s.kind === 'original' ? baseTotal || 0 : 0)
+    if (s.hasAnyRules) return sum + seriesMonthTotal(s.charges, ref, base)
+    return sum + (s.kind === 'original' ? base || 0 : 0)
   }, 0)
 }
 

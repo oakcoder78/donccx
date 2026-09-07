@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { formatBRL4 } from '@/lib/contractRules'
+import { formatBRL4, refMonth } from '@/lib/contractRules'
+import { fmtMonthShortYear } from '@/lib/scoring'
 import { Icons } from '@/lib/icons'
 
 const ROW = 'grid grid-cols-[1fr_9rem_5.5rem_7rem_9rem_2rem] items-center gap-2 min-w-[38rem]'
@@ -9,7 +10,11 @@ const ROW = 'grid grid-cols-[1fr_9rem_5.5rem_7rem_9rem_2rem] items-center gap-2 
  * optionally split into installments starting at a chosen month. Business language only.
  * Parent wraps this in a <FormSection>.
  */
-export function EventuaisSection({ eventuais, setEventuais, readOnly = false }) {
+export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null }) {
+  function refLabel(monthIndex) {
+    if (!billingStart) return null
+    try { return fmtMonthShortYear(refMonth(billingStart, monthIndex)) } catch { return null }
+  }
   function update(idx, patch) {
     setEventuais(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
   }
@@ -64,13 +69,20 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false }) 
                 disabled={readOnly}
               />
             </div>
-            <input
-              type="number" min="1" max="120" value={e.startMonth ?? 1}
-              title="Mês de início (relativo à série)"
-              onChange={ev => update(idx, { startMonth: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}
-              className="input-base w-full text-center disabled:opacity-50"
-              disabled={readOnly}
-            />
+            <div className="flex flex-col gap-0.5">
+              <input
+                type="number" min="1" max="120" value={e.startMonth ?? 1}
+                title="Mês de início (relativo à série)"
+                onChange={ev => update(idx, { startMonth: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}
+                className="input-base w-full text-center disabled:opacity-50"
+                disabled={readOnly}
+              />
+              {refLabel(e.startMonth ?? 1) && (
+                <span className="text-[10px] text-text-tertiary text-center leading-none">
+                  {refLabel(e.startMonth ?? 1)}{Number(e.installments) > 1 && ` → ${refLabel((e.startMonth ?? 1) + Number(e.installments) - 1)}`}
+                </span>
+              )}
+            </div>
             <input
               type="number" min="1" max="120" value={e.installments}
               onChange={ev => update(idx, { installments: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}

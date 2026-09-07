@@ -10,7 +10,7 @@ const ROW = 'grid grid-cols-[3rem_4rem_1.5rem_4rem_12rem_9rem_1fr_2rem] items-ce
  * the contract. Business language only: no table/column names.
  * The parent wraps this in a <FormSection> (title + duration + hint).
  */
-export function ContractChargesSection({ N, rules, setRules, billingBaseValue, billingFloor, billingStart = null, readOnly = false }) {
+export function ContractChargesSection({ N, rules, setRules, billingBaseValue, billingFloor, billingStart = null, dueDay = 5, readOnly = false }) {
   const [showPreview, setShowPreview] = useState(false)
 
   const baseTotal = getBaseTotal(billingBaseValue, billingFloor)
@@ -147,14 +147,14 @@ export function ContractChargesSection({ N, rules, setRules, billingBaseValue, b
           <table className="w-full text-xs">
             <thead className="bg-bg-secondary sticky top-0">
               <tr className="text-left text-text-tertiary">
-                <th className="px-3 py-1.5 font-medium">Mês</th>
+                <th className="px-3 py-1.5 font-medium">Vencimento</th>
                 <th className="px-3 py-1.5 font-medium">Recorrência</th>
               </tr>
             </thead>
             <tbody>
               {preview.slice(0, 60).map(p => (
                 <tr key={p.month_index} className="border-t border-border-tertiary/50">
-                  <td className="px-3 py-1.5">{p.ref ? fmtMonthShortYear(p.ref) : `mês ${p.month_index}`}</td>
+                  <td className="px-3 py-1.5">{p.ref ? `${String(dueDay).padStart(2, '0')}/${fmtMonthShortYear(p.ref)}` : `mês ${p.month_index}`}</td>
                   <td className="px-3 py-1.5 font-medium text-donc-navy">{formatBRL4(p.total)}</td>
                 </tr>
               ))}

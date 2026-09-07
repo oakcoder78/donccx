@@ -54,6 +54,14 @@ export function useContractSeriesMutations(clientId) {
         auto_renew: !!series.auto_renew,
         status: series.status || 'ativa',
         reason: series.reason || null,
+        billing_type: series.billing_type || 'por_licenca',
+        billing_base_value: series.billing_base_value ?? 0,
+        billing_floor: series.billing_floor ?? 0,
+        billing_status: series.billing_status || 'ativo',
+        billing_suspended_until: series.billing_suspended_until || null,
+        correction_index: series.correction_index || null,
+        contract_signed_date: series.contract_signed_date || null,
+        contract_renewal: series.contract_renewal || null,
         created_by: userId || null,
       }
       let query = supabase.from('contract_series')

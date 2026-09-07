@@ -32,9 +32,18 @@ export function BillingSchedule({ client }) {
   const { data: charges = [] } = useContractCharges(client.id)
   const { data: payments = [] } = useBillingPayments(client.id)
 
-  const baseTotal = (Number(client.billing_floor) || 0) > 0
+  const clientBase = (Number(client.billing_floor) || 0) > 0
     ? Number(client.billing_base_value || 0) * Number(client.billing_floor)
     : Number(client.billing_base_value || 0)
+  const baseBySeries = useMemo(() => {
+    const m = {}
+    series.forEach(s => {
+      const per = Number(s.billing_base_value ?? client.billing_base_value) || 0
+      const floor = Number(s.billing_floor ?? client.billing_floor) || 0
+      m[s.id] = floor > 0 ? per * floor : per
+    })
+    return m
+  }, [series, client.billing_base_value, client.billing_floor])
 
   const rows = useMemo(() => {
     if (series.length === 0) return []
@@ -43,8 +52,9 @@ export function BillingSchedule({ client }) {
       if (!c.series_id || !c.ref_month) return
       const k = `${c.series_id}|${c.ref_month}`
       if (!bySeriesMonth[k]) bySeriesMonth[k] = { seriesId: c.series_id, ref: c.ref_month, rec: 0, imp: 0 }
-      if (c.kind === 'recorrencia') bySeriesMonth[k].rec += chargeValue(c, baseTotal)
-      else bySeriesMonth[k].imp += chargeValue(c, baseTotal)
+      const base = baseBySeries[c.series_id] ?? clientBase
+      if (c.kind === 'recorrencia') bySeriesMonth[k].rec += chargeValue(c, base)
+      else bySeriesMonth[k].imp += chargeValue(c, base)
     })
     const seriesById = Object.fromEntries(series.map(s => [s.id, s]))
     const origByMonth = {}
@@ -63,14 +73,14 @@ export function BillingSchedule({ client }) {
         const pay = payments.find(p => p.series_id === r.seriesId && p.ref_month === r.ref)
         const isReneg = s.kind === 'renegociacao'
         // Referência: recorrência original no mês; sem regra na original, vale o MRR base
-        const original = isReneg ? (origByMonth[r.ref] ?? (origHasAnyRec ? null : baseTotal)) : null
+        const original = isReneg ? (origByMonth[r.ref] ?? (origHasAnyRec ? null : clientBase)) : null
         const total = r.rec + r.imp
         const desconto = isReneg && original != null ? original - r.rec : null
         return { ...r, series: s, original, desconto, total, status: pay?.status || null }
       })
       .filter(Boolean)
       .sort((a, b) => a.ref.localeCompare(b.ref) || (order[a.series.kind] ?? 9) - (order[b.series.kind] ?? 9))
-  }, [series, charges, payments, baseTotal])
+  }, [series, charges, payments, baseBySeries, clientBase])
 
   if (series.length === 0 && charges.length === 0) return null
 

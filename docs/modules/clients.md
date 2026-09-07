@@ -187,28 +187,25 @@ to `/labs/empresas_v2/:id/editar`.
 **Tabs** (new order): `Dados da Empresa → Endereço → Contrato → Operacional → Anexos`.
 (`Anexos` em `/nova`: arquivos pendentes enviados após salvar; em `/editar`: lista + upload.)
 
-**Contrato tab** (business-language UI, no table/column names on screen):
-- *Séries contratuais* — cada série tem régua 1..N e início de cobrança próprios e gera
-  faturas separadas (`contract_series`: `original | aditivo | renegociacao`, `billing_start`,
-  `due_day` = dia do `billing_start`, `billing_end?`, `auto_renew`, `status ativa|encerrada`,
-  `reason` obrigatório em renegociação). Pills de seleção + `+ Nova série`; série encerrada
-  fica somente leitura (modal de confirmação + motivo, histórico preservado).
-- *Plano de cobrança* — `billing_type` (por licença / por OS), valor base, piso, datas, índice.
-- *MRR base* (card navy) — `piso × valor base`.
-- *Status de cobrança* — 3 states `ativo | suspenso | nao_bilhetavel` ("Não cobrar"). `contract_active`
-  is derived on save (`= billing_status === 'ativo'`); `mrr` é derivado via `resolveMRR`
-  (soma das séries ativas no mês corrente; sem regras → MRR base; mês com renegociação →
-  original pausada, só o valor renegociado conta).
-- *Evolução da recorrência (MRR)* — `ContractChargesSection` por série ativa: contiguous
-  per-period rules (`from..to`, mode `absolute | percent`), expanded to one `contract_charges`
-  row per month on save via `expandRulesToCharges(rules, N, { seriesId, billingStart })`
-  (`src/lib/contractRules.js`). Preview mostra competência real (`set/26 → R$ 4.000`).
-- *Cobranças Eventuais* — `EventuaisSection`: one-off charges, installments com mês de
-  início próprio (`startMonth`, default 1) → `contract_charges` rows sharing an
-  `installment_group` (centavos ajustados na última parcela).
-- *Faixas de preço por OS* — `OsTiersSection` (only `por_os`) → `billing_os_tiers`.
-- *Divisão do MRR por produto* — per-solution split of the base MRR (`module_pricing`,
-  `mode: 'rateio'` — a breakdown of the total, **not** additive).
+**Contrato tab** (business-language UI, no table/column names on screen) — série = folha
+completa: tudo abaixo (exceto catálogo de serviços) é **por série ativa** (buffer com
+flush/load ao trocar de série); `clients.*` é espelho da série original:
+- *Séries contratuais* — pills + `+ Nova série` (`Button secondary sm`); meta por série:
+  Rótulo, Tipo (`Contrato original | Aditivo (novo módulo) | Renegociação (desconto temporário)`),
+  Assinatura, Início da cobrança, Fim (auto = último dia de `billing_start + N − 1`,
+  editável, ignorado com auto-renovação), Dia do vencimento, Renovação, Renovação automática,
+  Motivo (obrigatório em renegociação), `Encerrar série…` (`Button secondary sm` + modal `max-w-sm`).
+- *Plano de cobrança* — `billing_type` (por licença / por OS), valor base, piso, índice
+  (datas ficam na série). *MRR base* (card navy) — base da série ativa.
+- *Status de cobrança* — 3 states por série; `contract_active`/`mrr` derivam da original;
+  `mrr` via `resolveMRR` com **base própria por série** (percent resolve na base da série).
+- *Evolução da recorrência (MRR)* — `ContractChargesSection` por série; preview com
+  **data cheia de vencimento** (`05/set/26 → R$ 4.000`).
+- *Cobranças Eventuais* — `EventuaisSection` com competência por linha (`out/26 → dez/26`).
+- *Faixas de preço por OS* — `OsTiersSection` por série (PK `(client, series, order)`),
+  `readOnly` em série encerrada.
+- *Divisão do MRR por produto* — `module_pricing.series_id` (linhas legadas sem série
+  absorvidas pela original no save); rateio validado contra a base da série.
 - Renegociações ativas não podem se sobrepor (validado no form); renovação por X meses =
   nova série; mês a mês = `billing_end NULL + auto_renew`.
 - Auditoria: `logAction('create_series' | 'encerrar_serie', 'contract_series', …)` em `audit_logs`.

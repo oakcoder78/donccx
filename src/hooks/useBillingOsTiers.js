@@ -21,14 +21,17 @@ export function useBillingOsTiers(clientId) {
 export function useBillingOsTiersMutations(clientId) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ tiers, clientId: overrideId }) => {
+    mutationFn: async ({ tiers, clientId: overrideId, seriesId }) => {
       const id = overrideId || clientId
       if (!id) throw new Error('Cliente não identificado para salvar as faixas de OS')
-      const { error: delErr } = await supabase.from('billing_os_tiers').delete().eq('client_id', id)
+      let del = supabase.from('billing_os_tiers').delete().eq('client_id', id)
+      if (seriesId) del = del.eq('series_id', seriesId)
+      const { error: delErr } = await del
       if (delErr) throw delErr
       if (!tiers || tiers.length === 0) return []
       const payload = tiers.map(t => ({
         client_id: id,
+        series_id: t.series_id || seriesId || null,
         tier_order: t.tier_order,
         limit_to: t.limit_to,
         fixed_value: t.fixed_value,
