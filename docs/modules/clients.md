@@ -50,6 +50,12 @@ The Clients module provides the primary user interface for managing customer rec
 - **ClientFormContent** (v2 form, rotas `/empresas/nova` e `/empresas/:id/editar`) usa o mesmo padrão na barra `Dados da Empresa → Endereço → Contrato → Operacional` (`ClientFormContent.jsx:506`).
 - All components consume the `styles` object from `OnboardingStyles.js` for consistent layout and theming.
 
+### Modelo de acesso — Empresas (2026-09-07)
+- **Leitura global:** `clients_global_select FOR SELECT USING (true)` (`20260903000001`) — todos os papéis veem todos os cards (listagem rica); `baseFilters` sem carteira.
+- **Financeiro blindado no Network:** `useClients.js`/`useClient.js` usam `SELECT` explícito sem `mrr/billing_*` para papéis sem `financial_data` (`SAFE_CLIENT_COLS`); card só renderiza MRR com `canSeeFinancial` (`admin/manager/finance`).
+- **Detalhe:** só `admin/manager` veem todas as tabs; demais só `overview` + `anexos` (tabs desabilitadas + redirect automático).
+- **`+ Nova Empresa`/`Editar`:** só `admin/manager/finance` + `sales` na carteira (`comercial_id/csm_id = profile.id`); form defaulta `comercial_id` ao próprio sales. RLS `20260903000002` (`clients_sales_insert/update` com `WITH CHECK` de carteira).
+
 ### Contact Panel (ClientTabContatos)
 
 The Contacts tab (`ClientTabContatos`) displays client contacts with:
@@ -158,10 +164,10 @@ This ensures early-stage clients do not see irrelevant information and the inter
 4. Form calls Supabase `update`.
 5. Detail view updates with new data.
 
-### Client Save Resilience (2026-06-15)
+### Client Save Resilience (2026-06-15, atualizado 2026-09-07)
 The `useClients.js` mutation was hardened against race conditions and RLS failures:
 
-- **Validation:** when `lifecycle_stage === 'cliente'`, both `selectedCatalog` (service chips in Operacional tab) and `modPricing` (solution toggles in Contrato tab) are checked. Previously only `selectedCatalog` was checked, blocking save for clients with only solutions.
+- **Validation (superada em 2026-09-07):** o gate de presença ("ao menos um serviço ou solução" para `cliente`) foi **removido** do V2 e do legado — produto é sempre opcional. Hard-error só para inconsistência ativa (valor inválido, soma do rateio ≠ base com todos preenchidos). Submit travado até `seriesReady` (nunca persiste buffer vazio).
 - **Save strategy for `client_catalog`:** replaced `delete-all + insert` with **selective delete** (only rows removed from selection) + **upsert** (`onConflict: client_id,catalog_item_id`). This prevents 409 Conflict errors from trigger rollbacks and eliminates duplicates.
 - **Deduplication:** `catalogItems` is deduplicated by `catalog_item_id` via `Map` — prevents PostgreSQL `ON CONFLICT DO UPDATE cannot affect row a second time` error when the same `catalog_item_id` appears in both `selectedCatalog` and `modPricing`.
 - **Error handling:** all `delete`/`insert`/`upsert` calls check and throw on error; `saveModPricing` has an explicit `onError` toast handler.
@@ -198,12 +204,13 @@ flush/load ao trocar de série); `clients.*` é espelho da série original:
   `mrr` via `resolveMRR` com **base própria por série** (percent resolve na base da série).
 - *Evolução da recorrência (MRR)* — `ContractChargesSection` por série; preview com
   **data cheia de vencimento** (`05/set/26 → R$ 4.000`).
-- *Cobranças Eventuais* — `EventuaisSection` com competência por linha (`out/26 → dez/26`).
+- *Cobranças Eventuais* — `EventuaisSection` com date picker DD/MM/AAAA real por linha (coluna Data = `startDate`, fonte de verdade; coluna Início removida da tela, mês segue derivado por baixo). Cada parcela persiste `due_date` (`20260907000003`, backfill com dia do vencimento da série e clamp de fim de mês); `month_index`/`ref_month` derivam da data.
 - *Faixas de preço por OS* — `OsTiersSection` por série (PK `(client, series, order)`),
   `readOnly` em série encerrada.
 - *Produtos e serviços* — por série ativa: Serviços (chips presença/ausência →
   `series.services`, união no submit) + Soluções (toggle + R$ + %; **sem coluna de status**,
-  `module_pricing.series_id`, rateio validado contra a base da série; vazio é válido).
+  `module_pricing.series_id`; **valor opcional** — ativo sem valor entra no Operacional e a soma
+  só é exigida quando todos os ativos têm valor (`rateioPending`); placeholder neutro `—`).
 - Renegociações ativas não podem se sobrepor (validado no form); renovação por X meses =
   nova série; mês a mês = `billing_end NULL + auto_renew`.
 - Auditoria: `logAction('create_series' | 'encerrar_serie', 'contract_series', …)` em `audit_logs`.

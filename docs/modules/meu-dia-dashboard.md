@@ -53,10 +53,13 @@ MeuDiaV3Page (src/pages/MeuDiaV3Page.jsx)   — order: personal first
 ├── MinhaAgendaBlock    — atrasada > hoje > futura, cap 5; row → ActivityDetailModal; "Nova atividade" (hidden for finance)
 │  ── TODA A BASE (company-wide via SECURITY DEFINER RPCs — identical numbers for all 6 roles) ──
 ├── SaudeDimensaoBlock  — get_dashboard_clients_overview; stacked dist per dim, worst-first; at-risk chips →
-│                         <Drawer>+<ClientHealthDrawer> only if canDrillIn (carteira for csm/sales)
-├── ProjetosAbertosBlock — get_open_projects_overview; top 3; row → /empresas/:id?tab=operacional&sub=projetos (if canDrillIn)
+│                         <Drawer>+<ClientHealthDrawer> only if canDrillIn (carteira for csm/sales);
+│                         "abrir Health Score" only if canSeeHealth (2026-09-07)
+├── ProjetosAbertosBlock — get_open_projects_overview; top 3; row → /empresas/:id?tab=operacional&sub=projetos (if canDrillIn);
+│                         "ver todos" → drawer local ProjetosAbertosDrawer (2026-09-07, sem navegação)
 ├── ForcaNumerosBlock   — get_dashboard_ytd: Clientes · OS criadas (ano) · Profissionais pico · Média health
-├── EcossistemaMapBlock — get_dashboard_clients_overview → <BrazilMap onSelectUF> + "Top estados" chips
+├── EcossistemaMapBlock — get_dashboard_clients_overview → <BrazilMap onSelectUF+selectedUF> + "Top estados" chips →
+│                         drawer EcossistemaUfDrawer com push do mapa; footer → /empresas?estado=UF (2026-09-07)
 └── OperacionalVariacaoBlock — get_operational_deltas; 3 panels top-5; row → OperationalHistoryDrawer (if canDrillIn);
                              sync-status strip → admin/manager only
 ```
@@ -125,10 +128,10 @@ matrix in **SDD §5 "Interactive Surface & Permissions"**. Summary:
 |---|---|---|---|
 | HERO cards | user (carteira for csm/sales) | "Clientes" → `/empresas`; finance atraso → `/empresas`; analyst → `/atendimento`; rest static | Clientes/Health ← `useDashboardClients`; Profissionais ← `useActiveProfissionais`; finance ← `get_finance_summary` |
 | Minha agenda | user | row → `ActivityDetailModal`; "Nova atividade" → `ActivityModal` | create/edit/concluir: all **except finance** (hide CTAs) |
-| Saúde por dimensão | **toda a base** | at-risk chip → `<Drawer>` + `<ClientHealthDrawer>` **only if `canDrillIn`**; header → `/health` | `get_dashboard_clients_overview` (RPC); drill-in carteira-only for csm/sales |
-| Projetos em aberto | **toda a base** | row → `/empresas/:id?tab=operacional&sub=projetos` **only if `canDrillIn`**; "ver todos" → `/projetos-cockpit` | `get_open_projects_overview` (RPC); `isEnabled('projects_cockpit')` for the footer link |
+| Saúde por dimensão | **toda a base** | at-risk chip → `<Drawer>` + `<ClientHealthDrawer>` **only if `canDrillIn`**; "abrir Health Score" renderiza **only if `canSeeHealth`** (`health_cockpit`, fallback `health`) | `get_dashboard_clients_overview` (RPC); drill-in carteira-only for csm/sales |
+| Projetos em aberto | **toda a base** | row → `/empresas/:id?tab=operacional&sub=projetos` **only if `canDrillIn`**; "ver todos" → drawer local `ProjetosAbertosDrawer` (toda a base + busca, gating por linha) | `get_open_projects_overview` (RPC) |
 | Nossa força em Números | toda a base | static | `get_dashboard_ytd` |
-| Mapa vivo | toda a base | UF/pin → `/empresas?estado=UF` | `get_dashboard_clients_overview`; destination list RLS-scoped |
+| Mapa vivo | toda a base | UF/chip → drawer lateral `EcossistemaUfDrawer` (clientes do estado + drill-in por linha) com push do mapa; footer → `/empresas?estado=UF` (filtro funcional + chip removível); estado selecionado com highlight | `get_dashboard_clients_overview` (+ `address_city/contract_start/created_at`); lista global (RLS `clients_global_select`) |
 | Operacional variação | **toda a base** | row → `OperationalHistoryDrawer` **only if `canDrillIn`**; SeeAll → `op-*-list` drawer | `get_operational_deltas` (RPC); **sync-status strip → admin/manager only** |
 | "Ver como" | — | `setImpersonation` + reload | admin only |
 
@@ -188,7 +191,9 @@ their own carteira; finance stays read-only (hide write CTAs).
 | `src/components/ui/Drawer.jsx` | shared drawer shell (`DRAWER_Z`, `drawerPushStyle`); `/health` migrated to it |
 | `src/components/clients/ClientHealthDrawer.jsx` | v3 client drawer content — `qaItems` incl. "Ver projeto ativo" |
 | `src/components/dashboard/DashboardPage.jsx` | monolith — `/labs/dashboard` (admin only) |
-| `src/components/dashboard/BrazilMap.jsx` | ecosystem map — `onSelectUF` + fetch-fail degrade |
+| `src/components/dashboard/BrazilMap.jsx` | ecosystem map — `onSelectUF` + `selectedUF` highlight + fetch-fail degrade |
+| `src/components/dashboard/v3/ProjetosAbertosDrawer.jsx` | "ver todos" drawer — toda a base + busca + gating por linha |
+| `src/components/dashboard/v3/EcossistemaUfDrawer.jsx` | drawer por UF — fantasia, cidade, health, cliente desde + drill-in por linha |
 | `src/hooks/useDashboardClients.js` | HERO clients — `useClients(labsFilterFor(profile))` wrapper |
 | `src/hooks/useDashboardOverview.js` | `useDashboardClientsOverview()` + `useOpenProjectsOverview()` — geral RPCs |
 | `src/hooks/useActiveProfissionais.js` | HERO Profissionais Ativos — RLS-scoped `client_usage` sum |

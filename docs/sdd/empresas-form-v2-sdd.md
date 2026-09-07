@@ -712,10 +712,21 @@ When resuming this document for implementation:
 
 ---
 
+## Adendo 2026-09-07 — Séries contratuais + V2 definitivo
+
+O corpo acima permanece como histórico (decisões 1–14, motor de régua única, modal→página). O que vale agora:
+
+- **V2 em produção, sem volta:** `ClientsPage` (`+ Nova Empresa`) e `ClientDetail` (`Editar`) navegam sempre para `/empresas/nova` e `/empresas/:id/editar` (`ClientFormPage`, sem gate de flag); `ClientForm.jsx` legado **deletado** (`aa87554`).
+- **Série = folha de cobrança completa** (`contract_series`: `original|aditivo|renegociacao`, `billing_start/end`, `due_day`, `auto_renew`, `status`, `reason`; `20260907000001` + `20260907000002` + `20260907000003`): plano, status, tiers (`billing_os_tiers` PK `(client, series, order)`), mods (`module_pricing.series_id`), evolução, eventuais (com `due_date` por parcela) e assinatura/renovação/índice vivem **por série**; `clients.*` é espelho da original.
+- **Fatura = `(series_id, ref_month)`** (`billing_payments` PK tripla — 2 faturas no mês); MRR derivado (`resolveMRR`, base própria por série, original pausada na janela de renegociação); renegociações não se sobrepõem; renovação = nova série; encerrar exige motivo e nunca deleta.
+- **Produtos opcionais:** sem gate de presença; seção unificada `Produtos e serviços` por série (serviços chips + soluções rateio sem status, valor opcional); status do módulo no Operacional (espelho + dropdown → `client_catalog`); submit travado até `seriesReady` + anti-wipe.
+- Detalhe completo e atualizado em `docs/modules/clients.md` (seções Contrato/Operacional, modelo de acesso, persistência).
+
 ## Histórico
 
 | Versão | Data | Autor | Mudança |
 |---|---|---|---|
+| 1.1 | 2026-09-07 | DoncCX Hub | Adendo: séries + V2 definitivo + produtos opcionais (legado removido) |
 | 1.0 | 2026-09-01 | DoncCX Hub | Draft inicial pós-discovery (3 sub-agentes) + decisões 1–14 + motor regras contíguas + adimplência no cockpit |
 
 ---

@@ -24,6 +24,7 @@
 | TD-006 | Refactor | Tabela sync_service_log para rastreamento independente por serviço | H | Done | `docs/superpowers/specs/2026-07-27-sync-service-log-design.md` |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-008 | Tech Debt | Fechamento Phase 4 — remover wrappers legados em monthly-sync | M | Backlog | `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md` |
+| TD-009 | Refactor | Remover modal legado `ClientForm.jsx` (V2 definitivo) | M | Done | `docs/sdd/empresas-form-v2-sdd.md` |
 
 ---
 
@@ -275,6 +276,7 @@ A v3 evoluiu (v1→v3) de "Genérica" para uma dashboard completa que re-incorpo
 - **Fase 2 shipada (2026-08-30):** 3 migrations em prod (`get_dashboard_ytd`, `get_operational_90d_avg`, `get_finance_summary` role-guarded; RLS write de `activities` p/ csm/sales); hooks `useDashboardClients` / `useDashboardYtd` (+ `useOperational90dAvg`) / `useOperationalDeltas` (+ `useOpClientHistory`); helpers de mês + `dataRefMonth` em `scoring.js`; pools `sales`/`finance` no greeting. A3 mitigado para o `/dashboard`.
 - **Fase 3 — blocos + swap + ajustes de UI (2026-08-30, verificado em prod):** `MeuDiaV3Page` real (7 blocos), `ui/Drawer.jsx` compartilhado, `BrazilMap` interativo + degrade, `BlockBoundary`, `:focus-visible`/reduced-motion globais. `/dashboard` = v3 p/ os 6 papéis (`20260830000003` amplia a flag; kill-switch por banco). Analyst: carve-out + link na navbar. **Ajustes de UI (`f42b959` + RPCs `20260830000004`):** HERO refeito (foto 108px, 3 linhas, cards Clientes/Profissionais/Health), dropdown Carteira removido, Saúde/Projetos/Mapa/Operacional = toda a base p/ os 6 papéis via 3 RPCs `SECURITY DEFINER`, drill-in gated (`canDrillIn`), Projetos → `?tab=operacional&sub=projetos`.
 - **Follow-up (não urgente):** limpar a flag/wrapper — deletar `DashboardRoute.jsx`, `/dashboard` → `MeuDiaV3Page` direto, `DELETE` da flag, tirar de `SettingsFeatureFlags`. ARIA do "Ver como" (Navbar). `handleSync` inline no bloco Operacional. Bug de peso do greeting-engine (L1 "Uma semana produtiva" em dia útil).
+- **Polish 2026-09-07 (`14472b5`, verificado em prod):** botão "abrir Health Score" condicional (`canSeeHealth`); "ver todos" dos Projetos vira drawer local (fim do `/cockpits` em branco); mapa com drawer por UF + `?estado=` funcional; gating visual criar/editar em `/empresas`. **Matriz de acesso Empresas (fase 5, parcial):** leitura global (`20260903000001`), detalhe `overview+anexos` p/ não-admin, sales cria/edita carteira (`20260903000002`, `88da21a`). Restam fases 4 (cockpits por papel) e 6 (aposentar monolito).
 
 ### Files
 - Docs: `docs/sdd/labs-dashboard-sdd.md` (reescrito), `docs/modules/meu-dia-dashboard.md` (novo), `docs/modules/{pages,contexts,lib}.md`, `.agents/docs-index.md`, `docs/CHANGELOG.md`
@@ -358,7 +360,7 @@ A service_role JWT exposta só morre de fato quando as legacy API keys são desa
 
 ### Context
 
-As colunas `clients.app_code` e `clients.url_donc` ficaram órfãs: sem input no `ClientForm`, sem `InfoRow` no card navy de `ClientSubDados`, mas continuam existindo no banco e são escritas pela rota de upsert do form removido (via payload que também foi limpo — hoje o Supabase ignora chaves desconhecidas, mas o payload está semanticamente fora de sincronia com o schema).
+As colunas `clients.app_code` e `clients.url_donc` ficaram órfãs: sem input no form (`ClientFormContent`, ex-`ClientForm` removido em `aa87554`), sem `InfoRow` no card navy de `ClientSubDados`, mas continuam existindo no banco e são escritas pela rota de upsert do form removido (via payload que também foi limpo — hoje o Supabase ignora chaves desconhecidas, mas o payload está semanticamente fora de sincronia com o schema).
 
 A tabela canônica é `client_donc_instances`, que carrega esses campos por contrato SaaS desde a migration `020_donc_api_integration`.
 
@@ -432,6 +434,26 @@ O payload do n8n (`data_os`, `data_produtividade`, `data_problemas`) não tem va
 ### Risks
 - Quebrar pipeline se n8n enviar campo novo que o schema rejeite
 - Esperar formato do n8n estabilizar antes de implementar
+
+---
+
+## TD-009 — Remover modal legado `ClientForm.jsx` (V2 definitivo)
+
+**Type:** Refactor
+**Priority:** M
+**Status:** Done
+**Closed:** 2026-09-07 — commit `aa87554`
+**Origin:** 2026-09-02 — flag `empresas_form_v2` ligada só para `admin/finance/sales`; `manager/csm` seguiam no modal legado, e os dois forms conviviam com regras divergentes (ex. validação de presença e save sem `seriesId` no legado).
+**Linked SDD:** `docs/sdd/empresas-form-v2-sdd.md` (adendo 2026-09-07)
+**Related commits:** `aa87554` (rotas sempre V2, `ClientFormPage` sem gate, arquivo deletado)
+
+### Context
+
+`ClientsPage`/`ClientDetail` desviavam por flag (`useV2 ? navigate(...) : setShowForm(true)`). Cada mudança de regra precisava ser feita 2× — foi assim que o cliente 29 perdeu os produtos (save cruzado). Decisão: V2 sem volta.
+
+### What was done
+
+- `ClientsPage` (`+ Nova Empresa`) e `ClientDetail` (`Editar`) navegam sempre para as rotas; `ClientFormPage` sem gate de flag; `ClientForm.jsx` deletado (−895 linhas líquidas no diff).
 
 ---
 

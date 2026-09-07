@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-09-07
+
+### Dashboard V3 — polimento dos blocos (`14472b5`)
+
+- **Saúde por dimensão:** botão "abrir Health Score" some para papéis sem `health_cockpit` (antes levava a `/module-unavailable`). `SaudeDimensaoBlock.jsx` recebe `canSeeHealth` (com fallback `health`); `MeuDiaV3Page.jsx` computa via flags.
+- **Projetos em aberto:** "ver todos" não navega mais para `/cockpits` (tela em branco para quem não tem cockpit) — abre drawer local `ProjetosAbertosDrawer.jsx` com toda a base + busca, gating por linha via `canDrillIn`.
+- **Mapa vivo do ecossistema:** clique no estado/chip abre drawer lateral (`EcossistemaUfDrawer.jsx`: fantasia, cidade, health, cliente desde) com push do mapa (`drawerPushStyle`) + highlight do estado (`BrazilMap.jsx` `selectedUF`); param `?estado=` passa a funcionar (`useClients.js` filtro `address_state` + chip removível em `ClientsPage.jsx`); migration `20260903000000` adiciona `address_city/contract_start/created_at` ao `get_dashboard_clients_overview`.
+- **Empresas:** `+ Nova Empresa`/`Editar` escondidos para papéis sem escrita (só `admin/manager/finance`).
+
+### Empresas — leitura global + detalhe por papéis (`e99ade1`, `152b30f`)
+
+- **Opção A:** `clients_global_select FOR SELECT USING (true)` (`20260903000001`) — todos veem todos os cards; escrita segue só `admin/manager/finance` (RLS).
+- **Detalhe:** só `admin/manager` veem todas as tabs; demais só `overview` + `anexos` (tabs desabilitadas + redirect automático). `+ Nova Empresa`/`Editar` só `admin/manager/finance` (`ClientsPage.jsx`, `ClientDetail.jsx`).
+- **Financeiro blindado no Network:** `useClients.js`/`useClient.js` usam `SELECT` explícito sem `mrr/billing_*` para papéis sem `financial_data` (`SAFE_CLIENT_COLS`); card só renderiza MRR com `canSeeFinancial`.
+- **Fix:** `canSeeFinancial` hoisted antes de `useClients` (`ReferenceError` em produção).
+
+### Empresas — sales cria/edita carteira + anexos (`88da21a`, `49f190d`)
+
+- **Sales:** `+ Nova Empresa` visível; `Editar` só na carteira (`comercial_id/csm_id = profile.id`); form defaulta `comercial_id` ao próprio sales. RLS `20260903000002` (`clients_sales_insert/update` com `WITH CHECK` de carteira).
+- **Anexos:** aba `Anexos` em `ClientFormContent` (`TABS_V2` 5 tabs; `/nova` com `pendingFiles` enviados após salvar; `/editar` com `ClientSubAnexos allowUpload`); botão `+ Adicionar anexo` em `?tab=anexos` (upload `activityId null` → pasta `avulso`); leitura para todos com acesso, upload só `admin/manager/finance` (+ sales na carteira).
+
+### Contratos — séries contratuais (`3df4f0f`, `97c9c49`, `56cd54a`→`8c77c2e`, `e534156`, `aa87554`)
+
+- **Modelo:** `contract_series` (`original|aditivo|renegociacao`, `billing_start/end`, `due_day` = dia do início, `auto_renew`, `status`, `reason` obrigatório em renegociação; `20260907000001` + backfill, 29 com `ref_month` real). Charges com `series_id/ref_month/due_date` (`20260907000003`); payments PK `(client, series, month)` = 2 faturas no mês; tiers PK `(client, series, order)`; `module_pricing.series_id` (`20260907000002`).
+- **Tudo por série:** plano, status, tiers, mods, evolução, eventuais + assinatura/renovação/índice; `clients.*` espelho da original; MRR derivado (`resolveMRR`, base própria por série, original pausada na janela de renegociação); renegociações não se sobrepõem; renovação = nova série; encerrar com modal + motivo (nunca deleta); auditoria em `audit_logs`.
+- **Datas:** `billing_start` por série (default `contract_start`); preview `05/set/26`; eventuais com date picker DD/MM/AAAA real (`due_date` por parcela, sem rebate); fim auto (`billing_start + N − 1`); `due_day` editável.
+- **Produtos:** opcionais (sem gate de presença); seção unificada `Produtos e serviços` por série (serviços chips + soluções rateio sem status, valor opcional, sem placeholder); status do módulo no Operacional (espelho + dropdown → `client_catalog`); soma só exigida com todos os valores preenchidos.
+- **V2 definitivo:** `ClientsPage`/`ClientDetail` sempre nas rotas, sem flag; `ClientFormPage` sem gate; `ClientForm.jsx` legado deletado. Submit travado até `seriesReady` + validação pela união + anti-wipe (nunca persiste buffer vazio).
+
 ## 2026-09-02
 
 ### Empresas — fix barra vertical nas abas de detalhe e edição
