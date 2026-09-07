@@ -85,6 +85,22 @@ export function currentRefMonth(from = new Date()) {
   return `${from.getFullYear()}-${String(from.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** Nº de meses de billingStart ('YYYY-MM-DD') até dateISO ('YYYY-MM-DD'), mínimo 1 */
+export function diffMonths(billingStartISO, dateISO) {
+  const [y1, m1] = String(billingStartISO || '').split('-').map(Number)
+  const [y2, m2] = String(dateISO || '').split('-').map(Number)
+  if (!y1 || !m1 || !y2 || !m2) return 1
+  return Math.max(1, (y2 - y1) * 12 + (m2 - m1) + 1)
+}
+
+/** 'YYYY-MM-DD' do mês `monthIndex` (1-based) a partir de billingStart */
+export function monthDate(billingStartISO, monthIndex) {
+  const [y, m] = String(billingStartISO || '').split('-').map(Number)
+  if (!y || !m) return ''
+  const dt = new Date(y, m - 1 + (Number(monthIndex) || 1) - 1, 1)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-01`
+}
+
 /** Último dia de billing_start + (N-1) meses → 'YYYY-MM-DD' (fim da cobrança) */
 export function billingEnd(billingStartISO, N) {
   const [y, m] = String(billingStartISO || '').split('-').map(Number)

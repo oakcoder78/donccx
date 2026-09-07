@@ -1004,8 +1004,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                       <p className="text-[11px] text-text-tertiary mt-0.5">Automático: fim dos {activeSeries.N} meses.</p>
                     )}
                   </div>
-                  <div className="flex items-end gap-2 pb-1">
-                    <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+                  <div className="flex flex-col gap-1">
+                    <span className="label-sm invisible select-none" aria-hidden="true">·</span>
+                    <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer h-10">
                       <input
                         type="checkbox"
                         checked={!!activeSeries.auto_renew}

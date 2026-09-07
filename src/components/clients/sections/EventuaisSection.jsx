@@ -1,13 +1,14 @@
 import { useMemo } from 'react'
-import { formatBRL4, refMonth } from '@/lib/contractRules'
+import { formatBRL4, refMonth, monthDate, diffMonths } from '@/lib/contractRules'
 import { fmtMonthShortYear } from '@/lib/scoring'
 import { Icons } from '@/lib/icons'
 
-const ROW = 'grid grid-cols-[1fr_9rem_5.5rem_7rem_9rem_2rem] items-center gap-2 min-w-[38rem]'
+const ROW = 'grid grid-cols-[12rem_8rem_9rem_5rem_6rem_8rem_2rem] items-center gap-2 min-w-[52rem]'
 
 /**
  * "Cobranças Eventuais" — one-off charges (implantação, setup, treinamento),
- * optionally split into installments starting at a chosen month. Business language only.
+ * optionally split into installments starting at a user-chosen date.
+ * The date input is primary; startMonth (relative to the series) derives from it.
  * Parent wraps this in a <FormSection>.
  */
 export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null }) {
@@ -15,8 +16,17 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
     if (!billingStart) return null
     try { return fmtMonthShortYear(refMonth(billingStart, monthIndex)) } catch { return null }
   }
+  function dateValue(startMonth) {
+    if (!billingStart) return ''
+    try { return monthDate(billingStart, startMonth ?? 1) } catch { return '' }
+  }
   function update(idx, patch) {
     setEventuais(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
+  }
+  function onDateChange(idx, iso) {
+    if (!iso || !billingStart) return
+    const m = Math.min(120, diffMonths(billingStart, iso))
+    update(idx, { startMonth: m })
   }
   function remove(idx) {
     setEventuais(prev => prev.filter((_, i) => i !== idx))
@@ -41,6 +51,7 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
         <div className={`${ROW} text-[11px] font-medium uppercase tracking-wide text-text-tertiary`}>
           <span>Descrição</span>
           <span>Valor total</span>
+          <span>Data</span>
           <span>Início</span>
           <span>Parcelas</span>
           <span className="text-right">Por parcela</span>
@@ -56,7 +67,7 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
               value={e.label}
               onChange={ev => update(idx, { label: ev.target.value })}
               placeholder="Implantação"
-              className="input-base w-full"
+              className="input-base w-full disabled:opacity-50"
               disabled={readOnly}
             />
             <div className="flex items-center gap-1">
@@ -69,6 +80,14 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
                 disabled={readOnly}
               />
             </div>
+            <input
+              type="date"
+              value={dateValue(e.startMonth ?? 1)}
+              title="Data da primeira parcela (define o mês de início)"
+              onChange={ev => onDateChange(idx, ev.target.value)}
+              disabled={readOnly || !billingStart}
+              className="input-base w-full disabled:opacity-50"
+            />
             <div className="flex flex-col gap-0.5">
               <input
                 type="number" min="1" max="120" value={e.startMonth ?? 1}
@@ -77,9 +96,9 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
                 className="input-base w-full text-center disabled:opacity-50"
                 disabled={readOnly}
               />
-              {refLabel(e.startMonth ?? 1) && (
+              {Number(e.installments) > 1 && refLabel((e.startMonth ?? 1) + Number(e.installments) - 1) && (
                 <span className="text-[10px] text-text-tertiary text-center leading-none">
-                  {refLabel(e.startMonth ?? 1)}{Number(e.installments) > 1 && ` → ${refLabel((e.startMonth ?? 1) + Number(e.installments) - 1)}`}
+                  → {refLabel((e.startMonth ?? 1) + Number(e.installments) - 1)}
                 </span>
               )}
             </div>
