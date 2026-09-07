@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { formatBRL4, diffMonths } from '@/lib/contractRules'
 import { Icons } from '@/lib/icons'
 
-const ROW = 'grid grid-cols-[16rem_8rem_9rem_5rem_6rem_1fr_2rem] items-center gap-2 min-w-[54rem]'
+const ROW = 'grid grid-cols-[16rem_8rem_9rem_6rem_1fr_2rem] items-center gap-2 min-w-[49rem]'
 
 /**
  * "Cobranças Eventuais" — one-off charges (implantação, setup, treinamento),
@@ -11,12 +11,12 @@ const ROW = 'grid grid-cols-[16rem_8rem_9rem_5rem_6rem_1fr_2rem] items-center ga
  * Parent wraps this in a <FormSection>.
  */
 export function EventuaisSection({ eventuais, setEventuais, readOnly = false, billingStart = null }) {
-  // Mês derivado só para exibição; a data cheia (startDate) é a fonte de verdade
-  function derivedMonth(startDate, fallback) {
-    if (startDate && billingStart) {
-      try { return diffMonths(billingStart, startDate) } catch { return fallback }
+  // Mês de início deriva da data (fonte de verdade); sem data, usa o mês guardado
+  function startMonthOf(e) {
+    if (e.startDate && billingStart) {
+      try { return diffMonths(billingStart, e.startDate) } catch { /* fallback abaixo */ }
     }
-    return fallback
+    return Number(e.startMonth) || 1
   }
   function update(idx, patch) {
     setEventuais(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
@@ -45,7 +45,6 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
           <span>Descrição</span>
           <span>Valor total</span>
           <span>Data</span>
-          <span>Início</span>
           <span>Parcelas</span>
           <span className="text-right">Por parcela</span>
           <span />
@@ -82,13 +81,6 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
               className="input-base w-full disabled:opacity-50"
             />
             <input
-              type="number" min="1" max="120"
-              value={derivedMonth(e.startDate, e.startMonth ?? 1)}
-              title="Mês de início (derivado da data)"
-              disabled
-              className="input-base w-full text-center disabled:opacity-50"
-            />
-            <input
               type="number" min="1" max="120" value={e.installments}
               onChange={ev => update(idx, { installments: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}
               className="input-base w-full text-center disabled:opacity-50"
@@ -119,7 +111,7 @@ export function EventuaisSection({ eventuais, setEventuais, readOnly = false, bi
       {eventuais.length > 0 && (
         <p className="text-xs text-text-tertiary">
           Total: <span className="font-medium text-text-primary">{formatBRL4(totalEventuais)}</span>
-          {parcelado && ` · parcelado a partir do mês ${Math.min(...eventuais.map(e => Number(e.startMonth) || 1))}`}
+          {parcelado && ` · parcelado a partir do mês ${Math.min(...eventuais.map(startMonthOf))}`}
         </p>
       )}
     </div>

@@ -262,14 +262,17 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
   const activeModList = Object.entries(modPricing)
     .filter(([, v]) => v.active)
-    .map(([, v]) => ({ additional_value: Number(v.value) || 0 }))
+    .map(([, v]) => ({ additional_value: Number(v.value) || 0, hasValue: v.value !== '' && v.value != null }))
   // Rateio mode: base * floor = total, mods are distribution of total (not additive)
+  // Valor é opcional: ativo sem valor entra no Operacional; a soma só é exigida
+  // quando todos os ativos têm valor preenchido
   const basePerLic = Number(form.billing_base_value) || 0
   const floor = Number(form.billing_floor) || 0
   const baseTotal = floor > 0 ? basePerLic * floor : basePerLic
   const unitValue = calculateUnitValue(basePerLic, activeModList, { mode: 'rateio' })
   const sumMods = activeModList.reduce((s, m) => s + (m.additional_value || 0), 0)
-  const rateioOk = activeModList.length === 0 ? true : Math.abs(sumMods - baseTotal) <= 0.01
+  const rateioPending = activeModList.some(m => !m.hasValue)
+  const rateioOk = activeModList.length === 0 || rateioPending ? true : Math.abs(sumMods - baseTotal) <= 0.01
   const rateioDiff = Math.abs(sumMods - baseTotal)
 
   const allActive = solucoes.length > 0 && solucoes.every(s => modPricing[s.id]?.active)
@@ -384,9 +387,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         if (startMonth + inst - 1 > s.N) return `Cobrança "${ev.label || 'eventual'}"${tag} ultrapassa os ${s.N} meses da série.`
       }
       for (const [cid, v] of Object.entries(s.mods || {})) {
-        if (v?.active && (v.value === '' || isNaN(Number(v.value)))) {
+        if (v?.active && v.value !== '' && v.value != null && (isNaN(Number(v.value)) || Number(v.value) < 0)) {
           const sol = solucoes.find(x => String(x.id) === String(cid))
-          return `Produto "${sol?.name || cid}"${tag} sem valor válido.`
+          return `Produto "${sol?.name || cid}"${tag} com valor inválido.`
         }
       }
       if (s.billing_type === 'por_os' && (s.tiers || []).length > 0) {
@@ -496,10 +499,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     const errs = {}
     solucoes.forEach(sol => {
       const mp = modPricing[sol.id]
-      if (mp?.active) {
-        if (mp.value === '' || isNaN(Number(mp.value))) {
-          errs[sol.id] = 'Informe um valor válido'
-        }
+      // Valor opcional: só valida quando preenchido
+      if (mp?.active && mp.value !== '' && mp.value != null && (isNaN(Number(mp.value)) || Number(mp.value) < 0)) {
+        errs[sol.id] = 'Informe um valor válido'
       }
     })
     return errs
@@ -1246,7 +1248,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               )}
               {solucoes.length > 0 && (
               <div>
-              <p className="text-xs text-text-tertiary mb-1">Soluções — dividem o MRR base</p>
+              <p className="text-xs text-text-tertiary mb-1">Soluções — valor opcional, divide o MRR base quando preenchido</p>
               {solucoes.map(sol => {
                 const mp = modPricing[sol.id] || { active: false, value: '' }
                 const pct = baseTotal > 0 && mp.value ? ((Number(mp.value) / baseTotal) * 100).toFixed(0) : null
@@ -1272,7 +1274,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                           value={mp.value}
                           onChange={e => setModValue(sol.id, e.target.value)}
                           disabled={!mp.active || activeReadOnly}
-                          placeholder={mp.active ? '2500' : '—'}
+                          placeholder="—"
                           className={`input-base w-full text-right disabled:opacity-40 ${modErrors[sol.id] ? 'border-red-400' : ''}`}
                           min="0" step="0.01"
                         />
@@ -1290,6 +1292,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               {!rateioOk && activeModList.length > 0 && (
                 <p className="text-xs text-donc-red bg-donc-red/10 border border-donc-red/20 rounded px-2 py-1.5">
                   A soma dos produtos ({fmtBRL(sumMods)}) precisa bater com o MRR base ({fmtBRL(baseTotal)}). Diferença de {fmtBRL(rateioDiff)}.
+                </p>
+              )}
+              {rateioOk && rateioPending && activeModList.length > 0 && (
+                <p className="text-xs text-text-tertiary">
+                  Módulos ativos já aparecem na aba Operacional — preencha os valores quando souber.
                 </p>
               )}
             </FormSection>
