@@ -2,14 +2,14 @@ import { useMemo } from 'react'
 import { formatBRL4 } from '@/lib/contractRules'
 import { Icons } from '@/lib/icons'
 
-const ROW = 'grid grid-cols-[1fr_9rem_7.5rem_9rem_2rem] items-center gap-2 min-w-[34rem]'
+const ROW = 'grid grid-cols-[1fr_9rem_5.5rem_7rem_9rem_2rem] items-center gap-2 min-w-[38rem]'
 
 /**
  * "Cobranças Eventuais" — one-off charges (implantação, setup, treinamento),
- * optionally split into installments. Business language only.
+ * optionally split into installments starting at a chosen month. Business language only.
  * Parent wraps this in a <FormSection>.
  */
-export function EventuaisSection({ eventuais, setEventuais }) {
+export function EventuaisSection({ eventuais, setEventuais, readOnly = false }) {
   function update(idx, patch) {
     setEventuais(prev => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)))
   }
@@ -17,7 +17,7 @@ export function EventuaisSection({ eventuais, setEventuais }) {
     setEventuais(prev => prev.filter((_, i) => i !== idx))
   }
   function add() {
-    setEventuais(prev => [...prev, { label: 'Implantação', total: '', installments: 1 }])
+    setEventuais(prev => [...prev, { label: 'Implantação', total: '', installments: 1, startMonth: 1 }])
   }
 
   const totalEventuais = useMemo(
@@ -36,6 +36,7 @@ export function EventuaisSection({ eventuais, setEventuais }) {
         <div className={`${ROW} text-[11px] font-medium uppercase tracking-wide text-text-tertiary`}>
           <span>Descrição</span>
           <span>Valor total</span>
+          <span>Início</span>
           <span>Parcelas</span>
           <span className="text-right">Por parcela</span>
           <span />
@@ -51,6 +52,7 @@ export function EventuaisSection({ eventuais, setEventuais }) {
               onChange={ev => update(idx, { label: ev.target.value })}
               placeholder="Implantação"
               className="input-base w-full"
+              disabled={readOnly}
             />
             <div className="flex items-center gap-1">
               <span className="w-4 text-xs text-text-tertiary">R$</span>
@@ -58,36 +60,49 @@ export function EventuaisSection({ eventuais, setEventuais }) {
                 type="number" step="0.01" min="0" value={e.total}
                 onChange={ev => update(idx, { total: ev.target.value })}
                 placeholder="15000"
-                className="input-base w-full text-right"
+                className="input-base w-full text-right disabled:opacity-50"
+                disabled={readOnly}
               />
             </div>
             <input
+              type="number" min="1" max="120" value={e.startMonth ?? 1}
+              title="Mês de início (relativo à série)"
+              onChange={ev => update(idx, { startMonth: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}
+              className="input-base w-full text-center disabled:opacity-50"
+              disabled={readOnly}
+            />
+            <input
               type="number" min="1" max="120" value={e.installments}
               onChange={ev => update(idx, { installments: Math.min(120, Math.max(1, Number(ev.target.value) || 1)) })}
-              className="input-base w-full text-center"
+              className="input-base w-full text-center disabled:opacity-50"
+              disabled={readOnly}
             />
             <span className="text-right text-xs text-text-secondary">
               {e.total && e.installments ? `${formatBRL4(per)}` : '—'}
             </span>
-            <button
-              type="button" onClick={() => remove(idx)}
-              className="inline-flex items-center justify-center h-8 w-8 rounded border border-border-tertiary text-text-tertiary hover:bg-bg-secondary hover:text-donc-red"
-              aria-label="Remover cobrança"
-            >
-              <Icons.X size={14} />
-            </button>
+            {!readOnly && (
+              <button
+                type="button" onClick={() => remove(idx)}
+                className="inline-flex items-center justify-center h-8 w-8 rounded border border-border-tertiary text-text-tertiary hover:bg-bg-secondary hover:text-donc-red"
+                aria-label="Remover cobrança"
+              >
+                <Icons.X size={14} />
+              </button>
+            )}
           </div>
         )
       })}
 
-      <button type="button" onClick={add} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-dashed border-border-secondary rounded hover:bg-bg-secondary">
-        <Icons.Plus size={13} /> Adicionar cobrança eventual
-      </button>
+      {!readOnly && (
+        <button type="button" onClick={add} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-dashed border-border-secondary rounded hover:bg-bg-secondary">
+          <Icons.Plus size={13} /> Adicionar cobrança eventual
+        </button>
+      )}
 
       {eventuais.length > 0 && (
         <p className="text-xs text-text-tertiary">
           Total: <span className="font-medium text-text-primary">{formatBRL4(totalEventuais)}</span>
-          {parcelado && ' · parcelado a partir do início do contrato'}
+          {parcelado && ` · parcelado a partir do mês ${Math.min(...eventuais.map(e => Number(e.startMonth) || 1))}`}
         </p>
       )}
     </div>

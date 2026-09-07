@@ -9,6 +9,7 @@ import { Icons } from '@/lib/icons'
 import { useClientHandovers } from '@/hooks/useClientHandovers'
 import { useLatestBillingPayment } from '@/hooks/useBillingPayments'
 import { HANDOVER_LABELS } from '@/lib/contractRules'
+import { BillingSchedule } from './BillingSchedule'
 import toast from 'react-hot-toast'
 
 function shortUrl(url) {
@@ -417,6 +418,9 @@ export function ClientSubDados({ client }) {
           )}
         </Card>
       )}
+
+      {/* Cronograma de cobrança (séries) */}
+      <BillingSchedule client={client} />
     </div>
   )
 }

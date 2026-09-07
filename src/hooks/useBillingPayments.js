@@ -39,9 +39,21 @@ export function useLatestBillingPayment(clientId) {
 export function useBillingPaymentsMutations(clientId) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ ref_month, status, delay_days, paid_at, note }) => {
+    mutationFn: async ({ ref_month, status, delay_days, paid_at, note, series_id }) => {
+      let sid = series_id || null
+      if (!sid) {
+        const { data: s } = await supabase
+          .from('contract_series')
+          .select('id')
+          .eq('client_id', clientId)
+          .eq('kind', 'original')
+          .maybeSingle()
+        sid = s?.id || null
+      }
+      if (!sid) throw new Error('Cliente sem série contratual — configure o contrato primeiro')
       const payload = {
         client_id: clientId,
+        series_id: sid,
         ref_month,
         status,
         delay_days: Number(delay_days) || 0,
@@ -51,7 +63,7 @@ export function useBillingPaymentsMutations(clientId) {
       }
       const { data, error } = await supabase
         .from('billing_payments')
-        .upsert(payload, { onConflict: 'client_id,ref_month' })
+        .upsert(payload, { onConflict: 'client_id,series_id,ref_month' })
         .select()
         .single()
       if (error) throw error

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { validateRulesContiguous, expandRulesToCharges, formatBRL4, getBaseTotal, calculateRuleTotal } from '@/lib/contractRules'
+import { validateRulesContiguous, expandRulesToCharges, formatBRL4, getBaseTotal, calculateRuleTotal, refMonth } from '@/lib/contractRules'
+import { fmtMonthShortYear } from '@/lib/scoring'
 import { Icons } from '@/lib/icons'
 
 const ROW = 'grid grid-cols-[3rem_4rem_1.5rem_4rem_12rem_9rem_1fr_2rem] items-center gap-2 min-w-[44rem]'
@@ -9,7 +10,7 @@ const ROW = 'grid grid-cols-[3rem_4rem_1.5rem_4rem_12rem_9rem_1fr_2rem] items-ce
  * the contract. Business language only: no table/column names.
  * The parent wraps this in a <FormSection> (title + duration + hint).
  */
-export function ContractChargesSection({ N, rules, setRules, billingBaseValue, billingFloor }) {
+export function ContractChargesSection({ N, rules, setRules, billingBaseValue, billingFloor, billingStart = null, readOnly = false }) {
   const [showPreview, setShowPreview] = useState(false)
 
   const baseTotal = getBaseTotal(billingBaseValue, billingFloor)
@@ -21,10 +22,12 @@ export function ContractChargesSection({ N, rules, setRules, billingBaseValue, b
     try {
       return expandRulesToCharges(rules, N).map(c => {
         const rule = rules.find(r => c.month_index >= r.from && c.month_index <= r.to)
-        return { month_index: c.month_index, total: rule ? calculateRuleTotal(rule, baseTotal) : null }
+        let ref = null
+        try { ref = billingStart ? refMonth(billingStart, c.month_index) : null } catch { ref = null }
+        return { month_index: c.month_index, total: rule ? calculateRuleTotal(rule, baseTotal) : null, ref }
       })
     } catch { return [] }
-  }, [validation.ok, rules, N, baseTotal])
+  }, [validation.ok, rules, N, baseTotal, billingStart])
 
   function updateRule(idx, patch) {
     setRules(prev => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)))
@@ -55,15 +58,18 @@ export function ContractChargesSection({ N, rules, setRules, billingBaseValue, b
             type="number" min="1" max={N} value={r.from}
             onChange={e => updateRule(idx, { from: Number(e.target.value) })}
             className="input-base w-full text-center"
+            disabled={readOnly}
           />
           <span className="text-center text-xs text-text-tertiary">ao</span>
           <input
             type="number" min="1" max={N} value={r.to}
             onChange={e => updateRule(idx, { to: Number(e.target.value) })}
             className="input-base w-full text-center"
+            disabled={readOnly}
           />
           <select
             value={r.mode === 'percent' ? 'percent' : 'absolute'}
+            disabled={readOnly}
             onChange={e => {
               const mode = e.target.value
               let value = r.value
@@ -89,32 +95,37 @@ export function ContractChargesSection({ N, rules, setRules, billingBaseValue, b
               step={r.mode === 'percent' ? '1' : '0.01'}
               max={r.mode === 'percent' ? '100' : undefined}
               value={r.value}
+              disabled={readOnly}
               onChange={e => {
                 let v = e.target.value
                 if (r.mode === 'percent' && Number(v) > 100) v = '100'
                 updateRule(idx, { value: v })
               }}
-              className="input-base w-full text-right"
+              className="input-base w-full text-right disabled:opacity-50"
               placeholder={r.mode === 'percent' ? '80' : (formatBRL4(baseTotal).replace('R$', '').trim() || '2500')}
             />
           </div>
           <span className="truncate text-[11px] text-text-tertiary">
             {r.mode === 'percent' && baseTotal > 0 && r.value !== '' && `= ${formatBRL4(baseTotal * (Number(r.value) / 100))}/mês`}
           </span>
-          <button
-            type="button" onClick={() => removeRule(idx)}
-            className="inline-flex items-center justify-center h-8 w-8 rounded border border-border-tertiary text-text-tertiary hover:bg-bg-secondary hover:text-donc-red"
-            aria-label="Remover período"
-          >
-            <Icons.X size={14} />
-          </button>
+          {!readOnly && (
+            <button
+              type="button" onClick={() => removeRule(idx)}
+              className="inline-flex items-center justify-center h-8 w-8 rounded border border-border-tertiary text-text-tertiary hover:bg-bg-secondary hover:text-donc-red"
+              aria-label="Remover período"
+            >
+              <Icons.X size={14} />
+            </button>
+          )}
         </div>
       ))}
 
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={addRule} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-dashed border-border-secondary rounded hover:bg-bg-secondary">
-          <Icons.Plus size={13} /> Adicionar período
-        </button>
+        {!readOnly && (
+          <button type="button" onClick={addRule} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-dashed border-border-secondary rounded hover:bg-bg-secondary">
+            <Icons.Plus size={13} /> Adicionar período
+          </button>
+        )}
         {rules.length > 0 && preview.length > 0 && (
           <button type="button" onClick={() => setShowPreview(v => !v)} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border-tertiary rounded hover:bg-bg-secondary">
             {showPreview ? <Icons.EyeOff size={13} /> : <Icons.Eye size={13} />}
@@ -143,7 +154,7 @@ export function ContractChargesSection({ N, rules, setRules, billingBaseValue, b
             <tbody>
               {preview.slice(0, 60).map(p => (
                 <tr key={p.month_index} className="border-t border-border-tertiary/50">
-                  <td className="px-3 py-1.5">{p.month_index}</td>
+                  <td className="px-3 py-1.5">{p.ref ? fmtMonthShortYear(p.ref) : `mês ${p.month_index}`}</td>
                   <td className="px-3 py-1.5 font-medium text-donc-navy">{formatBRL4(p.total)}</td>
                 </tr>
               ))}

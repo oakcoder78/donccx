@@ -184,21 +184,34 @@ While the flag is off, `ClientsPage`/`ClientDetail` still open the legacy `<Clie
 shell adds an amber banner and a **"Editar empresa existente"** search (`useAllClients`) that links
 to `/labs/empresas_v2/:id/editar`.
 
-**Tabs** (new order): `Dados da Empresa → Endereço → Contrato → Operacional`.
+**Tabs** (new order): `Dados da Empresa → Endereço → Contrato → Operacional → Anexos`.
+(`Anexos` em `/nova`: arquivos pendentes enviados após salvar; em `/editar`: lista + upload.)
 
 **Contrato tab** (business-language UI, no table/column names on screen):
+- *Séries contratuais* — cada série tem régua 1..N e início de cobrança próprios e gera
+  faturas separadas (`contract_series`: `original | aditivo | renegociacao`, `billing_start`,
+  `due_day` = dia do `billing_start`, `billing_end?`, `auto_renew`, `status ativa|encerrada`,
+  `reason` obrigatório em renegociação). Pills de seleção + `+ Nova série`; série encerrada
+  fica somente leitura (modal de confirmação + motivo, histórico preservado).
 - *Plano de cobrança* — `billing_type` (por licença / por OS), valor base, piso, datas, índice.
 - *MRR base* (card navy) — `piso × valor base`.
 - *Status de cobrança* — 3 states `ativo | suspenso | nao_bilhetavel` ("Não cobrar"). `contract_active`
-  is derived on save (`= billing_status === 'ativo'`); `mrr` is written as `0` when not `ativo`.
-- *Evolução da recorrência (MRR)* — `ContractChargesSection`: contiguous per-period rules
-  (`from..to`, mode `absolute | percent`), expanded to one `contract_charges` row per month on save
-  via `expandRulesToCharges` (`src/lib/contractRules.js`). Month-by-month preview.
-- *Cobranças Eventuais* — `EventuaisSection`: one-off charges, optional installments →
-  `contract_charges` rows sharing an `installment_group`.
+  is derived on save (`= billing_status === 'ativo'`); `mrr` é derivado via `resolveMRR`
+  (soma das séries ativas no mês corrente; sem regras → MRR base; mês com renegociação →
+  original pausada, só o valor renegociado conta).
+- *Evolução da recorrência (MRR)* — `ContractChargesSection` por série ativa: contiguous
+  per-period rules (`from..to`, mode `absolute | percent`), expanded to one `contract_charges`
+  row per month on save via `expandRulesToCharges(rules, N, { seriesId, billingStart })`
+  (`src/lib/contractRules.js`). Preview mostra competência real (`set/26 → R$ 4.000`).
+- *Cobranças Eventuais* — `EventuaisSection`: one-off charges, installments com mês de
+  início próprio (`startMonth`, default 1) → `contract_charges` rows sharing an
+  `installment_group` (centavos ajustados na última parcela).
 - *Faixas de preço por OS* — `OsTiersSection` (only `por_os`) → `billing_os_tiers`.
 - *Divisão do MRR por produto* — per-solution split of the base MRR (`module_pricing`,
   `mode: 'rateio'` — a breakdown of the total, **not** additive).
+- Renegociações ativas não podem se sobrepor (validado no form); renovação por X meses =
+  nova série; mês a mês = `billing_end NULL + auto_renew`.
+- Auditoria: `logAction('create_series' | 'encerrar_serie', 'contract_series', …)` em `audit_logs`.
 
 **Operacional tab** — stage, unidades, ABC, ERP, TI, service/solution chips, and the 10-question
 **Handoff comercial → onboarding** (`client_handovers`). The handoff is **never required** — no
@@ -207,9 +220,16 @@ to `/labs/empresas_v2/:id/editar`.
 **Persistence note:** `ClientFormContent` seeds its form state from the `client` prop in a
 `useState` initializer (runs once). The page shells pass `key={isEdit ? 'edit-' + client.id : 'new'}`
 so React remounts the form when the target company changes; `handleSubmit` ends with
-`qc.removeQueries` for `['client' | 'contract_charges' | 'billing_os_tiers', id]` so the next edit
-mount reads fresh server data. The child-table mutations accept a `clientId` override in the
-payload (the create flow has no `client?.id` at mount).
+`qc.removeQueries` for `['client' | 'contract_charges' | 'contract_series' | 'billing_os_tiers', id]`
+so the next edit mount reads fresh server data. The child-table mutations accept a `clientId`
+override in the payload (the create flow has no `client?.id` at mount).
+Charges save is **scoped per series** (`DELETE client_id + series_id`, reason validated before
+delete); `contract_charges` rows carry `series_id + ref_month` (`ref_month = billing_start +
+(month_index-1)`), UNIQUE `(series_id, kind, month_index, installment_group)`, and a trigger
+rejects `client_id` diverging from the series. `billing_payments` PK is
+`(client_id, series_id, ref_month)` (2 faturas no mesmo mês); upsert conflict target updated.
+`Cronograma de cobrança` (`BillingSchedule.jsx`, read-only, após catálogo em `ClientSubDados`)
+agrega `(série, competência)`: renegociação exibe `original − desconto = a pagar`.
 
 ### Flow: View Client Detail
 1. User clicks a client card.
@@ -267,6 +287,9 @@ payload (the create flow has no `client?.id` at mount).
 - `src/components/clients/sections/ContractChargesSection.jsx`
 - `src/components/clients/sections/EventuaisSection.jsx`
 - `src/components/clients/sections/OsTiersSection.jsx`
+- `src/components/clients/tabs/operacional/BillingSchedule.jsx` (cronograma read-only)
+- `src/hooks/useContractCharges.js` (`useContractSeries`, `useContractSeriesMutations`)
+- `supabase/migrations/20260907000001_contract_series.sql`
 - `src/pages/ClientFormPage.jsx`
 - `src/pages/labs/EmpresasV2Page.jsx`
 - `src/components/clients/ClientsPage.jsx`

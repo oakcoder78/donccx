@@ -12,14 +12,16 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { calculateUnitValue } from '@/lib/billing'
-import { useContractCharges, useContractChargesMutations } from '@/hooks/useContractCharges'
+import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations } from '@/hooks/useContractCharges'
+import { useAuditLog } from '@/hooks/useAuditLog'
+import { Modal } from '../ui/Modal'
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
 import { ContractChargesSection } from './sections/ContractChargesSection'
 import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
-import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, getBaseTotal, calculateRuleTotal, formatBRL4 } from '@/lib/contractRules'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, getBaseTotal, calculateRuleTotal, formatBRL4 } from '@/lib/contractRules'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional → Anexos
@@ -116,16 +118,26 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const { create: createSegment } = useSegmentsMutations()
   const { data: existingModPricing = [] } = useModulePricing(client?.id)
   const { saveAll: saveModPricing } = useModulePricingMutations()
-  const { data: existingCharges = [] } = useContractCharges(client?.id)
+  const { data: existingCharges = [], isLoading: chargesLoading } = useContractCharges(client?.id)
   const { mutateAsync: saveCharges } = useContractChargesMutations(client?.id)
+  const { data: existingSeries = [], isLoading: seriesLoading } = useContractSeries(client?.id)
+  const { mutateAsync: saveSeries } = useContractSeriesMutations(client?.id)
+  const { logAction } = useAuditLog()
   const { data: existingTiers = [] } = useBillingOsTiers(client?.id)
   const { mutateAsync: saveTiers } = useBillingOsTiersMutations(client?.id)
 
+  // Buffer de edição da série ativa (regras/N/eventuais) — molde antigo preservado
   const [contractN, setContractN] = useState(36)
   const [contractRules, setContractRules] = useState([])
   const [osTiers, setOsTiers] = useState([])
   const [eventuais, setEventuais] = useState([])
   const [navError, setNavError] = useState('')
+  // Séries contratuais: [{ id?, label, kind, billing_start, billing_end, due_day, auto_renew, status, reason, N, rules, eventuais }]
+  const [seriesList, setSeriesList] = useState([])
+  const [activeSeriesIdx, setActiveSeriesIdx] = useState(0)
+  const [seriesReady, setSeriesReady] = useState(false)
+  const [encerrarOpen, setEncerrarOpen] = useState(false)
+  const [encerrarReason, setEncerrarReason] = useState('')
   const { profile, effectiveRole } = useAuth()
   const [pendingFiles, setPendingFiles] = useState([])
 
@@ -151,30 +163,49 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     }
   }, [existingModPricing.length])
 
-  // Initialize contract rules from existingCharges (group consecutive same mode/value)
+  // Initialize series (group charges by series_id) — buffer carrega a 1ª série
   useEffect(() => {
-    if (existingCharges.length > 0 && contractRules.length === 0) {
-      const sorted = [...existingCharges].filter(c => c.kind === 'recorrencia').sort((a,b) => a.month_index - b.month_index)
-      if (sorted.length > 0) {
-        const rules = []
-        let cur = { from: sorted[0].month_index, to: sorted[0].month_index, mode: sorted[0].mode, value: String(sorted[0].mode === 'percent' ? sorted[0].percent : sorted[0].amount) }
-        for (let i = 1; i < sorted.length; i++) {
-          const c = sorted[i]
-          const val = String(c.mode === 'percent' ? c.percent : c.amount)
-          if (c.mode === cur.mode && val === cur.value && c.month_index === cur.to + 1) {
-            cur.to = c.month_index
-          } else {
-            rules.push(cur)
-            cur = { from: c.month_index, to: c.month_index, mode: c.mode, value: val }
-          }
-        }
-        rules.push(cur)
-        setContractRules(rules)
-        const maxM = Math.max(...sorted.map(c => c.month_index))
-        if (maxM > contractN) setContractN(maxM)
-      }
+    if (seriesReady) return
+    if (isEdit && (seriesLoading || chargesLoading)) return
+    const bySeries = {}
+    existingCharges.forEach(c => {
+      const k = c.series_id || 'none'
+      if (!bySeries[k]) bySeries[k] = []
+      bySeries[k].push(c)
+    })
+    let built = existingSeries.map(s => {
+      const ch = bySeries[s.id] || []
+      const { rules, N } = regroupRecorrencia(ch)
+      const evs = regroupEventuais(ch)
+      const maxEv = evs.reduce((m, e) => Math.max(m, (Number(e.startMonth) || 1) + (Number(e.installments) || 1) - 1), 0)
+      return { ...s, billing_end: s.billing_end || '', reason: s.reason || '', N: Math.max(N, maxEv, 1), rules, eventuais: evs }
+    })
+    // Charges órfãs (series_id legado nulo) → joga na 1ª série
+    const orphan = bySeries.none || []
+    if (orphan.length > 0 && built.length > 0) {
+      const { rules, N } = regroupRecorrencia(orphan.filter(c => c.kind === 'recorrencia'))
+      const evs = regroupEventuais(orphan)
+      built = built.map((s, i) => i === 0
+        ? { ...s, rules: [...s.rules, ...rules], eventuais: [...s.eventuais, ...evs], N: Math.max(s.N, N) }
+        : s)
     }
-  }, [existingCharges])
+    if (built.length === 0) {
+      const start = form.contract_start || new Date().toISOString().slice(0, 10)
+      built = [{
+        id: null, label: 'Contrato original', kind: 'original',
+        billing_start: start, billing_end: '',
+        due_day: Number(String(start).slice(8, 10)) || 5,
+        auto_renew: false, status: 'ativa', reason: '',
+        N: 36, rules: [], eventuais: [],
+      }]
+    }
+    setSeriesList(built)
+    setContractN(built[0].N)
+    setContractRules(built[0].rules)
+    setEventuais(built[0].eventuais)
+    setActiveSeriesIdx(0)
+    setSeriesReady(true)
+  }, [seriesReady, isEdit, existingSeries, existingCharges, seriesLoading, chargesLoading])
 
   useEffect(() => {
     if (existingTiers.length > 0 && osTiers.length === 0) {
@@ -182,22 +213,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     }
   }, [existingTiers])
 
-  useEffect(() => {
-    if (existingCharges.length > 0 && eventuais.length === 0) {
-      // group implantacao charges by installment_group
-      const impl = existingCharges.filter(c => c.kind === 'implantacao')
-      if (impl.length > 0) {
-        const groups = {}
-        impl.forEach(c => {
-          const g = c.installment_group || c.id
-          if (!groups[g]) groups[g] = { label: c.label || 'Implantação', total: 0, installments: 0, group: g }
-          groups[g].total += Number(c.amount) || 0
-          groups[g].installments += 1
-        })
-        setEventuais(Object.values(groups).map(g => ({ label: g.label, total: String(g.total), installments: g.installments, _group: g.group })))
-      }
-    }
-  }, [existingCharges])
+
 
   const csms = profiles.filter(p => p.role === 'csm' || p.role === 'manager')
   const comercials = profiles.filter(p => (p.role === 'sales' || p.role === 'manager' || p.role === 'admin') && p.status === 'active')
@@ -213,7 +229,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const floor = Number(form.billing_floor) || 0
   const baseTotal = floor > 0 ? basePerLic * floor : basePerLic
   const unitValue = calculateUnitValue(basePerLic, activeModList, { mode: 'rateio' })
-  const mrrMinimo = baseTotal
   const sumMods = activeModList.reduce((s, m) => s + (m.additional_value || 0), 0)
   const rateioOk = activeModList.length === 0 ? true : Math.abs(sumMods - baseTotal) <= 0.01
   const rateioDiff = Math.abs(sumMods - baseTotal)
@@ -237,6 +252,85 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
   function set(name, value) {
     setForm(prev => ({ ...prev, [name]: value }))
+  }
+
+  const KIND_LABELS = { original: 'Contrato original', aditivo: 'Aditivo', renegociacao: 'Renegociação' }
+  const activeSeries = seriesList[activeSeriesIdx] || null
+  const activeReadOnly = activeSeries?.status === 'encerrada'
+
+  function snapshotBuffer() {
+    return { N: contractN, rules: contractRules, eventuais }
+  }
+  function seriesWithBuffer() {
+    return seriesList.map((s, i) => (i === activeSeriesIdx ? { ...s, ...snapshotBuffer() } : s))
+  }
+  function switchSeries(next) {
+    if (next === activeSeriesIdx || !seriesList[next]) return
+    setSeriesList(prev => prev.map((s, i) => (i === activeSeriesIdx ? { ...s, N: contractN, rules: contractRules, eventuais } : s)))
+    const t = seriesList[next]
+    setContractN(t.N)
+    setContractRules(t.rules)
+    setEventuais(t.eventuais)
+    setNavError('')
+    setActiveSeriesIdx(next)
+  }
+  function updateSeriesMeta(patch) {
+    setSeriesList(prev => prev.map((s, i) => {
+      if (i !== activeSeriesIdx) return s
+      const next = { ...s, ...patch }
+      if (patch.billing_start && !('due_day' in patch)) {
+        const d = Number(String(patch.billing_start).slice(8, 10))
+        if (d >= 1 && d <= 31) next.due_day = d
+      }
+      return next
+    }))
+  }
+  function addSeries() {
+    const hasOriginal = seriesList.some(s => s.kind === 'original')
+    const today = new Date().toISOString().slice(0, 10)
+    const draft = {
+      id: null, label: '', kind: hasOriginal ? 'aditivo' : 'original',
+      billing_start: today, billing_end: '',
+      due_day: Number(today.slice(8, 10)) || 5,
+      auto_renew: false, status: 'ativa', reason: '',
+      N: 12, rules: [], eventuais: [],
+    }
+    const next = [...seriesWithBuffer(), draft]
+    setSeriesList(next)
+    setContractN(draft.N)
+    setContractRules([])
+    setEventuais([])
+    setNavError('')
+    setActiveSeriesIdx(next.length - 1)
+  }
+  function validateSeriesList(list) {
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i]
+      const tag = list.length > 1 ? ` (${s.label || KIND_LABELS[s.kind] || `série ${i + 1}`})` : ''
+      if (!s.billing_start) return `Informe o início da cobrança${tag}.`
+      if (s.kind === 'renegociacao' && !(s.reason || '').trim()) return `Renegociação${tag} exige motivo.`
+      if (s.kind === 'renegociacao' && String(s.reason || '').trim().length < 10) return `Motivo da renegociação${tag} precisa de ao menos 10 caracteres.`
+      if (s.rules.length > 0) {
+        const v = validateRulesContiguous(s.rules, s.N)
+        if (!v.ok) return `Recorrência${tag}: ${v.error}`
+      }
+      for (const ev of s.eventuais) {
+        if (!(Number(ev.total) > 0)) continue
+        const start = Number(ev.startMonth) || 1
+        const inst = Number(ev.installments) || 1
+        if (start + inst - 1 > s.N) return `Cobrança "${ev.label || 'eventual'}"${tag} ultrapassa os ${s.N} meses da série.`
+      }
+    }
+    // Renegociações ativas não podem se sobrepor (mês com 2 descontos é ambíguo)
+    const wins = renegWindows(list.filter(s => !s.status || s.status === 'ativa'))
+    for (let i = 0; i < wins.length; i++) {
+      for (let j = i + 1; j < wins.length; j++) {
+        if (wins[i].start <= wins[j].end && wins[j].start <= wins[i].end) {
+          return `Renegociações "${wins[i].label || 'A'}" e "${wins[j].label || 'B'}" se sobrepõem — use uma por período.`
+        }
+      }
+    }
+    return null
   }
 
   function handleChange(e) {
@@ -348,29 +442,29 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       return
     }
 
-    if (contractRules.length > 0) {
-      const v = validateRulesContiguous(contractRules, contractN)
-      if (!v.ok) { toast.error(v.error); setActiveTab(2); return }
-      // confirm periods that charge more than the base monthly fee
-      const baseTotal = getBaseTotal(form.billing_base_value, form.billing_floor)
-      if (baseTotal > 0) {
-        const exceeding = contractRules.filter(r => {
-          const calc = calculateRuleTotal(r, baseTotal)
-          return calc != null && calc > baseTotal
-        })
-        if (exceeding.length > 0) {
-          const details = exceeding.map(r => {
-            const calc = calculateRuleTotal(r, baseTotal)
-            return `meses ${r.from} a ${r.to}: ${formatBRL4(calc)}`
-          }).join('; ')
-          if (!window.confirm(`Alguns períodos cobram acima da mensalidade base (${formatBRL4(baseTotal)}): ${details}. Confirmar mesmo assim?`)) return
-        }
-      }
-    }
+    // Séries contratuais: valida todas (buffer da ativa + demais)
+    const finalSeries = seriesWithBuffer()
+    const seriesErr = validateSeriesList(finalSeries)
+    if (seriesErr) { toast.error(seriesErr); setActiveTab(2); return }
     if (form.billing_type === 'por_os' && osTiers.length > 0) {
       const v2 = validateOsTiers(osTiers)
       if (!v2.ok) { toast.error(v2.error); setActiveTab(2); return }
     }
+    // Expansão por série (para MRR + persistência) — sem ids ainda
+    const baseTotalSubmit = getBaseTotal(form.billing_base_value, form.billing_floor)
+    const expandedBySeries = finalSeries.map(s => ({
+      meta: s,
+      rec: s.rules.length > 0 ? expandRulesToCharges(s.rules, s.N, { billingStart: s.billing_start }) : [],
+      ev: expandEventuais((s.eventuais || []).filter(ev => Number(ev.total) > 0), { billingStart: s.billing_start }),
+    }))
+    const mrrSubmit = resolveMRR({
+      billingStatus: form.billing_status,
+      baseTotal: baseTotalSubmit,
+      series: expandedBySeries.map(x => ({
+        kind: x.meta.kind, status: x.meta.status,
+        hasAnyRules: x.meta.rules.length > 0, charges: x.rec,
+      })),
+    })
 
     let logoUrl = form.logo_url
     if (logoFile) {
@@ -414,7 +508,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       billing_status: form.billing_status || 'ativo',
       billing_suspended_until: form.billing_suspended_until || null,
       contract_active: form.billing_status === 'ativo',
-      mrr: form.billing_status === 'ativo' ? mrrMinimo : 0,
+      mrr: mrrSubmit,
       erp: form.erp || null,
       ti_tipo: form.ti_tipo || null,
       stage_id: form.stage_id ? Number(form.stage_id) : null,
@@ -459,24 +553,48 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       }))
     await saveModPricing.mutateAsync({ clientId, items })
 
-    // Persist contract motor (best-effort, non-blocking if tables not yet migrated)
-    // Build combined charges: recorrencia (expand rules) + implantacao (expand eventuais)
-    const recorrenciaCharges = contractRules.length > 0 ? (() => { try { return expandRulesToCharges(contractRules, contractN) } catch { return [] } })() : []
-    const implantacaoCharges = []
-    eventuais.forEach(ev => {
-      const total = Number(ev.total) || 0
-      const inst = Math.max(1, Number(ev.installments) || 1)
-      const per = total / inst
-      const group = ev._group || crypto.randomUUID()
-      for (let i = 0; i < inst; i++) {
-        implantacaoCharges.push({ month_index: i + 1, kind: 'implantacao', mode: 'absolute', amount: Number(per.toFixed(2)), label: ev.label || 'Implantação', installment_group: group, installments_total: inst })
-      }
+    // Persist contract motor por série (scoped: outras séries intactas)
+    const existingBySeries = {}
+    existingCharges.forEach(c => {
+      const k = c.series_id || 'none'
+      if (!existingBySeries[k]) existingBySeries[k] = []
+      existingBySeries[k].push(c)
     })
-    const allCharges = [...recorrenciaCharges, ...implantacaoCharges]
-    if (allCharges.length > 0) {
-      try { await saveCharges({ charges: allCharges, clientId }) } catch (e) { toast.error(`Contrato: ${e.message}`) }
-    } else if (existingCharges.length > 0) {
-      try { await saveCharges({ charges: [], clientId }) } catch (_) {}
+    for (let i = 0; i < finalSeries.length; i++) {
+      const s = finalSeries[i]
+      let saved
+      try {
+        saved = await saveSeries({
+          series: {
+            id: s.id || undefined,
+            label: s.label || KIND_LABELS[s.kind] || 'Série',
+            kind: s.kind, billing_start: s.billing_start,
+            billing_end: s.billing_end || null,
+            due_day: s.due_day, auto_renew: s.auto_renew,
+            status: s.status, reason: s.reason || null,
+          },
+          clientId, userId: profile?.id,
+        })
+      } catch (e) { toast.error(`Série "${s.label || KIND_LABELS[s.kind]}": ${e.message}`); continue }
+      const rec = s.rules.length > 0 ? expandRulesToCharges(s.rules, s.N, { seriesId: saved.id, billingStart: saved.billing_start }) : []
+      const ev = expandEventuais((s.eventuais || []).filter(x => Number(x.total) > 0), { seriesId: saved.id, billingStart: saved.billing_start })
+      const all = [...rec, ...ev]
+      const hadRows = (existingBySeries[s.id] || []).length > 0
+      try {
+        if (all.length > 0) {
+          await saveCharges({ charges: all, clientId, seriesId: saved.id, userId: profile?.id })
+        } else if (hadRows) {
+          await saveCharges({ charges: [], clientId, seriesId: saved.id, userId: profile?.id })
+        }
+      } catch (e) { toast.error(`Contrato (${saved.label}): ${e.message}`) }
+      // Auditoria: série criada ou encerrada
+      try {
+        if (!s.id) await logAction('create_series', 'contract_series', saved.id, saved.label, null, { kind: saved.kind, billing_start: saved.billing_start })
+        const wasActive = (existingSeries.find(x => x.id === s.id)?.status || 'ativa') === 'ativa'
+        if (s.id && wasActive && s.status === 'encerrada') {
+          await logAction('encerrar_serie', 'contract_series', saved.id, saved.label, { status: 'ativa' }, { status: 'encerrada', reason: s.reason })
+        }
+      } catch (_) {}
     }
     if (form.billing_type === 'por_os' && osTiers.length > 0) {
       try { await saveTiers({ tiers: osTiers, clientId }) } catch (e) { toast.error(e.message) }
@@ -515,6 +633,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     // (the form seeds its state from `client` once, at mount).
     qc.removeQueries({ queryKey: ['client', clientId] })
     qc.removeQueries({ queryKey: ['contract_charges', clientId] })
+    qc.removeQueries({ queryKey: ['contract_series', clientId] })
     qc.removeQueries({ queryKey: ['billing_os_tiers', clientId] })
     qc.invalidateQueries({ queryKey: ['clients'] })
 
@@ -694,6 +813,137 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       {activeTab === 2 && (
         <div className="space-y-6">
           <FormSection
+            title="Séries contratuais"
+            hint="Cada série tem régua e início de cobrança próprios e gera faturas separadas. Ex: contrato original, módulo adicional, renegociação."
+            action={
+              <button
+                type="button"
+                onClick={addSeries}
+                className="text-xs text-donc-sky hover:underline font-medium"
+              >
+                + Nova série
+              </button>
+            }
+          >
+            {seriesList.length > 1 && (
+              <div className="flex gap-2 flex-wrap">
+                {seriesList.map((s, i) => (
+                  <button
+                    key={s.id || `draft-${i}`}
+                    type="button"
+                    onClick={() => switchSeries(i)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${i === activeSeriesIdx ? 'bg-donc-navy text-white border-donc-navy' : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
+                  >
+                    {s.label || KIND_LABELS[s.kind] || `Série ${i + 1}`}
+                    {s.status === 'encerrada' && ' · encerrada'}
+                  </button>
+                ))}
+              </div>
+            )}
+            {activeSeries && (
+              <div className="space-y-3">
+                {activeSeries.status === 'encerrada' && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                    Série encerrada — somente leitura.
+                    {activeSeries.reason ? ` Motivo: ${activeSeries.reason}` : ''}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label-sm">Rótulo</label>
+                    <input
+                      value={activeSeries.label}
+                      onChange={e => updateSeriesMeta({ label: e.target.value })}
+                      disabled={activeReadOnly}
+                      className="input-base w-full disabled:opacity-50"
+                      placeholder={KIND_LABELS[activeSeries.kind] || 'Série'}
+                    />
+                  </div>
+                  <div>
+                    <label className="label-sm">Tipo</label>
+                    <select
+                      value={activeSeries.kind}
+                      onChange={e => updateSeriesMeta({ kind: e.target.value })}
+                      disabled={activeReadOnly || (activeSeries.id && activeSeries.kind === 'original')}
+                      className="input-base w-full disabled:opacity-50"
+                    >
+                      <option value="original">Contrato original</option>
+                      <option value="aditivo">Aditivo (novo módulo)</option>
+                      <option value="renegociacao">Renegociação (desconto)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label-sm">Início da cobrança *</label>
+                    <input
+                      type="date"
+                      value={activeSeries.billing_start}
+                      onChange={e => updateSeriesMeta({ billing_start: e.target.value })}
+                      disabled={activeReadOnly}
+                      className="input-base w-full disabled:opacity-50"
+                    />
+                    <p className="text-[11px] text-text-tertiary mt-0.5">O mês 1 desta série vence neste mês.</p>
+                  </div>
+                  <div>
+                    <label className="label-sm">Dia do vencimento</label>
+                    <input
+                      type="number" min="1" max="31"
+                      value={activeSeries.due_day}
+                      onChange={e => updateSeriesMeta({ due_day: Math.min(31, Math.max(1, Number(e.target.value) || 1)) })}
+                      disabled={activeReadOnly}
+                      className="input-base w-24 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-sm">Fim da cobrança <span className="text-text-tertiary font-normal">(opcional)</span></label>
+                    <input
+                      type="date"
+                      value={activeSeries.billing_end || ''}
+                      onChange={e => updateSeriesMeta({ billing_end: e.target.value })}
+                      disabled={activeReadOnly}
+                      className="input-base w-full disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2 pb-1">
+                    <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!activeSeries.auto_renew}
+                        onChange={e => updateSeriesMeta({ auto_renew: e.target.checked })}
+                        disabled={activeReadOnly}
+                      />
+                      Renovação automática mês a mês
+                    </label>
+                  </div>
+                </div>
+                {(activeSeries.kind === 'renegociacao' || activeSeries.reason) && (
+                  <div>
+                    <label className="label-sm">Motivo {activeSeries.kind === 'renegociacao' && '*'}</label>
+                    <textarea
+                      value={activeSeries.reason || ''}
+                      onChange={e => updateSeriesMeta({ reason: e.target.value })}
+                      disabled={activeReadOnly}
+                      rows={2}
+                      className="input-base w-full resize-none disabled:opacity-50"
+                      placeholder="Ex: dificuldade financeira — redução por 3 meses"
+                    />
+                  </div>
+                )}
+                {activeSeries.id && activeSeries.status === 'ativa' && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => { setEncerrarReason(activeSeries.reason || ''); setEncerrarOpen(true) }}
+                      className="text-xs text-donc-red hover:underline"
+                    >
+                      Encerrar série…
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </FormSection>
+
+          <FormSection
             title="Plano de cobrança"
             hint="A cobrança pode ser por licença de usuário ou por OS (ordem de serviço). O piso é a quantidade mínima cobrada mesmo que o cliente use menos."
           >
@@ -780,7 +1030,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
           <FormSection
             title="Evolução da recorrência (MRR)"
-            hint="Defina quanto o cliente paga em cada período do contrato. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Sem períodos, a recorrência é sempre o MRR base."
+            hint={`Defina quanto o cliente paga em cada período da série selecionada${activeSeries ? ` (${activeSeries.label || KIND_LABELS[activeSeries.kind]})` : ''}. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Sem períodos, a recorrência é sempre o MRR base.`}
             valid={contractRules.length > 0 && validateRulesContiguous(contractRules, contractN).ok}
             action={
               <label className="flex items-center gap-1.5 text-xs text-text-secondary">
@@ -800,6 +1050,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               setRules={setContractRules}
               billingBaseValue={form.billing_base_value}
               billingFloor={form.billing_floor}
+              billingStart={activeSeries?.billing_start || null}
+              readOnly={activeReadOnly}
             />
           </FormSection>
 
@@ -812,7 +1064,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               ? `${eventuais.length} ${eventuais.length > 1 ? 'cobranças' : 'cobrança'} · ${fmtBRL(eventuais.reduce((s, e) => s + (Number(e.total) || 0), 0))}`
               : 'Nenhuma'}
           >
-            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} />
+            <EventuaisSection eventuais={eventuais} setEventuais={setEventuais} readOnly={activeReadOnly} />
           </FormSection>
 
           {form.billing_type === 'por_os' && (
@@ -1137,8 +1389,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                   setNavError('Ajuste os valores dos produtos antes de continuar.')
                   return
                 }
-                if (contractRules.length > 0 && !validateRulesContiguous(contractRules, contractN).ok) {
-                  setNavError(`Os períodos da recorrência precisam cobrir do mês 1 ao ${contractN} sem falhas.`)
+                const seriesErr = validateSeriesList(seriesWithBuffer())
+                if (seriesErr) {
+                  setNavError(seriesErr)
                   return
                 }
                 if (form.billing_type === 'por_os' && osTiers.length > 0 && !validateOsTiers(osTiers).ok) {
@@ -1155,6 +1408,34 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           </Button>
         </div>
       </div>
+
+      <Modal isOpen={encerrarOpen} onClose={() => setEncerrarOpen(false)} title="Encerrar série" maxWidth="max-w-sm">
+        <p className="text-sm text-text-secondary mb-3">
+          A série <span className="font-medium text-text-primary">{activeSeries?.label || KIND_LABELS[activeSeries?.kind]}</span> ficará
+          somente leitura e sairá do MRR. O histórico é preservado. Informe o motivo:
+        </p>
+        <textarea
+          value={encerrarReason}
+          onChange={e => setEncerrarReason(e.target.value)}
+          rows={3}
+          className="input-base w-full resize-none"
+          placeholder="Ex: contrato finalizado em comum acordo"
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <Button type="button" variant="secondary" onClick={() => setEncerrarOpen(false)}>Cancelar</Button>
+          <Button
+            type="button"
+            onClick={() => {
+              if (encerrarReason.trim().length < 10) { toast.error('Motivo precisa de ao menos 10 caracteres'); return }
+              updateSeriesMeta({ status: 'encerrada', reason: encerrarReason.trim() })
+              setEncerrarOpen(false)
+              toast.success('Série marcada como encerrada — salve para confirmar')
+            }}
+          >
+            Encerrar
+          </Button>
+        </div>
+      </Modal>
     </form>
   )
 }
