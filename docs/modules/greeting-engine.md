@@ -32,27 +32,13 @@ The system must never feel like a game, a reward mechanism, or an AI personality
 
 ## Current State
 
-The existing implementation lives in `DashboardPage.jsx`:
+The runtime engine lives in `src/lib/greeting-engine/` (`useGreeting` hook:
+3-line greeting + operational context + sync status). Details in
+`greeting-engine-runtime.md`.
 
-```
-PHRASES_MALE   = ['Pronto para mais um dia?', 'Seu portfólio espera por você!', ...]
-PHRASES_FEMALE = ['Pronta para mais um dia?', 'Seu portfólio espera por você!', ...]
-PHRASES_NEUTRAL = ['Seu portfólio espera por você!', ...]
-```
-
-**Current behavior:**
-- Three static phrase pools keyed by gender
-- Random selection on mount via `Math.random()`
-- Time-based morning/afternoon/night prefix via `greeting()`
-
-**Limitations:**
-- No state awareness (operational context unknown)
-- No persistent personalization
-- Randomness is uncontrolled (not deterministic)
-- Phrases live in UI components (no separation)
-- Cannot prioritize or weight fragments
-- Duplicated across DashboardPage.jsx and DashboardHead.html
-- No extensibility mechanism
+> Histórico: a v1 eram pools estáticos por gênero (`PHRASES_MALE/FEMALE/NEUTRAL`
+> em `DashboardPage.jsx`, sorteio via `Math.random()`, sem contexto operacional).
+> Superada pelo runtime — não usar como referência.
 
 ---
 

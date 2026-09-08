@@ -1,5 +1,7 @@
 # Greeting Engine Phase 1 Technical Specification
 
+> Status: congelado (fase entregue). Não estender — novas decisões vão para o runtime/roadmap-v2 ou ADR novo.
+
 ## Purpose
 
 This document defines the executable technical specification for Greeting Engine Phase 1.
