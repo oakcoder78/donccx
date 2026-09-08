@@ -228,6 +228,8 @@ serve(async (req) => {
     }
 
     if (action === 'save_response') {
+      if (instance.status === 'completed') return err('Brief já concluído', 403)
+
       const { question_id, response_text } = payload
       const { error: saveErr } = await sb.from('brief_responses').upsert({
         instance_id: instance.id,
@@ -244,6 +246,8 @@ serve(async (req) => {
     }
 
     if (action === 'complete') {
+      if (instance.status === 'completed') return ok({ completed: true })
+
       await sb.from('brief_instances')
         .update({ status: 'completed', completed_at: new Date().toISOString() })
         .eq('id', instance.id)

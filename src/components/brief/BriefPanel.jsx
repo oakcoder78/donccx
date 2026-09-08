@@ -108,7 +108,7 @@ function ProgressInfo({ instance }) {
 }
 
 // ── Brief card ───────────────────────────────────────────────────────────────────
-function BriefCard({ inst, onViewResponses, onSend, onCopyLink, onViewViewers, onDelete, isDeleting }) {
+function BriefCard({ inst, onViewResponses, onSend, onCopyLink, onViewViewers, onReopen, onDelete, isDeleting }) {
   const viewCount = inst.brief_views?.[0]?.count ?? 0
   const statusCfg = STATUS_CONFIG[inst.status] || STATUS_CONFIG.draft
 
@@ -155,6 +155,11 @@ function BriefCard({ inst, onViewResponses, onSend, onCopyLink, onViewViewers, o
         <Button variant="secondary" size="sm" onClick={onViewResponses}>
           <Icons.ClipboardList size={12} style={{ marginRight: 5 }} />Ver respostas
         </Button>
+        {inst.status === 'completed' && (
+          <Button variant="secondary" size="sm" onClick={onReopen}>
+            <Icons.RefreshCw size={12} style={{ marginRight: 5 }} />Reabrir
+          </Button>
+        )}
         {viewCount > 0 && (
           <Button variant="secondary" size="sm" onClick={onViewViewers}>
             <Icons.Eye size={12} style={{ marginRight: 5 }} />Visualizações
@@ -196,6 +201,14 @@ export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
   const handleViewViewers = (inst) => {
     setSelectedInstance(inst)
     setShowViews(true)
+  }
+
+  const handleReopen = async (inst) => {
+    if (!window.confirm(`Reabrir "${inst.title}" para edição? O cliente poderá editar as respostas novamente.`)) return
+    await updateBriefStatus.mutateAsync({ id: inst.id, status: 'in_progress' })
+    logAction('reopened', 'questionnaire', inst.id, inst.title, {
+      previous_status: inst.status,
+    })
   }
 
   const handleDelete = async (inst) => {
@@ -258,6 +271,7 @@ export function BriefPanel({ onboardingId, clientId, clientName, faseName }) {
                 onSend={() => handleSend(inst)}
                 onCopyLink={() => handleCopyLink(inst)}
                 onViewViewers={() => handleViewViewers(inst)}
+                onReopen={() => handleReopen(inst)}
                 onDelete={() => handleDelete(inst)}
                 isDeleting={isDeleting}
               />

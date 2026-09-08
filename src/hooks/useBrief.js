@@ -78,6 +78,9 @@ export function useBrief(onboardingId, clientId) {
       if (status === 'completed') {
         updates.completed_at = new Date().toISOString()
       }
+      if (status === 'in_progress') {
+        updates.completed_at = null
+      }
       const { error } = await supabase
         .from('brief_instances')
         .update(updates)

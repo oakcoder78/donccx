@@ -14,7 +14,7 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 - Allow clients to fill responses via `/brief/{token}`
 - Allow Hub users (profiles) to access and edit responses
 - Support file attachments per question
-- Track lifecycle: `draft → sent → in_progress → completed / archived`
+- Track lifecycle: `draft → sent → in_progress → completed / archived` (Hub can reopen `completed → in_progress`, clearing `completed_at`)
 - Display brief status and responses in `OnboardingDetailPage`
 
 ---
@@ -24,12 +24,12 @@ Questionnaire linked to an onboarding. CSM creates an instance from a JSONB temp
 | Component | File | Responsibility |
 |-----------|------|----------------|
 | `BriefCreateModal` | `src/components/brief/BriefCreateModal.jsx` | Create instance: template selection, title, save |
-| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client, import/export responses |
+| `BriefResponsesModal` | `src/components/brief/BriefResponsesModal.jsx` | Hub CSM view: read responses, attachments, add/edit CSM notes, send to client, import/export responses, reopen completed |
 | `BriefHeaderButton` | `src/pages/OnboardingDetailPage.jsx` | Header button: "Questionários" (navy), opens BriefPanel modal; badge shows unanswered clientQuestions count |
 | `BriefTemplateEditorModal` | `src/components/brief/BriefTemplateEditorModal.jsx` | Full editor modal: sections/questions CRUD, DnD sort, allow_attachment toggle |
 | `BriefPanel` | `src/components/brief/BriefPanel.jsx` | Brief listing panel in onboarding tab |
 | `BriefPublicPage` | `src/pages/BriefPublicPage.jsx` | Public page at `/brief/:token` with cover, form, attachments, tour |
-| `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete, submit_question, get_client_questions |
+| `brief-public` | `supabase/functions/brief-public/index.ts` | Edge function: validate, get, save_response, complete, submit_question, get_client_questions (save_response/upload/delete blocked once `completed`; complete idempotent) |
 | `useBrief` | `src/hooks/useBrief.js` | Hook: briefInstances, createBrief, updateBriefStatus, deleteBrief, copyPublicLink, useBriefCsmNotes (csmNotes, clientQuestions, replyToQuestion) |
 | `useBriefTemplates` | `src/hooks/useBriefTemplates.js` | Hook: CRUD for templates |
 | `useBriefResponses` | `src/hooks/useBriefResponses.js` | Hook: responses and attachments for an instance |
@@ -101,7 +101,7 @@ Edge function uses `SUPABASE_SERVICE_ROLE_KEY`. `verify_jwt = false` (configured
 
 Modal panel (max 900px) listing all brief instances for the onboarding:
 - **Header:** "Questionários" title + status filter tabs (Todos, Rascunho, Enviado, Em progresso, Concluído, Arquivado) + "Criar novo" button (opens `BriefCreateModal`)
-- **Instance cards:** Each card shows: title, status badge, progress (X/Y answered), dates (created, sent, completed), view count + "Ver visualizações" link, action buttons (copy link, send to client, open responses, archive/delete)
+- **Instance cards:** Each card shows: title, status badge, progress (X/Y answered), dates (created, sent, completed), view count + "Ver visualizações" link, action buttons (copy link, send to client, open responses, archive/delete). Completed instances show a **"Reabrir"** button (`updateBriefStatus` → `in_progress`, clears `completed_at`) so the client can edit again.
 - **Card click:** Opens `BriefResponsesModal` for that specific instance
 - **Delete:** `Trash2` icon right-aligned in card action row — counts responses, warns if data will be lost, calls `deleteBrief` mutation, logs to `audit_logs` (`action='deleted', entity_type='questionnaire'`)
 - **BriefViewsModal:** Triggered by "Ver visualizações" link — shows table of who viewed: contact name (resolved via `contact_links`), email, viewed_at timestamp
@@ -168,12 +168,12 @@ Public page without Supabase JWT. Email-authenticated access:
 11. **Per-question doubt:** clicking "Dúvida?" expands inline textarea → `submit_question` action with `question_id`; shows existing client_questions + CSM replies; auto-closes after 2s
 12. **QuestionDrawer:** slide panel inside rail for general questions (question_id: null); shows history with CSM replies
 13. **CSM notes visible to client:** box with navy left border (3px), "Nota da equipe Donc" label, sourced from `csm_notes` (origin=csm, is_visible=true) from `get` action
-14. **Footer (sticky):** answered count + amber missing count; ← Anterior, Salvar e sair, Próxima seção → / Concluir e enviar (disabled if missing required)
+14. **Footer (sticky):** answered count + amber missing count; ← Anterior, **Salvar e sair** (saves progress, stays editable — "pode voltar depois"), Próxima seção → / **Concluir e enviar** (disabled if missing required). The confirm modal is explicit: "Concluir e bloquear edição — ao concluir, o brief será bloqueado". `save_response` is rejected with 403 once `completed` (same as attachments); `complete` is idempotent.
 15. **Tour modal** on first visit (sessionStorage key `brief_tour_seen_{instance_id}`): 5 steps — LayoutList, Target, Info, Save, MessageCircle
 16. **Attachment support:** compact chip per question (when `allow_attachment: true`), file list with signed URL download, delete; upload via hidden file input
 17. `complete` action → confirm modal → locks form, marks as `completed`, phase=thanks
 18. **Print (`@media print`):** hides `.no-print` (appbar, footer, rail); renders `.print-section` (all sections with responses, page-break between)
-19. After completion (readOnly): shows completed banner, fields disabled
+19. After completion (readOnly): shows "concluído em {data} e bloqueado — peça à equipe Donc para reabrir" banner, fields disabled. Hub users reopen via **"Reabrir"** in `BriefPanel` or `BriefResponsesModal` header (sets `in_progress`, clears `completed_at`).
 
 **`validate` action expanded payload:**
 ```json

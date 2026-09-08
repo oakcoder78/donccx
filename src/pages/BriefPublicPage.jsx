@@ -1005,7 +1005,7 @@ export default function BriefPublicPage() {
                 {readOnly && (
                   <div style={{ background: '#f0fdf4', border: '1px solid rgba(34,160,98,0.25)', borderRadius: 10, padding: '12px 18px', marginBottom: 24, fontSize: 13, color: '#15803d', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Icons.Check size={14} color="#15803d" />
-                    Este brief já foi enviado em {formatDate(instance?.completed_at)}. Obrigado!
+                    Este brief foi concluído em {formatDate(instance?.completed_at)} e está bloqueado para edição. Para alterar, peça à equipe Donc para reabrir.
                   </div>
                 )}
 
@@ -1113,7 +1113,7 @@ export default function BriefPublicPage() {
               style={{ background: 'none', color: activeIdx === 0 ? 'rgba(23,53,87,0.25)' : 'rgba(23,53,87,0.7)', border: 'none', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: activeIdx === 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
               ← Anterior
             </button>
-            <button onClick={() => { toast.success('Progresso salvo'); setCoverOverlay(true) }} style={{ background: '#fff', color: NAVY, border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <button onClick={() => { toast.success('Progresso salvo. Você pode voltar depois para continuar editando.'); setCoverOverlay(true) }} title="Salva e mantém editável — você pode voltar depois" style={{ background: '#fff', color: NAVY, border: '1px solid rgba(15,34,58,0.14)', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit' }}>
               Salvar e sair
             </button>
             {activeIdx < sections.length - 1 ? (
@@ -1121,7 +1121,7 @@ export default function BriefPublicPage() {
                 Próxima seção →
               </button>
             ) : (
-              <button disabled={!ready || completing || readOnly} onClick={() => setConfirmOpen(true)}
+              <button disabled={!ready || completing || readOnly} onClick={() => setConfirmOpen(true)} title="Conclui e bloqueia a edição — diferente de Salvar e sair"
                 style={{ background: ready && !readOnly ? LIME : 'rgba(23,53,87,0.10)', color: ready && !readOnly ? NAVY : 'rgba(23,53,87,0.30)', border: 'none', borderRadius: 8, padding: '9px 14px', fontSize: 13, fontWeight: 600, cursor: ready && !readOnly ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
                 {completing ? 'Enviando…' : 'Concluir e enviar'}
               </button>
@@ -1134,11 +1134,11 @@ export default function BriefPublicPage() {
       {confirmOpen && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: FONT }}>
           <div style={{ background: '#fff', borderRadius: 16, padding: '32px 28px', maxWidth: 400, width: '100%' }}>
-            <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, marginBottom: 12 }}>Confirmar envio</h3>
-            <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7, marginBottom: 24 }}>Tem certeza? Após enviar não será possível editar as respostas.</p>
+            <h3 style={{ fontSize: 17, fontWeight: 700, color: NAVY, marginBottom: 12 }}>Concluir e bloquear edição</h3>
+            <p style={{ fontSize: 14, color: '#64748b', lineHeight: 1.7, marginBottom: 24 }}>Ao concluir, o brief será bloqueado e você não poderá editar as respostas. Use Salvar e sair se ainda quiser voltar depois.</p>
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setConfirmOpen(false)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 9, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Cancelar</button>
-              <button onClick={handleComplete} style={{ flex: 1, padding: '10px 16px', background: LIME, color: NAVY, border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Confirmar envio</button>
+              <button onClick={() => setConfirmOpen(false)} style={{ flex: 1, padding: '10px 16px', background: 'transparent', color: '#64748b', border: '1px solid #e2e8f0', borderRadius: 9, fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Voltar</button>
+              <button onClick={handleComplete} style={{ flex: 1, padding: '10px 16px', background: LIME, color: NAVY, border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>Concluir e bloquear</button>
             </div>
           </div>
         </div>

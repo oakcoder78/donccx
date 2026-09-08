@@ -843,6 +843,7 @@ export function BriefResponsesModal({ instance, onClose }) {
     mutationFn: async (status) => {
       const updates = { status }
       if (status === 'sent') updates.sent_at = new Date().toISOString()
+      if (status === 'in_progress') updates.completed_at = null
       const { error } = await supabase.from('brief_instances').update(updates).eq('id', instance.id)
       if (error) throw error
     },
@@ -865,6 +866,11 @@ export function BriefResponsesModal({ instance, onClose }) {
   const handleSendToClient = async () => {
     await updateStatus.mutateAsync('sent')
     await copyLink()
+  }
+
+  const handleReopen = async () => {
+    if (!window.confirm('Reabrir este brief para edição? O cliente poderá editar as respostas novamente.')) return
+    await updateStatus.mutateAsync('in_progress')
   }
 
   const handleShowDoubts = useCallback((questionId) => {
@@ -1200,6 +1206,17 @@ export function BriefResponsesModal({ instance, onClose }) {
                 >
                   <Icons.Send size={13} />
                   {updateStatus.isPending ? 'Enviando…' : 'Enviar para cliente'}
+                </button>
+              )}
+              {instance.status === 'completed' && (
+                <button
+                  onClick={handleReopen}
+                  disabled={updateStatus.isPending}
+                  title="Reabre o brief para edição pelo cliente"
+                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border-tertiary bg-bg-secondary hover:bg-bg-tertiary transition-colors font-medium text-text-primary disabled:opacity-60"
+                >
+                  <Icons.RefreshCw size={13} />
+                  {updateStatus.isPending ? 'Reabrindo…' : 'Reabrir'}
                 </button>
               )}
               <button
