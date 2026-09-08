@@ -96,6 +96,31 @@ docs/modules/projects.md
 
 If working inside:
 
+src/components/contacts/ | src/components/onboarding/
+
+Then:
+
+Active module: clients (contacts tab / onboarding flow)
+
+Documentation target:
+
+docs/modules/clients.md
+
+---
+
+If working inside:
+
+src/components/labs/
+
+Then:
+
+Admin playground — no docs target (explicit fallback).
+Use `docs/product/vision.md` only for product context.
+
+---
+
+If working inside:
+
 src/components/brief/ | src/pages/BriefPublicPage.jsx
 
 Then:

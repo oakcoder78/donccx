@@ -35,7 +35,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 - cs-radar
 - donkie
 - email
-- greeting-engine (hub) + content, debug, phase-1-spec, roadmap-v2, runtime, tone-guide
+- greeting-engine (hub), greeting-engine-content, greeting-engine-debug, greeting-engine-phase-1-spec, greeting-engine-roadmap-v2, greeting-engine-runtime, greeting-engine-tone-guide
 - health-score-dashboard (engine + dashboard merged)
 - meu-dia-dashboard (dashboard v3)
 - projects
