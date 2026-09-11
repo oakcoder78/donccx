@@ -550,13 +550,13 @@ interface FinanceiroDetail {
 - [x] **Helper:** `src/hooks/useBillingExceptions.js` (listagem por cliente; RLS SELECT)
 - [x] **Build:** `npm run build` — OK (7.7s, 2808 módulos)
 - [x] **Verify (RLS matrix em produção, ROLLBACK):** `manager` lê e update bloqueado (`final_reason` inalterado); `finance` lê e update ok; `sales` lê e insert → 42501; `admin` insert ok; `sales` em `get_financeiro_cockpit` → 42501; `manager` cockpit/export ok (16 linhas). Obs.: não há usuário `csm` em produção (claims nulo → bloqueado)
-- [ ] **Commit:** `git add src/components/financeiro/ src/hooks/useBillingExceptions.js src/pages/FinanceiroCockpitPage.jsx src/components/clients/tabs/operacional/ClientSubDados.jsx src/components/clients/ClientFormContent.jsx docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 3 exceptions (4 tipos) + payment toggles + mirrors" && git push origin main`
+- [x] **Commit:** `git add src/components/financeiro/ src/hooks/useBillingExceptions.js src/pages/FinanceiroCockpitPage.jsx src/components/clients/tabs/operacional/ClientSubDados.jsx src/components/clients/ClientFormContent.jsx docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 3 exceptions (4 tipos) + payment toggles + mirrors" && git push origin main`
 
 #### Implementation Log (Phase 3)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-09-11 | (pending) | `src/components/financeiro/ExcecaoModal.jsx`, `src/components/financeiro/PaymentToggle.jsx`, `src/hooks/useBillingExceptions.js`, `src/pages/FinanceiroCockpitPage.jsx`, `src/components/clients/tabs/operacional/ClientSubDados.jsx`, `src/components/clients/ClientFormContent.jsx` | CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos; matriz RLS validada em produção |
+| 2026-09-11 | `04c00a2` | `src/components/financeiro/ExcecaoModal.jsx`, `src/components/financeiro/PaymentToggle.jsx`, `src/hooks/useBillingExceptions.js`, `src/pages/FinanceiroCockpitPage.jsx`, `src/components/clients/tabs/operacional/ClientSubDados.jsx`, `src/components/clients/ClientFormContent.jsx` | CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos; matriz RLS validada em produção |
 
 ---
 
