@@ -47,8 +47,8 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 
 ## Decisions (frozen; addenda only)
 
-- `docs/sdd/` — 15 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v0.2 (2026-09-11) com `financeiro-cockpit-regras.html` para validação Financeiro/Vendas; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
-- `docs/brd/brd-financeiro-cockpit.md` (+ 0.5 addendum, 2026-09-11)
+- `docs/sdd/` — 15 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v0.3 (2026-09-11) com `financeiro-cockpit-regras.html` v1.1 validado (base do Help do cockpit); `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
+- `docs/brd/brd-financeiro-cockpit.md` (+ 0.6 addendum — ata de validação Financeiro/Vendas, 2026-09-11)
 - `docs/decisions/` — planned (numbered ADRs)
 
 ## Not indexed (history only)

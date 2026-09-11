@@ -459,6 +459,30 @@ Reuso obrigatório (terse, `docs/ui-patterns.md`):
 
 ---
 
+## Adendo 2026-09-11 (v0.6) — Ata de validação Financeiro/Vendas
+
+Respostas ao documento `docs/sdd/financeiro-cockpit-regras.html` (12 perguntas). Detalhe técnico: `docs/sdd/financeiro-cockpit-sdd.md` v0.3.
+
+| # | Resposta | Efeito |
+|---|---|---|
+| 1 | Modos "travado" e "base + excedente" refletem as negociações | mantido |
+| 2 | Defaults (original = base + excedente; aditivo/renegociação = travado) | mantido |
+| 3 | Admin e Financeiro escrevem; Manager somente leitura | mantido |
+| 4 | Aditivo com isenção total **aparece como fatura zerada (R$ 0,00)** | fatura zerada visível com selo |
+| 5 | Valor reduzido mensal OK **+ desconto por licença/OS** (ex.: R$ 10,00/licença com piso 30 e uso 45 → 45 × R$ 40,00) | 4º tipo de exceção `desconto_unidade`, preservando piso e excedente |
+| 6 | Sem piso = cobra somente o consumo (mínimo R$ 0,00) | mantido |
+| 7 | Reajuste é **anual** (não mensal): aniversário = data de assinatura, **configurável**; **sem retroativo**; renovação criada com o valor já corrigido; **percentual editável** (contratos podem usar X% fixo e/ou IPCA/IGP-M) | remove tabela/toggle mensal de correção e todo fluxo de reemissão; adiciona `correction_anniversary`/`correction_percent`/`correction_rule` por série |
+| 8 | Vendas vê os detalhes das exceções na ficha do cliente | `billing_exceptions` SELECT inclui `sales` + card read-only na aba Contrato (detalhe completo) |
+| 9 | Falha no uso do mês → informar o usuário e direcionar ao suporte DoncCX | banner informativo, sem decisão automática de faturamento |
+| 10 | Nenhum outro tipo de negociação além do item 5 | 4 tipos |
+| 11 | **1 fatura por série × mês** (opção A) | mantém PK `(client_id, series_id, ref_month)` |
+| 12 | Vencimento e renovação por série | mantido |
+| — | "Ignora o passado" (vale também para exceções) | `valid_from >= mês corrente`; nenhum mês fechado é reprocessado |
+
+**Task registrada:** transformar o HTML de regras (v1.1) no **Help do cockpit** (`public/help/financeiro-regras.html` + botão de ajuda na página) — ver SDD v0.3 Phase 5.
+
+---
+
 ## Histórico
 
 | Versão | Data | Autor | Mudança |
@@ -468,6 +492,7 @@ Reuso obrigatório (terse, `docs/ui-patterns.md`):
 | 0.3 | 2026-09-01 | DoncCX Hub | Validações finais Q4a/Q4b/Q6: sales escrita total (admin/finance/sales), manager leitura, retroatividade reprocessa e corrige passado (reemissão com delta), flag dedicada cockpit_financeiro confirmada; header validado |
 | 0.4 | 2026-09-07 | DoncCX Hub | Adendo: `ClientForm.jsx` citado no §3.1 deletado (`aa87554`) — ler como `ClientFormContent.jsx`; rateio Q2 resolvido (`rateio`, soma vs base da série, valor opcional); séries em `docs/modules/clients.md` |
 | 0.5 | 2026-09-11 | DoncCX Hub | Adendo: papéis revisados (cockpit `admin/manager/finance`, sales fora — revoga Q4a); cobrança por séries; `usage_driven` (travado × base+excedente); exceções híbridas cliente/série com 3 tipos (`piso_zerado` removido); correção por cliente×mês; HTML de validação Financeiro/Vendas |
+| 0.6 | 2026-09-11 | DoncCX Hub | Ata de validação Financeiro/Vendas (12 respostas): reajuste anual sem retroativo + renovação com valor corrigido; 4º tipo desconto por licença/OS; Vendas lê exceções na ficha; fatura zerada visível; falha de sync → suporte; task do Help do cockpit |
 
 ---
 
