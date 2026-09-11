@@ -471,13 +471,13 @@ interface FinanceiroDetail {
 - [x] **Build:** `npm run build` with no errors
 - [x] **DB push:** `./node_modules/.bin/supabase db push --include-all` — aplicada; smoke `2026-08` (16 clientes; MRR real R$ 122.692,83; guard csm 42501); grants verificados
 - [x] **Extras:** migration history repair (8 locais `applied` + 8 órfãs remotas `reverted`) + `split_health_cockpit` (pendente antiga) aplicada no mesmo push
-- [ ] **Commit:** `git add supabase/migrations/20260911191431_financeiro_cockpit_core.sql docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 1 DB core (series-aware) + flag + RPCs" && git push origin main`
+- [x] **Commit:** `git add supabase/migrations/20260911191431_financeiro_cockpit_core.sql docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 1 DB core (series-aware) + flag + RPCs" && git push origin main`
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-09-11 | (this commit) | `supabase/migrations/20260911191431_financeiro_cockpit_core.sql` | Applied: series-aware engine + `billing_exceptions` (4 types) + `usage_driven`/`correction_*` + flag + 3 RPCs; smoke `2026-08` ok (16 clients, R$ 122.692,83 real MRR) |
+| 2026-09-11 | `a06120e` | `supabase/migrations/20260911191431_financeiro_cockpit_core.sql` | Applied: series-aware engine + `billing_exceptions` (4 types) + `usage_driven`/`correction_*` + flag + 3 RPCs; smoke `2026-08` ok (16 clients, R$ 122.692,83 real MRR) |
 
 ---
 
