@@ -22,7 +22,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** **Phase 2 — ready to start** (Phase 1 complete 2026-09-11; regras validadas por Financeiro/Vendas em 2026-09-11).
+- **Active phase:** **Phase 3 — ready to start** (Phase 2 complete 2026-09-11; Phase 1 DB applied).
 
 **What already exists related to this work:**
 
@@ -40,10 +40,12 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 - **Icons:** `Wallet`, `Search`, `Clock`, `FileDown`, `Download`, `ArrowLeft` existem em `src/lib/icons.js`; `Percent`/`BadgePercent` **não existem** (adicionar se usados).
 - **Validação de regras (2026-09-11):** `docs/sdd/financeiro-cockpit-regras.html` v1.1 validado por Financeiro/Vendas; respostas na ata do BRD 0.6 e nas decisões §6.
 - **Fase 1 aplicada (2026-09-11):** migration `20260911191431_financeiro_cockpit_core.sql` — `contract_series.usage_driven` (backfill 26/26 originals) + `correction_anniversary/percent/rule`; `billing_exceptions` (4 tipos; RLS select `admin,manager,finance,sales`, write `admin,finance`; trigger `set_updated_at`); flag `cockpit_financeiro` (`false`, `admin,manager,finance`); RPCs `get_financeiro_cockpit`/`get_financeiro_detalhe`/`get_financeiro_export` + engine privado `_financeiro_series_month`. Smoke `2026-08`: 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; guard `csm` → 42501; matemática conferida (Multiloja 260 × R$ 58,50 = R$ 15.210,00; Koerich 400 × R$ 40,00 = R$ 16.000,00).
+- **Fase 2 implementada (2026-09-11):** `src/lib/financeiro.js` + `src/hooks/useFinanceiroCockpit.js` (`useFinanceiroCockpit`/`useFinanceiroDetalhe`/`useLastDoncSync`) + `src/pages/FinanceiroCockpitPage.jsx` (KPIs T1-T7, toolbar, accordion lazy por mount, banner Q9, CSV sintético); rota `<CockpitRoute flagKey="cockpit_financeiro">` + card no hub + registro em `SettingsFeatureFlags`; `Icons.Percent`; form V2 com `usage_driven` + reajuste (aniversário/regra/percentual) + renovação assistida; `resolveMRR` com paridade (usage_driven sem regras = piso × valor, 0 sem piso). Flag permanece `false` (QA com flag on na Phase 5).
 
 **What does NOT exist and needs to be created:**
 
-- Form (Empresas) — checkbox `usage_driven` + bloco de reajuste (aniversário/percentual/regra) + renovação assistida (**Phase 2**).
+- CRUD de exceções (`ExcecaoModal`) + `PaymentToggle` adimplência + espelhos no detalhe (**Phase 3**).
+- Exports CSV analítico/PDF (**Phase 4**) e Help do cockpit (**Phase 5**).
 - `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
 - `src/components/financeiro/ExcecaoModal.jsx`, `PaymentToggle.jsx`.
 - Route `/financeiro-cockpit` (via `CockpitRoute`) + card no `CockpitsPage.jsx` + registro em `SettingsFeatureFlags.jsx`.
@@ -59,19 +61,19 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 | `docs/sdd/financeiro-cockpit-regras.html` | Modify — v1.1 validado (base do Help) (Phase 0.1, done) |
 | `docs/brd/brd-financeiro-cockpit.md` | Modify — adendo 0.6 ata de validação (Phase 0.1, done) |
 | `supabase/migrations/20260911191431_financeiro_cockpit_core.sql` | **Create (done Phase 1)** — engine `_financeiro_series_month` + `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` + flag + 3 RPCs |
-| `src/lib/financeiro.js` | **Create** — pure helpers |
-| `src/lib/contractRules.js` | Modify — `resolveMRR`/preview consideram `usage_driven` (paridade form × cockpit) |
-| `src/components/clients/ClientFormContent.jsx` | Modify — checkbox "Cobrar excedente por uso acima do piso" + bloco de reajuste (aniversário + percentual editável) + renovação assistida |
-| `src/hooks/useContractCharges.js` | Modify — `useContractSeriesMutations` persiste `usage_driven`, `correction_anniversary`, `correction_percent`, `correction_rule` |
-| `src/hooks/useFinanceiroCockpit.js` | **Create** — queries + invalidação |
-| `src/pages/FinanceiroCockpitPage.jsx` | **Create** — KPIs T1-T7, toolbar, accordion lazy, subtable por série + botão Help (Phase 5) |
+| `src/lib/financeiro.js` | **Create (done Phase 2)** — pure helpers |
+| `src/lib/contractRules.js` | Modify (done Phase 2) — `resolveMRR` com paridade `usage_driven` |
+| `src/components/clients/ClientFormContent.jsx` | Modify (done Phase 2) — checkbox "Cobrar excedente por uso acima do piso" + bloco de reajuste + renovação assistida |
+| `src/hooks/useContractCharges.js` | Modify (done Phase 2) — persiste `usage_driven`, `correction_anniversary`, `correction_percent`, `correction_rule` |
+| `src/hooks/useFinanceiroCockpit.js` | **Create (done Phase 2)** — queries + lazy detail + last sync |
+| `src/pages/FinanceiroCockpitPage.jsx` | **Create (done Phase 2)** — KPIs T1-T7, toolbar, accordion lazy, subtable por série (Help na Phase 5) |
 | `src/components/financeiro/ExcecaoModal.jsx` | **Create** — CRUD exceções (escopo cliente/série; 4 tipos) |
 | `src/components/financeiro/PaymentToggle.jsx` | **Create** — adimplência por `(client_id, series_id, ref_month)` |
 | `src/components/clients/tabs/operacional/ClientSubDados.jsx` | Modify — espelho read-only de exceção vigente + adimplência |
-| `src/pages/CockpitsPage.jsx` | Modify — card `cockpit_financeiro` |
-| `src/components/settings/SettingsFeatureFlags.jsx` | Modify — registrar flag no grupo `Cockpits & Dashboards` |
-| `src/App.jsx` | Modify — rota dentro de `<CockpitRoute flagKey="cockpit_financeiro">` |
-| `src/lib/icons.js` | Modify — `Percent`/`BadgePercent` se necessário (alfabético, sem duplicatas) |
+| `src/pages/CockpitsPage.jsx` | Modify (done Phase 2) — card `cockpit_financeiro` |
+| `src/components/settings/SettingsFeatureFlags.jsx` | Modify (done Phase 2) — flag no grupo `Cockpits & Dashboards` |
+| `src/App.jsx` | Modify (done Phase 2) — rota `<CockpitRoute flagKey="cockpit_financeiro">` |
+| `src/lib/icons.js` | Modify (done Phase 2) — `Percent` (alfabético, sem duplicatas) |
 | `public/help/financeiro-regras.html` | **Create (Phase 5)** — cópia servida do documento de regras validado (Help do cockpit) |
 | `docs/modules/clients.md` | Modify — `usage_driven` + reajuste por série + espelho de exceções (após implementação) |
 
@@ -492,35 +494,34 @@ interface FinanceiroDetail {
 
 #### Checklist
 
-- [ ] **Helpers:** Create `src/lib/financeiro.js` — `formatBRL`, `monthLabel`, `deltaDisplay`, `defaultRefMonth` (prev month), `filterByBillingType`, `isExcecaoVigente`, `seriesModeLabel`, `tierValue` (espelho puro da §4.1)
-- [ ] **Hook:** Create `src/hooks/useFinanceiroCockpit.js`:
-  - [ ] `useQuery(['financeiro_available_months'])` — `sync_service_log` service `donc-api`, distinct `ref_month` desc, `staleTime 10min` (padrão `useProfissionaisCockpit.js`)
-  - [ ] `useQuery(['financeiro_cockpit', refMonth], () => supabase.rpc('get_financeiro_cockpit', {p_ref_month: refMonth}))` — `staleTime 5min`, `enabled !!profile && !!refMonth`
-  - [ ] Return `{ months, monthsLoading, data, isLoading, error, refetch }`
-- [ ] **Page:** Create `src/pages/FinanceiroCockpitPage.jsx` (copy `ProfissionaisCockpitPage.jsx` 1:1):
-  - [ ] Wrapper + `BackButton → /cockpits` + `PageHeader title="Financeiro · Faturamento"`
-  - [ ] KpiCards T1-T3 + deltas (`mrr_delta`), highlight `bg-donc-red/10` se queda >35%
-  - [ ] Secondary T4-T7
-  - [ ] Toolbar (ref_month default mês anterior, search, filter `billing_type`, toggle "Só excedentes", CSV dropdown, lastSync)
-  - [ ] Table com colunas collapsed (§3) + row highlight isento (`bg-donc-amber/10`) / inadimplente (`bg-donc-red/10`); fatura zerada aparece com R$ 0,00 (Q4)
-  - [ ] Row expand lazy `get_financeiro_detalhe` + `detailCache` + subtable Séries (com selo de reajuste) + rateio + exceções + adimplência + profissionais/OS
-  - [ ] Banner de falha de sync → `"Uso de {mês} não sincronizou — contate o suporte DoncCX Hub"` (Q9; sem decisão de faturamento)
-- [ ] **Routing/Gateway:** `src/App.jsx` `<Route element={<CockpitRoute flagKey="cockpit_financeiro" />}><Route path="/financeiro-cockpit" element={<FinanceiroCockpitPage />} /></Route>`; `CockpitsPage.jsx` card; `SettingsFeatureFlags.jsx` grupo `Cockpits & Dashboards`
-- [ ] **Icons:** `src/lib/icons.js` — add `Percent` (e `BadgePercent` se usado) alfabético, check duplicates
-- [ ] **Form (usage_driven + reajuste):** Modify `src/components/clients/ClientFormContent.jsx` (Contrato/Plano de cobrança):
-  - [ ] Checkbox "Cobrar excedente por uso acima do piso" (default por kind: original=true, aditivo/renegociacao=false)
-  - [ ] Reajuste da série: `Aniversário do reajuste` (default data de assinatura, editável), `Índice` (IPCA/IGP-M/IGP-M-IPCA), `Percentual` **editável** + `Regra` (X% / índice / o maior) — §4.1
-  - [ ] Renovação assistida: ao criar renovação, sugerir `novo valor base = base × (1 + percentual/100)` (editável) + `início da cobrança` no mês seguinte (sem retroativo)
-  - [ ] `src/hooks/useContractCharges.js` persiste os novos campos; `src/lib/contractRules.js` `resolveMRR`/preview consideram `usage_driven`
-- [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify:** flag off (redirect) e on para `admin/finance`; conferir MRR do cockpit × preview do form para 1 cliente com excedente
-- [ ] **Commit:** `git add src/lib/financeiro.js src/hooks/useFinanceiroCockpit.js src/pages/FinanceiroCockpitPage.jsx src/App.jsx src/pages/CockpitsPage.jsx src/components/settings/SettingsFeatureFlags.jsx src/lib/icons.js src/components/clients/ClientFormContent.jsx src/hooks/useContractCharges.js src/lib/contractRules.js && git commit -m "feat(financeiro): phase 2 hook + base page + form (usage_driven/reajuste)" && git push origin main`
+- [x] **Helpers:** Create `src/lib/financeiro.js` — `formatBRL`, `formatPercent`, `monthLabel`, `deltaDisplay`, `defaultRefMonth`, `filterByBillingType`, `isExcecaoVigente`, `seriesModeLabel`, `tierValue`, `renewalSuggestion`
+- [x] **Hook:** Create `src/hooks/useFinanceiroCockpit.js`:
+  - [x] `useQuery(['financeiro_available_months'])` — `sync_service_log` service `donc-api`, distinct `ref_month` desc, `staleTime 10min`
+  - [x] `useQuery(['financeiro_cockpit', refMonth], () => supabase.rpc('get_financeiro_cockpit', {p_ref_month: refMonth}))` — `staleTime 5min`, `enabled !!profile && !!refMonth`
+  - [x] `useFinanceiroDetalhe` (lazy por mount) + `useLastDoncSync` (banner Q9)
+- [x] **Page:** Create `src/pages/FinanceiroCockpitPage.jsx` (918L, template 1:1):
+  - [x] Wrapper + `BackButton → /cockpits` + `PageHeader title="Financeiro · Faturamento" subtitle={monthLabel}`
+  - [x] KpiCards T1-T3 + deltas vs mês anterior (clientes filtrados), secondary T4-T7
+  - [x] Toolbar (ref_month default mês anterior, search, filter `billing_type`, toggle "Só excedentes", CSV sintético, lastSync)
+  - [x] Table com colunas collapsed (§3) + row highlight exceção (`bg-donc-amber/10`) / inadimplente (`bg-donc-red/10`); fatura zerada aparece com R$ 0,00 (Q4)
+  - [x] Row expand lazy (`useFinanceiroDetalhe`) + subtable Séries (modo / reajuste) + rateio por produto + exceções + adimplência + profissionais/OS (cap 50, scroll)
+  - [x] Banner de falha de sync → `"Uso de {mês} não sincronizou — contate o suporte DoncCX Hub"` (Q9)
+- [x] **Routing/Gateway:** `src/App.jsx` `<CockpitRoute flagKey="cockpit_financeiro">`; `CockpitsPage.jsx` card; `SettingsFeatureFlags.jsx` grupo `Cockpits & Dashboards`
+- [x] **Icons:** `src/lib/icons.js` — `Percent` (alfabético, sem duplicata)
+- [x] **Form (usage_driven + reajuste):** Modify `src/components/clients/ClientFormContent.jsx` (Contrato/Plano de cobrança):
+  - [x] Checkbox "Cobrar excedente por uso acima do piso" (default por kind: original=true, aditivo/renegociacao=false)
+  - [x] Reajuste da série: `Aniversário do reajuste` (default assinatura, editável), `Regra` (percentual/índice/maior), `Percentual` editável + índice existente
+  - [x] Renovação assistida: sugestão `base × (1 + percentual/100)` exibida no plano
+  - [x] `src/hooks/useContractCharges.js` persiste os 4 campos; `src/lib/contractRules.js` `resolveMRR` com paridade `usage_driven`
+- [x] **Build:** `npm run build` — OK (7.5s, 2805 módulos)
+- [x] **Verify:** rota com flag off → redirect `/module-unavailable` (gate); RPC smoke já validado na Phase 1. **QA com flag on adiada para a Phase 5** (flag permanece `false` até o QA de papéis, conforme decisão do SDD)
+- [ ] **Commit:** `git add src/lib/financeiro.js src/hooks/useFinanceiroCockpit.js src/pages/FinanceiroCockpitPage.jsx src/App.jsx src/pages/CockpitsPage.jsx src/components/settings/SettingsFeatureFlags.jsx src/lib/icons.js src/components/clients/ClientFormContent.jsx src/hooks/useContractCharges.js src/lib/contractRules.js docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 2 hook + base page + form (usage_driven/reajuste)" && git push origin main`
 
 #### Implementation Log (Phase 2)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-09-11 | (pending) | `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`, `src/App.jsx`, `src/pages/CockpitsPage.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `src/lib/icons.js`, `src/components/clients/ClientFormContent.jsx`, `src/hooks/useContractCharges.js`, `src/lib/contractRules.js` | Base page (KPIs T1-T7, toolbar, accordion lazy, banner Q9, CSV sintético) + rota/card/flag + form `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`; build ok |
 
 ---
 
@@ -622,6 +623,7 @@ interface FinanceiroDetail {
 - `billing.js` com `mode='rateio'` + `validateRateio` (default `legacy`).
 - `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **existe `enabled false`** (`admin,manager,finance`).
 - **Phase 1 aplicada (2026-09-11):** `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` por série + 3 RPCs + engine; smoke `2026-08` → 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; grants verificados (anon bloqueado, helper privado).
+- **Phase 2 implementada (2026-09-11):** página/hook/helpers + rota/card/flag registrada + form V2 com `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`. Deploy Vercel pendente do push; flag permanece `false` até a Phase 5.
 - **Histórico de migrations reconciliado (2026-09-11):** 8 versões locais marcadas `applied` e 8 órfãs remotas `reverted` (migrations de 02–07/09 aplicadas via MCP com timestamps diferentes). `split_health_cockpit` (pendente antiga) aplicada no mesmo push — flag `health_cockpit` criada.
 - Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); HTML v1.1 será o Help do cockpit (Phase 5).
 
@@ -744,6 +746,7 @@ When resuming this document for implementation:
 | 0.2 | 2026-09-11 | DoncCX Hub | Reescrita série-aware: `contract_series`/`contract_charges`/`billing_os_tiers`; `usage_driven`; exceções híbridas (3 tipos, `piso_zerado` removido); papéis `admin/manager/finance` (sales fora); correções client-month; Fase 3.5/billing.js marcados concluídos; HTML de validação Financeiro/Vendas |
 | 0.3 | 2026-09-11 | DoncCX Hub | Pós-validação: reajuste anual por série (`correction_anniversary/percent/rule`; renovação com valor corrigido; sem retroativo; remove `billing_corrections`/toggle); 4º tipo `desconto_unidade`; sales lê exceções (Q8); fatura zerada visível (Q4); falha de sync → suporte (Q9); "1 fatura por série" confirmado (Q11); task do Help do cockpit a partir do HTML validado |
 | 0.4 | 2026-09-11 | DoncCX Hub | Phase 1 implementada: migration `20260911191431_financeiro_cockpit_core` aplicada (engine series-aware, `billing_exceptions` 4 tipos, `usage_driven`/`correction_*`, flag, 3 RPCs); histórico de migrations reconciliado; smoke `2026-08` ok |
+| 0.5 | 2026-09-11 | DoncCX Hub | Phase 2 implementada: página/hook/helpers, rota + card + flag registrada, form V2 (`usage_driven` + reajuste + renovação assistida), paridade `resolveMRR`; flag permanece off até a Phase 5 |
 
 ---
 

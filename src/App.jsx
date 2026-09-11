@@ -37,6 +37,7 @@ import CockpitsPage from './pages/CockpitsPage'
 import CsRadarPage from './pages/CsRadarPage'
 import ProjectCockpitPage from './pages/ProjectCockpitPage'
 import ProfissionaisCockpitPage from './pages/ProfissionaisCockpitPage'
+import FinanceiroCockpitPage from './pages/FinanceiroCockpitPage'
 import LabsDashboardPage from './pages/labs/LabsDashboardPage'
 import EmpresasV2Page from './pages/labs/EmpresasV2Page'
 import ClientFormPage from './pages/ClientFormPage'
@@ -227,6 +228,9 @@ function AppRoutes() {
           </Route>
           <Route element={<CockpitRoute flagKey="profissionais_cockpit" />}>
             <Route path="/profissionais-cockpit" element={<ProfissionaisCockpitPage />} />
+          </Route>
+          <Route element={<CockpitRoute flagKey="cockpit_financeiro" />}>
+            <Route path="/financeiro-cockpit" element={<FinanceiroCockpitPage />} />
           </Route>
           <Route path="/empresas/nova" element={<ClientFormPage />} />
           <Route path="/empresas/:id/editar" element={<ClientFormPage />} />

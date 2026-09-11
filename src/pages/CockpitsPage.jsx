@@ -41,6 +41,15 @@ const cockpits = [
     color: 'text-donc-verde',
     bgColor: 'bg-donc-verde/10',
   },
+  {
+    key: 'cockpit_financeiro',
+    title: 'Financeiro',
+    description: 'MRR real, excedente de uso, exceções e adimplência por cliente',
+    icon: Icons.Wallet,
+    href: '/financeiro-cockpit',
+    color: 'text-donc-verde',
+    bgColor: 'bg-donc-verde/10',
+  },
 ]
 
 export default function CockpitsPage() {

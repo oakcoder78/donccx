@@ -22,6 +22,7 @@ import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
 import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
+import { renewalSuggestion } from '@/lib/financeiro'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional → Anexos
@@ -201,6 +202,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         ...s,
         billing_end: s.billing_end || '', reason: s.reason || '',
         endDirty: !!(s.billing_end || s.auto_renew),
+        usage_driven: s.usage_driven ?? false,
+        correction_anniversary: s.correction_anniversary || '',
+        correction_percent: s.correction_percent ?? '',
+        correction_rule: s.correction_rule || '',
         N: Math.max(N, maxEv, 1), rules, eventuais: evs,
         mods: toMods(modsBySeries[s.id] || []), tiers: toTiers(tiersBySeries[s.id] || []),
         services: s.kind === 'original' ? [...seedServices] : [],
@@ -233,6 +238,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         billing_type: 'por_licenca', billing_base_value: '', billing_floor: '',
         contract_signed_date: '', contract_renewal: '', correction_index: '',
         billing_status: 'ativo', billing_suspended_until: '',
+        usage_driven: true, correction_anniversary: '', correction_percent: '', correction_rule: '',
         N: 36, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
       }]
     }
@@ -269,6 +275,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const basePerLic = Number(form.billing_base_value) || 0
   const floor = Number(form.billing_floor) || 0
   const baseTotal = floor > 0 ? basePerLic * floor : basePerLic
+  const renewalHint = renewalSuggestion(basePerLic, form.correction_percent)
   const unitValue = calculateUnitValue(basePerLic, activeModList, { mode: 'rateio' })
   const sumMods = activeModList.reduce((s, m) => s + (m.additional_value || 0), 0)
   const rateioPending = activeModList.some(m => !m.hasValue)
@@ -298,7 +305,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
   const KIND_LABELS = { original: 'Contrato original', aditivo: 'Aditivo (novo módulo)', renegociacao: 'Renegociação (desconto temporário)' }
   // Campos do plano que vivem por série (buffer = form da série ativa)
-  const PLAN_KEYS = ['billing_type', 'billing_base_value', 'billing_floor', 'contract_signed_date', 'contract_renewal', 'correction_index', 'billing_status', 'billing_suspended_until']
+  const PLAN_KEYS = ['billing_type', 'billing_base_value', 'billing_floor', 'contract_signed_date', 'contract_renewal', 'correction_index', 'billing_status', 'billing_suspended_until', 'usage_driven', 'correction_anniversary', 'correction_percent', 'correction_rule']
   const activeSeries = seriesList[activeSeriesIdx] || null
   const activeReadOnly = activeSeries?.status === 'encerrada'
 
@@ -350,6 +357,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       billing_floor: form.billing_floor || '',
       contract_signed_date: '', contract_renewal: '', correction_index: '',
       billing_status: 'ativo', billing_suspended_until: '',
+      usage_driven: !hasOriginal,
+      correction_anniversary: '', correction_percent: '', correction_rule: '',
       N: 12, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
     }
     const next = [...seriesWithBuffer(), draft]
@@ -536,6 +545,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         kind: x.meta.kind, status: x.meta.status,
         billingStatus: x.meta.billing_status || 'ativo',
         hasAnyRules: x.meta.rules.length > 0, charges: x.rec, baseTotal: x.base,
+        usageDriven: !!x.meta.usage_driven,
+        billingFloor: x.meta.billing_floor,
+        billingBaseValue: x.meta.billing_base_value,
       })),
     })
 
@@ -658,6 +670,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             billing_status: s.billing_status || 'ativo',
             billing_suspended_until: s.billing_suspended_until || null,
             correction_index: s.correction_index || null,
+            correction_anniversary: s.correction_anniversary || null,
+            correction_percent: s.correction_percent !== '' && s.correction_percent != null
+              ? Number(s.correction_percent) : null,
+            correction_rule: s.correction_rule || null,
+            usage_driven: !!s.usage_driven,
             contract_signed_date: s.contract_signed_date || null,
             contract_renewal: s.contract_renewal || null,
           },
@@ -1075,7 +1092,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
           <FormSection
             title="Plano de cobrança"
-            hint="A cobrança pode ser por licença de usuário ou por OS (ordem de serviço). O piso é a quantidade mínima cobrada mesmo que o cliente use menos."
+            hint="A cobrança pode ser por licença de usuário ou por OS (ordem de serviço). O piso é a quantidade mínima cobrada mesmo que o cliente use menos. Com “Cobrar excedente”, o uso acima do piso entra no MRR do mês; sem piso definido, cobra-se apenas o consumo."
           >
             <div className="flex gap-2">
               {[{ v: 'por_licenca', l: 'Por licença de usuário' }, { v: 'por_os', l: 'Por OS' }].map(opt => (
@@ -1105,6 +1122,49 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               </div>
             </div>
             <p className="text-[11px] text-text-tertiary">Datas (assinatura, início, renovação) ficam na série acima — esta seção é o plano da série selecionada.</p>
+
+            <div className="rounded-lg border border-border-tertiary p-3 space-y-3">
+              <label className="flex items-start gap-2 text-sm text-text-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="usage_driven"
+                  checked={!!form.usage_driven}
+                  onChange={handleChange}
+                  disabled={activeReadOnly}
+                  className="mt-0.5 accent-donc-navy"
+                />
+                <span>
+                  Cobrar excedente por uso acima do piso
+                  <span className="block text-[11px] text-text-tertiary">
+                    Ligado: o uso real do mês compõe o MRR (piso garantido). Desligado: o valor definido na série é fixo.
+                  </span>
+                </span>
+              </label>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="label-sm">Aniversário do reajuste</label>
+                  <input name="correction_anniversary" type="date" value={form.correction_anniversary || ''} onChange={handleChange} className="input-base w-full" disabled={activeReadOnly} />
+                </div>
+                <div>
+                  <label className="label-sm">Regra do reajuste</label>
+                  <select name="correction_rule" value={form.correction_rule || ''} onChange={handleChange} className="input-base w-full" disabled={activeReadOnly}>
+                    <option value="">—</option>
+                    <option value="percentual">Percentual fixo</option>
+                    <option value="indice">Índice (IPCA/IGP-M)</option>
+                    <option value="maior">O maior entre os dois</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label-sm">Percentual do reajuste (%)</label>
+                  <input name="correction_percent" type="number" min="0" max="50" step="0.01" value={form.correction_percent ?? ''} onChange={handleChange} className="input-base w-full" placeholder="—" disabled={activeReadOnly} />
+                </div>
+              </div>
+              {renewalHint && (
+                <p className="text-[11px] text-text-tertiary">
+                  Renovação sugerida: {fmtBRL(renewalHint)} por {form.billing_type === 'por_os' ? 'OS' : 'licença'} (aniversário em {form.correction_anniversary || form.contract_signed_date || 'data de assinatura'}).
+                </p>
+              )}
+            </div>
 
             <div className="bg-donc-navy rounded-lg p-4 text-white">
               <p className="text-xs text-white/60 mb-0.5">MRR base</p>

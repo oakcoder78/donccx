@@ -214,15 +214,13 @@ export function seriesMonthTotal(seriesCharges, refMonthStr, baseTotal) {
 
 /**
  * MRR derivado = soma das séries ativas no mês corrente (base própria por série).
- * Sem regras em nenhuma série → MRR base da original (comportamento legado).
- * Série original sem regras + outra série com regras → base + valores.
+ * Sem regras: travado → valor base; usage_driven → piso × valor (0 sem piso).
+ * Série com regras → valor da regra no mês (usage_driven soma excedente no cockpit).
  * Mês coberto por renegociação → original pausada (só a renegociação conta).
  */
 export function resolveMRR({ billingStatus, baseTotal, series, refMonthStr }) {
   if (billingStatus !== 'ativo') return 0
   const list = (series || []).filter(s => !s.status || s.status === 'ativa')
-  const anyRules = list.some(s => s.hasAnyRules)
-  if (!anyRules) return baseTotal || 0
   const ref = refMonthStr || currentRefMonth()
   const renegMonths = new Set()
   list.forEach(s => {
@@ -236,7 +234,13 @@ export function resolveMRR({ billingStatus, baseTotal, series, refMonthStr }) {
     if (s.billingStatus && s.billingStatus !== 'ativo') return sum // série suspensa/não bilhetável
     if (s.kind === 'original' && renegMonths.has(ref)) return sum // pausada na janela
     if (s.hasAnyRules) return sum + seriesMonthTotal(s.charges, ref, base)
-    return sum + (s.kind === 'original' ? base || 0 : 0)
+    if (s.usageDriven) {
+      // usage_driven sem regras: mínimo = piso × valor; sem piso = 0 (cobra consumo)
+      const floor = Number(s.billingFloor) || 0
+      const unit = Number(s.billingBaseValue) || 0
+      return sum + (floor > 0 ? floor * unit : 0)
+    }
+    return sum + (base || 0)
   }, 0)
 }
 

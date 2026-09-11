@@ -60,6 +60,11 @@ export function useContractSeriesMutations(clientId) {
         billing_status: series.billing_status || 'ativo',
         billing_suspended_until: series.billing_suspended_until || null,
         correction_index: series.correction_index || null,
+        correction_anniversary: series.correction_anniversary || null,
+        correction_percent: series.correction_percent !== '' && series.correction_percent != null
+          ? Number(series.correction_percent) : null,
+        correction_rule: series.correction_rule || null,
+        usage_driven: series.usage_driven ?? false,
         contract_signed_date: series.contract_signed_date || null,
         contract_renewal: series.contract_renewal || null,
         created_by: userId || null,
