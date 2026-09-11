@@ -22,7 +22,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** **Phase 1 — ready to start** (Phase 0 + 0.1 complete; regras validadas por Financeiro/Vendas em 2026-09-11).
+- **Active phase:** **Phase 2 — ready to start** (Phase 1 complete 2026-09-11; regras validadas por Financeiro/Vendas em 2026-09-11).
 
 **What already exists related to this work:**
 
@@ -39,14 +39,11 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 - **Trigger helper:** `public.set_updated_at()` existe (`20260503031721_remote_schema.sql:369`) — reutilizar em tabelas novas.
 - **Icons:** `Wallet`, `Search`, `Clock`, `FileDown`, `Download`, `ArrowLeft` existem em `src/lib/icons.js`; `Percent`/`BadgePercent` **não existem** (adicionar se usados).
 - **Validação de regras (2026-09-11):** `docs/sdd/financeiro-cockpit-regras.html` v1.1 validado por Financeiro/Vendas; respostas na ata do BRD 0.6 e nas decisões §6.
+- **Fase 1 aplicada (2026-09-11):** migration `20260911191431_financeiro_cockpit_core.sql` — `contract_series.usage_driven` (backfill 26/26 originals) + `correction_anniversary/percent/rule`; `billing_exceptions` (4 tipos; RLS select `admin,manager,finance,sales`, write `admin,finance`; trigger `set_updated_at`); flag `cockpit_financeiro` (`false`, `admin,manager,finance`); RPCs `get_financeiro_cockpit`/`get_financeiro_detalhe`/`get_financeiro_export` + engine privado `_financeiro_series_month`. Smoke `2026-08`: 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; guard `csm` → 42501; matemática conferida (Multiloja 260 × R$ 58,50 = R$ 15.210,00; Koerich 400 × R$ 40,00 = R$ 16.000,00).
 
 **What does NOT exist and needs to be created:**
 
-- `contract_series.usage_driven boolean NOT NULL DEFAULT false` + backfill `(kind='original')` + checkbox no form.
-- `contract_series.correction_anniversary date` + `correction_percent numeric` + `correction_rule text` (reajuste anual; percentual editável) + campos no form.
-- Table `billing_exceptions` (híbrida cliente/série, **4 tipos** — inclui `desconto_unidade`) + RLS (SELECT inclui `sales` para o espelho na ficha) + indexes.
-- Feature flag `cockpit_financeiro` (`enabled false`, `allowed_roles [admin,manager,finance]`).
-- RPCs `get_financeiro_cockpit(text)`, `get_financeiro_detalhe(int,text)`, `get_financeiro_export(text)` (`SECURITY DEFINER` + guard `admin,manager,finance`).
+- Form (Empresas) — checkbox `usage_driven` + bloco de reajuste (aniversário/percentual/regra) + renovação assistida (**Phase 2**).
 - `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
 - `src/components/financeiro/ExcecaoModal.jsx`, `PaymentToggle.jsx`.
 - Route `/financeiro-cockpit` (via `CockpitRoute`) + card no `CockpitsPage.jsx` + registro em `SettingsFeatureFlags.jsx`.
@@ -61,7 +58,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 | `docs/sdd/financeiro-cockpit-sdd.md` | Modify — v0.3 (Phase 0.1, done) |
 | `docs/sdd/financeiro-cockpit-regras.html` | Modify — v1.1 validado (base do Help) (Phase 0.1, done) |
 | `docs/brd/brd-financeiro-cockpit.md` | Modify — adendo 0.6 ata de validação (Phase 0.1, done) |
-| `supabase/migrations/<ts>_financeiro_cockpit_core.sql` | **Create** — `billing_exceptions` (4 tipos, RLS com sales SELECT), `usage_driven` + `correction_*` na série, flag, 3 RPCs |
+| `supabase/migrations/20260911191431_financeiro_cockpit_core.sql` | **Create (done Phase 1)** — engine `_financeiro_series_month` + `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` + flag + 3 RPCs |
 | `src/lib/financeiro.js` | **Create** — pure helpers |
 | `src/lib/contractRules.js` | Modify — `resolveMRR`/preview consideram `usage_driven` (paridade form × cockpit) |
 | `src/components/clients/ClientFormContent.jsx` | Modify — checkbox "Cobrar excedente por uso acima do piso" + bloco de reajuste (aniversário + percentual editável) + renovação assistida |
@@ -449,7 +446,7 @@ interface FinanceiroDetail {
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-09-11 | (pending) | `docs/sdd/financeiro-cockpit-sdd.md`, `docs/sdd/financeiro-cockpit-regras.html`, `docs/brd/brd-financeiro-cockpit.md`, `.agents/docs-index.md` | v0.3 pós-validação + ata + HTML v1.1 |
+| 2026-09-11 | `4169799` | `docs/sdd/financeiro-cockpit-sdd.md`, `docs/sdd/financeiro-cockpit-regras.html`, `docs/brd/brd-financeiro-cockpit.md`, `.agents/docs-index.md` | v0.3 pós-validação + ata + HTML v1.1 |
 
 ---
 
@@ -464,22 +461,23 @@ interface FinanceiroDetail {
 
 #### Checklist
 
-- [ ] **Migration:** `supabase migration new financeiro_cockpit_core` → `supabase/migrations/<ts>_financeiro_cockpit_core.sql`:
-  - [ ] `ALTER TABLE contract_series` — `usage_driven` (+backfill `kind='original'`), `correction_anniversary`, `correction_percent`, `correction_rule` (§4.2) + COMMENTs
-  - [ ] `CREATE TABLE billing_exceptions` (4 tipos: isencao_total/desconto_percent/valor_reduzido/desconto_unidade) + CHECKs + indexes `client_id`, `series_id`, `(valid_from, valid_to)` + trigger `set_updated_at`
-  - [ ] Flag `cockpit_financeiro` `enabled false` `[admin,manager,finance]` com `ON CONFLICT DO UPDATE`
-  - [ ] RLS: SELECT `admin,manager,finance,sales`; ALL `admin,finance`; `REVOKE anon/public` + `GRANT authenticated`
-  - [ ] RPCs 1-3 (§4.3) — `SECURITY DEFINER SET search_path=public` + guard `admin,manager,finance` + `REVOKE anon/public GRANT authenticated`
-  - [ ] RPC reflete `usage_driven`, pausa de renegociação, tiers por série, 4 tipos de exceção (série→cliente), `billing_payments` PK tripla (T6); **sem** cálculo de índice/retroativo (valor da série já corrigido)
-- [ ] **Build:** `npm run build` with no errors
-- [ ] **DB push:** `supabase db push --include-all` — verify `billing_exceptions` + flag + `contract_series` novos campos + `select get_financeiro_cockpit('2026-08')` (service role)
-- [ ] **Commit:** `git add supabase/migrations/<ts>_financeiro_cockpit_core.sql && git commit -m "feat(financeiro): phase 1 DB core (series-aware) + flag + RPCs" && git push origin main`
+- [x] **Migration:** `./node_modules/.bin/supabase migration new financeiro_cockpit_core` → `supabase/migrations/20260911191431_financeiro_cockpit_core.sql`:
+  - [x] `ALTER TABLE contract_series` — `usage_driven` (+backfill `kind='original'`), `correction_anniversary`, `correction_percent`, `correction_rule` (§4.2) + COMMENTs
+  - [x] `CREATE TABLE billing_exceptions` (4 tipos) + CHECKs + indexes + trigger `set_updated_at`
+  - [x] Flag `cockpit_financeiro` `enabled false` `[admin,manager,finance]` com `ON CONFLICT DO UPDATE`
+  - [x] RLS: SELECT `admin,manager,finance,sales`; ALL `admin,finance`; `REVOKE anon/public` + `GRANT authenticated`
+  - [x] RPCs + engine privado `_financeiro_series_month` (`SECURITY DEFINER`, guard, `REVOKE`; helper sem EXECUTE para authenticated)
+  - [x] RPC reflete `usage_driven`, pausa de renegociação, tiers por série, 4 tipos de exceção (série→cliente), `billing_payments` PK tripla (T6); **sem** cálculo de índice/retroativo
+- [x] **Build:** `npm run build` with no errors
+- [x] **DB push:** `./node_modules/.bin/supabase db push --include-all` — aplicada; smoke `2026-08` (16 clientes; MRR real R$ 122.692,83; guard csm 42501); grants verificados
+- [x] **Extras:** migration history repair (8 locais `applied` + 8 órfãs remotas `reverted`) + `split_health_cockpit` (pendente antiga) aplicada no mesmo push
+- [ ] **Commit:** `git add supabase/migrations/20260911191431_financeiro_cockpit_core.sql docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 1 DB core (series-aware) + flag + RPCs" && git push origin main`
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-09-11 | (this commit) | `supabase/migrations/20260911191431_financeiro_cockpit_core.sql` | Applied: series-aware engine + `billing_exceptions` (4 types) + `usage_driven`/`correction_*` + flag + 3 RPCs; smoke `2026-08` ok (16 clients, R$ 122.692,83 real MRR) |
 
 ---
 
@@ -622,8 +620,9 @@ interface FinanceiroDetail {
 - Séries contratuais em produção (2026-09-07) com tiers/mods/charges por série; form V2 único (`ClientFormContent.jsx`, `ClientForm.jsx` removido).
 - `billing_payments` (adimplência) em produção com PK `(client_id, series_id, ref_month)` + trigger de `delay_days`; ledger `BillingSchedule.jsx` no detalhe.
 - `billing.js` com `mode='rateio'` + `validateRateio` (default `legacy`).
-- `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **não existe** (criado na Phase 1, `enabled false`).
-- `billing_exceptions` e os campos de reajuste/`usage_driven` **não existem** — Phase 1 liberada.
+- `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **existe `enabled false`** (`admin,manager,finance`).
+- **Phase 1 aplicada (2026-09-11):** `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` por série + 3 RPCs + engine; smoke `2026-08` → 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; grants verificados (anon bloqueado, helper privado).
+- **Histórico de migrations reconciliado (2026-09-11):** 8 versões locais marcadas `applied` e 8 órfãs remotas `reverted` (migrations de 02–07/09 aplicadas via MCP com timestamps diferentes). `split_health_cockpit` (pendente antiga) aplicada no mesmo push — flag `health_cockpit` criada.
 - Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); HTML v1.1 será o Help do cockpit (Phase 5).
 
 ### Decisões validadas (2026-09-11)
@@ -688,6 +687,8 @@ interface FinanceiroDetail {
 - **Supabase deploy:** after `npx supabase functions deploy`, "Verify JWT" is automatically re-enabled — disable it manually in the Dashboard. Run `node scripts/fix-supabase-urls.js` after every deploy.
 - **Branch:** worktree disabled. All work goes directly to `main` — no branches, no worktrees. Push to `origin main`.
 - **No local Supabase:** all DB/functions changes go directly to production (`supabase db push --include-all` + `supabase functions deploy`). No Docker.
+- **CLI in WSL:** the global `supabase` (Windows npm shim) is broken for linux-x64 — use `./node_modules/.bin/supabase` (v2.109.0) and export `SUPABASE_ACCESS_TOKEN` from `.env.local`.
+- **Migration history drift (repaired 2026-09-11):** recent migrations were applied via MCP with timestamps different from the local files. If `db push` reports remote/local mismatches, repair with `migration repair --status applied <local-versions>` + `--status reverted <remote-only-versions>` — never re-apply old files. The local file owns the version going forward.
 - **Build verify:** `npm run build` is mandatory before every `git push` (Vite `build.minify false`, `__COMMIT_HASH__` via `vite.config.js`).
 - **Vercel:** SPA rewrite `/(.*) -> /index.html` in `vercel.json`.
 - **Financeiro-specific:**
@@ -742,6 +743,7 @@ When resuming this document for implementation:
 | 0.1 | 2026-09-01 | DoncCX Hub | Draft inicial pós-BRD v0.3 (contrato flat `clients.billing_*`, Fase 3.5 adimplência, Q4a sales write) |
 | 0.2 | 2026-09-11 | DoncCX Hub | Reescrita série-aware: `contract_series`/`contract_charges`/`billing_os_tiers`; `usage_driven`; exceções híbridas (3 tipos, `piso_zerado` removido); papéis `admin/manager/finance` (sales fora); correções client-month; Fase 3.5/billing.js marcados concluídos; HTML de validação Financeiro/Vendas |
 | 0.3 | 2026-09-11 | DoncCX Hub | Pós-validação: reajuste anual por série (`correction_anniversary/percent/rule`; renovação com valor corrigido; sem retroativo; remove `billing_corrections`/toggle); 4º tipo `desconto_unidade`; sales lê exceções (Q8); fatura zerada visível (Q4); falha de sync → suporte (Q9); "1 fatura por série" confirmado (Q11); task do Help do cockpit a partir do HTML validado |
+| 0.4 | 2026-09-11 | DoncCX Hub | Phase 1 implementada: migration `20260911191431_financeiro_cockpit_core` aplicada (engine series-aware, `billing_exceptions` 4 tipos, `usage_driven`/`correction_*`, flag, 3 RPCs); histórico de migrations reconciliado; smoke `2026-08` ok |
 
 ---
 
