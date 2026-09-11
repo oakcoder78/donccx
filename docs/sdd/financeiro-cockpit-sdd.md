@@ -37,23 +37,19 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 - **RPC pattern:** `supabase/migrations/20260830000001_finance_summary_rpc.sql` — `SECURITY DEFINER SET search_path=public` + `REVOKE anon/public + GRANT authenticated` + guard `coalesce(public.get_user_role(),'none')`. `get_finance_summary()` existe em produção.
 - **Uso real:** `client_usage` (`client_id`, `ref_month`, `profissionais_versao jsonb`, `pending`) — inalterado; `sync_service_log` (`service_name='donc-api'`) é a fonte dos meses disponíveis.
 - **Trigger helper:** `public.set_updated_at()` existe (`20260503031721_remote_schema.sql:369`) — reutilizar em tabelas novas.
-- **Icons:** `Wallet`, `Search`, `Clock`, `FileDown`, `Download`, `ArrowLeft` existem em `src/lib/icons.js`; `Percent`/`BadgePercent` **não existem** (adicionar se usados).
-- **Validação de regras (2026-09-11):** `docs/sdd/financeiro-cockpit-regras.html` v1.1 validado por Financeiro/Vendas; respostas na ata do BRD 0.6 e nas decisões §6.
+- **Icons:** `Wallet`, `Search`, `Clock`, `FileDown`, `Download`, `ArrowLeft`, `Percent` existem em `src/lib/icons.js`; `BadgePercent` não existe.
+- **Regras validadas (2026-09-11):** ata no BRD 0.6; o documento virou **Help v1.0** — `docs/sdd/financeiro-cockpit-regras.html` + `public/help/financeiro-regras.html` (servido e aberto pelo botão "Como funciona a cobrança").
 - **Fase 1 aplicada (2026-09-11):** migration `20260911191431_financeiro_cockpit_core.sql` — `contract_series.usage_driven` (backfill 26/26 originals) + `correction_anniversary/percent/rule`; `billing_exceptions` (4 tipos; RLS select `admin,manager,finance,sales`, write `admin,finance`; trigger `set_updated_at`); flag `cockpit_financeiro` (`false`, `admin,manager,finance`); RPCs `get_financeiro_cockpit`/`get_financeiro_detalhe`/`get_financeiro_export` + engine privado `_financeiro_series_month`. Smoke `2026-08`: 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; guard `csm` → 42501; matemática conferida (Multiloja 260 × R$ 58,50 = R$ 15.210,00; Koerich 400 × R$ 40,00 = R$ 16.000,00).
 - **Fase 2 implementada (2026-09-11):** `src/lib/financeiro.js` + `src/hooks/useFinanceiroCockpit.js` (`useFinanceiroCockpit`/`useFinanceiroDetalhe`/`useLastDoncSync`) + `src/pages/FinanceiroCockpitPage.jsx` (KPIs T1-T7, toolbar, accordion lazy por mount, banner Q9, CSV sintético); rota `<CockpitRoute flagKey="cockpit_financeiro">` + card no hub + registro em `SettingsFeatureFlags`; `Icons.Percent`; form V2 com `usage_driven` + reajuste (aniversário/regra/percentual) + renovação assistida; `resolveMRR` com paridade (usage_driven sem regras = piso × valor, 0 sem piso). Flag permanece `false` (QA com flag on na Phase 5).
 - **Fase 3 implementada (2026-09-11):** `ExcecaoModal` (4 tipos, escopo cliente/série, sem retroativo, overlap warning, audit) + `PaymentToggle` (adimplência por série) + `useBillingExceptions`; ações na página; espelho no `ClientSubDados` e card read-only na aba Contrato (`ClientFormContent`) para admin/manager/finance/sales (Q8). Matriz RLS validada em produção (manager read-only, finance/admin write, sales lê e não escreve, cockpit bloqueia sales).
 - **Fase 4 implementada (2026-09-11):** exports na página — visões geral/faturável/isento, CSV sintético (com escopo e escape), CSV analítico global (RPC `get_financeiro_export`) e por cliente (detalhe), PDF por cliente com CNPJ/SaaS_ID e rodapé de build; fix de data BRT.
 - **Fase 5 implementada (2026-09-11):** Help do cockpit (`public/help/financeiro-regras.html` + botão "Como funciona a cobrança" no header), `docs/modules/clients.md` atualizado, flag `cockpit_financeiro` ligada (`admin,manager,finance`) após QA de papéis.
+- **UI v2/v2.1 (2026-09-11, pós-entrega):** expandir **inline** (linha expandida no desktop / card no mobile), "Séries do mês" como **extrato** (Valor unit. · Piso · Uso · Acima do piso · Excedente · Total + "Total do mês", com vencimento/período), bloco **"Pendências de adimplência"** (colapsado; RPC `get_financeiro_pendencias`, migration `20260911215006`) e `PaymentToggle` com **seletor de competência**; PDF só profissionais ativos; CSV analítico com **1 profissional por linha**; `get_financeiro_detalhe` expõe `unit`/`floor` (migration `20260911223319`); Help v1.0 (TOC + FAQ de uso, sem enquadramento de validação).
 
 **What does NOT exist and needs to be created:**
 
-- Nada pendente no escopo deste SDD (todas as fases concluídas). Smoke visual autenticado (`/financeiro-cockpit`) e feedback do time Financeiro/Vendas ficam como acompanhamento pós-entrega.
-- `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
-- `src/components/financeiro/ExcecaoModal.jsx`, `PaymentToggle.jsx`.
-- Route `/financeiro-cockpit` (via `CockpitRoute`) + card no `CockpitsPage.jsx` + registro em `SettingsFeatureFlags.jsx`.
-- CRUD inline de exceções (row expandida) + espelho read-only no detalhe (`ClientSubDados`) + card read-only para sales na aba Contrato.
-- Exports CSV sintético/analítico + PDF com CNPJ/SaaS_ID (sem retroatividade).
-- Help do cockpit (Phase 5): adaptar `docs/sdd/financeiro-cockpit-regras.html` v1.1 → `public/help/financeiro-regras.html` + botão de ajuda na página.
+- Nada pendente no escopo deste SDD — todas as fases (0–5) e as revisões de UI (v2/v2.1) estão implementadas e em produção; Help v1.0 publicado.
+- Acompanhamento pós-entrega (fora do escopo): smoke visual autenticado do time em `/financeiro-cockpit`, feedback de Financeiro/Vendas e eventual backlog derivado (`docs/backlog.md`).
 
 ### Files to be touched
 
@@ -625,14 +621,15 @@ interface FinanceiroDetail {
 - Séries contratuais em produção (2026-09-07) com tiers/mods/charges por série; form V2 único (`ClientFormContent.jsx`, `ClientForm.jsx` removido).
 - `billing_payments` (adimplência) em produção com PK `(client_id, series_id, ref_month)` + trigger de `delay_days`; ledger `BillingSchedule.jsx` no detalhe.
 - `billing.js` com `mode='rateio'` + `validateRateio` (default `legacy`).
-- `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **existe `enabled false`** (`admin,manager,finance`).
+- `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **enabled true** (`admin,manager,finance`).
 - **Phase 1 aplicada (2026-09-11):** `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` por série + 3 RPCs + engine; smoke `2026-08` → 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; grants verificados (anon bloqueado, helper privado).
 - **Phase 2 implementada (2026-09-11):** página/hook/helpers + rota/card/flag registrada + form V2 com `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`. Deploy Vercel pendente do push; flag permanece `false` até a Phase 5.
 - **Phase 3 implementada (2026-09-11):** exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe e na aba Contrato; matriz RLS validada em produção.
 - **Phase 4 implementada (2026-09-11):** exports CSV (3 visões; global e por cliente) + PDF por cliente; chaves do RPC de export conferidas em produção.
 - **Phase 5 implementada (2026-09-11):** Help servido em `public/help/financeiro-regras.html` + botão no header; `docs/modules/clients.md` atualizado; **flag `cockpit_financeiro` ligada** (`admin,manager,finance`). Cockpit em produção para Financeiro/Admin/Manager.
 - **Histórico de migrations reconciliado (2026-09-11):** 8 versões locais marcadas `applied` e 8 órfãs remotas `reverted` (migrations de 02–07/09 aplicadas via MCP com timestamps diferentes). `split_health_cockpit` (pendente antiga) aplicada no mesmo push — flag `health_cockpit` criada.
-- Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); HTML v1.1 será o Help do cockpit (Phase 5).
+- **UI v2/v2.1 (2026-09-11):** expandir inline + extrato com Valor unit./Piso/Acima do piso + "Pendências de adimplência" (colapsadas) + seletor de competência + CSV 1 profissional/linha + PDF só ativos; migrations `20260911215006` e `20260911223319` aplicadas.
+- Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); **Help v1.0 publicado** em `public/help/financeiro-regras.html` e aberto pelo botão "Como funciona a cobrança".
 
 ### Decisões validadas (2026-09-11)
 

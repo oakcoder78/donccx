@@ -3,6 +3,20 @@
 
 # Changelog — 2026-09
 
+## 2026-09-11
+
+### Cockpit Financeiro — SDD 0–5 + UI v2/v2.1 + Help v1.0
+
+- **Fase 0/0.1:** SDD v0.2/v0.3 série-aware; HTML de regras validado por Financeiro/Vendas (ata no BRD 0.6) — `usage_driven` (travado × base+excedente), 4º tipo `desconto_unidade`, reajuste anual sem retroativo, papéis `admin/manager/finance` (sales fora; lê exceções na ficha).
+- **Fase 1 (`a06120e`):** migration `20260911191431_financeiro_cockpit_core` — engine `_financeiro_series_month`, `billing_exceptions` (4 tipos, RLS select `admin,manager,finance,sales` / write `admin,finance`), `contract_series.usage_driven` + `correction_*`, flag `cockpit_financeiro`, RPCs `get_financeiro_cockpit|detalhe|export`. Histórico de migrations reconciliado (8 locais `applied` / 8 órfãs `reverted`) + `split_health_cockpit` aplicada.
+- **Fase 2 (`5e1f069`):** `src/lib/financeiro.js`, `useFinanceiroCockpit`, `FinanceiroCockpitPage` (KPIs T1–T7, toolbar, accordion), rota `<CockpitRoute flagKey="cockpit_financeiro">`, card no hub, flag registrada; form V2 com `usage_driven` + reajuste + renovação assistida; paridade `resolveMRR`.
+- **Fase 3 (`04c00a2`):** `ExcecaoModal` (4 tipos, escopo cliente/série, sem retroativo), `PaymentToggle`, espelhos no detalhe e na aba Contrato; matriz RLS validada em produção.
+- **Fase 4 (`cda1206`):** exports CSV (geral/faturável/isento; global e por cliente) + PDF com CNPJ/SaaS_ID.
+- **Fase 5 (`b69562d`):** Help do cockpit, `docs/modules/clients.md`, flag ligada.
+- **UI v2 (`78b2417`):** expandir inline, extrato da competência (vencimento/período + "Total do mês"), "Pendências de adimplência" (RPC `get_financeiro_pendencias`, `20260911215006`), `PaymentToggle` com seletor de competência, PDF só ativos, CSV 1 profissional/linha.
+- **UI v2.1 (`1da9767`):** pendências colapsadas; painel sem repetir cliente/CNPJ; extrato com Valor unit./Piso/Acima do piso (`get_financeiro_detalhe` expõe `unit`/`floor`, `20260911223319`).
+- **Help v1.0 (`a8622b8`):** `docs/sdd/financeiro-cockpit-regras.html` + `public/help/financeiro-regras.html` refatorados para ajuda (TOC, FAQ de uso, sem enquadramento de validação), revisados por subagentes.
+
 ## 2026-09-07
 
 ### Dashboard V3 — polimento dos blocos (`14472b5`)
