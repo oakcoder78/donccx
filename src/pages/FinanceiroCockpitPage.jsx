@@ -868,7 +868,20 @@ export default function FinanceiroCockpitPage() {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <BackButton navigate={navigate} />
-        <PageHeader title="Financeiro · Faturamento" subtitle={monthDisplay} />
+      <PageHeader
+        title="Financeiro · Faturamento"
+        subtitle={monthDisplay}
+        action={
+          <button
+            type="button"
+            onClick={() => window.open('/help/financeiro-regras.html', '_blank', 'noopener')}
+            className="flex items-center gap-1.5 text-xs border border-border-tertiary rounded-lg px-3 py-2 text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            <Icons.FileQuestion className="w-3.5 h-3.5" />
+            Como funciona a cobrança
+          </button>
+        }
+      />
         <div className="mt-6 p-4 bg-donc-red/10 border border-donc-red/20 rounded-lg text-donc-red text-sm flex items-center gap-3">
           <Icons.AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>Erro ao carregar dados: {error.message}</span>

@@ -22,7 +22,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** **Phase 5 — ready to start** (Phase 4 complete 2026-09-11).
+- **Active phase:** **Complete** — todas as fases (0–5) implementadas em 2026-09-11; flag `cockpit_financeiro` ligada.
 
 **What already exists related to this work:**
 
@@ -43,10 +43,11 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 - **Fase 2 implementada (2026-09-11):** `src/lib/financeiro.js` + `src/hooks/useFinanceiroCockpit.js` (`useFinanceiroCockpit`/`useFinanceiroDetalhe`/`useLastDoncSync`) + `src/pages/FinanceiroCockpitPage.jsx` (KPIs T1-T7, toolbar, accordion lazy por mount, banner Q9, CSV sintético); rota `<CockpitRoute flagKey="cockpit_financeiro">` + card no hub + registro em `SettingsFeatureFlags`; `Icons.Percent`; form V2 com `usage_driven` + reajuste (aniversário/regra/percentual) + renovação assistida; `resolveMRR` com paridade (usage_driven sem regras = piso × valor, 0 sem piso). Flag permanece `false` (QA com flag on na Phase 5).
 - **Fase 3 implementada (2026-09-11):** `ExcecaoModal` (4 tipos, escopo cliente/série, sem retroativo, overlap warning, audit) + `PaymentToggle` (adimplência por série) + `useBillingExceptions`; ações na página; espelho no `ClientSubDados` e card read-only na aba Contrato (`ClientFormContent`) para admin/manager/finance/sales (Q8). Matriz RLS validada em produção (manager read-only, finance/admin write, sales lê e não escreve, cockpit bloqueia sales).
 - **Fase 4 implementada (2026-09-11):** exports na página — visões geral/faturável/isento, CSV sintético (com escopo e escape), CSV analítico global (RPC `get_financeiro_export`) e por cliente (detalhe), PDF por cliente com CNPJ/SaaS_ID e rodapé de build; fix de data BRT.
+- **Fase 5 implementada (2026-09-11):** Help do cockpit (`public/help/financeiro-regras.html` + botão "Como funciona a cobrança" no header), `docs/modules/clients.md` atualizado, flag `cockpit_financeiro` ligada (`admin,manager,finance`) após QA de papéis.
 
 **What does NOT exist and needs to be created:**
 
-- Help do cockpit (**Phase 5**) + QA de papéis com flag on + `docs/modules/clients.md`.
+- Nada pendente no escopo deste SDD (todas as fases concluídas). Smoke visual autenticado (`/financeiro-cockpit`) e feedback do time Financeiro/Vendas ficam como acompanhamento pós-entrega.
 - `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
 - `src/components/financeiro/ExcecaoModal.jsx`, `PaymentToggle.jsx`.
 - Route `/financeiro-cockpit` (via `CockpitRoute`) + card no `CockpitsPage.jsx` + registro em `SettingsFeatureFlags.jsx`.
@@ -590,7 +591,7 @@ interface FinanceiroDetail {
 
 ### Phase 5 — Polish + Help do cockpit + Deploy + Docs + Flag enable
 
-**Status:** Not started
+**Status:** Complete (2026-09-11)
 
 **Rationale:** Endurecimento antes de habilitar `cockpit_financeiro=true`: QA por role, falha DONC, empty/loading, e o Help in-app reaproveitando o documento de regras validado.
 
@@ -599,21 +600,21 @@ interface FinanceiroDetail {
 
 #### Checklist
 
-- [ ] **Polish:** empty `text-center py-12 text-text-tertiary` + skeletons + error `bg-donc-red/10 border` + `Tentar novamente`; manter lazy 1 RPC/expand
-- [ ] **DONC failure:** banner when `sync_service_log.status='failed'` para `refMonth` — `"Uso de {refMonth} não sincronizou — contate o suporte DoncCX Hub"` (Q9) + `lastSync`
-- [ ] **Help do cockpit (task validada 2026-09-11):** adaptar `docs/sdd/financeiro-cockpit-regras.html` v1.1 → `public/help/financeiro-regras.html` + botão `?`/"Como funciona a cobrança" no `PageHeader` do `FinanceiroCockpitPage` abrindo o Help (nova aba ou drawer/iframe); manter a versão do doc em `docs/sdd/`
-- [ ] **Role QA:** `admin/finance` write ok, `manager` read-only, `sales` lê exceções na ficha (sem cockpit), `csm/analyst` 42501 + redirect `/module-unavailable`
-- [ ] **Docs:** `docs/modules/clients.md` — `usage_driven`/reajuste no Contrato + espelho de exceções/adimplência no Operacional; `index-updater` se novo domínio
-- [ ] **Flags:** `update feature_flags set enabled=true where key='cockpit_financeiro'` (só após QA)
-- [ ] **Build & deploy:** `npm run build` — no errors → `git push origin main` → smoke `https://donccx-donccx.vercel.app/financeiro-cockpit`
-- [ ] **Docs SDD:** fill all Implementation Logs + §0 + §6 + Histórico
+- [x] **Polish:** empty `text-center py-12 text-text-tertiary` + skeletons + error `bg-donc-red/10 border` + `Tentar novamente`; lazy 1 RPC/expand (implementado na Phase 2)
+- [x] **DONC failure:** banner `"Uso de {refMonth} não sincronizou — contate o suporte DoncCX Hub"` (Q9) + `lastSync` (Phase 2)
+- [x] **Help do cockpit (task validada 2026-09-11):** `public/help/financeiro-regras.html` (cópia do doc validado v1.1, 57 KB) + botão "Como funciona a cobrança" (`Icons.FileQuestion`) no `PageHeader` abrindo em nova aba; versão-fonte mantida em `docs/sdd/`
+- [x] **Role QA:** matriz validada em produção — `admin/finance` write, `manager` read-only, `sales` lê exceções na ficha e 42501 no cockpit, `csm/analyst` bloqueados (RPC 42501 / RLS)
+- [x] **Docs:** `docs/modules/clients.md` — `usage_driven`/reajuste/renovação sugerida no Contrato + "Negociações vigentes" no Operacional/aba Contrato
+- [x] **Flags:** `update feature_flags set enabled=true where key='cockpit_financeiro'` — `enabled true`, `[admin,manager,finance]` (2026-09-11)
+- [x] **Build & deploy:** `npm run build` OK (7.2s) → `git push origin main` (Vercel auto-deploy); smoke visual com login do time (não automatizável sem sessão autenticada)
+- [x] **Docs SDD:** logs preenchidos + §0 + §6 + Histórico
 - [ ] **Commit:** `git add docs/sdd/financeiro-cockpit-sdd.md docs/modules/clients.md public/help/financeiro-regras.html src/pages/FinanceiroCockpitPage.jsx && git commit -m "feat(financeiro): phase 5 polish + help + enable + docs" && git push origin main`
 
 #### Implementation Log (Phase 5)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-09-11 | (pending) | `public/help/financeiro-regras.html`, `src/pages/FinanceiroCockpitPage.jsx`, `docs/modules/clients.md`, `docs/sdd/financeiro-cockpit-sdd.md` | Help do cockpit (HTML validado servido em `public/help`) + botão no header; docs do módulo; flag `cockpit_financeiro` ligada após QA |
 
 ---
 
@@ -629,6 +630,7 @@ interface FinanceiroDetail {
 - **Phase 2 implementada (2026-09-11):** página/hook/helpers + rota/card/flag registrada + form V2 com `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`. Deploy Vercel pendente do push; flag permanece `false` até a Phase 5.
 - **Phase 3 implementada (2026-09-11):** exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe e na aba Contrato; matriz RLS validada em produção.
 - **Phase 4 implementada (2026-09-11):** exports CSV (3 visões; global e por cliente) + PDF por cliente; chaves do RPC de export conferidas em produção.
+- **Phase 5 implementada (2026-09-11):** Help servido em `public/help/financeiro-regras.html` + botão no header; `docs/modules/clients.md` atualizado; **flag `cockpit_financeiro` ligada** (`admin,manager,finance`). Cockpit em produção para Financeiro/Admin/Manager.
 - **Histórico de migrations reconciliado (2026-09-11):** 8 versões locais marcadas `applied` e 8 órfãs remotas `reverted` (migrations de 02–07/09 aplicadas via MCP com timestamps diferentes). `split_health_cockpit` (pendente antiga) aplicada no mesmo push — flag `health_cockpit` criada.
 - Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); HTML v1.1 será o Help do cockpit (Phase 5).
 
@@ -754,6 +756,7 @@ When resuming this document for implementation:
 | 0.5 | 2026-09-11 | DoncCX Hub | Phase 2 implementada: página/hook/helpers, rota + card + flag registrada, form V2 (`usage_driven` + reajuste + renovação assistida), paridade `resolveMRR`; flag permanece off até a Phase 5 |
 | 0.6 | 2026-09-11 | DoncCX Hub | Phase 3 implementada: CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe/aba Contrato; matriz RLS validada em produção |
 | 0.7 | 2026-09-11 | DoncCX Hub | Phase 4 implementada: exports CSV (geral/faturável/isento; global e por cliente) + PDF por cliente com CNPJ/SaaS_ID; fix de data BRT |
+| 1.0 | 2026-09-11 | DoncCX Hub | **Complete:** Phase 5 (Help do cockpit em `public/help`, docs do módulo, flag ligada após QA de papéis). SDD v1.0 — todas as fases implementadas. |
 
 ---
 
@@ -763,6 +766,6 @@ When resuming this document for implementation:
 - [x] Files to be touched verified to exist (or confirmed not to exist): `ClientFormContent.jsx` (exists), `ClientForm.jsx` (deleted `aa87554`), `billing_exceptions` (absent), `usage_driven` (absent), `Percent` icon (absent)
 - [x] Data contracts reference real column names (`contract_series.billing_*` + novos `correction_*`/`usage_driven`, `contract_charges.series_id/ref_month/due_date`, `billing_os_tiers.series_id`, `module_pricing.series_id`, `billing_payments` PK tripla)
 - [x] Color tokens, icon names, component APIs verified (`tailwind.config.js #173557/#1D9E75/#f7f7f5`, `Wallet` in `src/lib/icons.js`, `CockpitRoute` in `App.jsx:128`)
-- [x] Active phase clearly identified (Phase 1 ready to start)
+- [x] Active phase clearly identified (Complete — all phases implemented 2026-09-11; flag on)
 - [x] Gotchas includes project-wide traps (icons, Supabase deploy, branch)
 - [x] Language convention followed (English for LLM instructions/data contracts, Portuguese for rationale)

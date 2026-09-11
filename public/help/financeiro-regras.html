@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Cockpit Financeiro — Regras de Faturamento | DoncCX Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2ed',lime:'#d3da47',verde:'#1D9E75',amber:'#BA7517',red:'#E24B4A',purple:'#534AB7',blue:'#185FA5',hubspot:'#0091AE'}, bg:{primary:'#ffffff',secondary:'#f7f7f5',tertiary:'#f0efed'}, border:{tertiary:'#e8e7e3',secondary:'#d4d3ce'}, text:{primary:'#1a1a18',secondary:'#4a4a46',tertiary:'#888780'} }, borderRadius:{lg:'10px',md:'7px'}, fontFamily:{sans:['Montserrat','system-ui','sans-serif'],mono:['JetBrains Mono','monospace']} } } }
+</script>
+<style>html{scroll-behavior:smooth;scroll-padding-top:96px}@media print{nav,.no-print{display:none!important}body{background:white!important}*{box-shadow:none!important}.print-break,tr{break-inside:avoid;page-break-inside:avoid}}.kpi-card{background:#fff;border:1px solid #e8e7e3;border-radius:12px;padding:20px}.badge{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px;display:inline-block}.calc{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}</style>
+</head>
+<body class="bg-bg-secondary text-text-primary font-sans antialiased">
+
+<header class="bg-donc-navy text-white sticky top-0 z-40">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 h-14 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-sm font-extrabold flex-shrink-0">D</div>
+      <span class="font-bold text-sm tracking-tight whitespace-nowrap">DoncCX Hub</span>
+      <span class="hidden md:inline text-white/40 text-sm">·</span>
+      <span class="hidden md:inline text-white/80 text-xs truncate">Cockpit Financeiro — Regras de Faturamento</span>
+    </div>
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <span class="hidden md:inline text-[11px] bg-white/10 border border-white/20 rounded-full px-3 py-1 whitespace-nowrap">CONFIDENCIAL · v1.1 · Set 2026</span>
+      <span class="text-[11px] bg-donc-verde text-white rounded-full px-3 py-1 font-semibold whitespace-nowrap">VALIDADO — Financeiro &amp; Vendas · 11/09/2026</span>
+    </div>
+  </div>
+</header>
+
+<nav class="bg-white border-b border-border-tertiary sticky top-14 z-30 no-print" aria-label="Seções do documento">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8"><div class="flex gap-1 overflow-x-auto py-2 text-xs font-medium whitespace-nowrap">
+    <a href="#resumo" class="px-3 py-1.5 rounded-full bg-donc-navy text-white">Resumo em 30 segundos</a>
+    <a href="#como-cobramos" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Como cobramos hoje</a>
+    <a href="#series" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Séries contratuais</a>
+    <a href="#modos" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Modo de cobrança</a>
+    <a href="#excecoes" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Exceções</a>
+    <a href="#correcao" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Reajuste anual</a>
+    <a href="#adimplencia" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Adimplência</a>
+    <a href="#na-pratica" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Na prática</a>
+    <a href="#perfis" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Quem faz o quê</a>
+    <a href="#validacao" class="px-3 py-1.5 rounded-full bg-donc-verde/10 text-donc-navy border border-donc-verde/40 font-semibold">Perguntas frequentes</a>
+  </div></div>
+</nav>
+
+<section class="bg-donc-navy text-white">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-10 md:py-12">
+    <div class="flex flex-wrap gap-2 mb-4">
+      <span class="text-[11px] bg-white/10 border border-white/20 rounded-full px-3 py-1">Documento de negócio · sem termos técnicos</span>
+      <span class="text-[11px] bg-donc-verde text-white rounded-full px-3 py-1 font-semibold">Validado por Financeiro &amp; Vendas · 11/09/2026</span>
+      <span class="text-[11px] bg-white/10 border border-white/20 rounded-full px-3 py-1">Base do Help do cockpit</span>
+    </div>
+    <h1 class="text-[28px] md:text-[36px] font-extrabold leading-tight max-w-3xl">Cockpit Financeiro:<br/>as regras de faturamento<br/><span class="text-donc-sky">em linguagem de negócio.</span></h1>
+    <p class="text-white/70 text-sm md:text-[15px] mt-4 max-w-2xl leading-relaxed">Este documento descreve, sem detalhes técnicos, como o Cockpit Financeiro pretende calcular e apresentar a cobrança de cada cliente — do valor mínimo garantido ao valor real do mês. Leia, confira os exemplos e consulte as perguntas frequentes ao final.</p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-8 max-w-2xl">
+      <div class="bg-white rounded-xl px-4 py-3 text-text-primary">
+        <div class="text-[11px] font-semibold text-text-tertiary uppercase tracking-widest">Exemplos</div>
+        <div class="text-sm font-bold mt-1">Cenários A a F com valores</div>
+        <div class="text-[11px] text-text-tertiary">passo a passo dos cálculos</div>
+      </div>
+      <div class="bg-white rounded-xl px-4 py-3 text-text-primary">
+        <div class="text-[11px] font-semibold text-text-tertiary uppercase tracking-widest">Validação</div>
+        <div class="text-sm font-bold mt-1">12 perguntas para responder</div>
+        <div class="text-[11px] text-text-tertiary">sim, não ou um exemplo real</div>
+      </div>
+      <div class="bg-white rounded-xl px-4 py-3 text-text-primary">
+        <div class="text-[11px] font-semibold text-text-tertiary uppercase tracking-widest">Público</div>
+        <div class="text-sm font-bold mt-1">Financeiro e Vendas</div>
+        <div class="text-[11px] text-text-tertiary">leitura e validação em conjunto</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="max-w-[1120px] mx-auto px-4 md:px-8 pt-8" aria-label="Como ler este documento">
+  <div class="bg-donc-verde/10 border border-donc-verde/40 rounded-xl p-5 md:p-6 print-break">
+    <span class="badge bg-donc-verde text-white">Validado em 11/09/2026</span>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">As regras deste documento foram <strong class="text-text-primary">validadas por Financeiro e Vendas em 11/09/2026</strong>. Ele é a base do Help do cockpit — a tela <strong class="text-text-primary">"Como funciona a cobrança"</strong> — e não um documento pendente de validação.</p>
+    <p class="text-sm text-text-secondary mt-2 leading-relaxed">O texto é escrito em linguagem simples e <strong class="text-text-primary">sem termos técnicos</strong>, para consulta no dia a dia. Os exemplos trazem valores reais e as perguntas frequentes ao final registram as decisões aprovadas.</p>
+  </div>
+</section>
+
+<section id="resumo" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+  <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">1</span><h2 class="text-xl font-bold text-donc-navy">Resumo em 30 segundos</h2></div>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">O Cockpit Financeiro é a tela que reúne, em um só lugar, quanto cada cliente deveria pagar em cada mês.</p>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Hoje, para chegar a esse valor, você precisa cruzar o contrato, os aditivos, as negociações, o uso real do mês e o que já foi pago. O cockpit faz esse cruzamento e mostra a conta aberta, linha por linha.</p>
+  <p class="text-sm font-semibold text-text-primary mt-5">O que muda na prática:</p>
+  <div class="grid md:grid-cols-2 gap-3 mt-3">
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Valor mínimo e valor real, lado a lado</div><p class="text-sm text-text-secondary mt-1 leading-relaxed">Você vê lado a lado o <strong class="text-text-primary">valor mínimo garantido</strong> e o <strong class="text-text-primary">valor real do mês</strong> — o MRR (receita recorrente mensal) real.</p></div>
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Cada série no seu espaço</div><p class="text-sm text-text-secondary mt-1 leading-relaxed">Cada série contratual tem seu espaço, e dá para entender de onde vem cada real da fatura.</p></div>
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Negociações registradas</div><p class="text-sm text-text-secondary mt-1 leading-relaxed">Cada negociação (isenção, desconto, valor reduzido) fica registrada com prazo, motivo, autor e data.</p></div>
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Pagamento alimenta os indicadores</div><p class="text-sm text-text-secondary mt-1 leading-relaxed">O status de pagamento passa a alimentar o indicador de valor em atraso e a saúde do cliente.</p></div>
+  </div>
+  <div class="bg-white border-l-4 border-donc-sky border-y border-r border-border-tertiary rounded-r-lg p-4 mt-5 print-break">
+    <p class="text-sm text-text-secondary leading-relaxed">O objetivo é que ninguém mais precise montar planilha para explicar uma cobrança. As regras abaixo valem para os dois planos de cobrança (por licença e por OS) e para todos os tipos de série. Leia com calma e consulte as perguntas frequentes ao final: elas registram as regras validadas.</p>
+  </div>
+</section>
+
+<section id="como-cobramos" class="bg-white border-y border-border-tertiary">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+    <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">2</span><h2 class="text-xl font-bold text-donc-navy">Como cobramos hoje</h2></div>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">A cobrança da DoncCX parte de três informações:</p>
+    <div class="grid md:grid-cols-3 gap-3 mt-4">
+      <div class="kpi-card print-break"><div class="text-[11px] font-semibold text-donc-navy uppercase tracking-widest">1 · Plano de cobrança</div><p class="text-sm text-text-secondary mt-2 leading-relaxed">Por licença (profissionais ativos) ou por OS (ordens de serviço).</p></div>
+      <div class="kpi-card print-break"><div class="text-[11px] font-semibold text-donc-navy uppercase tracking-widest">2 · Valor base</div><p class="text-sm text-text-secondary mt-2 leading-relaxed">Quanto vale cada licença ou cada OS.</p></div>
+      <div class="kpi-card print-break"><div class="text-[11px] font-semibold text-donc-navy uppercase tracking-widest">3 · Piso</div><p class="text-sm text-text-secondary mt-2 leading-relaxed">A quantidade mínima garantida no mês.</p></div>
+    </div>
+    <p class="text-sm text-text-secondary mt-5 leading-relaxed">O <strong class="text-text-primary">uso do mês</strong> vem dos dados do DONC. É ele que informa quantos profissionais ativos o cliente teve, ou quantas OS foram abertas no mês.</p>
+    <div class="bg-donc-amber/10 border border-donc-amber/30 rounded-lg p-4 mt-4 print-break">
+      <h3 class="text-sm font-bold text-donc-navy">Se o uso do mês não chegar</h3>
+      <p class="text-sm text-text-secondary mt-1 leading-relaxed">Se os dados de uso do mês não forem carregados, o cockpit mostra um aviso e orienta a falar com o <strong class="text-text-primary">suporte do DoncCX Hub</strong>. O sistema não decide a cobrança sozinho.</p>
+    </div>
+    <p class="text-sm font-semibold text-text-primary mt-5">Com essas informações, a conta básica é:</p>
+    <div class="rounded-lg bg-donc-navy/5 border border-donc-navy/10 divide-y divide-border-tertiary calc text-xs mt-3 print-break">
+      <div class="px-4 py-2.5"><strong class="text-donc-navy">Valor mínimo garantido</strong> = piso × valor base</div>
+      <div class="px-4 py-2.5"><strong class="text-donc-navy">Excedente</strong> = uso acima do piso × valor base</div>
+      <div class="px-4 py-2.5"><strong class="text-donc-navy">Valor real do mês</strong> = o que deve ser cobrado no fim das contas, considerando o uso, o excedente e o que foi negociado</div>
+    </div>
+    <h3 class="font-bold text-donc-navy mt-6">Os termos que você vai ver no cockpit</h3>
+    <div class="overflow-x-auto mt-3 print-break">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Termo</th><th class="px-4 py-2.5 text-left">O que significa</th></tr></thead>
+        <tbody>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Série contratual</td><td class="px-4 py-3 text-text-secondary">A ficha de cobrança de um combinado do cliente</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Plano de cobrança</td><td class="px-4 py-3 text-text-secondary">Por licença (profissionais ativos) ou por OS (ordens de serviço)</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Valor base</td><td class="px-4 py-3 text-text-secondary">O preço de cada licença ou de cada OS</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Piso</td><td class="px-4 py-3 text-text-secondary">A quantidade mínima garantida no mês</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Uso do mês</td><td class="px-4 py-3 text-text-secondary">A quantidade real usada pelo cliente no mês</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Excedente</td><td class="px-4 py-3 text-text-secondary">O uso que passou do piso</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Valor mínimo garantido</td><td class="px-4 py-3 text-text-secondary">Piso × valor base</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Valor real do mês (MRR real)</td><td class="px-4 py-3 text-text-secondary">O que deve ser cobrado, já com uso e negociações</td></tr>
+          <tr><td class="px-4 py-3 font-semibold">Mês de competência</td><td class="px-4 py-3 text-text-secondary">O mês a que a cobrança se refere</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h3 class="font-bold text-donc-navy mt-6">Hoje o Financeiro não consegue ver tudo isso em uma tela</h3>
+    <ul class="list-disc pl-5 mt-3 text-sm text-text-secondary space-y-1.5">
+      <li>O valor mínimo garantido e o uso real ficam em lugares diferentes.</li>
+      <li>As negociações vivem em conversas e planilhas, sem prazo claro nem histórico.</li>
+      <li>Ninguém enxerga, de uma vez, o que é combinado e o que é uso.</li>
+    </ul>
+    <div class="bg-donc-navy/5 border-l-4 border-donc-navy rounded-r-lg p-4 mt-5 print-break">
+      <p class="text-sm text-text-secondary leading-relaxed">O cockpit resolve isso: ele consolida essas informações por <strong class="text-text-primary">mês de competência</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<section id="series" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+  <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">3</span><h2 class="text-xl font-bold text-donc-navy">Séries contratuais</h2></div>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Cada cliente tem uma <strong class="text-text-primary">série contratual</strong> para cada combinado de cobrança. Pense na série como uma ficha de cobrança completa. Existem três tipos:</p>
+  <div class="overflow-x-auto mt-4 print-break">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Tipo</th><th class="px-4 py-2.5 text-left">O que é</th><th class="px-4 py-2.5 text-left">Quantidade</th></tr></thead>
+      <tbody>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Contrato original</td><td class="px-4 py-3 text-text-secondary">O combinado principal do cliente</td><td class="px-4 py-3 text-text-secondary">Um por cliente</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Aditivo</td><td class="px-4 py-3 text-text-secondary">Um novo módulo ou serviço adicionado depois</td><td class="px-4 py-3 text-text-secondary">Vários, ao longo do tempo</td></tr>
+        <tr><td class="px-4 py-3 font-semibold">Renegociação</td><td class="px-4 py-3 text-text-secondary">Um desconto temporário, com motivo obrigatório</td><td class="px-4 py-3 text-text-secondary">Várias, ao longo do tempo</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <h3 class="font-bold text-donc-navy mt-6">Cada série carrega as próprias informações</h3>
+  <div class="grid md:grid-cols-2 gap-2.5 mt-3">
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary">Plano (por licença ou por OS)</div>
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary">Valor base e piso</div>
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary">Início da cobrança e fim — o fim pode ser aberto, com renovação automática</div>
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary">Dia de vencimento</div>
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary">Renovação manual ou automática</div>
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary">Status de cobrança: Ativo, Suspenso até uma data ou Não cobrar</div>
+    <div class="bg-white border border-border-tertiary rounded-lg px-4 py-3 text-sm text-text-secondary md:col-span-2">Índice de reajuste (IPCA ou IGP-M)</div>
+  </div>
+  <p class="text-xs text-text-tertiary mt-3 leading-relaxed">O índice de reajuste (IPCA ou IGP-M) fica registrado na série como informação do contrato. O percentual aplicado é editável no momento da renovação anual, quando o valor corrigido é confirmado pelo Financeiro.</p>
+  <p class="text-xs text-text-tertiary mt-2 leading-relaxed">Os status "Suspenso até uma data" e "Não cobrar" zeram a cobrança daquela série no período — a fatura do mês aparece como R$ 0,00, com um selo indicando o status.</p>
+  <h3 class="font-bold text-donc-navy mt-6">Uma fatura por série, por mês</h3>
+  <div class="bg-donc-navy rounded-xl text-white p-5 md:p-6 mt-3 print-break">
+    <div class="calc text-lg font-bold">1 fatura por série × mês</div>
+    <p class="text-white/70 text-sm mt-2 leading-relaxed">Se o cliente tem duas séries ativas no mesmo mês, são duas faturas naquele mês. Isso deixa claro o que pertence ao contrato original e o que pertence a cada aditivo — e evita dúvida na hora de cobrar ou de contestar.</p>
+  </div>
+  <p class="text-sm text-text-secondary mt-4 leading-relaxed">Uma <strong class="text-text-primary">renegociação pausa o contrato original</strong> enquanto está valendo. No período da renegociação, o original não gera uma segunda cobrança. Quando o prazo termina, o original volta a valer — ou um novo acordo é feito.</p>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Encerrar uma série exige um motivo e <strong class="text-text-primary">nunca apaga o histórico</strong>. Tudo o que aconteceu continua visível para consulta. Duas renegociações ativas também não podem se sobrepor no tempo.</p>
+  <div class="bg-white border border-border-tertiary rounded-lg overflow-hidden mt-5 print-break">
+    <div class="px-5 py-3 border-b border-border-tertiary bg-bg-secondary/60 flex items-center justify-between flex-wrap gap-2">
+      <span class="badge bg-donc-purple text-white">Exemplo E — Renegociação na prática</span>
+      <span class="text-[11px] text-text-tertiary">original pausado durante o acordo</span>
+    </div>
+    <div class="p-5">
+      <p class="text-sm text-text-secondary leading-relaxed">O contrato original custa R$ 2.995,00 por mês. O time negociou pagar R$ 2.395,00 por 6 meses.</p>
+      <div class="mt-3 rounded-lg bg-bg-secondary border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+        <div>Original: <strong>R$ 2.995,00</strong> / mês</div>
+        <div>Negociado: <strong>R$ 2.395,00</strong> / mês × 6 meses</div>
+      </div>
+      <ul class="mt-3 space-y-1.5 text-sm text-text-secondary">
+        <li>→ Durante os 6 meses: o original fica pausado e a renegociação é faturada, R$ 2.395,00 por mês, com o motivo registrado.</li>
+        <li>→ Depois dos 6 meses: o original volta a valer (ou um novo acordo é feito).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="modos" class="bg-white border-y border-border-tertiary">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+    <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">4</span><h2 class="text-xl font-bold text-donc-navy">Modo de cobrança: travado ou base + excedente</h2></div>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">Esta é a novidade mais importante do cockpit. Cada série é configurada em um de dois modos, e o modo define se o uso do mês muda ou não a fatura.</p>
+    <h3 class="font-bold text-donc-navy mt-6">Travado no valor da série</h3>
+    <p class="text-sm text-text-secondary mt-2 leading-relaxed">O valor combinado é cobrado como está. O uso real do mês <strong class="text-text-primary">não muda</strong> a fatura — ele aparece apenas como referência, para consulta.</p>
+    <div class="bg-bg-secondary border border-border-tertiary rounded-lg overflow-hidden mt-3 print-break">
+      <div class="px-5 py-3 border-b border-border-tertiary bg-white flex items-center justify-between flex-wrap gap-2">
+        <span class="badge bg-donc-sky text-white">Exemplo F — Travado</span>
+        <span class="text-[11px] text-text-tertiary">o uso não altera a fatura</span>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-text-secondary leading-relaxed">Aditivo "Módulo Rotas" de R$ 500,00 por mês, configurado como "travado no valor da série".</p>
+        <div class="mt-3 rounded-lg bg-white border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+          <div>Fatura = <strong>R$ 500,00</strong>, independentemente do uso</div>
+          <div class="text-text-tertiary">O uso aparece só para referência</div>
+        </div>
+      </div>
+    </div>
+    <h3 class="font-bold text-donc-navy mt-6">Base + excedente</h3>
+    <p class="text-sm text-text-secondary mt-2 leading-relaxed">O valor da série é uma base. A cobrança usa o uso real do mês, com o piso garantido:</p>
+    <ul class="mt-3 space-y-2 text-sm text-text-secondary">
+      <li class="flex gap-2"><span class="text-donc-navy font-bold">·</span><span><strong class="text-text-primary">Uso abaixo do piso</strong> → cobra o piso (o valor mínimo garantido).</span></li>
+      <li class="flex gap-2"><span class="text-donc-navy font-bold">·</span><span><strong class="text-text-primary">Uso acima do piso</strong> → cobra o uso real; o que passou do piso é o <strong class="text-text-primary">excedente</strong>.</span></li>
+      <li class="flex gap-2"><span class="text-donc-navy font-bold">·</span><span><strong class="text-text-primary">Sem piso (piso 0)</strong> → cobra somente o uso real do mês (consumo puro), com mínimo de R$ 0,00.</span></li>
+      <li class="flex gap-2"><span class="text-donc-navy font-bold">·</span><span><strong class="text-text-primary">Plano por OS com faixas de preço</strong> → a faixa aplicável define um valor fixo mais um preço por serviço acima do limite da faixa.</span></li>
+    </ul>
+    <div class="bg-bg-secondary border border-border-tertiary rounded-lg overflow-hidden mt-5 print-break">
+      <div class="px-5 py-3 border-b border-border-tertiary bg-white flex items-center justify-between flex-wrap gap-2">
+        <span class="badge bg-donc-sky text-white">Exemplo A — Cliente abaixo do piso</span>
+        <span class="text-[11px] text-text-tertiary">modo base + excedente</span>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-text-secondary leading-relaxed">Base R$ 59,90 por licença, piso de 50 licenças, uso real de 38 licenças.</p>
+        <div class="mt-3 rounded-lg bg-white border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+          <div>Valor mínimo garantido = 50 × R$ 59,90 = <strong>R$ 2.995,00</strong></div>
+          <div>Fatura = <strong>R$ 2.995,00</strong> (excedente R$ 0,00)</div>
+        </div>
+        <p class="text-xs text-text-tertiary mt-3">O uso ficou abaixo do piso, então vale o valor mínimo garantido.</p>
+      </div>
+    </div>
+    <div class="bg-bg-secondary border border-border-tertiary rounded-lg overflow-hidden mt-4 print-break">
+      <div class="px-5 py-3 border-b border-border-tertiary bg-white flex items-center justify-between flex-wrap gap-2">
+        <span class="badge bg-donc-sky text-white">Exemplo B — Cliente acima do piso</span>
+        <span class="text-[11px] text-text-tertiary">modo base + excedente</span>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-text-secondary leading-relaxed">Mesmo cliente, agora com uso real de 62 licenças.</p>
+        <div class="mt-3 rounded-lg bg-white border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+          <div>O uso está acima do piso: 62 × R$ 59,90 = <strong>R$ 3.713,80</strong></div>
+          <div>O mínimo era R$ 2.995,00 → excedente = R$ 3.713,80 − R$ 2.995,00 = <strong>R$ 718,80</strong> no mês</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-bg-secondary border border-border-tertiary rounded-lg overflow-hidden mt-4 print-break">
+      <div class="px-5 py-3 border-b border-border-tertiary bg-white flex items-center justify-between flex-wrap gap-2">
+        <span class="badge bg-donc-sky text-white">Exemplo C — Cliente sem piso (consumo puro)</span>
+        <span class="text-[11px] text-text-tertiary">modo base + excedente</span>
+      </div>
+      <div class="p-5">
+        <p class="text-sm text-text-secondary leading-relaxed">Base R$ 1,93 por OS, piso 0, uso real de 4.200 OS no mês.</p>
+        <div class="mt-3 rounded-lg bg-white border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+          <div>Fatura = 4.200 × R$ 1,93 = <strong>R$ 8.106,00</strong></div>
+          <div>Mínimo = R$ 0,00 (cobra-se somente o consumo)</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-donc-amber/10 border border-donc-amber/30 rounded-lg p-5 mt-6 print-break">
+      <span class="badge bg-donc-verde text-white">Validado · 11/09/2026</span>
+      <h3 class="font-bold text-donc-navy mt-2">Configuração padrão</h3>
+      <ul class="mt-2 space-y-1.5 text-sm text-text-secondary">
+        <li class="flex gap-2"><span class="text-donc-amber font-bold">·</span><span>O <strong class="text-text-primary">contrato original</strong> nasce como "Base + excedente".</span></li>
+        <li class="flex gap-2"><span class="text-donc-amber font-bold">·</span><span><strong class="text-text-primary">Aditivos e renegociações</strong> nascem como "Travado no valor da série".</span></li>
+        <li class="flex gap-2"><span class="text-donc-amber font-bold">·</span><span>Os dois podem ser alterados depois, se a negociação pedir.</span></li>
+      </ul>
+      <p class="text-sm text-text-secondary mt-3 leading-relaxed">No modo "Base + excedente", o uso do mês é considerado apenas para o contrato original. Se mais de uma série estiver configurada nesse modo, o excedente não é contado de novo — o sistema alerta sobre essa configuração.</p>
+    </div>
+    <p class="text-sm text-text-secondary mt-4 leading-relaxed">Um mesmo cliente pode ter séries nos dois modos ao mesmo tempo. O cockpit respeita o que foi configurado em cada uma.</p>
+  </div>
+</section>
+
+<section id="excecoes" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+  <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">5</span><h2 class="text-xl font-bold text-donc-navy">Exceções: negociações com prazo</h2></div>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Uma <strong class="text-text-primary">exceção</strong> é um ajuste negociado com data de início e data de fim. Existem quatro tipos:</p>
+  <div class="overflow-x-auto mt-4 print-break">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Tipo</th><th class="px-4 py-2.5 text-left">O que faz</th></tr></thead>
+      <tbody>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Isenção total</td><td class="px-4 py-3 text-text-secondary">Não cobra nada no período (R$ 0,00)</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Desconto percentual</td><td class="px-4 py-3 text-text-secondary">Aplica um percentual de desconto ao valor (maior que 0% e até 100%)</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Valor reduzido</td><td class="px-4 py-3 text-text-secondary">Substitui o cálculo por um valor fixo mensal</td></tr>
+        <tr><td class="px-4 py-3 font-semibold">Desconto por licença/OS (R$)</td><td class="px-4 py-3 text-text-secondary">Aplica um desconto fixo em reais por licença ou por OS, por um período</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-xs text-text-tertiary mt-2 leading-relaxed">Em resumo: <strong class="text-text-secondary">Exceção</strong> é uma negociação pontual, com prazo, sobre uma cobrança existente; <strong class="text-text-secondary">Renegociação</strong> é uma nova série contratual, que pausa o original enquanto estiver valendo.</p>
+  <h3 class="font-bold text-donc-navy mt-6">Alcance: o cliente inteiro ou uma série</h3>
+  <div class="grid md:grid-cols-2 gap-3 mt-3">
+    <div class="bg-white border border-border-tertiary rounded-lg p-4"><div class="text-sm font-bold text-donc-navy">Cliente inteiro</div><p class="text-sm text-text-secondary mt-1">Vale para todas as séries ativas.</p></div>
+    <div class="bg-white border border-border-tertiary rounded-lg p-4"><div class="text-sm font-bold text-donc-navy">Série específica</div><p class="text-sm text-text-secondary mt-1">Vale apenas para aquela série.</p></div>
+  </div>
+  <div class="bg-white border border-border-tertiary rounded-lg overflow-hidden mt-5 print-break">
+    <div class="px-5 py-3 border-b border-border-tertiary bg-bg-secondary/60 flex items-center justify-between flex-wrap gap-2">
+      <span class="badge bg-donc-purple text-white">Exemplo D — Aditivo com isenção total</span>
+      <span class="text-[11px] text-text-tertiary">exceção por série, com prazo</span>
+    </div>
+    <div class="p-5">
+      <p class="text-sm text-text-secondary leading-relaxed">Contrato original R$ 2.995,00 + Aditivo Rotas R$ 500,00 = R$ 3.495,00. O time negociou o Aditivo Rotas, mas não vai cobrá-lo por 3 meses.</p>
+      <div class="mt-3 rounded-lg bg-bg-secondary border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+        <div>Exceção "Isenção total" somente na série Rotas, com vigência de 3 meses</div>
+        <div>Fatura no período = <strong>R$ 2.995,00</strong> — o Rotas aparece com R$ 0,00 e o original continua integral</div>
+        <div class="text-text-tertiary">Alternativa — desconto de 10% no cliente inteiro: R$ 3.495,00 × 0,90 = <strong class="text-text-secondary">R$ 3.145,50</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="bg-white border border-border-tertiary rounded-lg overflow-hidden mt-4 print-break">
+    <div class="px-5 py-3 border-b border-border-tertiary bg-bg-secondary/60 flex items-center justify-between flex-wrap gap-2">
+      <span class="badge bg-donc-purple text-white">Desconto por licença/OS (R$) — como fica a conta</span>
+      <span class="text-[11px] text-text-tertiary">só em séries "base + excedente"</span>
+    </div>
+    <div class="p-5">
+      <p class="text-sm text-text-secondary leading-relaxed">Contrato de R$ 50,00 por licença com R$ 10,00 de desconto por licença, por 12 meses. O valor com desconto fica R$ 40,00 por licença, e piso e excedente continuam valendo.</p>
+      <div class="mt-3 rounded-lg bg-bg-secondary border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
+        <div>Valor com desconto = R$ 50,00 − R$ 10,00 = <strong>R$ 40,00</strong> por licença</div>
+        <div>Piso de 30 licenças (mínimo) = 30 × R$ 40,00 = <strong>R$ 1.200,00</strong></div>
+        <div>Uso de 45 licenças (acima do piso) = 45 × R$ 40,00 = <strong>R$ 1.800,00</strong></div>
+        <div class="text-text-tertiary">Excedente = 15 licenças acima do piso; o valor real do mês é R$ 1.800,00</div>
+      </div>
+      <p class="text-xs text-text-tertiary mt-3">Este tipo de exceção só se aplica a séries configuradas como "base + excedente".</p>
+    </div>
+  </div>
+  <h3 class="font-bold text-donc-navy mt-6">Vigência, motivo e histórico</h3>
+  <ul class="list-disc pl-5 mt-3 text-sm text-text-secondary space-y-1.5">
+    <li>Toda exceção exige <strong class="text-text-primary">início</strong>, <strong class="text-text-primary">fim</strong> e <strong class="text-text-primary">motivo</strong> (mínimo de 10 caracteres).</li>
+    <li>Exceções <strong class="text-text-primary">nunca são retroativas</strong>: o início deve ser o mês atual ou um mês futuro.</li>
+    <li>O <strong class="text-text-primary">autor</strong> e a <strong class="text-text-primary">data</strong> do registro ficam gravados. Esse é o nosso histórico de auditoria.</li>
+    <li>Exceções com o mesmo alcance e o mesmo tipo <strong class="text-text-primary">não podem ter períodos sobrepostos</strong>. Se alguém tentar, o sistema avisa.</li>
+  </ul>
+  <h3 class="font-bold text-donc-navy mt-6">O que o sistema bloqueia</h3>
+  <div class="bg-white border border-border-tertiary border-l-4 border-l-donc-red rounded-r-lg p-4 mt-3 print-break">
+    <ul class="space-y-1.5 text-sm text-text-secondary">
+      <li>× Exceção sem motivo, ou com motivo com menos de 10 caracteres.</li>
+      <li>× Data de fim antes da data de início.</li>
+      <li>× Exceção com início em mês já passado (não retroativa).</li>
+      <li>× Percentual de desconto menor ou igual a 0% ou maior que 100%, ou valor reduzido igual a zero.</li>
+      <li>× Desconto por licença/OS maior ou igual ao valor base da série.</li>
+      <li>× Renegociação sem motivo.</li>
+      <li>× Duas renegociações ativas com períodos sobrepostos.</li>
+    </ul>
+  </div>
+  <h3 class="font-bold text-donc-navy mt-6">Ordem de aplicação</h3>
+  <div class="grid md:grid-cols-2 gap-3 mt-3">
+    <div class="bg-white border border-border-tertiary rounded-lg p-4 print-break"><div class="text-[11px] font-semibold text-donc-navy uppercase tracking-widest">Primeiro</div><p class="text-sm text-text-secondary mt-2">As exceções por série, cada uma dentro da sua série.</p></div>
+    <div class="bg-white border border-border-tertiary rounded-lg p-4 print-break"><div class="text-[11px] font-semibold text-donc-navy uppercase tracking-widest">Depois</div><p class="text-sm text-text-secondary mt-2">As exceções do cliente inteiro, sobre o total já somado.</p></div>
+  </div>
+  <p class="text-sm text-text-secondary mt-4 leading-relaxed">Na prática: um desconto de 10% para o cliente inteiro incide <strong class="text-text-primary">depois</strong> que os valores das séries foram somados. E as exceções reduzem tanto o <strong class="text-text-primary">valor mínimo garantido</strong> quanto o <strong class="text-text-primary">valor real</strong> do alcance afetado. Assim, elas nunca criam um "excedente" artificial.</p>
+</section>
+
+<section id="correcao" class="bg-white border-y border-border-tertiary">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+    <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">6</span><h2 class="text-xl font-bold text-donc-navy">Reajuste anual (IPCA/IGP-M ou percentual fixo)</h2></div>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">O reajuste acontece <strong class="text-text-primary">uma vez por ano</strong>, na data de aniversário do contrato. Por padrão, o aniversário é a data de assinatura, e pode ser configurado em cada série.</p>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">O percentual é <strong class="text-text-primary">editável</strong>, porque os contratos podem prever um percentual fixo (X%), o índice (IPCA ou IGP-M) ou o maior entre os dois.</p>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">Quando o aniversário chega, o time cria a renovação com o valor já corrigido. O sistema pode sugerir o cálculo <span class="calc">valor base × (1 + percentual ÷ 100)</span>, mas o valor final é confirmado ou editado pelo usuário. O reajuste incide sobre o valor base, antes de descontos e exceções.</p>
+    <div class="bg-white border border-border-tertiary border-l-4 border-l-donc-red rounded-r-lg p-4 mt-4 print-break">
+      <div class="badge bg-donc-red/10 text-donc-red">Sem retroatividade</div>
+      <p class="text-sm text-text-secondary mt-2 leading-relaxed">O reajuste vale <strong class="text-text-primary">a partir do próximo mês de cobrança</strong>. Meses já fechados nunca são recalculados e não há emissão de fatura complementar.</p>
+    </div>
+    <h3 class="font-bold text-donc-navy mt-6">Exemplo — reajuste de 4,62% (IPCA)</h3>
+    <div class="overflow-x-auto mt-3 print-break">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Item</th><th class="px-4 py-2.5 text-right">Valor atual</th><th class="px-4 py-2.5 text-left">Cálculo</th><th class="px-4 py-2.5 text-right">Novo valor</th></tr></thead>
+        <tbody>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Licença (valor base)</td><td class="px-4 py-3 text-right calc">R$ 59,90</td><td class="px-4 py-3 text-text-secondary calc">R$ 59,90 × 1,0462</td><td class="px-4 py-3 text-right calc font-semibold">R$ 62,67</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Piso de 50 licenças (valor mínimo garantido)</td><td class="px-4 py-3 text-right calc">R$ 2.995,00</td><td class="px-4 py-3 text-text-secondary calc">R$ 2.995,00 × 1,0462</td><td class="px-4 py-3 text-right calc font-semibold">R$ 3.133,37</td></tr>
+          <tr><td class="px-4 py-3 font-semibold">Uso de 62 licenças (valor real)</td><td class="px-4 py-3 text-right calc">R$ 3.713,80</td><td class="px-4 py-3 text-text-secondary calc">R$ 3.713,80 × 1,0462</td><td class="px-4 py-3 text-right calc font-semibold">R$ 3.885,38</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-text-tertiary mt-2">Cálculo sem arredondamento intermediário; valores finais arredondados para duas casas decimais. O novo valor da licença passa a valer para o piso e para o uso do mês.</p>
+  </div>
+</section>
+
+<section id="adimplencia" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+  <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">7</span><h2 class="text-xl font-bold text-donc-navy">Adimplência</h2></div>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Adimplência é o status de pagamento de cada fatura. O Financeiro marca <strong class="text-text-primary">manualmente</strong>, fatura por fatura (série × mês):</p>
+  <div class="grid md:grid-cols-3 gap-3 mt-4">
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Situação</div><p class="text-sm text-text-secondary mt-1"><strong class="text-text-primary">Adimplente</strong> (pago) ou <strong class="text-text-primary">Inadimplente</strong> (em atraso).</p></div>
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Dias de atraso</div><p class="text-sm text-text-secondary mt-1">Quantos dias a fatura está em atraso.</p></div>
+    <div class="kpi-card print-break"><div class="text-sm font-bold text-donc-navy">Data do pagamento</div><p class="text-sm text-text-secondary mt-1">O dia em que a fatura foi paga.</p></div>
+  </div>
+  <p class="text-sm font-semibold text-text-primary mt-5">Essas marcações alimentam dois pontos:</p>
+  <div class="grid md:grid-cols-2 gap-3 mt-3">
+    <div class="bg-white border border-border-tertiary rounded-lg p-4 print-break"><div class="badge bg-donc-amber/15 text-donc-navy">Indicador</div><p class="text-sm text-text-secondary mt-2">O indicador <strong class="text-text-primary">"valor em atraso"</strong>.</p></div>
+    <div class="bg-white border border-border-tertiary rounded-lg p-4 print-break"><div class="badge bg-donc-verde/15 text-donc-verde">Cliente</div><p class="text-sm text-text-secondary mt-2">A <strong class="text-text-primary">saúde do cliente</strong>.</p></div>
+  </div>
+</section>
+
+<section id="na-pratica" class="bg-white border-y border-border-tertiary">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+    <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">8</span><h2 class="text-xl font-bold text-donc-navy">Na prática: cenários com valores</h2></div>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">Consolidação dos exemplos A a F, com os valores exatos de cada fatura.</p>
+    <div class="overflow-x-auto mt-4 print-break">
+      <table class="w-full text-sm">
+        <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left w-24">Cenário</th><th class="px-4 py-2.5 text-left">O que acontece</th><th class="px-4 py-2.5 text-right">Fatura</th></tr></thead>
+        <tbody>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">A</td><td class="px-4 py-3 text-text-secondary">Uso de 38 licenças, abaixo do piso de 50. Vale o mínimo: 50 × R$ 59,90</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.995,00</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">B</td><td class="px-4 py-3 text-text-secondary">Uso de 62 licenças, acima do piso. Vale o uso real: 62 × R$ 59,90 (excedente de R$ 718,80)</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 3.713,80</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">C</td><td class="px-4 py-3 text-text-secondary">Sem piso. Uso de 4.200 OS × R$ 1,93 (mínimo R$ 0,00)</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 8.106,00</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">D</td><td class="px-4 py-3 text-text-secondary">Isenção total no Aditivo Rotas por 3 meses. Original R$ 2.995,00 + Rotas R$ 0,00</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.995,00</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">D <span class="font-medium text-text-tertiary">(alternativa)</span></td><td class="px-4 py-3 text-text-secondary">Desconto de 10% no cliente inteiro: R$ 3.495,00 × 0,90</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 3.145,50</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">E</td><td class="px-4 py-3 text-text-secondary">Renegociação de R$ 2.395,00 por 6 meses; o original fica pausado</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.395,00/mês</td></tr>
+          <tr><td class="px-4 py-3 font-bold text-donc-navy">F</td><td class="px-4 py-3 text-text-secondary">Aditivo travado no valor da série; o uso não altera a fatura</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 500,00</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="perfis" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+  <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">9</span><h2 class="text-xl font-bold text-donc-navy">Quem vê e quem faz o quê</h2></div>
+  <div class="overflow-x-auto mt-4 print-break">
+    <table class="w-full text-sm">
+      <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Perfil</th><th class="px-4 py-2.5 text-left">O que vê</th><th class="px-4 py-2.5 text-left">O que pode fazer</th></tr></thead>
+      <tbody>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Admin e Financeiro</td><td class="px-4 py-3 text-text-secondary">Cockpit completo</td><td class="px-4 py-3 text-text-secondary">Criar e editar exceções, correções e status de pagamento</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Manager</td><td class="px-4 py-3 text-text-secondary">Tudo, com exportação</td><td class="px-4 py-3 text-text-secondary">Somente leitura em exceções, correções e pagamentos</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Vendas</td><td class="px-4 py-3 text-text-secondary">As séries contratuais dos clientes da própria carteira</td><td class="px-4 py-3 text-text-secondary">Negociar e editar séries na tela Empresas; vê os detalhes completos das exceções na ficha do cliente, sem acesso ao cockpit financeiro</td></tr>
+        <tr><td class="px-4 py-3 font-semibold">CS (Customer Success) / Analista</td><td class="px-4 py-3 text-text-secondary">Sem acesso a valores financeiros</td><td class="px-4 py-3 text-text-secondary">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="bg-donc-sky/10 border border-donc-sky/40 rounded-lg p-4 mt-5 print-break">
+    <span class="badge bg-donc-sky text-white">Observação para Vendas</span>
+    <p class="text-sm text-text-secondary mt-2 leading-relaxed">Descontos e exceções são registrados pelo Financeiro, com autor, data e motivo. A negociação continua com você; o ajuste financeiro fica guardado no histórico de auditoria.</p>
+  </div>
+</section>
+
+<section id="validacao" class="bg-donc-amber/5 border-y border-donc-amber/20">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
+    <div class="flex items-center gap-2"><span class="badge bg-donc-verde text-white">10</span><h2 class="text-xl font-bold text-donc-navy">Perguntas frequentes (validadas em 11/09/2026)</h2></div>
+    <p class="text-sm text-text-secondary mt-3 leading-relaxed">Respostas registradas na validação de <strong class="text-text-primary">11/09/2026</strong>. Use esta seção como consulta rápida sobre as regras do cockpit.</p>
+    <ol class="space-y-3 mt-5">
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">1</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Os dois modos de cobrança — "travado no valor da série" e "base + excedente" — refletem como vocês fecham negociações hoje?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. Os dois modos refletem como as negociações são fechadas com os clientes.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">2</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Configuração padrão: o contrato original nasce como "base + excedente", e aditivos e renegociações nascem como "travado". Faz sentido?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. É a configuração padrão aprovada — e os modos podem ser alterados depois, se a negociação pedir.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">3</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Quem aprova exceções: apenas Admin e Financeiro criam e editam, com o Manager em modo somente leitura. Está correto?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. Somente Admin e Financeiro criam e editam exceções; o Manager tem acesso somente leitura.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">4</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Aditivo com isenção total (100% de desconto) deve aparecer no cockpit como fatura zerada (R$ 0,00) ou não deve aparecer?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Aparece como fatura zerada (R$ 0,00). A negociação fica visível no cockpit, em vez de desaparecer.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">5</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Valor reduzido: ele substitui o cálculo por um valor fixo mensal, e não por um valor por licença ou por OS. Está correto?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. Além dele, o time usa o desconto por licença/OS (R$): R$ 50,00 por licença menos R$ 10,00; com 45 licenças, a fatura fica R$ 1.800,00 (mínimo de R$ 1.200,00).</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">6</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Sem piso (piso 0): cobramos somente o consumo do mês, com mínimo de R$ 0,00. Está correto?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. Sem piso, vale somente o consumo do mês, com mínimo de R$ 0,00.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">7</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Como funciona o reajuste anual? Há retroatividade?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">O reajuste é anual, na data de aniversário do contrato (padrão: assinatura, configurável). O percentual é editável (fixo, IPCA/IGP-M ou o maior). Vale a partir do próximo mês de cobrança: não há retroatividade nem fatura complementar.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">8</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Visibilidade para Vendas: os detalhes das exceções aparecem na ficha do cliente, mesmo sem acesso ao cockpit financeiro?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. Vendas vê os detalhes completos das exceções na aba Contrato da ficha da empresa, na tela Empresas, sem acessar o cockpit financeiro.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">9</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Falha no uso do mês: se o uso não chegar para um determinado mês, qual é a regra?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">O cockpit mostra um aviso e orienta a falar com o suporte do DoncCX Hub. O sistema não decide a cobrança sozinho.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">10</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Tipos de negociação: além de isenção total, desconto percentual e valor reduzido, falta algum tipo?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Faltava um: desconto por licença/OS (R$). Com isso, são quatro tipos de exceção.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">11</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Faturas por série: a regra de 1 fatura por série × mês atende ao Financeiro?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. Fica valendo 1 fatura por série × mês; a fatura consolidada por cliente foi descartada.</p>
+          </div>
+        </div>
+      </li>
+      <li class="bg-white border border-border-tertiary rounded-lg p-4 print-break">
+        <div class="flex gap-3">
+          <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">12</span>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Vencimento e renovação por série: o dia de vencimento e o tipo de renovação (manual ou automática) ficam em cada série. Isso reflete a realidade dos contratos?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Sim. O dia de vencimento e o tipo de renovação (manual ou automática) ficam em cada série.</p>
+          </div>
+        </div>
+      </li>
+    </ol>
+    <div class="bg-donc-verde/10 border border-donc-verde/40 rounded-xl p-5 md:p-6 mt-6 print-break">
+      <h3 class="text-base font-bold text-donc-navy">Regras validadas em 11/09/2026</h3>
+      <p class="text-sm text-text-secondary mt-1 leading-relaxed">Estas respostas foram confirmadas por Financeiro e Vendas e são as regras finais do cockpit. Elas também são a base da tela <strong class="text-text-primary">"Como funciona a cobrança"</strong> do Help.</p>
+    </div>
+  </div>
+</section>
+
+<footer class="max-w-[1120px] mx-auto px-4 md:px-8 py-10">
+  <p class="text-[11px] text-text-tertiary text-center leading-relaxed">Documento validado — Financeiro &amp; Vendas · 11/09/2026 · Base do Help do cockpit · DoncCX Hub</p>
+</footer>
+
+</body>
+</html>

@@ -199,7 +199,12 @@ flush/load ao trocar de série); `clients.*` é espelho da série original:
   editável, ignorado com auto-renovação), Dia do vencimento, Renovação, Renovação automática,
   Motivo (obrigatório em renegociação), `Encerrar série…` (`Button secondary sm` + modal `max-w-sm`).
 - *Plano de cobrança* — `billing_type` (por licença / por OS), valor base, piso, índice
-  (datas ficam na série). *MRR base* (card navy) — base da série ativa.
+  (datas ficam na série), **`usage_driven`** ("Cobrar excedente por uso acima do piso":
+  ligado = uso acima do piso compõe o MRR; desligado = valor travado na série) e **reajuste
+  anual** (aniversário default = data de assinatura, editável; regra `percentual | indice |
+  maior`; percentual editável 0–50%) com **renovação sugerida** `base × (1 + percentual/100)`.
+  *MRR base* (card navy) — base da série ativa (`usage_driven` sem regras = `piso × valor`,
+  0 quando não há piso; travado sem regras = valor base).
 - *Status de cobrança* — 3 states por série; `contract_active`/`mrr` derivam da original;
   `mrr` via `resolveMRR` com **base própria por série** (percent resolve na base da série).
 - *Evolução da recorrência (MRR)* — `ContractChargesSection` por série; preview com
@@ -234,6 +239,10 @@ rejects `client_id` diverging from the series. `billing_payments` PK is
 `(client_id, series_id, ref_month)` (2 faturas no mesmo mês); upsert conflict target updated.
 `Cronograma de cobrança` (`BillingSchedule.jsx`, read-only, após catálogo em `ClientSubDados`)
 agrega `(série, competência)`: renegociação exibe `original − desconto = a pagar`.
+**Negociações vigentes:** exceções do cockpit (`billing_exceptions`, 4 tipos, escopo cliente/série,
+sem retroativo) aparecem read-only na aba Contrato (admin/manager/finance/sales) e em
+`ClientSubDados` (junto do último status de adimplência via `billing_payments`); o CRUD vive no
+cockpit financeiro (`/financeiro-cockpit`, flag `cockpit_financeiro`).
 
 ### Flow: View Client Detail
 1. User clicks a client card.
