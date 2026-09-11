@@ -1,7 +1,7 @@
 # doncCX Hub — Documentation Index
 
 > GENERATED — do not edit by hand. Sole writer: `index-updater` skill.
-> last-verified: 2026-09-07
+> last-verified: 2026-09-11
 
 ## Purpose
 
@@ -47,8 +47,8 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 
 ## Decisions (frozen; addenda only)
 
-- `docs/sdd/` — 15 SDDs (see `docs/sdd/` listing; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
-- `docs/brd/brd-financeiro-cockpit.md` (+ 0.4 addendum)
+- `docs/sdd/` — 15 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v0.2 (2026-09-11) com `financeiro-cockpit-regras.html` para validação Financeiro/Vendas; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
+- `docs/brd/brd-financeiro-cockpit.md` (+ 0.5 addendum, 2026-09-11)
 - `docs/decisions/` — planned (numbered ADRs)
 
 ## Not indexed (history only)

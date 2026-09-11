@@ -2,11 +2,11 @@
 
 ## Purpose
 
-This document is a Spec-Driven Development (SDD) artifact. It serves as the **single source of truth** for the **Cockpit Financeiro** — dashboard financeiro que consolida MRR mínimo garantido vs MRR real faturável por `ref_month`, incluindo excedente acima do piso, correções monetárias e exceções/negociações auditáveis. Fonte: contrato (`clients.billing_*`) + uso real DONC API (`client_usage.profissionais_versao`) + `billing_exceptions`/`billing_corrections`.
+This document is a Spec-Driven Development (SDD) artifact. It serves as the **single source of truth** for the **Cockpit Financeiro** — dashboard que consolida **MRR mínimo garantido vs MRR real por `ref_month`**, incluindo excedente de uso sobre o piso, correção monetária, exceções/negociações auditáveis e adimplência. Fonte: séries contratuais (`contract_series` + `contract_charges` + `billing_os_tiers` + `module_pricing.series_id`) + uso real DONC API (`client_usage.profissionais_versao`) + `billing_exceptions` + `billing_corrections` + `billing_payments`.
 
 It is designed to be read by both humans and LLM agents so that work can be resumed, implemented, and documented without external context.
 
-Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.3 (Q4a sales escrita total, Q4b reprocessa passado, Q6 flag dedicada Sim). Template 1:1: `docs/superpowers/specs/2026-07-26-profissionais-cockpit-design.md` + `src/pages/ProfissionaisCockpitPage.jsx:1-736`.
+Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.5 (papéis revisados 2026-09-11, exceções híbridas, `usage_driven`). Documento de validação não-técnico para Financeiro/Vendas: `docs/sdd/financeiro-cockpit-regras.html`. Template 1:1: `docs/archive/superpowers/specs/2026-07-26-profissionais-cockpit-design.md` + `src/pages/ProfissionaisCockpitPage.jsx` (736L).
 
 ### How to use this document
 
@@ -22,56 +22,60 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.3 (Q4a sales escrita tota
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** Phase 1 — Not started
+- **Active phase:** **Phase 0 — docs complete; Phase 1 blocked on Financeiro/Vendas validation** of `docs/sdd/financeiro-cockpit-regras.html` (2026-09-11).
 
 **What already exists related to this work:**
-- `clients` table (`billing_type text CHECK por_licenca/por_os`, `billing_base_value numeric`, `billing_floor int`, `contract_signed_date/ro_start/renewal date`, `correction_index text`, `mrr numeric`, `contract_active bool`, `lifecycle_stage`, `cnpj`, `contract_saas_id`, `fantasy_name`) — `supabase/migrations/20260503031721_remote_schema.sql` + `20260726180000`
-- `client_usage` (`client_id int`, `ref_month text YYYY-MM`, `profissionais_versao jsonb`, `pending boolean`, `instance_id uuid`, `estabelecimentos jsonb`) — populated by `donc-api-sync` via `GET https://webhub.donc.com.br/api/DoncCx/{contract_saas_id}?dataInicio=...`
-- `sync_service_log` granular (`service_name='donc-api'`, `ref_month`, `status`, `finished_at`, `triggered_by`) — `20260727210000`
-- `feature_flags` table + `src/hooks/useFeatureFlags.js` (`isEnabled(key, role)`) + `src/lib/roles.js` (`ROLE_OPTIONS`, `effectiveRole = impersonatedRole || profile.role`) + `src/contexts/AuthContext.jsx` (`isFinance`)
-- `src/lib/billing.js:7` — `calculateMRR` / `calculateUnitValue` (BUG: `unitValue = base + sum(mods)` diverge de Q2 rateio)
-- `src/components/clients/ClientForm.jsx:14,21,469,512,520` — aba Contrato + card MRR mínimo + seção Modificadores por módulo (`modPricing` derivado de `solucoes`/`client_catalog`)
-- `src/pages/ProfissionaisCockpitPage.jsx:1-736` — template 1:1 (KpiCard `rounded-xl px-5 py-4`, toolbar `mt-5 flex gap-3 flex-wrap`, table `bg-donc-navy`, accordion lazy `openSet`/`detailCache`, CSV/PDF pattern `Blob('\uFEFF'` + `window.print`) — **copiar estrutura literal**
-- `src/hooks/useProfissionaisCockpit.js:5` — months via `sync_service_log`, `staleTime 10min/5min`, `enabled !!profile && !!refMonth`
-- `src/pages/CockpitsPage.jsx:7` hub + `src/components/settings/SettingsFeatureFlags.jsx:18` + `src/components/layout/Navbar.jsx:13` + `src/App.jsx:205` PrivateRoute/AppLayout
-- `src/lib/icons.js` — `Wallet` already exists; never import from `lucide-react` directly
-- Existing flags: `profissionais_cockpit` (20260726210000), `financial_data` (20260824000006 `enabled true allowed_roles [admin,manager,finance]`), `cockpit_financeiro` does NOT exist yet
-- `supabase/migrations/20260830000001_finance_summary_rpc.sql` — pattern `SECURITY DEFINER SET search_path=public` + `REVOKE anon/public + GRANT authenticated` + `coalesce(get_user_role(),'none') NOT IN (...) → 42501`
-- `vite.config.js` injects `__COMMIT_HASH__`, `vercel.json` SPA rewrite `/(.*)->/index.html`, `build.minify false`, `QueryClient staleTime 30s`
+
+- **Séries contratuais (2026-09-07, em produção):** `contract_series` (`kind original|aditivo|renegociacao`, `billing_start/end`, `due_day`, `auto_renew`, `status ativa|encerrada`, `reason`, plano por série `billing_type`/`billing_base_value`/`billing_floor`, `billing_status ativo|suspenso|nao_bilhetavel`, `billing_suspended_until`, `correction_index`, `contract_signed_date/renewal`) — migrations `20260907000001/2/3`. `clients.*` financeiro é espelho da série original.
+- **Charges por série:** `contract_charges` (`series_id`, `kind implantacao|recorrencia`, `mode absolute|percent`, `month_index`, `ref_month` derivado, `due_date`, `installment_group`, `amount`/`percent`, `reason`); UNIQUE `(series_id, kind, month_index, installment_group)`. `billing_os_tiers` PK `(client_id, series_id, tier_order)` (`limit_to`, `fixed_value`, `excess_unit_price`). `module_pricing.series_id` (rateio de soluções por série).
+- **MRR helpers puros:** `src/lib/contractRules.js` — `resolveMRR` (:221), `seriesMonthTotal` (:205), `getBaseTotal` (:273), `expandRulesToCharges`, `expandEventuais`, `regroupRecorrencia`, `regroupEventuais`, `renegWindows`, `validateOsTiers`, `formatBRL4`, `TI_TIPO_OPTIONS`.
+- **Adimplência (Phase 3.5 do v0.1 — CONCLUÍDA):** `billing_payments` PK `(client_id, series_id, ref_month)`, `status adimplente|inadimplente`, `delay_days`, `paid_at`, `note`, `updated_by/at`; RLS SELECT `admin,manager,finance,sales,csm` / write `admin,finance`; trigger `sync_billing_payments_delay_days` espelha `clients.delay_days`; hooks `useBillingPayments`/`useLatestBillingPayment`/`useBillingPaymentsMutations` (`src/hooks/useBillingPayments.js`); ledger read-only `src/components/clients/tabs/operacional/BillingSchedule.jsx`.
+- **Rateio (v0.1 Phase 1/3 — CONCLUÍDO):** `src/lib/billing.js` — `calculateMRR`/`calculateUnitValue` com `opts.mode='legacy'|'rateio'` (`rateio` → `unitValue = base`) + `validateRateio(mods, base, tolerance 0.01)`. Default permanece `legacy`; callers novos usam `rateio`.
+- **Form V2 em produção (sem flag):** rotas `/empresas/nova` e `/empresas/:id/editar` → `src/pages/ClientFormPage.jsx` → `src/components/clients/ClientFormContent.jsx` (5 tabs; Contrato por série com buffer/flush; `ClientForm.jsx` **deletado** em `aa87554`).
+- **Modelo de acesso (2026-09-07):** `financial_data` (`20260824000006`) = `admin,manager,finance`; `SAFE_CLIENT_COLS` em `src/hooks/useClients.js:7` esconde `mrr/billing_*` de quem não tem a flag; `canSeeFinancial = admin/manager/finance`; leitura global de empresas (`20260903000001`) + sales escreve na carteira (`20260903000002`); só `admin/manager` acessam todas as tabs do detalhe.
+- **Infra de cockpits:** `src/pages/CockpitsPage.jsx` (array `cockpits` + `isCockpitEnabled` com fallback `health_cockpit→health`); `src/App.jsx` `<CockpitRoute flagKey="…">` (:128) dentro de `PrivateRoute > AppLayout`; `src/components/settings/SettingsFeatureFlags.jsx` `FLAG_GROUPS`; `src/hooks/useFeatureFlags.js` `isEnabled(key, role)`; `src/pages/ProfissionaisCockpitPage.jsx` (736L, template 1:1); `src/hooks/useProfissionaisCockpit.js` (months via `sync_service_log` service `donc-api`, qualquer status).
+- **RPC pattern:** `supabase/migrations/20260830000001_finance_summary_rpc.sql` — `SECURITY DEFINER SET search_path=public` + `REVOKE anon/public + GRANT authenticated` + guard `coalesce(public.get_user_role(),'none')`. `get_finance_summary()` existe em produção.
+- **Uso real:** `client_usage` (`client_id`, `ref_month`, `profissionais_versao jsonb`, `pending`) — inalterado; `sync_service_log` (`service_name='donc-api'`) é a fonte dos meses disponíveis.
+- **Trigger helper:** `public.set_updated_at()` existe (`20260503031721_remote_schema.sql:369`) — reutilizar em tabelas novas.
+- **Icons:** `Wallet`, `Search`, `Clock`, `FileDown`, `Download`, `ArrowLeft` existem em `src/lib/icons.js`; `Percent`/`BadgePercent` **não existem** (adicionar se usados).
+- **Docs:** `docs/sdd/financeiro-cockpit-regras.html` (validação Financeiro/Vendas, criado na Phase 0).
 
 **What does NOT exist and needs to be created:**
-- Tables `billing_exceptions` + `billing_corrections` + RLS policies + indexes
-- Feature flag `cockpit_financeiro` (dedicada, Q6 Sim, `enabled false allowed_roles [admin,manager,finance,sales]`)
-- RPCs `get_financeiro_cockpit(text)`, `get_financeiro_detalhe(int,text)`, `get_financeiro_export(text)` with `SECURITY DEFINER` + role guard including `sales`
-- `src/hooks/useFinanceiroCockpit.js`
-- `src/pages/FinanceiroCockpitPage.jsx` (+ helpers `src/lib/financeiro.js` if extracted)
-- Drawer/modal `src/components/financeiro/ExcecaoModal.jsx` + `CorrecaoToggle.jsx`
-- Route `/financeiro-cockpit` in `src/App.jsx`
-- Card in `CockpitsPage.jsx` + registration in `SettingsFeatureFlags.jsx`
-- CRUD de exceções inline (row expanded) + section "Exceções" in `ClientForm.jsx`
-- Exports CSV sintético/analítico + PDF with CNPJ/SaaS_ID, delta, retroactive reprocess (Q4b)
-- Fix `src/lib/billing.js` for `mode='rateio'` + validation `sum(mods)==base`
+
+- `contract_series.usage_driven boolean NOT NULL DEFAULT false` + backfill `(kind='original')` + checkbox no form.
+- Tables `billing_exceptions` (híbrida cliente/série) + `billing_corrections` + RLS + indexes.
+- Feature flag `cockpit_financeiro` (`enabled false`, `allowed_roles [admin,manager,finance]`).
+- RPCs `get_financeiro_cockpit(text)`, `get_financeiro_detalhe(int,text)`, `get_financeiro_export(text)` (`SECURITY DEFINER` + guard `admin,manager,finance`).
+- `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
+- `src/components/financeiro/ExcecaoModal.jsx`, `CorrecaoToggle.jsx`, `PaymentToggle.jsx`.
+- Route `/financeiro-cockpit` (via `CockpitRoute`) + card no `CockpitsPage.jsx` + registro em `SettingsFeatureFlags.jsx`.
+- CRUD inline de exceções (row expandida) + espelho read-only no detalhe (`ClientSubDados`).
+- Exports CSV sintético/analítico + PDF com CNPJ/SaaS_ID, delta e reprocessamento retroativo.
 
 ### Files to be touched
 
 | File | Change type |
 |---|---|
-| `supabase/migrations/20260901000001_financeiro_cockpit_core.sql` | **Create** — `billing_exceptions`, `billing_corrections`, flag `cockpit_financeiro`, RLS, RPCs |
-| `src/lib/billing.js` | Modify — add `mode='rateio'` param, keep `legacy` default for callers, export `validateRateioSum` |
-| `src/lib/financeiro.js` | **Create** — pure helpers `valorCorr`, `billable`, `mrrReal`, `rateioBreakdown`, `isExcecaoVigente` |
-| `src/lib/icons.js` | Modify — verify `Wallet` exists, add `Percent`/`BadgePercent` alphabetically if missing (check duplicates) |
-| `src/hooks/useFinanceiroCockpit.js` | **Create** — `useQuery(['financeiro_cockpit', refMonth])` + `['financeiro_available_months']` |
-| `src/pages/FinanceiroCockpitPage.jsx` | **Create** — KPIs T1-T3 + secondary T4-T7, toolbar, table accordion lazy, skeletons |
-| `src/components/financeiro/ExcecaoModal.jsx` | **Create** — Phase 3 CRUD drawer/modal |
-| `src/components/financeiro/CorrecaoToggle.jsx` | **Create** — Phase 3 toggle `applied` per `ref_month` |
-| `src/components/clients/ClientForm.jsx` | Modify — new section "Exceções" listing `billing_exceptions` by `client_id` |
-| `src/pages/CockpitsPage.jsx` | Modify — add card `{ key:'cockpit_financeiro', title:'Financeiro', icon: Icons.Wallet, href:'/financeiro-cockpit', color:'text-donc-verde', bgColor:'bg-donc-verde/10' }` |
-| `src/components/settings/SettingsFeatureFlags.jsx` | Modify — register `cockpit_financeiro` in group `Cockpits & Dashboards` |
-| `src/App.jsx` | Modify — `import FinanceiroCockpitPage` + `<Route path="/financeiro-cockpit" element={<FinanceiroCockpitPage />} />` inside `PrivateRoute > AppLayout` |
-| `src/components/layout/Navbar.jsx` | Modify (optional) — top-nav link gated by `cockpit_financeiro` |
-| `docs/sdd/financeiro-cockpit-sdd.md` | **Create** — this SDD |
-| `docs/brd/brd-financeiro-cockpit.md` | Modify — v0.3 already validated Q4a/Q4b/Q6 (done) |
-| `docs/brd/brd-financeiro-cockpit.html` | Modify — v0.3 validated badges (done) |
+| `docs/sdd/financeiro-cockpit-sdd.md` | Modify — v0.2 (Phase 0, done) |
+| `docs/sdd/financeiro-cockpit-regras.html` | **Create** — validação Financeiro/Vendas (Phase 0, done) |
+| `docs/brd/brd-financeiro-cockpit.md` | Modify — adendo 0.5 (Phase 0, done) |
+| `supabase/migrations/<ts>_financeiro_cockpit_core.sql` | **Create** — `billing_exceptions`, `billing_corrections`, `usage_driven` + backfill, flag, RLS, 3 RPCs |
+| `src/lib/financeiro.js` | **Create** — pure helpers |
+| `src/lib/contractRules.js` | Modify — `resolveMRR`/preview consideram `usage_driven` (paridade form × cockpit) |
+| `src/components/clients/ClientFormContent.jsx` | Modify — checkbox "Cobrar excedente por uso acima do piso" no Plano de cobrança |
+| `src/hooks/useContractCharges.js` | Modify — `useContractSeriesMutations` persiste `usage_driven` |
+| `src/hooks/useFinanceiroCockpit.js` | **Create** — queries + invalidação |
+| `src/pages/FinanceiroCockpitPage.jsx` | **Create** — KPIs T1-T7, toolbar, accordion lazy, subtable por série |
+| `src/components/financeiro/ExcecaoModal.jsx` | **Create** — CRUD exceções (escopo cliente/série) |
+| `src/components/financeiro/CorrecaoToggle.jsx` | **Create** — correção por `(client_id, ref_month)` |
+| `src/components/financeiro/PaymentToggle.jsx` | **Create** — adimplência por `(client_id, series_id, ref_month)` |
+| `src/components/clients/tabs/operacional/ClientSubDados.jsx` | Modify — espelho read-only de exceção vigente + adimplência |
+| `src/pages/CockpitsPage.jsx` | Modify — card `cockpit_financeiro` |
+| `src/components/settings/SettingsFeatureFlags.jsx` | Modify — registrar flag no grupo `Cockpits & Dashboards` |
+| `src/App.jsx` | Modify — rota dentro de `<CockpitRoute flagKey="cockpit_financeiro">` |
+| `src/lib/icons.js` | Modify — `Percent`/`BadgePercent` se necessário (alfabético, sem duplicatas) |
+| `docs/modules/clients.md` | Modify — `usage_driven` + espelho de exceções (após implementação) |
+| `docs/brd/brd-financeiro-cockpit.html` | **NotFound** — não existe; HTML de validação vive em `docs/sdd/financeiro-cockpit-regras.html` |
 
 ---
 
@@ -82,39 +86,41 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.3 (Q4a sales escrita tota
 | Key | Enabled | Allowed roles | Dependency |
 |---|---|---|---|
 | `financial_data` (existing 20260824000006) | `true` | `admin, manager, finance` | — |
-| `cockpit_financeiro` (new, Q6 Sim) | `false` | `admin, manager, finance, sales` | requires `isEnabled('financial_data', role) && isEnabled('cockpit_financeiro', role)` |
+| `cockpit_financeiro` (new) | `false` | `admin, manager, finance` | requires `isEnabled('financial_data', role) && isEnabled('cockpit_financeiro', role)` |
 
-Gate in `CockpitsPage.jsx:51` `cockpits.filter(c => isEnabled(c.key, profile.role))` + guard in `FinanceiroCockpitPage.jsx` (`if (!isEnabled(...)) return <Navigate to="/module-unavailable" />`). `manager` read+export only; `sales` write on exceptions (Q4a validated).
+Gate: card em `CockpitsPage.jsx` + `<CockpitRoute flagKey="cockpit_financeiro">` em `App.jsx` (padrão de 2026-09-02). `manager` read+export only.
+
+> **Mudança 2026-09-11:** `sales` **perde** acesso ao cockpit financeiro (revoga Q4a do BRD v0.3). Motivo: modelo de acesso de 2026-09-07 (`financial_data` sem sales + `SAFE_CLIENT_COLS`); vendas negocia via séries no form de Empresas, não via dashboard financeiro.
 
 ### Roles & permissions
 
-| Role | Cockpit read + export | Exceptions write (`INSERT/UPDATE/DELETE`) | Corrections write |
-|---|---|---|---|
-| `admin` | yes | yes | yes |
-| `finance` | yes | yes | yes |
-| `sales` | yes | yes (Q4a — equiparado a finance) | yes |
-| `manager` | yes | **read-only** | read-only |
-| `csm` / `analyst` | no (RPC 42501) | no | no |
+| Role | Cockpit read + export | Exceptions write | Corrections write | Payments write |
+|---|---|---|---|---|
+| `admin` | yes | yes | yes | yes |
+| `finance` | yes | yes | yes | yes |
+| `manager` | yes | **read-only** | read-only | read-only |
+| `sales` | no | no | no | no |
+| `csm` / `analyst` | no (RPC 42501) | no | no | no |
 
 ### Color tokens / UX (reuse Profissionais)
 
-`bg-bg-primary #ffffff`, `border-border-tertiary #e8e7e3`, `bg-donc-navy #173557` thead, `bg-donc-verde #1D9E75` positive, `bg-donc-red #E24B4A` negative/queda >35%, `bg-donc-amber #BA7517` isento, `text-text-tertiary #888780`, `tabular-nums`, `PageHeader` + `BackButton → /cockpits`.
+`bg-bg-primary #ffffff`, `border-border-tertiary #e8e7e3`, `bg-donc-navy #173557` thead, `bg-donc-verde #1D9E75` positive, `bg-donc-red #E24B4A` negative/queda >35%, `bg-donc-amber #BA7517` isento/suspenso, `bg-donc-sky` desconto, `text-text-tertiary #888780`, `tabular-nums`, `PageHeader` + `BackButton → /cockpits`.
 
 ---
 
 ## 2. Design System Reference
 
-**Template 1:1:** `src/pages/ProfissionaisCockpitPage.jsx:1-736` + `docs/ui-patterns.md`
+**Template 1:1:** `src/pages/ProfissionaisCockpitPage.jsx` (736L) + `docs/ui-patterns.md`
 
 Follow:
-- Wrapper `p-6 max-w-7xl mx-auto` + `BackButton` + `PageHeader title="Financeiro · Faturamento" description={monthDisplay}` (`ui-patterns §10 Page Layout`).
-- `KpiCard` (`bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4 + w-9 h-9 rounded-lg ${color.bg}` + `text-2xl font-bold tabular-nums`) + delta `text-donc-verde ▲ / text-donc-red ▼` (`§6 Scorecard`).
-- Toolbar `mt-5 flex items-center gap-3 flex-wrap` (`select ref_month` + `search pl-9 Icons.Search §20` + `billing_type filter select §21` + `toggle "Só excedentes" §2 Switch` + `CSV dropdown absolute right-0 w-64` + `lastSync ml-auto Icons.Clock`).
-- Table `bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden + overflow-x-auto + thead bg-donc-navy text-white text-xs uppercase tracking-wider` + `tbody tr hover:bg-bg-secondary cursor-pointer` + `ChevronIcon svg M3 5l4 4 4-4 rotate 180` (`§1 Table`).
-- Row expanded: `colSpan p-0 bg-bg-secondary/20 + barra bg-bg-tertiary/60 border-b border-border-tertiary` + `ViewToggle inline-flex rounded-md border overflow-hidden` (`active bg-donc-navy text-white`) + lazy `supabase.rpc('get_financeiro_detalhe', {p_client_id, p_ref_month})` + `detailCache` + `ViewToggle`.
+- Wrapper `p-6 max-w-7xl mx-auto` + `BackButton` + `PageHeader title="Financeiro · Faturamento" description={monthDisplay}` (`ui-patterns §10`).
+- `KpiCard` (`bg-bg-primary border border-border-tertiary rounded-xl px-5 py-4` + `w-9 h-9 rounded-lg ${color.bg}` + `text-2xl font-bold tabular-nums`) + delta `text-donc-verde ▲ / text-donc-red ▼` (`§6`).
+- Toolbar `mt-5 flex items-center gap-3 flex-wrap` (`select ref_month` + `search pl-9 Icons.Search §20` + filter `billing_type` + toggle "Só excedentes" `§2 Switch` + CSV dropdown `absolute right-0 w-64` + `lastSync ml-auto Icons.Clock`).
+- Table `bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden + overflow-x-auto + thead bg-donc-navy text-white text-xs uppercase tracking-wider` + `tbody tr hover:bg-bg-secondary cursor-pointer` + `ChevronIcon` (`§1`).
+- Row expanded: `colSpan p-0 bg-bg-secondary/20 + barra bg-bg-tertiary/60 border-b` + `ViewToggle inline-flex rounded-md border overflow-hidden` (`active bg-donc-navy text-white`) + lazy `supabase.rpc('get_financeiro_detalhe', {p_client_id, p_ref_month})` + `detailCache`.
 - Skeletons `animate-pulse h-3 bg-bg-secondary rounded` (`§7`), empty `text-center py-12 text-text-tertiary` (`§8`), error `bg-donc-red/10 border border-donc-red/20` + retry (`§9`).
 - Export pattern: `Blob('\uFEFF' + content, {type:'text/csv;charset=utf-8'})` BOM + `URL.createObjectURL` + `window.open + document.write + w.print()` `@media print` (`ProfissionaisCockpitPage.jsx:48,347`).
-- Modal/Drawer: `fixed inset-0 z-50 flex items-center justify-center bg-black/20` + `bg-bg-primary border rounded-xl shadow-xl max-w-lg w-full` (`§14 Overlay`) or drawer `fixed right-0 w-[420px] h-full` (`§16`).
+- Modal/Drawer: `fixed inset-0 z-50 flex items-center justify-center bg-black/20` + `bg-bg-primary border rounded-xl shadow-xl max-w-lg w-full` (`§14`) ou drawer `fixed right-0 w-[420px] h-full` (`§16`).
 
 ---
 
@@ -132,87 +138,137 @@ FinanceiroCockpitPage (/financeiro-cockpit)
   │   └── T3 Excedente T2−T1 (verde if >0)
   ├── SecondaryStats (grid grid-cols-2 sm:grid-cols-4 gap-3)
   │   ├── T4 clientes acima do piso
-  │   ├── T5 isentos no mês
-  │   ├── T6 valor em atraso (delay_days>0)
-  │   └── T7 renovações 30d
+  │   ├── T5 clientes com exceção vigente no mês
+  │   ├── T6 valor em atraso (payment_status='inadimplente')
+  │   └── T7 renovações 30d (série ativa, contract_renewal)
   ├── Toolbar
   │   ├── select ref_month (from sync_service_log service_name='donc-api', default = mês anterior)
   │   ├── search (client_name / CNPJ / SaaS_ID — client-side filtered)
-  │   ├── filter billing_type (por_licenca / por_os)
-  │   ├── toggle "Só excedentes" (uso > piso)
+  │   ├── filter billing_type (por_licenca / por_os / mista)
+  │   ├── toggle "Só excedentes" (T3 > 0)
   │   ├── CSV dropdown (Sintético/Analítico, ViewToggle)
   │   └── lastSync (useQuery ['last_donc_sync', refMonth])
   └── Table (accordion lazy, 1 RPC per first expand)
       └── Row (expandable)
-          ├── Collapsed: ▸ | Cliente (CNPJ·SaaS_ID) | Tipo | Piso | Uso | Billable | Valor unit. | MRR mínimo | MRR real | Exceção badge | Δ
+          ├── Collapsed: ▸ | Cliente (CNPJ·SaaS_ID) | Tipo | Piso | Uso | Billable | Valor unit. | MRR mínimo | MRR real | Exceção badge | Adimplência | Δ
           └── Expanded (lazy, bg-bg-secondary/20):
-              ├── Barra: ViewToggle + badges (Corrigido IPCA 4,62% + Isento) + CorrecaoToggle (role switch) + CSV/PDF buttons + "+ Exceção"
-              ├── Subtable: breakdown por módulo (rateio, % do total, warning if sum != valor_corr ±0.01)
-              ├── Exceção vigente (tipo, vigência valid_from→valid_to, reason, created_by/at)
-              └── Profissionais/OS list (nome/email/data_ultimo_login/data_ultima_os/codigo_ultima_os) when por_licenca
-                  + ExcecaoModal / CorrecaoToggle drawers
+              ├── Barra: ViewToggle + badges (Corrigido IPCA 4,62% · Isento · Suspenso até dd/mm) + CorrecaoToggle + PaymentToggle + CSV/PDF buttons + "+ Exceção"
+              ├── Subtable Séries do mês: Série (label·kind) | Plano | Modo (Travado/Base+excedente) | Mínimo | Uso | Excedente | Exceções | Total
+              ├── Subtable Rateio por produto (soma vs base da série ativa, warning ±0,01)
+              ├── Exceções vigentes (escopo Cliente/Série, tipo, vigência, motivo, created_by/at)
+              ├── Adimplência (última fatura do mês: status, delay_days, paid_at)
+              └── Profissionais/OS list (nome/email/ativo/data_ultimo_login/data_ultima_os/codigo_ultima_os) when por_licenca
+                  + ExcecaoModal / CorrecaoToggle / PaymentToggle drawers
 ```
 
-**State management:** `useQuery` TanStack Query (`staleTime 30s default QueryClient`, cockpit `5min`, months `10min`), `openSet: Set<clientId>`, `detailCache: { [clientId]: {loading, error, data} }`, `exportView: 'geral'|'faturavel'|'isento'`, `csvDropdownOpen`, `exceptionDrawer`, `correctionToggling`.
+**State management:** TanStack Query (`staleTime` cockpit `5min`, months `10min`), `openSet: Set<clientId>`, `detailCache: { [clientId]: {loading, error, data} }`, `exportView: 'geral'|'faturavel'|'isento'`, `csvDropdownOpen`, `exceptionDrawer`, `correctionToggling`, `paymentToggling`.
 
 ---
 
 ## 4. Data Contracts
 
-### 4.1 Formula per client (Q1+Q2+Q3+Q4b)
+### 4.1 Formula per client (series-aware, v0.2)
 
 ```
-uso            = por_licenca: count(profissionais_versao WHERE ativo=true)          @ ref_month
-                 por_os:       count(profissionais_versao WHERE dataUltimaOS ∈ ref_month)
-piso_efetivo   = excecao piso_zerado vigente ? 0 : billing_floor
-valor_base_ef  = billing_base_value
-valor_corr     = correction vigente && applied==true ? valor_base_ef × (1 + percent/100) : valor_base_ef
-valor_unitário = valor_corr   // Q2 rateio: sum(mods) must == valor_corr (breakdown only, not additive)
-billable       = max(uso, piso_efetivo)
-mrr_minimo     = piso_efetivo × valor_corr
-mrr_real_bruto = billable × valor_corr
-mrr_real       = isencao_total      → 0
-                 desconto_percent   → mrr_real_bruto × (1 − percent/100)
-                 valor_reduzido     → billable × valor_reduzido_corr
-                 piso_zerado        → already in piso_efetivo
-excedente      = mrr_real − mrr_minimo
-delta          = coalesce(ROUND((mrr_real_cur − mrr_real_prev)/NULLIF(mrr_real_prev,0)*100,1), NULL)
+# Séries ativas no mês de competência
+series_ativas(ref) = contract_series WHERE client_id=c
+                     AND status='ativa'
+                     AND billing_start <= last_day(ref)
+                     AND (billing_end IS NULL OR billing_end >= first_day(ref))
+
+# Renegociação pausa a original na janela (charges recorrencia em ref)
+serie_pausada(s)   = s.kind='original' AND EXISTS renegociacao ativa com recorrencia.ref_month=ref
+
+# Status de cobrança por série
+serie_zerada(s)    = s.billing_status='nao_bilhetavel'
+                     OR (s.billing_status='suspenso' AND s.billing_suspended_until >= first_day(ref))
+
+# Uso (client_usage do ref, base para a série usage_driven — só a original)
+uso                = por_licenca: count(profissionais_versao WHERE ativo=true)
+                     por_os:       count(dataUltimaOS ∈ ref_month)
+excedente_uso(s)   = por_licenca: max(0, uso − s.billing_floor) × s.billing_base_value
+                     por_os tiers: uso > tier.limit_to → (uso − tier.limit_to) × excess_unit_price
+                     por_os s/tiers: max(0, uso − floor) × base
+
+# Valor contratado da série no mês
+contratado(s)      = regras recorrencia em ref ? seriesMonthTotal(s.charges, ref, baseTotal(s))
+                     else baseTotal(s) = floor>0 ? base×floor : base
+                     (usage_driven sem regras → contratado = floor × base)
+
+# Modo de cobrança (NOVO)
+bruto(s)           = usage_driven=true  ? contratado_com_regra + excedente_uso(s)
+                                           # sem regras: contratado = floor×base e bruto = max(uso, floor)×base
+                     : contratado(s)        # travado — uso só informativo
+                     (por_os com tiers: tier.fixed_value + excedente acima do limite)
+
+# Correção monetária (aplicada antes de exceções)
+fator(ref)         = correction(ref).applied ? 1 + percent/100 : 1
+
+# Exceções: série primeiro, cliente depois
+mrr_min_serie(s)   = contratado(s) × fator(ref)
+mrr_real_serie(s)  = bruto(s) × fator(ref)
+                     → aplicar exceções com series_id = s.id
+Σseries            = sum(mrr_min_serie), sum(mrr_real_serie)
+                     → aplicar exceções com series_id IS NULL (cliente inteiro)
+
+# Exceção aplica em min E real (não cria excedente artificial):
+isencao_total      → 0
+desconto_percent   → × (1 − percent/100)
+valor_reduzido     → substitui pelo valor mensal fechado (min = real = reduced_value × fator)
+
+mrr_min            = min aplicado · mrr_real = real aplicado
+excedente          = mrr_real − mrr_min
+delta              = coalesce(ROUND((mrr_real_cur − mrr_real_prev)/NULLIF(mrr_real_prev,0)*100,1), NULL)
 ```
 
-> Q1: always `ref_month` (not last sync). Q2: `src/lib/billing.js:7` fixed to `mode='rateio'` (unitValue = base). Q4b: retroactive `valid_from` in past reprocesses closed `ref_month` and forces re-emissão.
+> **Regras:** uso é do cliente (não por série) — se houver **mais de uma série `usage_driven`**, o uso é aplicado apenas à **original** (primeira por `billing_start`); as demais devem ser travadas (o form alerta). `mrr_delta` compara com o mês anterior. `valor_reduzido` = valor mensal fechado do escopo (mudança v0.2; antes era valor unitário × billable).
 
 ### 4.2 Tables (supabase-guard: migration required)
 
-**Migration:** `supabase migration new financeiro_cockpit_core` → `supabase/migrations/20260901000001_financeiro_cockpit_core.sql`
+**Migration:** `supabase migration new financeiro_cockpit_core` → `supabase/migrations/<timestamp>_financeiro_cockpit_core.sql` (o nome proposto no v0.1 `20260901000001` está obsoleto; já existem migrations `20260907*`).
 
-**`billing_exceptions`**
+**`contract_series` — alteration**
+
+```sql
+ALTER TABLE public.contract_series
+  ADD COLUMN IF NOT EXISTS usage_driven boolean NOT NULL DEFAULT false;
+COMMENT ON COLUMN public.contract_series.usage_driven IS
+  'true = cobrança por uso (uso acima do piso compõe o MRR); false = valor travado na série';
+UPDATE public.contract_series SET usage_driven = (kind = 'original')
+WHERE kind = 'original';  -- backfill: preserva o comportamento do BRD (excedente na original)
+```
+
+**`billing_exceptions` (híbrida cliente/série)**
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `id` | `uuid PK default gen_random_uuid()` | PK | |
 | `client_id` | `int not null FK clients(id) ON DELETE CASCADE` | FK | |
-| `type` | `text not null CHECK (type IN ('isencao_total','desconto_percent','valor_reduzido','piso_zerado'))` | CHECK | Q4a |
-| `percent` | `numeric null CHECK (percent >0 AND percent <=100)` | conditional | required if `desconto_percent` |
-| `reduced_value` | `numeric null CHECK (reduced_value >0)` | conditional | required if `valor_reduzido` |
+| `series_id` | `uuid null FK contract_series(id) ON DELETE CASCADE` | FK | `NULL` = cliente inteiro; set = série |
+| `type` | `text not null CHECK (type IN ('isencao_total','desconto_percent','valor_reduzido'))` | CHECK | `piso_zerado` removido em v0.2 (piso é da série) |
+| `percent` | `numeric null CHECK (percent > 0 AND percent <= 100)` | conditional | required if `desconto_percent` |
+| `reduced_value` | `numeric null CHECK (reduced_value > 0)` | conditional | required if `valor_reduzido`; valor mensal fechado do escopo |
 | `valid_from` | `date not null` | | vigência início |
 | `valid_to` | `date not null CHECK (valid_to >= valid_from)` | CHECK | vigência fim |
-| `reason` | `text not null CHECK (char_length(reason) >=10)` | | trilha Q4a |
+| `reason` | `text not null CHECK (char_length(reason) >= 10)` | | trilha auditável |
 | `created_by` | `uuid FK profiles(id)` | | audit |
 | `created_at` | `timestamptz default now()` | | |
 | `updated_by` | `uuid FK profiles(id)` | | |
-| `updated_at` | `timestamptz` | | trigger `set_updated_at` |
+| `updated_at` | `timestamptz` | | trigger `public.set_updated_at()` |
 
-Indexes: `CREATE INDEX idx_billing_exceptions_client ON billing_exceptions(client_id); CREATE INDEX idx_billing_exceptions_vigencia ON billing_exceptions(valid_from, valid_to);`
+Table CHECK: `CHECK (type <> 'desconto_percent' OR percent IS NOT NULL)` + `CHECK (type <> 'valor_reduzido' OR reduced_value IS NOT NULL)`.
 
-**`billing_corrections`**
+Indexes: `CREATE INDEX idx_billing_exceptions_client ON billing_exceptions(client_id); CREATE INDEX idx_billing_exceptions_series ON billing_exceptions(series_id); CREATE INDEX idx_billing_exceptions_vigencia ON billing_exceptions(valid_from, valid_to);`
+
+**`billing_corrections` (por cliente × mês)**
 
 | Column | Type | Constraints | Notes |
 |---|---|---|---|
 | `client_id` | `int not null FK clients(id) ON DELETE CASCADE` | PK part | |
 | `ref_month` | `text not null CHECK (ref_month ~ '^[0-9]{4}-[0-9]{2}$')` | PK part | YYYY-MM |
-| `index` | `text not null CHECK (index IN ('IPCA','IGPM','IGPM/IPCA'))` | | |
-| `percent` | `numeric not null CHECK (percent >=0 AND percent <=50)` | | e.g. 4.62 |
-| `applied` | `boolean not null default true` | | toggle Q3 |
+| `index` | `text not null CHECK (index IN ('IPCA','IGPM','IGPM/IPCA'))` | | `contract_series.correction_index` fica como metadado do contrato |
+| `percent` | `numeric not null CHECK (percent >= 0 AND percent <= 50)` | | e.g. 4.62 |
+| `applied` | `boolean not null default true` | | toggle |
 | `applied_at` | `timestamptz` | | |
 | `created_by` | `uuid FK profiles(id)` | | |
 | `created_at` | `timestamptz default now()` | | |
@@ -225,62 +281,77 @@ PK: `PRIMARY KEY (client_id, ref_month)`
 ALTER TABLE billing_exceptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_corrections ENABLE ROW LEVEL SECURITY;
 
--- SELECT: admin,manager,finance,sales
-CREATE POLICY billing_exceptions_select ON billing_exceptions FOR SELECT USING (public.get_user_role() IN ('admin','manager','finance','sales'));
-CREATE POLICY billing_corrections_select ON billing_corrections FOR SELECT USING (public.get_user_role() IN ('admin','manager','finance','sales'));
+-- SELECT: admin,manager,finance (sales REMOVIDO em 2026-09-11)
+CREATE POLICY billing_exceptions_select ON billing_exceptions FOR SELECT
+  USING (public.get_user_role() IN ('admin','manager','finance'));
+CREATE POLICY billing_corrections_select ON billing_corrections FOR SELECT
+  USING (public.get_user_role() IN ('admin','manager','finance'));
 
--- INSERT/UPDATE/DELETE: admin,finance,sales (Q4a), manager read-only
-CREATE POLICY billing_exceptions_write ON billing_exceptions FOR ALL USING (public.get_user_role() IN ('admin','finance','sales')) WITH CHECK (public.get_user_role() IN ('admin','finance','sales'));
-CREATE POLICY billing_corrections_write ON billing_corrections FOR ALL USING (public.get_user_role() IN ('admin','finance','sales')) WITH CHECK (public.get_user_role() IN ('admin','finance','sales'));
+-- INSERT/UPDATE/DELETE: admin,finance (manager read-only)
+CREATE POLICY billing_exceptions_write ON billing_exceptions FOR ALL
+  USING (public.get_user_role() IN ('admin','finance'))
+  WITH CHECK (public.get_user_role() IN ('admin','finance'));
+CREATE POLICY billing_corrections_write ON billing_corrections FOR ALL
+  USING (public.get_user_role() IN ('admin','finance'))
+  WITH CHECK (public.get_user_role() IN ('admin','finance'));
 
 REVOKE ALL ON TABLE billing_exceptions, billing_corrections FROM anon, public;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE billing_exceptions, billing_corrections TO authenticated;
 ```
 
-**Feature flag (Q6 Sim):**
+**Feature flag:**
 
 ```sql
 INSERT INTO public.feature_flags (key, description, enabled, allowed_roles, updated_at)
-VALUES ('cockpit_financeiro','Cockpit Financeiro — MRR real, excedente e exceções', false, ARRAY['admin','manager','finance','sales'], now())
-ON CONFLICT (key) DO UPDATE SET allowed_roles = ARRAY['admin','manager','finance','sales'], updated_at = now();
+VALUES ('cockpit_financeiro','Cockpit Financeiro — MRR real, excedente, exceções e adimplência', false, ARRAY['admin','manager','finance'], now())
+ON CONFLICT (key) DO UPDATE SET allowed_roles = ARRAY['admin','manager','finance'], updated_at = now();
 ```
 
 ### 4.3 RPCs (SECURITY DEFINER, pattern 20260830000001)
 
 ```sql
 -- All RPCs: STABLE, SECURITY DEFINER, SET search_path = public
--- Guard: IF coalesce(public.get_user_role(),'none') NOT IN ('admin','manager','finance','sales') THEN RAISE EXCEPTION 'forbidden' USING errcode='42501'; END IF;
+-- Guard: IF coalesce(public.get_user_role(),'none') NOT IN ('admin','manager','finance') THEN
+--          RAISE EXCEPTION 'forbidden' USING errcode='42501'; END IF;
 -- REVOKE ALL ON FUNCTION ... FROM public, anon; GRANT EXECUTE TO authenticated;
 
 -- 1. get_financeiro_cockpit(p_ref_month text)
 -- RETURNS TABLE(
---   client_id int, client_name text, cnpj text, saas_id text,
---   billing_type text, piso int, uso_cur bigint, billable bigint,
---   valor_unit numeric, valor_corr numeric, correction_percent numeric, correction_index text,
+--   client_id int, client_name text, cnpj text, saas_id text, billing_type text,
+--   billing_floor int, uso_cur bigint, uso_prev bigint, billable bigint,
+--   valor_unit numeric, correction_percent numeric, correction_index text,
 --   mrr_min numeric, mrr_real numeric, excedente numeric,
---   excecao_tipo text, excecao_vigencia text, -- e.g. 'isencao_total|2026-01 a 2026-03'
---   mrr_delta numeric, uso_prev bigint, delay_days int, contract_renewal date
+--   series_count int, series_kinds text,   -- ex: 'original+aditivo'
+--   excecao_desc text, excecao_escopo text,
+--   payment_status text, delay_days int, paid_at date,
+--   mrr_delta numeric, contract_renewal date
 -- )
--- Logic:
---   WITH expanded AS (SELECT client_id, instance_id, ref_month,
---     (elem->>'ativo')::boolean AS ativo, (elem->>'dataUltimaOS')::timestamptz AS data_ultima_os
---     FROM client_usage, jsonb_array_elements(profissionais_versao) AS elem WHERE ref_month IN (p_ref_month, p_prev) AND pending=false),
---   counts AS (SELECT client_id, ref_month,
---     COUNT(*) FILTER (WHERE billing_type='por_licenca' AND ativo) AS uso_lic,
---     COUNT(*) FILTER (WHERE billing_type='por_os' AND data_ultima_os >= p_ref_month::date AND data_ultima_os < (p_ref_month::date + interval '1 month')) AS uso_os ...),
---   vigencia AS (SELECT * FROM billing_exceptions WHERE p_ref_month BETWEEN to_char(valid_from,'YYYY-MM') AND to_char(valid_to,'YYYY-MM')),
---   correcao AS (SELECT * FROM billing_corrections WHERE ref_month=p_ref_month AND applied=true)
---   SELECT c.fantasy_name, ... billable = GREATEST(uso, piso_ef), mrr = billable * valor_corr with excecao applied, ORDER BY c.fantasy_name;
+-- Logic (CTEs):
+--   usage_counts: client_usage + jsonb_array_elements(profissionais_versao) para ref e prev
+--   series: contract_series ativas em ref + billing_status/suspended_until + pausa por renegociação
+--   charges: contract_charges recorrencia por (series_id, ref_month) → seriesMonthTotal
+--   tiers: billing_os_tiers por series_id para valor por faixa
+--   eval: aplica usage_driven (uso só na original), correction e exceções (série → cliente)
+--   payments: LEFT JOIN billing_payments (client_id, series_id, ref_month) → status/delay_days
+--   SELECT c.fantasy_name, ... ORDER BY c.fantasy_name;
 
 -- 2. get_financeiro_detalhe(p_client_id int, p_ref_month text)
--- RETURNS TABLE(modulo_nome text, modulo_valor numeric, modulo_pct numeric, modulo_status text,
---   nome text, email text, ativo boolean, data_ultimo_login text, data_ultima_os text, codigo_ultima_os text,
---   excecao jsonb, correcao jsonb)
--- Same guard; returns rateio breakdown + profissionais/OS list for that client/month.
+-- RETURNS TABLE(
+--   series jsonb,     -- [{series_id,label,kind,billing_type,mode,min,uso,excedente,excecoes,total}]
+--   modulos jsonb,    -- [{nome, valor_rateado, pct, status, soma_ok, diff}]
+--   excecoes jsonb,   -- [{id,escopo,type,percent,reduced_value,valid_from,valid_to,reason,created_by,created_at}]
+--   correcao jsonb,   -- {index,percent,applied} | null
+--   payment jsonb,    -- {series_id,status,delay_days,paid_at}[] do mês
+--   profissionais jsonb  -- [{nome,email,ativo,data_ultimo_login,data_ultima_os,codigo_ultima_os}]
+-- )
+-- Same guard; 1 RPC por expand (lazy).
 
 -- 3. get_financeiro_export(p_ref_month text)
--- RETURNS TABLE(client_id int, client_name text, cnpj text, saas_id text, nome text, email text, ativo boolean, data_ultimo_login text, data_ultima_os text, codigo_ultima_os text, modulo text, valor_rateado numeric, mrr_min numeric, mrr_real numeric, excedente numeric, excecao_tipo text)
--- Union of detalhe for all clients; used by CSV analítico global.
+-- RETURNS TABLE per (client × series) row for CSV analítico:
+--   client_name, cnpj, saas_id, series_label, series_kind, billing_type, mode,
+--   billing_floor, uso, billable, valor_unit, correction_percent, mrr_min, mrr_real,
+--   excedente, excecao_desc, excecao_escopo, payment_status, delay_days,
+--   nome, email, ativo, data_ultimo_login, data_ultima_os, codigo_ultima_os
 ```
 
 ### 4.4 Frontend data shapes
@@ -290,30 +361,48 @@ interface FinanceiroRow {
   client_id: number
   client_name: string
   cnpj: string | null
-  saas_id: string | null // contract_saas_id
-  billing_type: 'por_licenca' | 'por_os'
-  piso: number
+  saas_id: string | null
+  billing_type: 'por_licenca' | 'por_os' | 'mista'
+  billing_floor: number
   uso_cur: number
+  uso_prev: number | null
   billable: number
   valor_unit: number
-  valor_corr: number
   correction_percent: number | null
   correction_index: string | null
   mrr_min: number
   mrr_real: number
   excedente: number
-  excecao_tipo: string | null // isencao_total | desconto_percent | valor_reduzido | piso_zerado
-  excecao_vigencia: string | null // "2026-01 a 2026-03"
-  mrr_delta: number | null
-  uso_prev: number | null
+  series_count: number
+  series_kinds: string | null
+  excecao_desc: string | null
+  excecao_escopo: 'cliente' | 'serie' | null
+  payment_status: 'adimplente' | 'inadimplente' | null
   delay_days: number | null
+  paid_at: string | null
+  mrr_delta: number | null
   contract_renewal: string | null
 }
 
+interface FinanceiroSeriesDetail {
+  series_id: string
+  label: string
+  kind: 'original' | 'aditivo' | 'renegociacao'
+  billing_type: 'por_licenca' | 'por_os'
+  mode: 'travado' | 'base_excedente'
+  min: number
+  uso: number
+  excedente: number
+  excecoes: number
+  total: number
+}
+
 interface FinanceiroDetail {
-  modulos: { nome: string, valor_rateado: number, pct: number, status: string }[]
-  excecao: { id: string, type: string, percent: number | null, reduced_value: number | null, valid_from: string, valid_to: string, reason: string, created_by: string } | null
+  series: FinanceiroSeriesDetail[]
+  modulos: { nome: string, valor_rateado: number, pct: number, status: string, soma_ok: boolean, diff: number }[]
+  excecoes: { id: string, escopo: 'cliente' | 'serie', type: string, percent: number | null, reduced_value: number | null, valid_from: string, valid_to: string, reason: string, created_by: string, created_at: string }[]
   correcao: { index: string, percent: number, applied: boolean } | null
+  payment: { series_id: string, status: string, delay_days: number, paid_at: string | null }[]
   profissionais: { nome: string, email: string, ativo: boolean, data_ultimo_login: string, data_ultima_os: string, codigo_ultima_os: string }[]
 }
 ```
@@ -322,28 +411,52 @@ interface FinanceiroDetail {
 
 ## 5. Implementation Phases
 
-### Phase 1 — DB + Flag + RLS + RPCs
+### Phase 0 — Docs + validation gate (HTML)
 
-**Status:** Not started
+**Status:** Complete (docs) — awaiting Financeiro/Vendas validation.
 
-**Rationale:** Base de tudo depende do DDL. Sem tabelas, RLS e RPCs não há hook nem UI testável. Isolar DDL em fase própria permite `supabase db push --include-all` + rollback limpo antes de tocar React. Flag dedicada (Q6 Sim) dá kill-switch independente de `financial_data`.
+**Rationale:** As mudanças de séries (2026-09-07) e de acesso (2026-09-07) invalidaram premissas do SDD v0.1. Antes de escrever DDL, alinhar regras com Financeiro e Vendas num documento não-técnico evita migration errada e retrabalho.
 
-**Scope:**
-- Migration core: `billing_exceptions`, `billing_corrections`, flag `cockpit_financeiro`, RLS, 3 RPCs
+**Scope:** SDD v0.2, adendo BRD 0.5, HTML de regras para validação.
 
 #### Checklist
 
-- [ ] **Migration:** Create via `supabase migration new financeiro_cockpit_core` → `supabase/migrations/20260901000001_financeiro_cockpit_core.sql`:
-  - [ ] `CREATE TABLE billing_exceptions` + `billing_corrections` (§4.2) + indexes `client_id`, `(valid_from, valid_to)`
-  - [ ] `CHECK` for `type` enum + `valid_to >= valid_from` + `reason >=10`
-  - [ ] `INSERT INTO feature_flags (key, description, enabled, allowed_roles)` → `('cockpit_financeiro','Cockpit Financeiro — MRR real, excedente e exceções', false, ARRAY['admin','manager','finance','sales']) ON CONFLICT DO UPDATE SET allowed_roles = ...`
-  - [ ] RLS: `ENABLE RLS` + policies — `SELECT` for `admin,manager,finance,sales`; `ALL` for `admin,finance,sales` (manager read-only, csm/analyst no access) via `public.get_user_role()`
-  - [ ] `REVOKE ALL ON TABLE billing_exceptions, billing_corrections FROM anon, public; GRANT SELECT,INSERT,UPDATE,DELETE TO authenticated`
-  - [ ] RPCs: `get_financeiro_cockpit(text)`, `get_financeiro_detalhe(int,text)`, `get_financeiro_export(text)` — `SECURITY DEFINER SET search_path=public` + `REVOKE anon/public + GRANT authenticated` + guard `coalesce(get_user_role(),'none') NOT IN ('admin','manager','finance','sales') → 42501`
-- [ ] **Fix billing.js (prepare):** Patch `src/lib/billing.js` — add `mode` param, default `mode='legacy'` keeps `base+sum`, `mode='rateio'` returns `base` (Q2), keep callers working
+- [x] **SDD v0.2:** rewrite `docs/sdd/financeiro-cockpit-sdd.md` (séries, `usage_driven`, exceções híbridas, papéis, fases)
+- [x] **BRD:** addendum 0.5 em `docs/brd/brd-financeiro-cockpit.md` + linha no Histórico
+- [x] **HTML rules doc:** `docs/sdd/financeiro-cockpit-regras.html` (não-técnico, Financeiro + Vendas, exemplos A–F, 10 seções + perguntas de validação)
+- [ ] **Validation gate:** Financeiro/Vendas respondem as perguntas do HTML → ajustes voltam para este SDD antes da Phase 1
+- [x] **Index:** `index-updater` — linha do BRD no `.agents/docs-index.md` (`0.4 → 0.5` + HTML de validação)
+
+#### Implementation Log (Phase 0)
+
+| Date | Commit | Files | Summary |
+|---|---|---|---|
+| 2026-09-11 | (pending) | `docs/sdd/financeiro-cockpit-sdd.md`, `docs/sdd/financeiro-cockpit-regras.html`, `docs/brd/brd-financeiro-cockpit.md` | v0.2 série-aware + HTML de validação + adendo BRD |
+
+---
+
+### Phase 1 — DB core + flag + RLS + RPCs + usage_driven
+
+**Status:** Not started (blocked on Phase 0 validation gate)
+
+**Rationale:** Base de tudo depende do DDL. Isolar DDL permite `supabase db push --include-all` + rollback limpo antes de tocar React. Flag dedicada dá kill-switch independente de `financial_data`.
+
+**Scope:**
+- Migration `financeiro_cockpit_core`: `usage_driven` + backfill, `billing_exceptions`, `billing_corrections`, flag, RLS, 3 RPCs series-aware
+
+#### Checklist
+
+- [ ] **Migration:** `supabase migration new financeiro_cockpit_core` → `supabase/migrations/<ts>_financeiro_cockpit_core.sql`:
+  - [ ] `ALTER TABLE contract_series ADD COLUMN usage_driven boolean NOT NULL DEFAULT false` + `COMMENT` + backfill `kind='original'` (§4.2)
+  - [ ] `CREATE TABLE billing_exceptions` (híbrida, 3 tipos) + CHECKs + indexes `client_id`, `series_id`, `(valid_from, valid_to)` + trigger `set_updated_at`
+  - [ ] `CREATE TABLE billing_corrections` + PK `(client_id, ref_month)` + CHECK `index`/`percent`
+  - [ ] Flag `cockpit_financeiro` `enabled false` `[admin,manager,finance]` com `ON CONFLICT DO UPDATE`
+  - [ ] RLS: SELECT `admin,manager,finance`; ALL `admin,finance`; `REVOKE anon/public` + `GRANT authenticated`
+  - [ ] RPCs 1-3 (§4.3) — `SECURITY DEFINER SET search_path=public` + guard `admin,manager,finance` + `REVOKE anon/public GRANT authenticated`
+  - [ ] RPC precisa refletir `usage_driven`, pausa de renegociação, tiers por série, exceções série→cliente e `billing_payments` PK tripla (T6)
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **DB push:** `supabase db push --include-all` — verify Dashboard > Table Editor + `select * from feature_flags where key='cockpit_financeiro'`
-- [ ] **Commit:** `git add supabase/migrations/20260901000001_financeiro_cockpit_core.sql src/lib/billing.js && git commit -m "feat(financeiro): phase 1 DB + flag + RLS + RPCs" && git push origin main`
+- [ ] **DB push:** `supabase db push --include-all` — verify `billing_exceptions`/`billing_corrections` + flag + `contract_series.usage_driven` + `select get_financeiro_cockpit('2026-08')` (service role)
+- [ ] **Commit:** `git add supabase/migrations/<ts>_financeiro_cockpit_core.sql && git commit -m "feat(financeiro): phase 1 DB core (series-aware) + flag + RPCs" && git push origin main`
 
 #### Implementation Log (Phase 1)
 
@@ -353,38 +466,36 @@ interface FinanceiroDetail {
 
 ---
 
-### Phase 2 — Hook + Base Page (KPIs, Toolbar, Table Accordion, No Exceptions)
+### Phase 2 — Hook + Base Page + usage_driven no form
 
 **Status:** Not started
 
-**Rationale:** Depois do DDL, entregar o esqueleto navegável já com dados reais (mesmo sem exceções/correções) valida o fluxo `DONC API → client_usage → RPC → React Query → tabela`. Copiar o padrão lazy do Profissionais isola risco de performance (1 RPC por expand) e permite testar `ref_month` via `sync_service_log` antes de adicionar escrita.
+**Rationale:** Depois do DDL, o esqueleto navegável com dados reais valida o fluxo `DONC API → client_usage → séries → RPC → React Query → tabela`. O checkbox `usage_driven` no form mantém a paridade entre o MRR mostrado no contrato e o cockpit (evita divergência de números).
 
 **Scope:**
-- Hook `useFinanceiroCockpit`, página `FinanceiroCockpitPage` com KPIs T1-T7, toolbar, tabela accordion lazy, sem CRUD
+- `src/lib/financeiro.js`, `useFinanceiroCockpit`, `FinanceiroCockpitPage` (KPIs T1-T7, toolbar, accordion lazy), rota/card/flag, checkbox `usage_driven` + `resolveMRR` parity
 
 #### Checklist
 
+- [ ] **Helpers:** Create `src/lib/financeiro.js` — `formatBRL`, `monthLabel`, `deltaDisplay`, `defaultRefMonth` (prev month), `filterByBillingType`, `isExcecaoVigente`, `seriesModeLabel`, `tierValue` (espelho puro da §4.1)
 - [ ] **Hook:** Create `src/hooks/useFinanceiroCockpit.js`:
-  - [ ] `useQuery(['financeiro_available_months'])` — `select ref_month from sync_service_log where service_name='donc-api' and status='success' and ref_month is not null order by ref_month desc` (distinct via Set), `staleTime 10min`
+  - [ ] `useQuery(['financeiro_available_months'])` — `sync_service_log` service `donc-api`, distinct `ref_month` desc, `staleTime 10min` (mesmo padrão do `useProfissionaisCockpit.js`)
   - [ ] `useQuery(['financeiro_cockpit', refMonth], () => supabase.rpc('get_financeiro_cockpit', {p_ref_month: refMonth}))` — `staleTime 5min`, `enabled !!profile && !!refMonth`
   - [ ] Return `{ months, monthsLoading, data, isLoading, error, refetch }`
-- [ ] **Helpers:** Create `src/lib/financeiro.js` — `formatBRL`, `monthLabel`, `deltaDisplay`, `defaultRefMonth` (prev month), `filterByBillingType`, `isExcecaoVigente`
-- [ ] **Page:** Create `src/pages/FinanceiroCockpitPage.jsx` (copy `ProfissionaisCockpitPage.jsx:1-736`):
-  - [ ] Imports: `useFinanceiroCockpit`, `supabase`, `PageHeader`, `Icons`, `useAuth`, `useFeatureFlags`, `formatBRL`, `ChevronIcon`, `BackButton`
+- [ ] **Page:** Create `src/pages/FinanceiroCockpitPage.jsx` (copy `ProfissionaisCockpitPage.jsx` 1:1):
   - [ ] Wrapper `p-6 max-w-7xl mx-auto` + `BackButton → /cockpits` + `PageHeader title="Financeiro · Faturamento" description={monthDisplay}`
-  - [ ] KpiCards `grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5` — T1 MRR mínimo, T2 MRR real, T3 Excedente + deltas `ROUND((cur−prev)/prev*100,1)` — highlight `bg-donc-red/10` if queda >35%
-  - [ ] Secondary stats T4-T7 (`grid grid-cols-2 sm:grid-cols-4 gap-3`)
-  - [ ] Toolbar `mt-5 flex items-center gap-3 flex-wrap`: `select ref_month` (default mês anterior), `input search pl-9 Icons.Search` (filter `client_name/CNPJ/SaaS_ID`), `select billing_type`, `toggle "Só excedentes"` (`useState` + `role="switch"`), `CSV dropdown absolute right-0 w-64`, `lastSync ml-auto Icons.Clock`
-  - [ ] Table `bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden` + `thead bg-donc-navy` cols `▸ | Cliente (CNPJ·SaaS_ID) | Tipo | Piso | Uso | Billable | Valor unit. | MRR mínimo | MRR real | Exceção badge | Δ`
-  - [ ] Row expand lazy: `supabase.rpc('get_financeiro_detalhe', {p_client_id, p_ref_month})` on first expand, `detailCache` by `clientId`, states `loading animate-spin`, `error + Tentar novamente`, `empty py-12`
-  - [ ] Detail shows: breakdown por módulo read-only, profissionais/OS list (reuse `nome/email/data_ultimo_login/data_ultima_os/codigo_ultima_os` when `por_licenca`)
-  - [ ] LastSync query `['last_donc_sync', refMonth]` — `sync_service_log finished_at` `toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo'})`
-- [ ] **Routing:** Modify `src/App.jsx` — `import FinanceiroCockpitPage` + `<Route path="/financeiro-cockpit" element={<FinanceiroCockpitPage />} />` inside `PrivateRoute > AppLayout`
-- [ ] **Gateway:** Modify `src/pages/CockpitsPage.jsx` — add card `cockpit_financeiro` (gated `isEnabled('cockpit_financeiro', effectiveRole) && isEnabled('financial_data', effectiveRole)`), `src/components/settings/SettingsFeatureFlags.jsx` group `Cockpits & Dashboards`
-- [ ] **Icons:** Verify `src/lib/icons.js` — `Wallet`, `Search`, `Clock`, `FileDown`, `Download`, `ChevronDown` exist; add alphabetically if missing, check duplicates
+  - [ ] KpiCards T1-T3 + deltas (`mrr_delta`), highlight `bg-donc-red/10` se queda >35%
+  - [ ] Secondary T4-T7 (`grid grid-cols-2 sm:grid-cols-4 gap-3`)
+  - [ ] Toolbar (ref_month default mês anterior, search, filter `billing_type`, toggle "Só excedentes", CSV dropdown, lastSync)
+  - [ ] Table com colunas collapsed (§3) + row highlight isento (`bg-donc-amber/10`) / inadimplente (`bg-donc-red/10`)
+  - [ ] Row expand lazy `get_financeiro_detalhe` + `detailCache` + subtable Séries do mês + rateio + exceções + adimplência + profissionais/OS
+  - [ ] LastSync `['last_donc_sync', refMonth]` (`finished_at` `toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo'})`)
+- [ ] **Routing/Gateway:** `src/App.jsx` `<Route element={<CockpitRoute flagKey="cockpit_financeiro" />}><Route path="/financeiro-cockpit" element={<FinanceiroCockpitPage />} /></Route>`; `CockpitsPage.jsx` card `{ key:'cockpit_financeiro', title:'Financeiro', icon: Icons.Wallet, href:'/financeiro-cockpit', color:'text-donc-verde', bgColor:'bg-donc-verde/10' }`; `SettingsFeatureFlags.jsx` grupo `Cockpits & Dashboards`
+- [ ] **Icons:** `src/lib/icons.js` — add `Percent` (e `BadgePercent` se usado) alfabético, check duplicates
+- [ ] **usage_driven (form parity):** Modify `src/components/clients/ClientFormContent.jsx` (Plano de cobrança) — checkbox "Cobrar excedente por uso acima do piso" (default por kind: original=true, aditivo/renegociacao=false); `src/hooks/useContractCharges.js` persiste `usage_driven`; `src/lib/contractRules.js` `resolveMRR`/preview consideram o flag (sem regras: base+excedente → `floor×base` mínimo com excedente destacado)
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify:** `supabase db push --include-all` (if RPC tweak), test on `https://donccx-donccx.vercel.app/financeiro-cockpit` with flag off (gate) and on for `admin/finance/sales`
-- [ ] **Commit:** `git add src/hooks/useFinanceiroCockpit.js src/lib/financeiro.js src/pages/FinanceiroCockpitPage.jsx src/App.jsx src/pages/CockpitsPage.jsx src/components/settings/SettingsFeatureFlags.jsx src/lib/icons.js && git commit -m "feat(financeiro): phase 2 hook + base page (KPIs, toolbar, accordion)" && git push origin main`
+- [ ] **Verify:** test on `https://donccx-donccx.vercel.app/financeiro-cockpit` with flag off (redirect) and on for `admin/finance`; conferir MRR do cockpit × preview do form para 1 cliente com excedente
+- [ ] **Commit:** `git add src/lib/financeiro.js src/hooks/useFinanceiroCockpit.js src/pages/FinanceiroCockpitPage.jsx src/App.jsx src/pages/CockpitsPage.jsx src/components/settings/SettingsFeatureFlags.jsx src/lib/icons.js src/components/clients/ClientFormContent.jsx src/hooks/useContractCharges.js src/lib/contractRules.js && git commit -m "feat(financeiro): phase 2 hook + base page + usage_driven form parity" && git push origin main`
 
 #### Implementation Log (Phase 2)
 
@@ -394,41 +505,34 @@ interface FinanceiroDetail {
 
 ---
 
-### Phase 3 — Exceptions & Correction (CRUD, Toggle, Badges, Rateio, Validation sum==base)
+### Phase 3 — Exceptions & Correction & Payment (CRUD, Toggle, Badges, Mirror)
 
 **Status:** Not started
 
-**Rationale:** Com a base navegável validada, adicionar escrita é o maior risco de permissão (Q4a sales escrita total vs manager leitura). Isolar CRUD + correção em fase própria permite testar RLS por role sem quebrar exports. Corrigir `billing.js` para rateio (Q2) aqui evita inflar MRR antes dos relatórios auditáveis.
+**Rationale:** Com a base navegável validada, adicionar escrita é o maior risco de permissão (admin/finance write, manager read-only). Isolar CRUD + correção + adimplência permite testar RLS por role sem quebrar exports.
 
 **Scope:**
-- CRUD `billing_exceptions` (4 tipos), toggle `billing_corrections.applied`, badges, rateio breakdown + validation `sum(mods)==base ±0.01`, fix `billing.js`
+- CRUD `billing_exceptions` (escopo cliente/série), toggle `billing_corrections.applied`, `PaymentToggle` adimplência, badges, espelho no detalhe
 
 #### Checklist
 
-- [ ] **Helpers:** Update `src/lib/financeiro.js` — `getValorCorr(base, correction)`, `getBillable(uso, pisoEf)`, `getMrrReal(billable, valorCorr, excecao)`, `rateioBreakdown(mods, valorCorr)`, `validateRateio(mods, base) → {ok, diff}` (tolerance 0.01)
-- [ ] **Fix billing.js:** Modify `src/lib/billing.js`:
-  - [ ] `calculateMRR(base, floor, units, mods, opts={mode:'rateio'})` — if `mode==='rateio'` then `unitValue = base` (mods only breakdown); else `base+sum(mods)` (legacy)
-  - [ ] `calculateUnitValue(base, mods, opts)` — same switch
-  - [ ] Export `validateRateioSum(mods, base)` for warning
-- [ ] **Exception modal:** Create `src/components/financeiro/ExcecaoModal.jsx` (drawer `fixed right-0 w-[420px]` or modal `fixed inset-0 bg-black/20` + `bg-bg-primary border rounded-xl shadow-xl max-w-lg`):
-  - [ ] Form: `type select` (`isencao_total | desconto_percent | valor_reduzido | piso_zerado`), `percent/reduced_value` conditional, `valid_from/to date`, `reason textarea >=10`, `created_by/at` audit
-  - [ ] Validation: `type` required, `desconto_percent→percent 0-100`, `valor_reduzido→reduced_value>0`, `valid_from <= valid_to`, overlapping vigência warning
-  - [ ] Calls: `supabase.from('billing_exceptions').insert/update/delete` — 42501 if role lacks write
-  - [ ] List inline on row expanded + `ClientForm.jsx` new section "Exceções" (read `billing_exceptions` by `client_id`)
+- [ ] **Exception modal:** Create `src/components/financeiro/ExcecaoModal.jsx` (drawer `fixed right-0 w-[420px]` ou modal `max-w-lg`):
+  - [ ] Campos: escopo (`Todas as séries` / série específica via select de `contract_series` ativas), `type` (3 tipos), `percent`/`reduced_value` condicionais, `valid_from/to`, `reason textarea >=10`
+  - [ ] Validação: `valid_from <= valid_to`, `percent 1-100`, `reduced_value > 0`, aviso de vigência sobreposta mesmo escopo+tipo
+  - [ ] Calls: `supabase.from('billing_exceptions').insert/update/delete` (42501 se role sem write) + audit `created_by/updated_by`
+  - [ ] Lista inline no row expandido + botões `+ Exceção` / `Editar` gated `canWrite = ['admin','finance'].includes(effectiveRole)` (senão disabled + toast `Ação não permitida`)
 - [ ] **Correction toggle:** Create `src/components/financeiro/CorrecaoToggle.jsx`:
-  - [ ] Inputs `correction_index` (IPCA/IGPM select) + `correction_percent` + toggle `applied` per `(client_id, ref_month)` → `supabase.from('billing_corrections').upsert({client_id, ref_month, index, percent, applied, created_by}, {onConflict:'client_id,ref_month'})`
-  - [ ] Default `applied=true` if `contract_renewal` vencido in `ref_month`
-  - [ ] Affects `mrr_min`/`mrr_real` realtime + badge `Corrigido IPCA 4,62%` + `role="switch"` (§2)
-- [ ] **Page update:** Modify `src/pages/FinanceiroCockpitPage.jsx`:
-  - [ ] Badges: `Isento 02/2026` (`bg-donc-amber/10`), `Desconto 10%` (`bg-donc-sky/10`), `Piso zerado`, `Corrigido`
-  - [ ] Row highlight `bg-donc-amber/10` if isento, `bg-donc-red/10` if queda >35%
-  - [ ] Detail subtables: rateio `Módulo | Valor rateado | % | Status` + warning if `!ok` (`"Soma rateada diverge em R$ diff"`)
-  - [ ] Buttons `+ Exceção` / `Editar` gated `canWrite = ['admin','finance','sales'].includes(effectiveRole)` else `toast.error('Ação não permitida', {icon:'⚠️'})` + disabled
-  - [ ] Invalidate `['financeiro_cockpit', refMonth]` after mutation + `loadDetail` for Q4b reprocess
-- [ ] **ClientForm:** Modify `src/components/clients/ClientForm.jsx` — add section "Exceções" (list + modal)
+  - [ ] `correction_index` (IPCA/IGPM), `correction_percent`, toggle `applied` por `(client_id, ref_month)` → `upsert` `{client_id, ref_month, index, percent, applied, created_by}`, `onConflict 'client_id,ref_month'`
+  - [ ] Badge `Corrigido IPCA 4,62%` + `role="switch"`; afeta `mrr_min`/`mrr_real` realtime; invalidate `['financeiro_cockpit', refMonth]`
+- [ ] **Payment toggle:** Create `src/components/financeiro/PaymentToggle.jsx`:
+  - [ ] Por `(client_id, series_id, ref_month)`: `status adimplente|inadimplente`, `delay_days`, `paid_at`, `note` → `upsert` `onConflict 'client_id,series_id,ref_month'`; write `admin,finance` (RLS existente)
+  - [ ] Badge collapsed `Adimplente` / `Inadimplente 12d`; T6 soma `mrr_real` das faturas inadimplentes
+  - [ ] Reusar `useBillingPaymentsMutations` (`src/hooks/useBillingPayments.js`) quando possível
+- [ ] **Page update:** Modify `FinanceiroCockpitPage.jsx` — badges `Isento`, `Desconto 10%`, `Valor reduzido`, `Corrigido`, `Suspenso até`; row highlight; warning de rateio (`validateRateio` ±0,01); invalidate após mutações
+- [ ] **Mirror:** Modify `src/components/clients/tabs/operacional/ClientSubDados.jsx` — card read-only "Exceção vigente" (tipo, escopo, vigência, motivo) + "Adimplência" latest (se ainda não existir via `BillingSchedule`)
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify:** RLS matrix `admin/finance/sales` write ok, `manager` 42501, `csm` forbidden; rateio warning `Core 35 + Chat 24,90 = 59,90` ok
-- [ ] **Commit:** `git add src/lib/financeiro.js src/lib/billing.js src/components/financeiro/ExcecaoModal.jsx src/components/financeiro/CorrecaoToggle.jsx src/pages/FinanceiroCockpitPage.jsx src/components/clients/ClientForm.jsx && git commit -m "feat(financeiro): phase 3 exceptions + correction toggle + rateio fix" && git push origin main`
+- [ ] **Verify:** RLS matrix — `admin/finance` write ok, `manager` read-only (42501 no write), `sales/csm` sem acesso; exceção série "aditivo 100% off" zera só a série; correção on/off reflete em KPI e export
+- [ ] **Commit:** `git add src/components/financeiro/ src/pages/FinanceiroCockpitPage.jsx src/components/clients/tabs/operacional/ClientSubDados.jsx && git commit -m "feat(financeiro): phase 3 exceptions + correction + payment toggles" && git push origin main`
 
 #### Implementation Log (Phase 3)
 
@@ -438,68 +542,23 @@ interface FinanceiroDetail {
 
 ---
 
-### Phase 3.5 — Adimplência (billing_payments) — cobrado externamente, health_financeiro
+### Phase 4 — Exports + Audit
 
 **Status:** Not started
 
-**Rationale:** Cobrança executada em plataforma externa sem integração previsível (válido 2026). Finance marca manualmente `billing_payments(status, delay_days, paid_at)` por `ref_month` no cockpit. `health_financeiro` precisa de `delay_days` do último mês; `T6 Valor em atraso` já prevê `delay_days>0`. Isolar em fase 3.5 permite entregar motor de contrato (Empresas v2) sem bloquear financeiro, mas antes de exports (que incluem `Adimplente/Inadimplente`).
+**Rationale:** Exports são o entregável auditável (CNPJ+SaaS_ID). Só fazem sentido com exceções/correções persistidas. Retroatividade exige alerta de reemissão.
 
 **Scope:**
-
-- Tabela `billing_payments(client_id,ref_month)` + trigger mirror `clients.delay_days` + RPC wiring + UI badge
+- CSV sintético/analítico (toolbar + row), PDF `window.print()`, delta, banner retroativo
 
 #### Checklist
 
-- [ ] **Migration:** `supabase migration new financeiro_cockpit_adimplencia` → `supabase/migrations/20260901000002_financeiro_cockpit_adimplencia.sql`:
-  - [ ] `CREATE TABLE billing_payments (client_id int FK clients ON DELETE CASCADE NOT NULL, ref_month text CHECK YYYY-MM NOT NULL, status text CHECK (adimplente,inadimplente) NOT NULL, delay_days int DEFAULT 0 CHECK >=0, paid_at date, note text, updated_by uuid FK profiles, updated_at timestamptz default now(), PRIMARY KEY (client_id, ref_month))`
-  - [ ] `CREATE INDEX idx_billing_payments_ref_month ON billing_payments(ref_month);`
-  - [ ] `ALTER TABLE billing_payments ENABLE ROW LEVEL SECURITY; CREATE POLICY billing_payments_select ON billing_payments FOR SELECT USING (public.get_user_role() IN ('admin','manager','finance','sales')); CREATE POLICY billing_payments_write ON billing_payments FOR ALL USING (public.get_user_role() IN ('admin','finance')) WITH CHECK (public.get_user_role() IN ('admin','finance'))` + `REVOKE anon/public GRANT authenticated`
-  - [ ] `CREATE OR REPLACE FUNCTION sync_delay_days() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE public.clients SET delay_days = (SELECT delay_days FROM public.billing_payments WHERE client_id=NEW.client_id ORDER BY ref_month DESC LIMIT 1) WHERE id=NEW.client_id; RETURN NEW; END; $$; CREATE TRIGGER trg_sync_delay_days AFTER INSERT OR UPDATE ON billing_payments FOR EACH ROW EXECUTE FUNCTION sync_delay_days();`
-  - [ ] Seed: `INSERT INTO billing_payments (client_id, ref_month, status, delay_days) SELECT id, to_char(now(),'YYYY-MM'), CASE WHEN delay_days>0 THEN 'inadimplente' ELSE 'adimplente' END, delay_days FROM clients WHERE delay_days IS NOT NULL ON CONFLICT DO NOTHING;`
-- [ ] **RPC:** Modify `supabase/migrations/20260901000001_financeiro_cockpit_core.sql` — `get_financeiro_cockpit` `LEFT JOIN billing_payments bp ON bp.client_id=c.id AND bp.ref_month=p_ref_month` → `bp.status, bp.delay_days, bp.paid_at` aliased `payment_status`, `delay_days` (coalesce `c.delay_days` fallback); `get_financeiro_detalhe` same; `get_financeiro_export` include `payment_status | Inadimplente (12d)`
-- [ ] **Helpers:** Update `src/lib/financeiro.js` — `paymentBadge(status, delay_days) → {label, color}` (`adimplente bg-donc-verde/10`, `inadimplente bg-donc-red/10`), `isInadimplente(row)`
-- [ ] **Page:** Modify `src/pages/FinanceiroCockpitPage.jsx`:
-  - [ ] Row expanded barra: add `PaymentToggle` (select `adimplente/inadimplente` + `delay_days` input + `paid_at` date) gated `canWrite = ['admin','finance'].includes(effectiveRole)` else read-only badge; `supabase.from('billing_payments').upsert({client_id, ref_month, status, delay_days, paid_at, updated_by})` + `invalidate ['financeiro_cockpit', refMonth]`
-  - [ ] Table collapsed: add `col Pagamento` badge `Adimplente` / `Inadimplente 12d` + `delay_days` tooltip
-  - [ ] KPI T6 uses `billing_payments.delay_days` (via RPC) not just `clients.delay_days`
-- [ ] **Detail mirror:** `ClientSubDados` read-only `Último status: Inadimplente (12d) — ref 2026-08` via `useClient` latest `billing_payments` (fallback `clients.delay_days`)
-- [ ] **Build:** `npm run build`
-- [ ] **Verify:** finance marks `2026-08 inadimplente 12d` → `clients.delay_days=12` (trigger) → `health_financeiro` penalizado + `T6` soma `mrr_real` desse cliente; `adimplente` → `delay_days=0` + health recupera
-- [ ] **Commit:** `git add supabase/migrations/20260901000002_financeiro_cockpit_adimplencia.sql src/lib/financeiro.js src/pages/FinanceiroCockpitPage.jsx && git commit -m "feat(financeiro): phase 3.5 adimplencia (billing_payments) + health wiring" && git push origin main`
-
-#### Implementation Log (Phase 3.5)
-
-| Date | Commit | Files | Summary |
-|---|---|---|---|
-| — | — | — | — |
-
----
-
-### Phase 4 — Exports + Audit (CSV Synthetic/Analytic + PDF with CNPJ/SaaS_ID, Delta, Retroactive Reprocess)
-
-**Status:** Not started
-
-**Rationale:** Exports são o entregável auditável (Q5 CNPJ+SaaS_ID). Só fazem sentido com exceções/correções persistidas (fase 3). Retroatividade Q4b (reprocessa passado, gera delta, exige reemissão) precisa de alerta no export — deixar para esta fase evita bloquear o esqueleto por regra de reemissão.
-
-**Scope:**
-- CSV sintético/analítico (toolbar global + individual row), PDF `window.print()`, delta, snapshots por `ref_month`, banner retroativo Q4b
-
-#### Checklist
-
-- [ ] **Exports:** Modify `src/pages/FinanceiroCockpitPage.jsx`:
-  - [ ] Toolbar CSV dropdown (mirror Profissionais): `EXPORT_VIEWS = { faturavel: {label:'Faturável'}, isento: {label:'Isento'}, geral: {label:'Geral'} }` default `geral`, `ViewToggle` segmented `inline-flex rounded-md border`
-  - [ ] `csvSintetico(rows)` — in-memory `filtered`, cols `Cliente | CNPJ | SaaS_ID | Tipo | Piso | Uso | Billable | Valor unit. | Valor corrigido | Correção (%) | MRR mínimo | MRR real | Excedente | Exceção | Vigência | Δ MRR` — `Blob('\uFEFF'...)` BOM, `text/csv;charset=utf-8`, `URL.createObjectURL`
-  - [ ] `csvAnalitico(rows)` — `supabase.rpc('get_financeiro_export', {p_ref_month: refMonth})` global, `detailCache[clientId].data` individual — cols above + `Módulo | Valor rateado | %` + profissionais/OS when `por_licenca`
-  - [ ] Filenames: `financeiro-sintetico-${view}-${refMonth}.csv` / `financeiro-analitico-${view}-${refMonth}.csv` / `financeiro-analitico-${view}-${client}-${refMonth}.csv`
-  - [ ] `exportPdf(row)` — `<!DOCTYPE html><meta charset="utf-8">` + `div.summary` cards `MRR mínimo | MRR real | Excedente` + badges + table `tabular-nums` + `text-donc-verde/red` — `window.open + document.write + w.print()` `@media print .no-print{display:none}`
-  - [ ] Header PDF: `Financeiro · ${client_name} — ${monthLabel(refMonth)} · ${view.label}` + `CNPJ / SaaS_ID` subtitle
-  - [ ] `downloadFile(content, filename, mime)` helper with BOM (copy `ProfissionaisCockpitPage.jsx:48`)
-- [ ] **Retroatividade Q4b:** Add:
-  - [ ] If `billing_exceptions.valid_from` < min exported `ref_month`, compute delta vs snapshot previous `mrr_real` and banner `"Exceção retroativa — relatório ${refMonth} reprocessado (Δ R$ X). Reemissão obrigatória."` + `toast`
-  - [ ] RPC include `mrr_real_prev_snapshot` or client-side snapshot in `localStorage` for delta
-  - [ ] CSV/PDF include `Δ Retroativo` column when applicable
+- [ ] **CSV:** `EXPORT_VIEWS = { faturavel, isento, geral }` (`ViewToggle` segmented); `csvSintetico(rows)` colunas `Cliente | CNPJ | SaaS_ID | Tipo | Piso | Uso | Billable | Valor unit. | Correção (%) | MRR mínimo | MRR real | Excedente | Exceção | Escopo | Adimplência | Δ MRR`; `csvAnalitico` via `supabase.rpc('get_financeiro_export')` (global) + `detailCache` (row) com `Série | Modo | Módulo | Valor rateado | %` + profissionais/OS when `por_licenca`
+- [ ] **Download:** `downloadFile(content, filename, mime)` com BOM `\uFEFF` (copy `ProfissionaisCockpitPage.jsx:48`); filenames `financeiro-sintetico-${view}-${refMonth}.csv` / `financeiro-analitico-...`
+- [ ] **PDF:** `exportPdf(row)` `<!DOCTYPE html><meta charset="utf-8">` + cards `MRR mínimo | MRR real | Excedente` + badges + table `tabular-nums` + header `Financeiro · ${client_name} — ${monthLabel(refMonth)} · ${view.label}` + `CNPJ / SaaS_ID`; `window.open + document.write + w.print()` `@media print .no-print{display:none}`
+- [ ] **Retroatividade:** se `billing_exceptions.valid_from` < mês exportado, banner `"Exceção retroativa — relatório ${refMonth} reprocessado (Δ R$ X). Reemissão obrigatória."` + `toast` + coluna `Δ Retroativo`
 - [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify:** Excel PT-BR opens with BOM, PDF print preview ok, retroactive exception triggers delta banner + re-emissão
+- [ ] **Verify:** Excel PT-BR abre com BOM, PDF ok, retroativo dispara delta + reemissão
 - [ ] **Commit:** `git add src/pages/FinanceiroCockpitPage.jsx src/hooks/useFinanceiroCockpit.js && git commit -m "feat(financeiro): phase 4 exports CSV/PDF + retroactive delta" && git push origin main`
 
 #### Implementation Log (Phase 4)
@@ -510,28 +569,25 @@ interface FinanceiroDetail {
 
 ---
 
-### Phase 5 — Polish + Deploy + Docs
+### Phase 5 — Polish + Deploy + Docs + Flag enable
 
 **Status:** Not started
 
-**Rationale:** Fase de endurecimento antes de habilitar `cockpit_financeiro=true` em produção. Concentra testes por role, tratamento de DONC API fora, empty/loading polidos, e atualização do SDD/Checkpoint.
+**Rationale:** Endurecimento antes de habilitar `cockpit_financeiro=true` em produção: QA por role, DONC API fora, empty/loading, docs.
 
 **Scope:**
-- Polish UX, role matrix QA, DONC failure banner, docs, flag enable, Vercel smoke
+- Polish UX, role QA, DONC failure banner, `docs/modules/clients.md`, docs do SDD, enable flag, smoke Vercel
 
 #### Checklist
 
-- [ ] **Polish:** Modify `src/pages/FinanceiroCockpitPage.jsx`:
-  - [ ] Empty `text-center py-12 text-text-tertiary` + skeletons `animate-pulse h-3 bg-bg-secondary` + error `bg-donc-red/10 border` + `Tentar novamente`
-  - [ ] Keep `staleTime 5min` + `gcTime 5m`, 1 RPC per expand lazy
-  - [ ] `build.minify false`, `__COMMIT_HASH__` visible
-- [ ] **DONC failure:** Banner when `sync_service_log.status='failed'` for `refMonth` — `"Sincronização DONC falhou em ${finished_at} — dados de ${refMonth} podem estar desatualizados."` + retry button
-- [ ] **Role QA:** Manual matrix — `admin/finance/sales` write ok, `manager` read-only disabled, `csm/analyst` 42501 forbidden + redirect to `/module-unavailable`
-- [ ] **Flags:** `update feature_flags set enabled=true where key='cockpit_financeiro'` via SQL (Phase 5 only, after QA)
-- [ ] **DB final:** `supabase db push --include-all` (if polish migration) + `supabase functions deploy` (if `donc-api-sync` touched, disable Verify JWT + `node scripts/fix-supabase-urls.js`)
-- [ ] **Build & deploy:** `npm run build` — no errors → `git push origin main` → verify Vercel `https://donccx-donccx.vercel.app/financeiro-cockpit`
-- [ ] **Docs:** Update this SDD — fill all Implementation Logs, update `## 0. Current System State` + `## 6. Current Checkpoint`, add decisions to table; update `docs/brd` if scope changed
-- [ ] **Commit:** `git add docs/sdd/financeiro-cockpit-sdd.md src/pages/FinanceiroCockpitPage.jsx && git commit -m "feat(financeiro): phase 5 polish + deploy + docs" && git push origin main`
+- [ ] **Polish:** empty `text-center py-12 text-text-tertiary` + skeletons + error `bg-donc-red/10 border` + `Tentar novamente`; manter lazy 1 RPC/expand
+- [ ] **DONC failure:** banner when `sync_service_log.status='failed'` para `refMonth` — `"Sincronização DONC falhou em ${finished_at} — dados de ${refMonth} podem estar desatualizados."` + retry
+- [ ] **Role QA:** `admin/finance` write ok, `manager` read-only, `sales/csm/analyst` 42501 + redirect `/module-unavailable`
+- [ ] **Docs:** `docs/modules/clients.md` — `usage_driven` no Contrato + espelho de exceções/adimplência no Operacional; `index-updater` se novo domínio
+- [ ] **Flags:** `update feature_flags set enabled=true where key='cockpit_financeiro'` (só após QA)
+- [ ] **Build & deploy:** `npm run build` — no errors → `git push origin main` → smoke `https://donccx-donccx.vercel.app/financeiro-cockpit`
+- [ ] **Docs SDD:** fill all Implementation Logs + §0 + §6 + Histórico
+- [ ] **Commit:** `git add docs/sdd/financeiro-cockpit-sdd.md docs/modules/clients.md && git commit -m "feat(financeiro): phase 5 polish + enable + docs" && git push origin main`
 
 #### Implementation Log (Phase 5)
 
@@ -545,25 +601,29 @@ interface FinanceiroDetail {
 
 ### Production state
 
-- BRD v0.3 validado 01/09/2026 (Q4a sales escrita total, Q4b reprocessa passado, Q6 flag dedicada Sim, Q2 rateio, Q3 correção faseada, Q5 CNPJ+SaaS_ID).
-- SDD v0.1 draft criado (this file). Nenhuma fase implementada. Next: Phase 1 `supabase migration new financeiro_cockpit_core`.
-- `financial_data` enabled true; `cockpit_financeiro` não existe (criado Phase 1 `enabled false`).
+- Séries contratuais em produção (2026-09-07) com tiers/mods/charges por série; form V2 único (`ClientFormContent.jsx`, `ClientForm.jsx` removido).
+- `billing_payments` (adimplência) em produção com PK `(client_id, series_id, ref_month)` + trigger de `delay_days`; ledger `BillingSchedule.jsx` no detalhe.
+- `billing.js` com `mode='rateio'` + `validateRateio` (default `legacy`).
+- `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **não existe** (criado na Phase 1, `enabled false`).
+- `billing_exceptions`/`billing_corrections`/`usage_driven` **não existem** — Phase 1 pendente de validação do HTML.
+- SDD v0.2 + adendo BRD 0.5 + `docs/sdd/financeiro-cockpit-regras.html` (2026-09-11) aguardando retorno de Financeiro/Vendas.
 
 ### Architectural decisions
 
 | Decision | Rationale |
 |---|---|
-| Adimplência em `billing_payments(client_id,ref_month)` no cockpit, não no form empresas | Cobrança externa sem integração; financeiro marca manual por `ref_month` no cockpit onde já fecha MRR. Trigger espelha `delay_days` para `clients` para `health_financeiro` + `T6` sem quebrar `healthScore.js`. Form mostra mirror read-only latest. (Empresas v2 §4.6) |
-| Flag dedicada `cockpit_financeiro` (Q6 Sim) | Kill-switch independente de `financial_data` (gate horizontal). Dependência lógica `cockpit_financeiro ⇒ financial_data`. Validado com diretoria financeira. |
-| Sales escrita total (Q4a) | Negociação nasce no comercial; `admin,finance,sales` write, `manager` leitura. Trilha `created_by/at + reason` + RLS compensa governance. |
-| Retroatividade reprocessa passado (Q4b) | Exceção retroativa reprocessa `ref_month` fechados, gera delta e exige reemissão — cobra explicitamente relatórios fechados. |
-| `billing_exceptions` tabela dedicada (não jsonb) | Vigência temporal `valid_from/to`, RLS granular, trilha auditável, `CHECK valid_to >= valid_from`. Descartado `jsonb exceptions` no BRD §14. |
-| `billing_corrections` por `(client_id, ref_month)` | Toggle `applied` persiste por mês; fase 1 manual IPCA/IGPM + percent, fase 2 automática após fonte oficial (BCB/IBGE). |
-| Q2 rateio, não soma | `billing_base_value` é total; mods são decomposição informativa. Corrigir `src/lib/billing.js:7` com `mode='rateio'` + `validateRateioSum` ±0,01. |
-| Template Profissionais 1:1 | Reuso `KpiCard`, toolbar, `detailCache` lazy (1 RPC/expand), CSV/PDF `BOM + window.print` reduz risco UX e acelera review. |
-| `sync_service_log` como fonte de `ref_month` | Evita months legados sem DONC; `client_usage` distinct puro mostra meses sem sync. Pattern `ProfissionaisCockpitPage.jsx:256`. |
-| RPCs `SECURITY DEFINER SET search_path=public` + `REVOKE anon` | Mitiga vazamento `CLIENT_SELECT='*'` (gotcha `get_finance_summary` 20260830000001). Guard `coalesce(get_user_role(),'none') NOT IN (...) → 42501`. |
-| Exports com BOM `\uFEFF` + `text/csv;charset=utf-8` | Excel PT-BR abre com acentos; padrão `ProfissionaisCockpitPage.jsx:48`. |
+| Cockpit restrito a `admin/manager/finance` (2026-09-11) | Modelo de acesso de 2026-09-07 (`financial_data` sem sales + `SAFE_CLIENT_COLS`); revoga Q4a (sales escrevia exceções). Vendas negocia via séries no form, não no dashboard financeiro. |
+| Exceções **híbridas** `series_id NULL` = cliente, set = série | Cobre "10% off geral" (sem criar fatura nova) e "aditivo Rotas 100% off" (zera só a série). Sales-level obrigatório forçaria renegociação (nova fatura) para desconto global; client-level puro não zera uma série. |
+| 3 tipos (`isencao_total`, `desconto_percent`, `valor_reduzido`); `piso_zerado` removido | Piso agora é por série (`billing_floor`); "sem piso, cobra consumo" = `floor=0` + `usage_driven`. `isencao_total` cobre mês zerado, que a régua (`amount>0`/`percent>0`) não expressa. |
+| `contract_series.usage_driven` (2026-09-11) | Reconcilia contratado × uso: `true` = excedente acima do piso compõe o MRR (com ou sem ramp); `false` = travado, uso informativo. Backfill `(kind='original')` preserva o BRD. |
+| Uso aplicado só à série original quando há múltiplas `usage_driven` | `client_usage` é do cliente (não por série); aplicar em N séries duplicaria excedente. Aditivos/renegociações são travados por default. |
+| `valor_reduzido` = valor mensal fechado do escopo | Substitui o cálculo do escopo (cliente ou série). v0.2 mudou de "valor unitário × billable" (ambíguo com séries). |
+| Correções por `(client_id, ref_month)` | Finance marca o mês; `contract_series.correction_index` fica como metadado do contrato. Fase 2 (futuro) usa fonte oficial (BCB/IBGE). |
+| Adimplência por `(client_id, series_id, ref_month)` no cockpit | Já implementada; 2 faturas no mesmo mês (séries diferentes). Trigger espelha `clients.delay_days` para `health_financeiro` sem alterar `healthScore.js`. |
+| Exceções aplicam em `mrr_min` E `mrr_real` | Evita excedente artificial (desconto reduziria só o real e inflaria T3). |
+| RPCs `SECURITY DEFINER SET search_path=public` + guard `admin,manager,finance` | Mitiga vazamento `CLIENT_SELECT='*'`; `fetch(`, etc. padrão `get_finance_summary`. |
+| HTML de validação em `docs/sdd/` | Mesmo diretório do SDD (decisão 2026-09-11); não-técnico para Financeiro/Vendas, gate da Phase 1. |
+| Template Profissionais 1:1 | Reuso `KpiCard`, toolbar, `detailCache` lazy (1 RPC/expand), CSV/PDF `BOM + window.print` reduz risco UX. |
 
 ---
 
@@ -571,30 +631,36 @@ interface FinanceiroDetail {
 
 | Risk | Mitigation |
 |---|---|
-| Adimplência manual sem integração (risco `delay_days` desatualizado) | Phase 3.5 `billing_payments` por `ref_month` + trigger `sync_delay_days` + badge Inadimplente no cockpit e mirror em `ClientSubDados`. Finance atualiza por mês; health lê último `ref_month`. |
-| `billing.js` soma `base+sum(mods)` diverge de Q2 rateio e infla MRR | Phase 3: `mode='rateio'` (default novo) + `validateRateio()` warning ±R$0,01 na UI; manter `mode='legacy'` para callers antigos. Teste com Exemplo A/B BRD §6. |
-| Retroatividade Q4b reprocessa mês fechado sem aviso | Phase 4 banner + delta `mrr_real` vs snapshot + coluna `Δ Retroativo` + reemissão obrigatória. Não fazer reprocessamento silencioso. |
-| DONC API fora no cron → `client_usage` desatualizado | Banner `sync_service_log status='failed'` + `lastSync` timestamp + retry manual. RPC retorna `uso` do último `ref_month` com flag `pending`. |
-| Exceção com `valid_from > valid_to` ou percent inválido | CHECK constraints DDL (`valid_to >= valid_from`, `percent 0-100`, `reduced_value>0`) + validação modal. |
-| Sales cria exceção sem governance | Validado Q4a: RLS write para `sales` + `reason>=10` + `created_by/at` + `audit_log`; manager leitura impede bypass. |
-| Performance N+1 com 200+ clientes expands | 1 RPC per expand lazy + `staleTime 5min` + `gcTime 5m`. Query principal única com `jsonb_array_elements` no DB. |
-| Correção toggle diverge entre UI e export | Toggle persiste em `billing_corrections.applied`; export RPC join mesma fonte; teste on/off reflete em CSV/PDF realtime. |
-| Flag habilitada antes do deploy | Migrations `enabled false` + enable manual só Phase 5 via SQL + `isEnabled` gate em rota e card. |
+| Form e cockpit divergirem no MRR (regras × usage_driven) | `resolveMRR`/preview atualizados na Phase 2 com o flag; verificação cruzada cockpit × preview do form por cliente. |
+| Duplo desconto (renegociação + exceção cliente) | Ordem documentada série→cliente; exceção cliente aplica após a soma; UI mostra as duas linhas; validar com Financeiro no HTML. |
+| Múltiplas séries `usage_driven` duplicando excedente | Regra: uso só na original; form alerta se outra série for `usage_driven`; RPC ignora uso nas demais. |
+| Financeiro/Vendas não validarem o HTML a tempo | Phase 1 bloqueada; se necessário, flag `cockpit_financeiro` desligada garante inofensividade. |
+| `billing_exceptions` com sobreposição de vigência | Validação no modal + warning; regra mesma `(client,series,type)` sem overlap (app-level na v1). |
+| Retroatividade reprocessa mês fechado sem aviso | Phase 4 banner + delta + `Δ Retroativo` + reemissão obrigatória. |
+| DONC API fora no cron → uso desatualizado | Banner `sync_service_log status='failed'` + `lastSync` + retry; `client_usage.pending` sinalizado. |
+| Performance N+1 com 200+ clientes | 1 RPC per expand lazy + `staleTime 5min`; query principal única com CTEs no DB. |
+| RLS incorreta liberando financeiro a sales/csm | Guard nas RPCs + policies sem sales; QA matrix na Phase 3/5. |
+| `usage_driven` backfill errado na original | `UPDATE ... SET usage_driven=(kind='original')`; aditivo/renegociação `false`; conferir `select kind, usage_driven, count(*) from contract_series group by 1,2`. |
+| Flag habilitada antes do deploy | Migration `enabled false` + enable manual só Phase 5 + gates de card/rota. |
 
 ---
 
 ## 8. Project Gotchas — do not skip
 
-- **Icons:** never import directly from `lucide-react`. Always use `src/lib/icons.js` (import at top + alphabetical entry, check duplicates before adding). `Wallet` already exists.
+- **Icons:** never import directly from `lucide-react`. Always use `src/lib/icons.js` (import at top + alphabetical entry, check duplicates). `Wallet` existe; `Percent` não.
 - **Supabase deploy:** after `npx supabase functions deploy`, "Verify JWT" is automatically re-enabled — disable it manually in the Dashboard. Run `node scripts/fix-supabase-urls.js` after every deploy.
 - **Branch:** worktree disabled. All work goes directly to `main` — no branches, no worktrees. Push to `origin main`.
 - **No local Supabase:** all DB/functions changes go directly to production (`supabase db push --include-all` + `supabase functions deploy`). No Docker.
 - **Build verify:** `npm run build` is mandatory before every `git push` (Vite `build.minify false`, `__COMMIT_HASH__` via `vite.config.js`).
 - **Vercel:** SPA rewrite `/(.*) -> /index.html` in `vercel.json`.
 - **Financeiro-specific:**
-  - `billing.js` rateio — do NOT sum mods to base; `mode='rateio'` returns `base`, mods only for breakdown. Validate `sum(mods)==base ±0,01`.
-  - `sync_service_log` is source of truth for `ref_month`, not `client_usage` distinct (avoids legacy months).
-  - RLS via `get_user_role()` coalesce guard + `42501` on forbidden; test matrix `admin/finance/sales` write, `manager` read, `csm` 403.
+  - Billing is **per series**: do NOT read `clients.billing_*` as source of truth — resolve via `contract_series` (`resolveMRR`, `seriesMonthTotal`); `clients.*` é espelho da original.
+  - `contract_charges` has `series_id` + `ref_month` (join direct by `ref_month`); `billing_os_tiers` PK `(client_id, series_id, tier_order)`; `billing_payments` PK `(client_id, series_id, ref_month)`.
+  - `usage_driven` (`contract_series`) — uso só na original; aditivo/renegociação travados por default.
+  - Exceções: `series_id NULL` = cliente; set = série; aplicar série → soma → cliente; nunca criar `piso_zerado`.
+  - `sync_service_log` é a fonte de `ref_month`, não `client_usage` distinct.
+  - RLS via `get_user_role()` + `42501`; matrix `admin/finance` write, `manager` read, `sales/csm` 403.
+  - `ClientForm.jsx` **não existe** — qualquer referência é o `ClientFormContent.jsx` (rotas V2 sem flag).
   - After `supabase functions deploy`, "Verify JWT" re-enables — check Dashboard.
 
 ---
@@ -632,19 +698,21 @@ When resuming this document for implementation:
 
 ---
 
-## Adendo 2026-09-07 — V2 definitivo + séries (corpo acima = histórico)
+## Histórico
 
-- `ClientForm.jsx` citado neste SDD foi **deletado** (`aa87554`); a aba Contrato vive em `ClientFormContent.jsx` (rotas `/empresas/nova`, `/empresas/:id/editar`, sem flag). Ler `ClientForm.jsx:<linha>` como `ClientFormContent.jsx` (mesma aba Contrato).
-- "Exceções" como seção do form legado: reavaliar contra o modelo de séries (`contract_series` + `Cronograma de cobrança` em `ClientSubDados`) antes de implementar — ver `docs/modules/clients.md`.
-- Rateio (Q2, § rateio vs soma): resolvido — `mode: 'rateio'`, soma validada contra a base da série; valor por solução opcional (2026-09-07).
+| Versão | Data | Autor | Mudança |
+|---|---|---|---|
+| 0.1 | 2026-09-01 | DoncCX Hub | Draft inicial pós-BRD v0.3 (contrato flat `clients.billing_*`, Fase 3.5 adimplência, Q4a sales write) |
+| 0.2 | 2026-09-11 | DoncCX Hub | Reescrita série-aware: `contract_series`/`contract_charges`/`billing_os_tiers`; `usage_driven`; exceções híbridas (3 tipos, `piso_zerado` removido); papéis `admin/manager/finance` (sales fora); correções client-month; Fase 3.5/billing.js marcados concluídos; HTML de validação Financeiro/Vendas; fases reordenadas com gate de validação |
+
+---
 
 ## Validation checklist — before publishing (Sdd-specification § Validation)
 
-- [x] Section 0 reflects actual current state (verified `20260503031721`, `20260726*`, `20260830*` migrations, `ProfissionaisCockpitPage.jsx:1-736`)
-- [x] Files to be touched verified to exist (or confirmed not to exist): `src/pages/ProfissionaisCockpitPage.jsx`, `src/hooks/useProfissionaisCockpit.js`, `src/lib/billing.js`, `src/lib/roles.js`, `supabase/migrations/*`
-- [x] Data contracts reference real column names (`clients.billing_type/base_value/floor`, `client_usage.profissionais_versao/ref_month`, `sync_service_log.service_name`)
-- [x] Color tokens, icon names, component APIs verified (`tailwind.config.js #173557/#1D9E75/#f7f7f5`, `Wallet` in `src/lib/icons.js`)
-- [x] Active phase clearly identified (Phase 1 — Not started)
+- [x] Section 0 reflects actual current state (verified migrations `20260907*`, `20260902000004`, production `information_schema`/`pg_policies`, `contractRules.js`, `billing.js`, `useClients.js`, `App.jsx`, `CockpitsPage.jsx`)
+- [x] Files to be touched verified to exist (or confirmed not to exist): `ClientFormContent.jsx` (exists), `ClientForm.jsx` (deleted `aa87554`), `billing_exceptions`/`billing_corrections` (absent), `usage_driven` (absent), `Percent` icon (absent)
+- [x] Data contracts reference real column names (`contract_series.billing_*`, `contract_charges.series_id/ref_month/due_date`, `billing_os_tiers.series_id`, `module_pricing.series_id`, `billing_payments` PK tripla)
+- [x] Color tokens, icon names, component APIs verified (`tailwind.config.js #173557/#1D9E75/#f7f7f5`, `Wallet` in `src/lib/icons.js`, `CockpitRoute` in `App.jsx:128`)
+- [x] Active phase clearly identified (Phase 0 docs complete; Phase 1 blocked on validation)
 - [x] Gotchas includes project-wide traps (icons, Supabase deploy, branch)
 - [x] Language convention followed (English for LLM instructions/data contracts, Portuguese for rationale)
-

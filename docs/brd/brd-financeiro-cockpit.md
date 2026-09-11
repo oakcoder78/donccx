@@ -445,6 +445,20 @@ Reuso obrigatório (terse, `docs/ui-patterns.md`):
 
 ---
 
+## Adendo 2026-09-11 — v0.5: séries, modo de cobrança e papéis revisados
+
+> Este adendo **substitui** as premissas do corpo acima onde houver conflito. Detalhe técnico: `docs/sdd/financeiro-cockpit-sdd.md` v0.2. Documento de validação não-técnico (Financeiro + Vendas): `docs/sdd/financeiro-cockpit-regras.html`.
+
+- **Papéis revisados (revoga Q4a):** o cockpit é restrito a `admin`, `manager` e `finance` (`financial_data` de 2026-09-07 não inclui sales; `SAFE_CLIENT_COLS` esconde valores financeiros de sales). Exceções/correções/adimplência: escrita `admin/finance`; `manager` leitura+export; `sales/csm/analyst` sem acesso. Vendas continua negociando e editando séries/contrato na carteira (Empresas).
+- **Fonte de cobrança = séries contratuais** (`contract_series` + `contract_charges` + `billing_os_tiers` + `module_pricing`), não `clients.billing_*` (espelho da original). 1 fatura por `(série, mês)`; renegociação pausa a original na janela.
+- **Modo de cobrança por série (`usage_driven`):** `true` = "base + excedente" (uso acima do piso compõe o MRR; piso 0 = cobra só consumo); `false` = "travado no valor da série" (uso informativo). Default: original `true`; aditivo/renegociação `false`.
+- **Exceções híbridas:** `series_id` nulo = cliente inteiro; preenchido = série específica (ex.: aditivo Rotas 100% isento sem afetar o original). Tipos: `isencao_total`, `desconto_percent`, `valor_reduzido` (valor mensal fechado do escopo). **`piso_zerado` removido** (piso agora é da série; sem piso = `floor=0` + `usage_driven`). Ordem: exceções de série → soma → exceções de cliente; aplicam em mínimo e real.
+- **Correção monetária** permanece por `(cliente, mês)` com toggle; `correction_index` fica por série como metadado.
+- **Adimplência** (`billing_payments`) já implementada no cockpit com PK `(client_id, series_id, ref_month)`; finance marca manualmente por fatura.
+- **Gate de validação:** Phase 1 do SDD (migration) bloqueada até Financeiro/Vendas validarem o HTML de regras.
+
+---
+
 ## Histórico
 
 | Versão | Data | Autor | Mudança |
@@ -453,6 +467,7 @@ Reuso obrigatório (terse, `docs/ui-patterns.md`):
 | 0.2 | 2026-08-31 | DoncCX Hub | Incorporadas respostas Q1–Q6 do solicitante; rateio módulos; correção com toggle; sales candidato |
 | 0.3 | 2026-09-01 | DoncCX Hub | Validações finais Q4a/Q4b/Q6: sales escrita total (admin/finance/sales), manager leitura, retroatividade reprocessa e corrige passado (reemissão com delta), flag dedicada cockpit_financeiro confirmada; header validado |
 | 0.4 | 2026-09-07 | DoncCX Hub | Adendo: `ClientForm.jsx` citado no §3.1 deletado (`aa87554`) — ler como `ClientFormContent.jsx`; rateio Q2 resolvido (`rateio`, soma vs base da série, valor opcional); séries em `docs/modules/clients.md` |
+| 0.5 | 2026-09-11 | DoncCX Hub | Adendo: papéis revisados (cockpit `admin/manager/finance`, sales fora — revoga Q4a); cobrança por séries; `usage_driven` (travado × base+excedente); exceções híbridas cliente/série com 3 tipos (`piso_zerado` removido); correção por cliente×mês; HTML de validação Financeiro/Vendas |
 
 ---
 
