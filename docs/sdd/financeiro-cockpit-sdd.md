@@ -578,13 +578,13 @@ interface FinanceiroDetail {
 - [x] **Fix inline:** `formatDate` do cockpit agora trata `YYYY-MM-DD` com `T00:00:00` (evita shift de fuso em BRT)
 - [x] **Build:** `npm run build` — OK (7.3s, 2808 módulos)
 - [x] **Verify:** chaves de `get_financeiro_export` conferidas em produção (22 colunas); CSV/PDF usam os mesmos dados da tabela. Validação visual final no QA da Phase 5 (flag on)
-- [ ] **Commit:** `git add src/pages/FinanceiroCockpitPage.jsx docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 4 exports CSV/PDF" && git push origin main`
+- [x] **Commit:** `git add src/pages/FinanceiroCockpitPage.jsx docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 4 exports CSV/PDF" && git push origin main`
 
 #### Implementation Log (Phase 4)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-09-11 | (pending) | `src/pages/FinanceiroCockpitPage.jsx` | Exports: visões geral/faturável/isento, CSV sintético (com escopo) e analítico (global via RPC + por cliente), PDF por cliente com CNPJ/SaaS_ID; escape CSV e fix de data |
+| 2026-09-11 | `cda1206` | `src/pages/FinanceiroCockpitPage.jsx` | Exports: visões geral/faturável/isento, CSV sintético (com escopo) e analítico (global via RPC + por cliente), PDF por cliente com CNPJ/SaaS_ID; escape CSV e fix de data |
 
 ---
 
