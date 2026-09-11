@@ -515,13 +515,13 @@ interface FinanceiroDetail {
   - [x] `src/hooks/useContractCharges.js` persiste os 4 campos; `src/lib/contractRules.js` `resolveMRR` com paridade `usage_driven`
 - [x] **Build:** `npm run build` — OK (7.5s, 2805 módulos)
 - [x] **Verify:** rota com flag off → redirect `/module-unavailable` (gate); RPC smoke já validado na Phase 1. **QA com flag on adiada para a Phase 5** (flag permanece `false` até o QA de papéis, conforme decisão do SDD)
-- [ ] **Commit:** `git add src/lib/financeiro.js src/hooks/useFinanceiroCockpit.js src/pages/FinanceiroCockpitPage.jsx src/App.jsx src/pages/CockpitsPage.jsx src/components/settings/SettingsFeatureFlags.jsx src/lib/icons.js src/components/clients/ClientFormContent.jsx src/hooks/useContractCharges.js src/lib/contractRules.js docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 2 hook + base page + form (usage_driven/reajuste)" && git push origin main`
+- [x] **Commit:** `git add src/lib/financeiro.js src/hooks/useFinanceiroCockpit.js src/pages/FinanceiroCockpitPage.jsx src/App.jsx src/pages/CockpitsPage.jsx src/components/settings/SettingsFeatureFlags.jsx src/lib/icons.js src/components/clients/ClientFormContent.jsx src/hooks/useContractCharges.js src/lib/contractRules.js docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 2 hook + base page + form (usage_driven/reajuste)" && git push origin main`
 
 #### Implementation Log (Phase 2)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-09-11 | (pending) | `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`, `src/App.jsx`, `src/pages/CockpitsPage.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `src/lib/icons.js`, `src/components/clients/ClientFormContent.jsx`, `src/hooks/useContractCharges.js`, `src/lib/contractRules.js` | Base page (KPIs T1-T7, toolbar, accordion lazy, banner Q9, CSV sintético) + rota/card/flag + form `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`; build ok |
+| 2026-09-11 | `5e1f069` | `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`, `src/App.jsx`, `src/pages/CockpitsPage.jsx`, `src/components/settings/SettingsFeatureFlags.jsx`, `src/lib/icons.js`, `src/components/clients/ClientFormContent.jsx`, `src/hooks/useContractCharges.js`, `src/lib/contractRules.js` | Base page (KPIs T1-T7, toolbar, accordion lazy, banner Q9, CSV sintético) + rota/card/flag + form `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`; build ok |
 
 ---
 
