@@ -608,13 +608,13 @@ interface FinanceiroDetail {
 - [x] **Flags:** `update feature_flags set enabled=true where key='cockpit_financeiro'` — `enabled true`, `[admin,manager,finance]` (2026-09-11)
 - [x] **Build & deploy:** `npm run build` OK (7.2s) → `git push origin main` (Vercel auto-deploy); smoke visual com login do time (não automatizável sem sessão autenticada)
 - [x] **Docs SDD:** logs preenchidos + §0 + §6 + Histórico
-- [ ] **Commit:** `git add docs/sdd/financeiro-cockpit-sdd.md docs/modules/clients.md public/help/financeiro-regras.html src/pages/FinanceiroCockpitPage.jsx && git commit -m "feat(financeiro): phase 5 polish + help + enable + docs" && git push origin main`
+- [x] **Commit:** `git add docs/sdd/financeiro-cockpit-sdd.md docs/modules/clients.md public/help/financeiro-regras.html src/pages/FinanceiroCockpitPage.jsx && git commit -m "feat(financeiro): phase 5 polish + help + enable + docs" && git push origin main`
 
 #### Implementation Log (Phase 5)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-09-11 | (pending) | `public/help/financeiro-regras.html`, `src/pages/FinanceiroCockpitPage.jsx`, `docs/modules/clients.md`, `docs/sdd/financeiro-cockpit-sdd.md` | Help do cockpit (HTML validado servido em `public/help`) + botão no header; docs do módulo; flag `cockpit_financeiro` ligada após QA |
+| 2026-09-11 | `b69562d` | `public/help/financeiro-regras.html`, `src/pages/FinanceiroCockpitPage.jsx`, `docs/modules/clients.md`, `docs/sdd/financeiro-cockpit-sdd.md` | Help do cockpit (HTML validado servido em `public/help`) + botão no header; docs do módulo; flag `cockpit_financeiro` ligada após QA |
 
 ---
 
