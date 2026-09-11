@@ -761,6 +761,18 @@ Validação visual em produção com login fica com o time (rota autenticada).
 
 ---
 
+## Adendo 2026-09-11 (v1.2) — UI v2: expandir inline, extrato, pendências de adimplência
+
+- **Expandir inline:** o painel do cliente voltou para dentro da lista — desktop como linha expandida (`colSpan 7`) logo abaixo do cliente; mobile logo abaixo do card aberto. Só uma instância monta (media query `(min-width: 1024px)`) para não duplicar fetch/DOM.
+- **Extrato da competência:** "Séries do mês" virou extrato (hairlines + zebra + `tabular-nums` + rodapé **"Total do mês"**), com **vencimento** (dia da série) e **período** (`billing_start → billing_end`, via `useContractSeries`).
+- **Adimplência retroativa:** `PaymentToggle` ganhou **seletor de competência** (marca meses anteriores sem trocar a tela) e passou a buscar séries/pagamentos do cliente internamente; novo bloco **"Pendências de adimplência"** no topo lista faturas de meses anteriores (1–3) sem status, com vencimento, dias em atraso, valor e ação **"Lançar"** (abre o drawer na competência certa).
+- **DB:** migration `20260911215006_financeiro_cockpit_pendencias.sql` — RPC `get_financeiro_pendencias(p_months_back int)` (`SECURITY DEFINER`, guard `admin/manager/finance`, reusa `_financeiro_series_month`; vencimento = competência + `due_day` com clamp; anti-join `billing_payments`). Smoke: 40 pendências / R$ 356.566,72 (3 meses).
+- **PDF:** profissionais apenas **ativos**; sem a lista aberta mostra **"N profissionais ativos"** (sem "X de Y no mês").
+- **CSV analítico (global e por cliente):** **uma linha por profissional ativo** (colunas `Nome | E-mail | Último login`) repetindo as colunas da série; séries sem ativo saem em 1 linha com campos vazios.
+- **Help:** `docs/sdd/financeiro-cockpit-regras.html` + `public/help/financeiro-regras.html` refatorados para **padrão de ajuda v1.0** (sem enquadramento de validação; TOC; FAQ de uso; badge "Guia rápido — Financeiro & Admin"), revisados por `technical-writer`.
+
+---
+
 ## Histórico
 
 | Versão | Data | Autor | Mudança |
@@ -774,6 +786,7 @@ Validação visual em produção com login fica com o time (rota autenticada).
 | 0.7 | 2026-09-11 | DoncCX Hub | Phase 4 implementada: exports CSV (geral/faturável/isento; global e por cliente) + PDF por cliente com CNPJ/SaaS_ID; fix de data BRT |
 | 1.0 | 2026-09-11 | DoncCX Hub | **Complete:** Phase 5 (Help do cockpit em `public/help`, docs do módulo, flag ligada após QA de papéis). SDD v1.0 — todas as fases implementadas. |
 | 1.1 | 2026-09-11 | DoncCX Hub | Adendo: revisão de UI do detalhe do cliente (impeccable) — overflow eliminado (7 colunas + cards), painel fora da tabela, ações com `Button`, profissionais com disclosure e PDF condicional, remoção do MRR por produto, a11y |
+| 1.2 | 2026-09-11 | DoncCX Hub | Adendo UI v2: expandir inline (desktop/mobile), extrato da competência com vencimento/período e "Total do mês", pendências de adimplência (RPC + bloco + seletor de competência), PDF só ativos, CSV uma linha por profissional, Help v1.0 |
 
 ---
 
