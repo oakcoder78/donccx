@@ -22,7 +22,8 @@ import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
 import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
-import { renewalSuggestion } from '@/lib/financeiro'
+import { renewalSuggestion, excecaoLabel } from '@/lib/financeiro'
+import { useBillingExceptions } from '@/hooks/useBillingExceptions'
 import toast from 'react-hot-toast'
 
 // New tab order: Dados → Endereço → Contrato → Operacional → Anexos
@@ -140,6 +141,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [encerrarOpen, setEncerrarOpen] = useState(false)
   const [encerrarReason, setEncerrarReason] = useState('')
   const { profile, effectiveRole } = useAuth()
+  const { data: billingExceptions = [] } = useBillingExceptions(client?.id)
   const [pendingFiles, setPendingFiles] = useState([])
 
   // Sales creating empresa: default comercial to self so RLS insert passes (carteira)
@@ -1206,6 +1208,31 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
               </div>
             )}
           </FormSection>
+
+          {['admin', 'manager', 'finance', 'sales'].includes(effectiveRole) && (
+            <FormSection
+              title="Negociações vigentes"
+              hint="Exceções lançadas pelo Financeiro no cockpit (desconto, isenção ou valor reduzido) — somente leitura."
+            >
+              {billingExceptions.length === 0 ? (
+                <p className="text-sm text-text-tertiary">Sem negociações vigentes.</p>
+              ) : (
+                <ul className="divide-y divide-border-tertiary">
+                  {billingExceptions.map((ex) => (
+                    <li key={ex.id} className="py-2 flex items-center gap-2 flex-wrap text-sm">
+                      <span className="font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
+                      <span className="text-[11px] text-text-tertiary">
+                        {ex.series_id ? 'série' : 'cliente'} · {new Date(`${ex.valid_from}T00:00:00`).toLocaleDateString('pt-BR')} → {new Date(`${ex.valid_to}T00:00:00`).toLocaleDateString('pt-BR')}
+                      </span>
+                      <span className="text-xs text-text-secondary ml-auto truncate max-w-[50%]" title={ex.reason || ''}>
+                        {ex.reason || '—'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </FormSection>
+          )}
 
           <FormSection
             title="Evolução da recorrência (MRR)"

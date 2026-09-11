@@ -8,6 +8,8 @@ import { supabase } from '@/lib/supabaseClient'
 import { Icons } from '@/lib/icons'
 import { useClientHandovers } from '@/hooks/useClientHandovers'
 import { useLatestBillingPayment } from '@/hooks/useBillingPayments'
+import { useBillingExceptions } from '@/hooks/useBillingExceptions'
+import { excecaoLabel } from '@/lib/financeiro'
 import { HANDOVER_LABELS } from '@/lib/contractRules'
 import { BillingSchedule } from './BillingSchedule'
 import toast from 'react-hot-toast'
@@ -263,6 +265,9 @@ export function ClientSubDados({ client }) {
   const { data: catalog = [] } = useCatalog()
   const { data: handover } = useClientHandovers(client.id)
   const { data: latestPayment } = useLatestBillingPayment(client.id)
+  const { data: billingExceptions = [] } = useBillingExceptions(client.id)
+  const hoje = new Date().toISOString().slice(0, 10)
+  const negociacoesVigentes = (billingExceptions || []).filter((e) => e.valid_to >= hoje)
 
   const servicos = client.client_catalog
     ?.filter(cc => cc.catalog_items?.type === 'servico')
@@ -415,6 +420,30 @@ export function ClientSubDados({ client }) {
                 })}
               </div>
             </div>
+          )}
+        </Card>
+      )}
+
+      {/* Negociações vigentes (exceções lançadas pelo Financeiro) */}
+      {canViewFinancialEffective && (
+        <Card>
+          <p className="text-sm font-semibold text-text-primary mb-2">Negociações vigentes</p>
+          {negociacoesVigentes.length === 0 ? (
+            <p className="text-sm text-text-tertiary">Sem negociações vigentes.</p>
+          ) : (
+            <ul className="divide-y divide-border-tertiary">
+              {negociacoesVigentes.map((ex) => (
+                <li key={ex.id} className="py-2 flex items-center gap-2 flex-wrap text-sm">
+                  <span className="font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
+                  <span className="text-[11px] text-text-tertiary">
+                    {ex.series_id ? 'série' : 'cliente'} · {formatDate(ex.valid_from)} → {formatDate(ex.valid_to)}
+                  </span>
+                  <span className="text-xs text-text-secondary ml-auto truncate max-w-[50%]" title={ex.reason || ''}>
+                    {ex.reason || '—'}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
       )}

@@ -9,6 +9,9 @@ import {
 } from '@/hooks/useFinanceiroCockpit'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Icons } from '@/lib/icons'
+import { useQueryClient } from '@tanstack/react-query'
+import { ExcecaoModal } from '@/components/financeiro/ExcecaoModal'
+import { PaymentToggle } from '@/components/financeiro/PaymentToggle'
 import {
   formatBRL,
   formatPercent,
@@ -193,6 +196,18 @@ function seriesLabelFor(series, seriesId) {
 
 function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
   const { data, isLoading, error, refetch } = useFinanceiroDetalhe(clientId, refMonth, true)
+  const qc = useQueryClient()
+  const { effectiveRole } = useAuth()
+  const canWrite = ['admin', 'finance'].includes(effectiveRole)
+  const [excecaoModal, setExcecaoModal] = useState(null)
+  const [paymentOpen, setPaymentOpen] = useState(false)
+
+  const invalidate = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['financeiro_detalhe', clientId, refMonth] })
+    qc.invalidateQueries({ queryKey: ['financeiro_cockpit', refMonth] })
+    qc.invalidateQueries({ queryKey: ['billing_payments', clientId] })
+    qc.invalidateQueries({ queryKey: ['billing_payments_latest', clientId] })
+  }, [qc, clientId, refMonth])
 
   if (isLoading) {
     return (
@@ -252,6 +267,22 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
         <span className="ml-auto text-[11px] text-text-tertiary">
           {series.length} série{series.length !== 1 ? 's' : ''}
         </span>
+        {canWrite && (
+          <button
+            type="button"
+            onClick={() => setExcecaoModal({ excecao: null })}
+            className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+          >
+            + Exceção
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setPaymentOpen(true)}
+          className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+        >
+          Adimplência
+        </button>
       </div>
 
       {/* b. Séries do mês */}
@@ -333,14 +364,23 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
               <li key={ex.id ?? i} className="px-4 py-2 flex items-center gap-3 flex-wrap text-sm">
                 <span className="font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
                 <span className={BADGE_MUTED}>
-                  {ex.escopo || '—'}{ex.series_id ? ` · série ${ex.series_id}` : ''}
+                  {ex.escopo === 'serie' ? (seriesLabelFor(series, ex.series_id) || 'série') : 'cliente'}
                 </span>
                 <span className="text-[11px] text-text-tertiary whitespace-nowrap">
                   {formatDate(ex.valid_from)} → {formatDate(ex.valid_to)}
                 </span>
-                <span className="text-xs text-text-secondary ml-auto truncate max-w-[45%]" title={ex.reason || ''}>
+                <span className="text-xs text-text-secondary ml-auto truncate max-w-[40%]" title={ex.reason || ''}>
                   {ex.reason || '—'}
                 </span>
+                {canWrite && (
+                  <button
+                    type="button"
+                    onClick={() => setExcecaoModal({ excecao: ex })}
+                    className="text-[11px] text-donc-sky hover:underline whitespace-nowrap"
+                  >
+                    Editar
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -422,6 +462,26 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
           )}
         </DetailSection>
       )}
+
+      <ExcecaoModal
+        open={!!excecaoModal}
+        onClose={() => setExcecaoModal(null)}
+        clientId={clientId}
+        clientName={row?.client_name}
+        excecao={excecaoModal?.excecao || null}
+        onSaved={invalidate}
+      />
+      <PaymentToggle
+        open={paymentOpen}
+        onClose={() => setPaymentOpen(false)}
+        clientId={clientId}
+        clientName={row?.client_name}
+        refMonth={refMonth}
+        series={series}
+        payments={payment}
+        canWrite={canWrite}
+        onSaved={invalidate}
+      />
     </div>
   )
 }

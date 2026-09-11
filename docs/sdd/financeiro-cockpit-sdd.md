@@ -22,7 +22,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** **Phase 3 — ready to start** (Phase 2 complete 2026-09-11; Phase 1 DB applied).
+- **Active phase:** **Phase 4 — ready to start** (Phase 3 complete 2026-09-11).
 
 **What already exists related to this work:**
 
@@ -41,10 +41,10 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 - **Validação de regras (2026-09-11):** `docs/sdd/financeiro-cockpit-regras.html` v1.1 validado por Financeiro/Vendas; respostas na ata do BRD 0.6 e nas decisões §6.
 - **Fase 1 aplicada (2026-09-11):** migration `20260911191431_financeiro_cockpit_core.sql` — `contract_series.usage_driven` (backfill 26/26 originals) + `correction_anniversary/percent/rule`; `billing_exceptions` (4 tipos; RLS select `admin,manager,finance,sales`, write `admin,finance`; trigger `set_updated_at`); flag `cockpit_financeiro` (`false`, `admin,manager,finance`); RPCs `get_financeiro_cockpit`/`get_financeiro_detalhe`/`get_financeiro_export` + engine privado `_financeiro_series_month`. Smoke `2026-08`: 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; guard `csm` → 42501; matemática conferida (Multiloja 260 × R$ 58,50 = R$ 15.210,00; Koerich 400 × R$ 40,00 = R$ 16.000,00).
 - **Fase 2 implementada (2026-09-11):** `src/lib/financeiro.js` + `src/hooks/useFinanceiroCockpit.js` (`useFinanceiroCockpit`/`useFinanceiroDetalhe`/`useLastDoncSync`) + `src/pages/FinanceiroCockpitPage.jsx` (KPIs T1-T7, toolbar, accordion lazy por mount, banner Q9, CSV sintético); rota `<CockpitRoute flagKey="cockpit_financeiro">` + card no hub + registro em `SettingsFeatureFlags`; `Icons.Percent`; form V2 com `usage_driven` + reajuste (aniversário/regra/percentual) + renovação assistida; `resolveMRR` com paridade (usage_driven sem regras = piso × valor, 0 sem piso). Flag permanece `false` (QA com flag on na Phase 5).
+- **Fase 3 implementada (2026-09-11):** `ExcecaoModal` (4 tipos, escopo cliente/série, sem retroativo, overlap warning, audit) + `PaymentToggle` (adimplência por série) + `useBillingExceptions`; ações na página; espelho no `ClientSubDados` e card read-only na aba Contrato (`ClientFormContent`) para admin/manager/finance/sales (Q8). Matriz RLS validada em produção (manager read-only, finance/admin write, sales lê e não escreve, cockpit bloqueia sales).
 
 **What does NOT exist and needs to be created:**
 
-- CRUD de exceções (`ExcecaoModal`) + `PaymentToggle` adimplência + espelhos no detalhe (**Phase 3**).
 - Exports CSV analítico/PDF (**Phase 4**) e Help do cockpit (**Phase 5**).
 - `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
 - `src/components/financeiro/ExcecaoModal.jsx`, `PaymentToggle.jsx`.
@@ -67,9 +67,10 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 | `src/hooks/useContractCharges.js` | Modify (done Phase 2) — persiste `usage_driven`, `correction_anniversary`, `correction_percent`, `correction_rule` |
 | `src/hooks/useFinanceiroCockpit.js` | **Create (done Phase 2)** — queries + lazy detail + last sync |
 | `src/pages/FinanceiroCockpitPage.jsx` | **Create (done Phase 2)** — KPIs T1-T7, toolbar, accordion lazy, subtable por série (Help na Phase 5) |
-| `src/components/financeiro/ExcecaoModal.jsx` | **Create** — CRUD exceções (escopo cliente/série; 4 tipos) |
-| `src/components/financeiro/PaymentToggle.jsx` | **Create** — adimplência por `(client_id, series_id, ref_month)` |
-| `src/components/clients/tabs/operacional/ClientSubDados.jsx` | Modify — espelho read-only de exceção vigente + adimplência |
+| `src/components/financeiro/ExcecaoModal.jsx` | **Create (done Phase 3)** — CRUD exceções (escopo cliente/série; 4 tipos) |
+| `src/components/financeiro/PaymentToggle.jsx` | **Create (done Phase 3)** — adimplência por `(client_id, series_id, ref_month)` |
+| `src/hooks/useBillingExceptions.js` | **Create (done Phase 3)** — listagem por cliente (RLS SELECT) |
+| `src/components/clients/tabs/operacional/ClientSubDados.jsx` | Modify (done Phase 3) — espelho "Negociações vigentes" (adimplência latest já existia) |
 | `src/pages/CockpitsPage.jsx` | Modify (done Phase 2) — card `cockpit_financeiro` |
 | `src/components/settings/SettingsFeatureFlags.jsx` | Modify (done Phase 2) — flag no grupo `Cockpits & Dashboards` |
 | `src/App.jsx` | Modify (done Phase 2) — rota `<CockpitRoute flagKey="cockpit_financeiro">` |
@@ -527,7 +528,7 @@ interface FinanceiroDetail {
 
 ### Phase 3 — Exceptions (4 tipos) & Payment (CRUD, Toggles, Badges, Mirror)
 
-**Status:** Not started
+**Status:** Complete (2026-09-11)
 
 **Rationale:** Com a base navegável validada, adicionar escrita é o maior risco de permissão (admin/finance write, manager read-only, sales read-only na ficha). Isolar CRUD + adimplência permite testar RLS por role sem quebrar exports.
 
@@ -536,26 +537,26 @@ interface FinanceiroDetail {
 
 #### Checklist
 
-- [ ] **Exception modal:** Create `src/components/financeiro/ExcecaoModal.jsx` (drawer `fixed right-0 w-[420px]` ou modal `max-w-lg`):
-  - [ ] Campos: escopo (`Todas as séries` / série específica via select de `contract_series` ativas), `type` (4 tipos), condicionais `percent` / `reduced_value` / `unit_discount`, `valid_from/to`, `reason textarea >=10`
-  - [ ] Validação: `percent > 0 e ≤ 100`, `reduced_value > 0`, `unit_discount > 0` e `< base da série`, `valid_from >= mês corrente` (sem retroativo), `valid_to >= valid_from`, `desconto_unidade` só em série `usage_driven`, aviso de vigência sobreposta mesmo escopo+tipo
-  - [ ] Calls: `supabase.from('billing_exceptions').insert/update/delete` (42501 se role sem write) + audit `created_by/updated_by`
-  - [ ] Lista inline no row expandido + botões `+ Exceção` / `Editar` gated `canWrite = ['admin','finance'].includes(effectiveRole)` (senão disabled + toast `Ação não permitida`)
-- [ ] **Payment toggle:** Create `src/components/financeiro/PaymentToggle.jsx`:
-  - [ ] Por `(client_id, series_id, ref_month)`: `status adimplente|inadimplente`, `delay_days`, `paid_at`, `note` → `upsert` `onConflict 'client_id,series_id,ref_month'`; write `admin,finance` (RLS existente)
-  - [ ] Badge collapsed `Adimplente` / `Inadimplente 12d`; T6 soma `mrr_real` das faturas inadimplentes
-  - [ ] Reusar `useBillingPaymentsMutations` (`src/hooks/useBillingPayments.js`)
-- [ ] **Page update:** Modify `FinanceiroCockpitPage.jsx` — badges `Isento` (fatura R$ 0,00 visível), `Desconto 10%`, `Desconto R$ 10/licença`, `Valor reduzido`, `Suspenso até`, `Reajuste X% em MM/AAAA`; row highlight; warning de rateio (`validateRateio` ±0,01); invalidate após mutações
-- [ ] **Mirror:** Modify `src/components/clients/tabs/operacional/ClientSubDados.jsx` — card read-only "Exceção vigente" (tipo, escopo, vigência, motivo) + "Adimplência" latest; **card na aba Contrato para sales** (detalhe completo — Q8, gated `['admin','finance','sales'].includes(effectiveRole)`)
-- [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify:** RLS matrix — `admin/finance` write ok, `manager` read-only (42501 no write), `sales` lê na ficha e 42501 no cockpit, `csm` sem acesso; exceção `isencao_total` de série zera só a série; `desconto_unidade` preserva piso/excedente; sem retroativo (valid_from passado bloqueado)
-- [ ] **Commit:** `git add src/components/financeiro/ src/pages/FinanceiroCockpitPage.jsx src/components/clients/tabs/operacional/ClientSubDados.jsx src/components/clients/ClientFormContent.jsx && git commit -m "feat(financeiro): phase 3 exceptions (4 tipos) + payment toggles + mirrors" && git push origin main`
+- [x] **Exception modal:** Create `src/components/financeiro/ExcecaoModal.jsx` (modal `max-w-lg`):
+  - [x] Campos: escopo (`Todas as séries` / série ativa), `type` (4 tipos), condicionais `percent` / `reduced_value` / `unit_discount`, `valid_from/to`, `reason textarea >=10`
+  - [x] Validação: `percent > 0 e ≤ 100`, `reduced_value > 0`, `unit_discount > 0` e `< base da série`, `valid_from >= mês corrente` (sem retroativo), `valid_to >= valid_from`, `desconto_unidade` só em série `usage_driven`, aviso de vigência sobreposta mesmo escopo+tipo
+  - [x] Calls: `insert/update/delete` + audit `created_by/updated_by`; 42501 → toast `Ação não permitida`
+  - [x] Ações no row expandido (`+ Exceção` / `Editar`) gated `canWrite = ['admin','finance'].includes(effectiveRole)`
+- [x] **Payment toggle:** Create `src/components/financeiro/PaymentToggle.jsx`:
+  - [x] Por `(client_id, series_id, ref_month)`: `status`, `delay_days`, `paid_at`, `note` → upsert via `useBillingPaymentsMutations` (PK tripla)
+  - [x] Modo leitura (badges) quando `!canWrite`; T6 soma `mrr_real` das faturas inadimplentes
+- [x] **Page update:** `FinanceiroCockpitPage.jsx` — botões `+ Exceção`/`Adimplência`, `Editar` por exceção, invalidação de `financeiro_cockpit`/`financeiro_detalhe`/`billing_payments` após mutações
+- [x] **Mirrors:** `ClientSubDados.jsx` — card "Negociações vigentes" (exceções vigentes; adimplência latest já existia) ; `ClientFormContent.jsx` (aba Contrato) — card read-only "Negociações vigentes" para `admin/manager/finance/sales` (Q8)
+- [x] **Helper:** `src/hooks/useBillingExceptions.js` (listagem por cliente; RLS SELECT)
+- [x] **Build:** `npm run build` — OK (7.7s, 2808 módulos)
+- [x] **Verify (RLS matrix em produção, ROLLBACK):** `manager` lê e update bloqueado (`final_reason` inalterado); `finance` lê e update ok; `sales` lê e insert → 42501; `admin` insert ok; `sales` em `get_financeiro_cockpit` → 42501; `manager` cockpit/export ok (16 linhas). Obs.: não há usuário `csm` em produção (claims nulo → bloqueado)
+- [ ] **Commit:** `git add src/components/financeiro/ src/hooks/useBillingExceptions.js src/pages/FinanceiroCockpitPage.jsx src/components/clients/tabs/operacional/ClientSubDados.jsx src/components/clients/ClientFormContent.jsx docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 3 exceptions (4 tipos) + payment toggles + mirrors" && git push origin main`
 
 #### Implementation Log (Phase 3)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-09-11 | (pending) | `src/components/financeiro/ExcecaoModal.jsx`, `src/components/financeiro/PaymentToggle.jsx`, `src/hooks/useBillingExceptions.js`, `src/pages/FinanceiroCockpitPage.jsx`, `src/components/clients/tabs/operacional/ClientSubDados.jsx`, `src/components/clients/ClientFormContent.jsx` | CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos; matriz RLS validada em produção |
 
 ---
 
@@ -624,6 +625,7 @@ interface FinanceiroDetail {
 - `financial_data` enabled (`admin,manager,finance`); `cockpit_financeiro` **existe `enabled false`** (`admin,manager,finance`).
 - **Phase 1 aplicada (2026-09-11):** `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` por série + 3 RPCs + engine; smoke `2026-08` → 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; grants verificados (anon bloqueado, helper privado).
 - **Phase 2 implementada (2026-09-11):** página/hook/helpers + rota/card/flag registrada + form V2 com `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`. Deploy Vercel pendente do push; flag permanece `false` até a Phase 5.
+- **Phase 3 implementada (2026-09-11):** exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe e na aba Contrato; matriz RLS validada em produção.
 - **Histórico de migrations reconciliado (2026-09-11):** 8 versões locais marcadas `applied` e 8 órfãs remotas `reverted` (migrations de 02–07/09 aplicadas via MCP com timestamps diferentes). `split_health_cockpit` (pendente antiga) aplicada no mesmo push — flag `health_cockpit` criada.
 - Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); HTML v1.1 será o Help do cockpit (Phase 5).
 
@@ -747,6 +749,7 @@ When resuming this document for implementation:
 | 0.3 | 2026-09-11 | DoncCX Hub | Pós-validação: reajuste anual por série (`correction_anniversary/percent/rule`; renovação com valor corrigido; sem retroativo; remove `billing_corrections`/toggle); 4º tipo `desconto_unidade`; sales lê exceções (Q8); fatura zerada visível (Q4); falha de sync → suporte (Q9); "1 fatura por série" confirmado (Q11); task do Help do cockpit a partir do HTML validado |
 | 0.4 | 2026-09-11 | DoncCX Hub | Phase 1 implementada: migration `20260911191431_financeiro_cockpit_core` aplicada (engine series-aware, `billing_exceptions` 4 tipos, `usage_driven`/`correction_*`, flag, 3 RPCs); histórico de migrations reconciliado; smoke `2026-08` ok |
 | 0.5 | 2026-09-11 | DoncCX Hub | Phase 2 implementada: página/hook/helpers, rota + card + flag registrada, form V2 (`usage_driven` + reajuste + renovação assistida), paridade `resolveMRR`; flag permanece off até a Phase 5 |
+| 0.6 | 2026-09-11 | DoncCX Hub | Phase 3 implementada: CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe/aba Contrato; matriz RLS validada em produção |
 
 ---
 
