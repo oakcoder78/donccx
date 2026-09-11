@@ -773,6 +773,15 @@ Validação visual em produção com login fica com o time (rota autenticada).
 
 ---
 
+## Adendo 2026-09-11 (v1.3) — Ajustes do extrato e pendências (UI v2.1)
+
+- **"Pendências de adimplência" inicia colapsado** (o header mostra a contagem).
+- **Painel expandido sem repetição:** a linha/card já mostra cliente e CNPJ/SaaS_ID; o painel agora abre apenas com o veredito (valor faturado · adimplência · Δ) e os badges de exceção/reajuste + ações.
+- **Extrato com o que faltava:** colunas **Valor unit.**, **Piso**, **Uso**, **Acima do piso** (uso − piso, em unidades), **Excedente** e **Total** (mobile empilhado com a linha "R$ X por licença · piso N · N acima do piso").
+- **DB:** migration `20260911223319_financeiro_detalhe_unit_floor.sql` — `get_financeiro_detalhe` passa a expor `unit` (valor efetivo, já com desconto por unidade) e `floor` por série no jsonb.
+
+---
+
 ## Histórico
 
 | Versão | Data | Autor | Mudança |
@@ -787,6 +796,7 @@ Validação visual em produção com login fica com o time (rota autenticada).
 | 1.0 | 2026-09-11 | DoncCX Hub | **Complete:** Phase 5 (Help do cockpit em `public/help`, docs do módulo, flag ligada após QA de papéis). SDD v1.0 — todas as fases implementadas. |
 | 1.1 | 2026-09-11 | DoncCX Hub | Adendo: revisão de UI do detalhe do cliente (impeccable) — overflow eliminado (7 colunas + cards), painel fora da tabela, ações com `Button`, profissionais com disclosure e PDF condicional, remoção do MRR por produto, a11y |
 | 1.2 | 2026-09-11 | DoncCX Hub | Adendo UI v2: expandir inline (desktop/mobile), extrato da competência com vencimento/período e "Total do mês", pendências de adimplência (RPC + bloco + seletor de competência), PDF só ativos, CSV uma linha por profissional, Help v1.0 |
+| 1.3 | 2026-09-11 | DoncCX Hub | Adendo UI v2.1: pendências colapsadas por padrão; painel sem repetir cliente/CNPJ; extrato com Valor unit./Piso/Uso/Acima do piso/Excedente/Total (RPC detalhe expõe `unit`/`floor`) |
 
 ---
 

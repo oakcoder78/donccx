@@ -508,7 +508,6 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
   const profissionais = data.profissionais || []
   const ativos = profissionais.filter((p) => p.ativo)
   const metaById = Object.fromEntries((seriesMeta || []).map((s) => [s.id, s]))
-  const sumMin = series.reduce((t, s) => t + (Number(s.min) || 0), 0)
   const sumExc = series.reduce((t, s) => t + (Number(s.excedente) || 0), 0)
   const sumTotal = series.reduce((t, s) => t + (Number(s.total) || 0), 0)
   const correctionPercent = row?.correction_percent ?? data.correction_percent
@@ -524,22 +523,8 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
       {/* Header: veredito + ações */}
       <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4 border-b border-border-tertiary">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-base font-bold text-text-primary truncate">{row?.client_name || 'Cliente'}</h3>
-            {excecaoBadge && (
-              <span className={BADGE_AMBER}>
-                <Icons.AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                {excecaoBadge}
-              </span>
-            )}
-            {hasCorrection && (
-              <span className={BADGE_MUTED}>
-                Reajuste {formatPercent(correctionPercent)} · {correctionAnniversary || '—'}
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-text-secondary mt-1 tabular-nums">
-            {formatBRL(row?.mrr_real)} faturado
+          <p className="text-sm text-text-secondary tabular-nums">
+            <span className="text-base font-bold text-text-primary">{formatBRL(row?.mrr_real)}</span> faturado
             {row?.payment_status && (
               <span className={isLate ? 'text-donc-red' : 'text-donc-verde'}>
                 {' · '}{isLate ? 'Inadimplente' : 'Adimplente'}
@@ -549,9 +534,21 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
               <span className={`ml-2 text-xs font-semibold ${dd.color}`}>{dd.text}{dd.arrow} vs mês anterior</span>
             )}
           </p>
-          <p className="text-[11px] text-text-tertiary mt-1">
-            {[row?.cnpj, row?.saas_id].filter(Boolean).join(' · ') || 'CNPJ/SaaS_ID —'} · {series.length} série{series.length !== 1 ? 's' : ''}
-          </p>
+          {(excecaoBadge || hasCorrection) && (
+            <div className="flex items-center gap-2 flex-wrap mt-1.5">
+              {excecaoBadge && (
+                <span className={BADGE_AMBER}>
+                  <Icons.AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                  {excecaoBadge}
+                </span>
+              )}
+              {hasCorrection && (
+                <span className={BADGE_MUTED}>
+                  Reajuste {formatPercent(correctionPercent)} · {correctionAnniversary || '—'}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {canWrite && (
@@ -641,8 +638,10 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                   <thead>
                     <tr className="bg-bg-secondary text-[10px] uppercase tracking-wider text-text-tertiary">
                       <th scope="col" className="px-3 py-2 text-left font-semibold">Série</th>
-                      <th scope="col" className="px-3 py-2 text-right font-semibold">Mínimo</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Valor unit.</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Piso</th>
                       <th scope="col" className="px-3 py-2 text-right font-semibold">Uso</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Acima do piso</th>
                       <th scope="col" className="px-3 py-2 text-right font-semibold">Excedente</th>
                       <th scope="col" className="px-3 py-2 text-right font-semibold">Total</th>
                     </tr>
@@ -650,6 +649,7 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                   <tbody>
                     {series.map((s, i) => {
                       const meta = metaById[s.series_id]
+                      const acima = Math.max(0, Number(s.uso || 0) - Number(s.floor || 0))
                       return (
                         <tr key={s.series_id ?? i} className="border-t border-border-tertiary odd:bg-bg-secondary/30">
                           <td className="px-3 py-2.5">
@@ -663,8 +663,12 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                               </p>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.min)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.unit)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-text-primary">{s.floor ?? '—'}</td>
                           <td className="px-3 py-2.5 text-right tabular-nums text-text-primary">{s.uso ?? '—'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums ${acima > 0 ? 'text-donc-verde' : 'text-text-tertiary'}`}>
+                            {acima}
+                          </td>
                           <td className={`px-3 py-2.5 text-right tabular-nums whitespace-nowrap ${Number(s.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
                             {formatBRL(s.excedente)}
                           </td>
@@ -676,7 +680,9 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                   <tfoot>
                     <tr className="border-t border-border-tertiary bg-bg-secondary/60">
                       <td className="px-3 py-2 text-text-secondary text-[11px] uppercase tracking-wider">Total do mês</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(sumMin)}</td>
+                      <td />
+                      <td />
+                      <td />
                       <td />
                       <td className="px-3 py-2 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(sumExc)}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-bold text-text-primary whitespace-nowrap">{formatBRL(sumTotal)}</td>
@@ -688,6 +694,7 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
               <div className="md:hidden divide-y divide-border-tertiary">
                 {series.map((s, i) => {
                   const meta = metaById[s.series_id]
+                  const acima = Math.max(0, Number(s.uso || 0) - Number(s.floor || 0))
                   return (
                     <div key={s.series_id ?? i} className="p-3 odd:bg-bg-secondary/30">
                       <div className="flex items-start justify-between gap-3">
@@ -701,6 +708,9 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                               vence dia {meta.due_day} · {formatDate(meta.billing_start)} → {meta.billing_end ? formatDate(meta.billing_end) : 'em aberto'}
                             </p>
                           )}
+                          <p className="text-[11px] text-text-tertiary">
+                            {formatBRL(s.unit)} por {s.billing_type === 'por_os' ? 'OS' : 'licença'} · piso {s.floor ?? 0} · {acima} acima do piso
+                          </p>
                         </div>
                         <p className="text-base font-bold tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.total)}</p>
                       </div>
@@ -876,7 +886,7 @@ export default function FinanceiroCockpitPage() {
   const [csvDropdownOpen, setCsvDropdownOpen] = useState(false)
   const [exportView, setExportView] = useState('geral')
   const [exporting, setExporting] = useState(false)
-  const [pendenciasOpen, setPendenciasOpen] = useState(true)
+  const [pendenciasOpen, setPendenciasOpen] = useState(false)
   const [pendenciaTarget, setPendenciaTarget] = useState(null)
 
   const fallbackMonth = defaultRefMonth()
