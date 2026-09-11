@@ -745,6 +745,22 @@ When resuming this document for implementation:
 
 ---
 
+## Adendo 2026-09-11 — Revisão de UI do detalhe do cliente (impeccable)
+
+Crítica dupla (design + evidência técnica) após o deploy da Phase 5; score Nielsen 18/40 (Poor) antes. Correções aplicadas em `src/pages/FinanceiroCockpitPage.jsx`:
+
+- **Overflow eliminado:** tabela colapsada reduzida a **7 colunas** (Cliente com chips de exceção/adimplência, Tipo, Uso, MRR mín, MRR real, Δ) com `table-fixed`; Piso/Billable/Valor unit. migraram para o painel; **<768px → cards** (zero rolagem horizontal).
+- **Painel fora da `<table>`:** detalhe renderizado como bloco full-width **abaixo** da tabela (1 cliente aberto por vez via `openClientId`, reset ao trocar o mês) — a largura do detalhe não depende mais da tabela mestra (causa do corte à direita).
+- **Ações com `Button`:** `+ Exceção` **primary** (navy), `Adimplência` e `Exportar ▾` **secondary**, Ajuda **lime** no header principal (antes só renderizava no estado de erro).
+- **Profissionais ativos:** resumo "X de Y" + botão **"Ver lista completa"**; lista só com **Nome | E-mail | Último login** (filtrada por ativos), header sólido `bg-donc-navy` + `z-10`; **PDF inclui a lista apenas com o disclosure aberto** (`includeProfs`).
+- **"Divisão do MRR por produto" removida** da UI e do PDF.
+- **A11y:** `scope="col"` nos headers, expansão via botão com `aria-expanded`/`aria-controls`, `Toggle` com teclado (Space/Enter), `title` nos truncamentos, reset do painel por mês.
+- **PDF espelha o painel** (sem MRR por produto; bloco de profissionais condicional).
+
+Validação visual em produção com login fica com o time (rota autenticada).
+
+---
+
 ## Histórico
 
 | Versão | Data | Autor | Mudança |
@@ -757,6 +773,7 @@ When resuming this document for implementation:
 | 0.6 | 2026-09-11 | DoncCX Hub | Phase 3 implementada: CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe/aba Contrato; matriz RLS validada em produção |
 | 0.7 | 2026-09-11 | DoncCX Hub | Phase 4 implementada: exports CSV (geral/faturável/isento; global e por cliente) + PDF por cliente com CNPJ/SaaS_ID; fix de data BRT |
 | 1.0 | 2026-09-11 | DoncCX Hub | **Complete:** Phase 5 (Help do cockpit em `public/help`, docs do módulo, flag ligada após QA de papéis). SDD v1.0 — todas as fases implementadas. |
+| 1.1 | 2026-09-11 | DoncCX Hub | Adendo: revisão de UI do detalhe do cliente (impeccable) — overflow eliminado (7 colunas + cards), painel fora da tabela, ações com `Button`, profissionais com disclosure e PDF condicional, remoção do MRR por produto, a11y |
 
 ---
 

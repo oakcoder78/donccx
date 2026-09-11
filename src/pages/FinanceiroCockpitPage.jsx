@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, Fragment } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
@@ -8,6 +8,7 @@ import {
   useLastDoncSync,
 } from '@/hooks/useFinanceiroCockpit'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { Button } from '@/components/ui/Button'
 import { Icons } from '@/lib/icons'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -68,13 +69,23 @@ function Toggle({ value, onChange, disabled }) {
     <div
       role="switch"
       aria-checked={value}
+      aria-disabled={disabled}
+      tabIndex={disabled ? -1 : 0}
       onClick={() => !disabled && onChange(!value)}
+      onKeyDown={(e) => {
+        if (disabled) return
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault()
+          onChange(!value)
+        }
+      }}
       style={{
         width: 36, height: 20, borderRadius: 10, flexShrink: 0,
         backgroundColor: value ? '#173557' : '#d4d3ce',
         position: 'relative', transition: 'background 0.2s',
         cursor: disabled ? 'default' : 'pointer',
         display: 'inline-block',
+        outlineOffset: 2,
       }}
     >
       <div style={{
@@ -263,9 +274,8 @@ async function csvAnaliticoRow({ row, refMonth }) {
   )
 }
 
-function buildPdfHtml(row, detail, refMonth) {
+function buildPdfHtml(row, detail, refMonth, opts = {}) {
   const series = detail?.series || []
-  const modulos = detail?.modulos || []
   const excecoes = detail?.excecoes || []
   const payment = detail?.payment || []
   const profs = detail?.profissionais || []
@@ -285,11 +295,6 @@ function buildPdfHtml(row, detail, refMonth) {
       </tr>`
     )
     .join('')
-  const modRows = modulos
-    .map(
-      (m) => `<tr><td>${esc(m.nome)}</td><td class="num">${formatBRL(m.valor_rateado)}</td><td class="num">${m.pct != null ? formatPercent(m.pct) : '—'}</td><td>${esc(m.status || '—')}</td></tr>`
-    )
-    .join('')
   const excecoesList = excecoes.length
     ? `<ul>${excecoes.map((e) => `<li><strong>${esc(excecaoLabel(e.type, e))}</strong> · ${e.escopo === 'serie' ? 'série' : 'cliente'} · ${formatDate(e.valid_from)} → ${formatDate(e.valid_to)}<br><span class="muted">${esc(e.reason)}</span></li>`).join('')}</ul>`
     : '<p class="muted">Sem exceções no mês.</p>'
@@ -299,7 +304,13 @@ function buildPdfHtml(row, detail, refMonth) {
         return `<li>${esc(s?.label || 'Série')} · ${esc(paymentText(p.status, p.delay_days))}${p.paid_at ? ` · pago em ${formatDate(p.paid_at)}` : ''}</li>`
       }).join('')}</ul>`
     : '<p class="muted">Sem dados de adimplência.</p>'
-  const ativos = profs.filter((p) => p.ativo).length
+  const ativosList = profs.filter((p) => p.ativo)
+  const profBlock = profs.length === 0
+    ? ''
+    : opts.includeProfs
+      ? `<h2>Profissionais ativos (${ativosList.length})</h2>
+<table><thead><tr><th>Nome</th><th>E-mail</th><th>Último login</th></tr></thead><tbody>${ativosList.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.email || '—')}</td><td>${formatDateTime(p.data_ultimo_login)}</td></tr>`).join('')}</tbody></table>`
+      : `<h2>Profissionais ativos</h2><p>${ativosList.length} ativos de ${profs.length} profissionais no mês.</p>`
 
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Financeiro — ${esc(row.client_name)} — ${esc(monthLabel(refMonth))}</title>
@@ -341,9 +352,8 @@ ${series.length
     ? `<table><thead><tr><th>Série</th><th>Plano</th><th>Modo</th><th class="num">Mínimo</th><th class="num">Uso</th><th class="num">Excedente</th><th class="num">Total</th></tr></thead><tbody>${seriesRows}</tbody></table>`
     : '<p class="muted">Sem séries no mês.</p>'}
 <h2>Exceções vigentes</h2>${excecoesList}
-${modRows ? `<h2>Divisão do MRR por produto</h2><table><thead><tr><th>Produto</th><th class="num">Valor rateado</th><th class="num">%</th><th>Status</th></tr></thead><tbody>${modRows}</tbody></table>` : ''}
 <h2>Adimplência</h2>${paymentList}
-${profs.length ? `<h2>Profissionais / OS</h2><p>${profs.length} profissionais no mês (${ativos} ativos).</p>` : ''}
+${profBlock}
 <div class="footer">
   <span>DoncCX Hub · Financeiro — ${esc(monthLabel(refMonth))}</span>
   <span>Gerado em ${new Date().toLocaleString('pt-BR')} · build ${esc(commit)}</span>
@@ -351,7 +361,7 @@ ${profs.length ? `<h2>Profissionais / OS</h2><p>${profs.length} profissionais no
 </body></html>`
 }
 
-async function exportPdfRow(row, refMonth) {
+async function exportPdfRow(row, refMonth, opts = {}) {
   const w = window.open('', '_blank')
   if (!w) {
     toast.error('Permita pop-ups para gerar o PDF')
@@ -359,7 +369,7 @@ async function exportPdfRow(row, refMonth) {
   }
   try {
     const detail = await fetchFinanceiroDetail(row.client_id, refMonth)
-    w.document.write(buildPdfHtml(row, detail, refMonth))
+    w.document.write(buildPdfHtml(row, detail, refMonth, opts))
     w.document.close()
     w.focus()
     setTimeout(() => w.print(), 250)
@@ -407,34 +417,22 @@ function KpiCard({ icon: Icon, label, value, delta, sub, color, compact }) {
   )
 }
 
-// ─── Expanded row detail ────────────────────────────────────────────────────────
-
-function DetailSection({ title, count, children }) {
-  return (
-    <div className="border-t border-border-tertiary first:border-t-0">
-      <div className="px-4 py-1.5 bg-bg-tertiary/60 flex items-center gap-2">
-        <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider">{title}</span>
-        {count !== undefined && count !== null && (
-          <span className="text-[11px] text-text-tertiary">({count})</span>
-        )}
-      </div>
-      {children}
-    </div>
-  )
-}
+// ─── Expanded client panel ─────────────────────────────────────────────────────
 
 function seriesLabelFor(series, seriesId) {
   const match = (series || []).find(s => s.series_id === seriesId)
   return match?.label || null
 }
 
-function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
+function FinanceiroClientPanel({ clientId, refMonth, row, onClose }) {
   const { data, isLoading, error, refetch } = useFinanceiroDetalhe(clientId, refMonth, true)
   const qc = useQueryClient()
   const { effectiveRole } = useAuth()
   const canWrite = ['admin', 'finance'].includes(effectiveRole)
   const [excecaoModal, setExcecaoModal] = useState(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [showProfs, setShowProfs] = useState(false)
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['financeiro_detalhe', clientId, refMonth] })
@@ -445,9 +443,9 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
 
   if (isLoading) {
     return (
-      <div className="px-4 py-6">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-4 bg-bg-secondary rounded animate-pulse mb-2" />
+      <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-4 bg-bg-secondary rounded animate-pulse mb-3" />
         ))}
       </div>
     )
@@ -455,263 +453,283 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
 
   if (error) {
     return (
-      <div className="px-4 py-4 text-sm text-donc-red">
+      <div className="bg-bg-primary border border-border-tertiary rounded-xl p-5 text-sm text-donc-red">
         Erro ao carregar detalhe: {error.message}
-        <button onClick={() => refetch()} className="ml-2 underline hover:no-underline">
-          Tentar novamente
-        </button>
+        <button onClick={() => refetch()} className="ml-2 underline hover:no-underline">Tentar novamente</button>
       </div>
     )
   }
 
   if (!data) {
-    return <div className="px-4 py-6 text-center text-sm text-text-tertiary">Sem detalhe para este cliente.</div>
+    return (
+      <div className="bg-bg-primary border border-border-tertiary rounded-xl p-8 text-center text-sm text-text-tertiary">
+        Sem detalhe para este cliente.
+      </div>
+    )
   }
 
   const series = data.series || []
-  const modulos = data.modulos || []
   const excecoes = data.excecoes || []
   const payment = data.payment || []
   const profissionais = data.profissionais || []
-
-  // correction_* come from the cockpit row; fall back to the detail payload.
+  const ativos = profissionais.filter((p) => p.ativo)
   const correctionPercent = row?.correction_percent ?? data.correction_percent
   const correctionAnniversary = row?.correction_anniversary ?? data.correction_anniversary
   const hasCorrection = correctionPercent !== null && correctionPercent !== undefined && correctionPercent !== ''
   const excecaoBadge = row?.excecao_desc
     || (excecoes.length > 0 ? excecaoLabel(excecoes[0].type, excecoes[0]) : null)
-
-  const visibleProfs = profissionais.slice(0, 50)
+  const isLate = row?.payment_status === 'inadimplente' || Number(row?.delay_days) > 0
+  const dd = deltaDisplay(row?.mrr_delta)
 
   return (
-    <div>
-      {/* a. Badges bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border-tertiary bg-bg-tertiary/60 flex-wrap">
-        {excecaoBadge && (
-          <span className={BADGE_AMBER}>
-            <Icons.AlertTriangle className="w-3 h-3 flex-shrink-0" />
-            Exceção vigente: {excecaoBadge}
-          </span>
-        )}
-        {hasCorrection && (
-          <span className={BADGE_MUTED}>
-            Reajuste {formatPercent(correctionPercent)} · aniversário {correctionAnniversary || '—'}
-          </span>
-        )}
-        <span className="ml-auto text-[11px] text-text-tertiary">
-          {series.length} série{series.length !== 1 ? 's' : ''}
-        </span>
-        {canWrite && (
+    <div id={`financeiro-detail-${clientId}`} className="bg-bg-primary border border-border-tertiary rounded-xl">
+      {/* Header: veredito + ações */}
+      <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4 border-b border-border-tertiary">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-bold text-text-primary truncate">{row?.client_name || 'Cliente'}</h3>
+            {excecaoBadge && (
+              <span className={BADGE_AMBER}>
+                <Icons.AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                {excecaoBadge}
+              </span>
+            )}
+            {hasCorrection && (
+              <span className={BADGE_MUTED}>
+                Reajuste {formatPercent(correctionPercent)} · {correctionAnniversary || '—'}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-text-secondary mt-1 tabular-nums">
+            {formatBRL(row?.mrr_real)} faturado
+            {row?.payment_status && (
+              <span className={isLate ? 'text-donc-red' : 'text-donc-verde'}>
+                {' · '}{isLate ? 'Inadimplente' : 'Adimplente'}
+              </span>
+            )}
+            {row?.mrr_delta != null && (
+              <span className={`ml-2 text-xs font-semibold ${dd.color}`}>{dd.text}{dd.arrow} vs mês anterior</span>
+            )}
+          </p>
+          <p className="text-[11px] text-text-tertiary mt-1">
+            {[row?.cnpj, row?.saas_id].filter(Boolean).join(' · ') || 'CNPJ/SaaS_ID —'} · {series.length} série{series.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {canWrite && (
+            <Button size="sm" variant="primary" onClick={() => setExcecaoModal({ excecao: null })}>
+              + Exceção
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => setPaymentOpen(true)}>
+            Adimplência
+          </Button>
+          <div className="relative">
+            <Button size="sm" variant="secondary" onClick={() => setExportOpen((v) => !v)}>
+              <Icons.Download className="w-3.5 h-3.5" />
+              Exportar
+            </Button>
+            {exportOpen && (
+              <div className="absolute right-0 mt-1 w-44 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-1">
+                <button
+                  onClick={() => {
+                    csvAnaliticoRow({ row, refMonth }).catch((e) => toast.error('Erro no CSV: ' + e.message))
+                    setExportOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
+                >
+                  CSV analítico
+                </button>
+                <button
+                  onClick={() => {
+                    exportPdfRow(row, refMonth, { includeProfs: showProfs })
+                    setExportOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
+                >
+                  PDF
+                </button>
+              </div>
+            )}
+          </div>
           <button
             type="button"
-            onClick={() => setExcecaoModal({ excecao: null })}
-            className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+            onClick={onClose}
+            aria-label="Fechar detalhe"
+            className="p-2 text-text-tertiary hover:text-text-primary transition-colors"
           >
-            + Exceção
+            <Icons.X className="w-4 h-4" />
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setPaymentOpen(true)}
-          className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
-        >
-          Adimplência
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            csvAnaliticoRow({ row, refMonth }).catch((e) => toast.error('Erro no CSV: ' + e.message))
-          }
-          className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
-        >
-          CSV
-        </button>
-        <button
-          type="button"
-          onClick={() => exportPdfRow(row, refMonth)}
-          className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
-        >
-          PDF
-        </button>
+        </div>
       </div>
 
-      {/* b. Séries do mês */}
-      <DetailSection title="Séries do mês">
-        {series.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-text-tertiary">Sem séries no mês.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-donc-navy/70 text-white">
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Série</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Plano</th>
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Modo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Mínimo</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Uso</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Excedente</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {series.map((s, i) => (
-                  <tr key={s.series_id ?? i} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
-                    <td className="px-4 py-2 text-text-primary font-medium truncate max-w-[280px]" title={s.label || ''}>
-                      {s.label || '—'}
-                      {s.kind && <span className="text-[11px] text-text-tertiary"> · {s.kind}</span>}
-                    </td>
-                    <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{billingTypeLabel(s.billing_type)}</td>
-                    <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{seriesModeLabel(s.mode)}</td>
-                    <td className="px-4 py-2 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.min)}</td>
-                    <td className="px-4 py-2 text-center tabular-nums text-text-primary">{s.uso ?? '—'}</td>
-                    <td className="px-4 py-2 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.excedente)}</td>
-                    <td className="px-4 py-2 text-center tabular-nums font-semibold text-text-primary whitespace-nowrap">{formatBRL(s.total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="p-5 space-y-6">
+        {/* Resumo */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="rounded-lg border border-border-tertiary px-4 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-text-tertiary">MRR mínimo garantido</p>
+            <p className="text-lg font-bold text-text-primary tabular-nums mt-0.5">{formatBRL(row?.mrr_min)}</p>
+            <p className="text-[11px] text-text-tertiary">Piso {row?.billing_floor ?? 0} · {billingTypeLabel(row?.billing_type)}</p>
           </div>
-        )}
-      </DetailSection>
-
-      {/* c. Divisão do MRR por produto */}
-      <DetailSection title="Divisão do MRR por produto">
-        {modulos.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-text-tertiary">Sem divisão por produto no mês.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-donc-navy/70 text-white">
-                  <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Produto</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Valor rateado</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">%</th>
-                  <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modulos.map((m, i) => (
-                  <tr key={`${m.series_id ?? 'mod'}-${i}`} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
-                    <td className="px-4 py-2 text-text-primary truncate max-w-[320px]" title={m.nome || ''}>{m.nome || '—'}</td>
-                    <td className="px-4 py-2 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(m.valor_rateado)}</td>
-                    <td className="px-4 py-2 text-center tabular-nums text-text-secondary whitespace-nowrap">{formatPercent(m.pct)}</td>
-                    <td className="px-4 py-2 text-center text-text-secondary whitespace-nowrap">{m.status || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="rounded-lg border border-border-tertiary px-4 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-text-tertiary">MRR real faturável</p>
+            <p className="text-lg font-bold text-text-primary tabular-nums mt-0.5">{formatBRL(row?.mrr_real)}</p>
+            <p className="text-[11px] text-text-tertiary">Uso {row?.uso_cur ?? 0} · Billable {row?.billable ?? '—'}</p>
           </div>
-        )}
-      </DetailSection>
-
-      {/* d. Exceções vigentes */}
-      <DetailSection title="Exceções vigentes">
-        {excecoes.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-text-tertiary">Sem exceções no mês</p>
-        ) : (
-          <ul className="divide-y divide-border-tertiary">
-            {excecoes.map((ex, i) => (
-              <li key={ex.id ?? i} className="px-4 py-2 flex items-center gap-3 flex-wrap text-sm">
-                <span className="font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
-                <span className={BADGE_MUTED}>
-                  {ex.escopo === 'serie' ? (seriesLabelFor(series, ex.series_id) || 'série') : 'cliente'}
-                </span>
-                <span className="text-[11px] text-text-tertiary whitespace-nowrap">
-                  {formatDate(ex.valid_from)} → {formatDate(ex.valid_to)}
-                </span>
-                <span className="text-xs text-text-secondary ml-auto truncate max-w-[40%]" title={ex.reason || ''}>
-                  {ex.reason || '—'}
-                </span>
-                {canWrite && (
-                  <button
-                    type="button"
-                    onClick={() => setExcecaoModal({ excecao: ex })}
-                    className="text-[11px] text-donc-sky hover:underline whitespace-nowrap"
-                  >
-                    Editar
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </DetailSection>
-
-      {/* e. Adimplência */}
-      <DetailSection title="Adimplência">
-        {payment.length === 0 ? (
-          <p className="px-4 py-3 text-sm text-text-tertiary">Sem dados de adimplência no mês.</p>
-        ) : (
-          <div className="px-4 py-3 flex items-center gap-2 flex-wrap">
-            {payment.map((p, i) => {
-              const label = seriesLabelFor(series, p.series_id)
-              const badge = p.status === 'adimplente'
-                ? BADGE_GREEN
-                : p.status === 'inadimplente'
-                  ? BADGE_RED
-                  : BADGE_MUTED
-              return (
-                <span key={p.series_id ?? i} className={badge} title={p.note || ''}>
-                  {label ? `${label} · ` : ''}
-                  {p.status === 'adimplente'
-                    ? 'Adimplente'
-                    : p.status === 'inadimplente'
-                      ? `Inadimplente${Number(p.delay_days) > 0 ? ` ${p.delay_days}d` : ''}`
-                      : (p.status || '—')}
-                  {p.paid_at ? ` · pago em ${formatDate(p.paid_at)}` : ''}
-                </span>
-              )
-            })}
+          <div className="rounded-lg border border-border-tertiary px-4 py-3">
+            <p className="text-[11px] uppercase tracking-wider text-text-tertiary">Excedente</p>
+            <p className={`text-lg font-bold tabular-nums mt-0.5 ${Number(row?.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
+              {formatBRL(row?.excedente)}
+            </p>
+            <p className="text-[11px] text-text-tertiary">Valor unit. {formatBRL(row?.valor_unit)}</p>
           </div>
-        )}
-      </DetailSection>
+        </div>
 
-      {/* f. Profissionais / OS — license plans only */}
-      {billingType === 'por_licenca' && (
-        <DetailSection title="Profissionais / OS" count={profissionais.length}>
-          {profissionais.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-text-tertiary">Sem profissionais vinculados.</p>
+        {/* Séries */}
+        <section>
+          <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Séries do mês</h4>
+          {series.length === 0 ? (
+            <p className="text-sm text-text-tertiary">Sem séries no mês.</p>
           ) : (
-            <>
-              <div className="max-h-64 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-donc-navy/70 text-white sticky top-0">
-                      <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Nome</th>
-                      <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Email</th>
-                      <th className="px-4 py-2 text-center text-[11px] font-semibold uppercase tracking-wider text-white/90">Ativo</th>
-                      <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Último login</th>
-                      <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider text-white/90">Última OS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleProfs.map((p, i) => (
-                      <tr key={`${p.email || p.nome || 'prof'}-${i}`} className="border-b border-border-tertiary transition-colors hover:bg-bg-secondary">
-                        <td className="px-4 py-2 text-text-primary truncate max-w-[240px]" title={p.nome || ''}>{p.nome || '—'}</td>
-                        <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
-                        <td className="px-4 py-2 text-center">
-                          {p.ativo ? <span className={BADGE_GREEN}>Ativo</span> : <span className={BADGE_MUTED}>Inativo</span>}
-                        </td>
-                        <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{formatDateTime(p.data_ultimo_login)}</td>
-                        <td className="px-4 py-2 text-text-secondary whitespace-nowrap">
-                          {p.data_ultima_os
-                            ? `${formatDateTime(p.data_ultima_os)}${p.codigo_ultima_os ? ` · ${p.codigo_ultima_os}` : ''}`
-                            : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {profissionais.length > 50 && (
-                <p className="px-4 py-2 text-[11px] text-text-tertiary">
-                  Mostrando {visibleProfs.length} de {profissionais.length}
-                </p>
-              )}
-            </>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {series.map((s, i) => (
+                <div key={s.series_id ?? i} className="rounded-lg border border-border-tertiary p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-text-primary truncate" title={s.label || ''}>{s.label || '—'}</p>
+                      <p className="text-[11px] text-text-tertiary">
+                        {s.kind} · {billingTypeLabel(s.billing_type)} · {seriesModeLabel(s.mode)}
+                      </p>
+                    </div>
+                    <p className="text-base font-bold text-text-primary tabular-nums whitespace-nowrap">{formatBRL(s.total)}</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 mt-3">
+                    <div>
+                      <span className="block text-[11px] text-text-tertiary">Mínimo</span>
+                      <span className="text-xs tabular-nums text-text-primary">{formatBRL(s.min)}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] text-text-tertiary">Uso</span>
+                      <span className="text-xs tabular-nums text-text-primary">{s.uso ?? '—'}</span>
+                    </div>
+                    <div>
+                      <span className="block text-[11px] text-text-tertiary">Excedente</span>
+                      <span className={`text-xs tabular-nums ${Number(s.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
+                        {formatBRL(s.excedente)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
-        </DetailSection>
-      )}
+        </section>
+
+        {/* Exceções + Adimplência */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Exceções vigentes</h4>
+            {excecoes.length === 0 ? (
+              <p className="text-sm text-text-tertiary">Sem exceções no mês.</p>
+            ) : (
+              <ul className="space-y-2">
+                {excecoes.map((ex, i) => (
+                  <li key={ex.id ?? i} className="rounded-lg border border-border-tertiary px-3 py-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
+                      <span className={BADGE_MUTED}>
+                        {ex.escopo === 'serie' ? (seriesLabelFor(series, ex.series_id) || 'série') : 'cliente'}
+                      </span>
+                      <span className="text-[11px] text-text-tertiary ml-auto">
+                        {formatDate(ex.valid_from)} → {formatDate(ex.valid_to)}
+                      </span>
+                      {canWrite && (
+                        <button
+                          type="button"
+                          onClick={() => setExcecaoModal({ excecao: ex })}
+                          className="text-[11px] text-donc-sky hover:underline"
+                        >
+                          Editar
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-text-secondary mt-1 truncate" title={ex.reason || ''}>{ex.reason || '—'}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Adimplência</h4>
+            {payment.length === 0 ? (
+              <p className="text-sm text-text-tertiary">Sem dados de adimplência no mês.</p>
+            ) : (
+              <ul className="space-y-2">
+                {payment.map((p, i) => (
+                  <li key={p.series_id ?? i} className="flex items-center gap-2 flex-wrap text-sm">
+                    <span className="text-text-secondary">{seriesLabelFor(series, p.series_id) || 'Série'}</span>
+                    <span className={p.status === 'adimplente' ? BADGE_GREEN : p.status === 'inadimplente' ? BADGE_RED : BADGE_MUTED}>
+                      {p.status === 'adimplente'
+                        ? 'Adimplente'
+                        : p.status === 'inadimplente'
+                          ? `Inadimplente${Number(p.delay_days) > 0 ? ` ${p.delay_days}d` : ''}`
+                          : (p.status || '—')}
+                    </span>
+                    {p.paid_at && <span className="text-[11px] text-text-tertiary">pago em {formatDate(p.paid_at)}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+
+        {/* Profissionais ativos (disclosure) */}
+        {row?.billing_type === 'por_licenca' && (
+          <section>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
+                Profissionais ativos <span className="normal-case">({ativos.length} de {profissionais.length})</span>
+              </h4>
+              {ativos.length > 0 && (
+                <Button size="xs" variant="secondary" onClick={() => setShowProfs((v) => !v)}>
+                  {showProfs ? 'Ocultar lista' : `Ver lista completa (${ativos.length})`}
+                </Button>
+              )}
+            </div>
+            {profissionais.length === 0 ? (
+              <p className="text-sm text-text-tertiary">Sem profissionais vinculados.</p>
+            ) : showProfs ? (
+              <div className="rounded-lg border border-border-tertiary overflow-hidden">
+                <div className="max-h-72 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-donc-navy text-white sticky top-0 z-10">
+                        <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">Nome</th>
+                        <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">E-mail</th>
+                        <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">Último login</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {ativos.map((p, i) => (
+                        <tr key={`${p.email || p.nome || 'prof'}-${i}`} className="border-b border-border-tertiary last:border-0 hover:bg-bg-secondary">
+                          <td className="px-4 py-2 text-text-primary">{p.nome || '—'}</td>
+                          <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
+                          <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{formatDateTime(p.data_ultimo_login)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-text-tertiary">
+                {ativos.length} ativos de {profissionais.length} profissionais no mês. Abra a lista para detalhar — o PDF inclui os profissionais apenas com a lista aberta.
+              </p>
+            )}
+          </section>
+        )}
+      </div>
 
       <ExcecaoModal
         open={!!excecaoModal}
@@ -736,6 +754,7 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
   )
 }
 
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function FinanceiroCockpitPage() {
@@ -747,7 +766,7 @@ export default function FinanceiroCockpitPage() {
   const [search, setSearch] = useState('')
   const [billingType, setBillingType] = useState('all')
   const [onlyExcedentes, setOnlyExcedentes] = useState(false)
-  const [openSet, setOpenSet] = useState(new Set())
+  const [openClientId, setOpenClientId] = useState(null)
   const [csvDropdownOpen, setCsvDropdownOpen] = useState(false)
   const [exportView, setExportView] = useState('geral')
   const [exporting, setExporting] = useState(false)
@@ -812,13 +831,18 @@ export default function FinanceiroCockpitPage() {
   // ─── Row expand ───────────────────────────────────────────────────────────────
 
   const toggleRow = useCallback((clientId) => {
-    setOpenSet(prev => {
-      const next = new Set(prev)
-      if (next.has(clientId)) next.delete(clientId)
-      else next.add(clientId)
-      return next
-    })
+    setOpenClientId((prev) => (prev === clientId ? null : clientId))
   }, [])
+
+  const openRow = useMemo(
+    () => (rows || []).find((r) => r.client_id === openClientId) || null,
+    [rows, openClientId]
+  )
+
+  // Trocar o mês fecha o painel (dados de outro mês)
+  useEffect(() => {
+    setOpenClientId(null)
+  }, [refMonth])
 
   // ─── CSV export ──────────────────────────────────────────────────────────────
 
@@ -868,20 +892,7 @@ export default function FinanceiroCockpitPage() {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <BackButton navigate={navigate} />
-      <PageHeader
-        title="Financeiro · Faturamento"
-        subtitle={monthDisplay}
-        action={
-          <button
-            type="button"
-            onClick={() => window.open('/help/financeiro-regras.html', '_blank', 'noopener')}
-            className="flex items-center gap-1.5 text-xs border border-border-tertiary rounded-lg px-3 py-2 text-text-secondary hover:bg-bg-secondary transition-colors"
-          >
-            <Icons.FileQuestion className="w-3.5 h-3.5" />
-            Como funciona a cobrança
-          </button>
-        }
-      />
+        <PageHeader title="Financeiro · Faturamento" subtitle={monthDisplay} />
         <div className="mt-6 p-4 bg-donc-red/10 border border-donc-red/20 rounded-lg text-donc-red text-sm flex items-center gap-3">
           <Icons.AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>Erro ao carregar dados: {error.message}</span>
@@ -896,7 +907,20 @@ export default function FinanceiroCockpitPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <BackButton navigate={navigate} />
-      <PageHeader title="Financeiro · Faturamento" subtitle={monthDisplay} />
+      <PageHeader
+        title="Financeiro · Faturamento"
+        subtitle={monthDisplay}
+        action={
+          <Button
+            size="sm"
+            variant="lime"
+            onClick={() => window.open('/help/financeiro-regras.html', '_blank', 'noopener')}
+          >
+            <Icons.FileQuestion className="w-3.5 h-3.5" />
+            Como funciona a cobrança
+          </Button>
+        }
+      />
 
       {/* KPI cards T1-T3 */}
       {isLoading && (
@@ -1112,150 +1136,174 @@ export default function FinanceiroCockpitPage() {
       {/* Loading state */}
       {isLoading && (
         <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white">Cliente</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Tipo</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Piso</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Uso</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Billable</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Valor unit.</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">MRR mínimo</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">MRR real</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Exceção</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Adimplência</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">Δ</th>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
+                <th scope="col" className="w-8 px-3 py-2.5" />
+                <th scope="col" className="px-4 py-2.5 text-left">Cliente</th>
+                <th scope="col" className="px-4 py-2.5 text-center">Tipo</th>
+                <th scope="col" className="px-4 py-2.5 text-center">Uso</th>
+                <th scope="col" className="px-4 py-2.5 text-center whitespace-nowrap">MRR mínimo</th>
+                <th scope="col" className="px-4 py-2.5 text-center whitespace-nowrap">MRR real</th>
+                <th scope="col" className="px-4 py-2.5 text-center">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i} className="animate-pulse">
+                  <td className="px-3 py-2.5"><div className="h-3 w-3 bg-bg-secondary rounded" /></td>
+                  <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded w-2/3" /></td>
+                  {Array.from({ length: 5 }).map((__, j) => (
+                    <td key={j} className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
+                  ))}
                 </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="animate-pulse">
-                    <td className="px-4 py-2.5"><div className="h-3 w-3 bg-bg-secondary rounded" /></td>
-                    <td className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded w-2/3" /></td>
-                    {Array.from({ length: 10 }).map((__, j) => (
-                      <td key={j} className="px-4 py-2.5"><div className="h-3 bg-bg-secondary rounded" /></td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Table */}
+      {/* Mobile: client cards (no horizontal scroll) */}
+      {!isLoading && filtered.length > 0 && (
+        <div className="lg:hidden mt-5 space-y-3">
+          {filtered.map((row) => {
+            const isOpen = openClientId === row.client_id
+            const dd = deltaDisplay(row.mrr_delta)
+            const cardBorder = row.payment_status === 'inadimplente'
+              ? 'border-donc-red/30'
+              : row.excecao_desc
+                ? 'border-donc-amber/40'
+                : 'border-border-tertiary'
+            return (
+              <div key={row.client_id} className={`bg-bg-primary border ${cardBorder} rounded-xl`}>
+                <button
+                  type="button"
+                  onClick={() => toggleRow(row.client_id)}
+                  aria-expanded={isOpen}
+                  aria-controls={`financeiro-detail-${row.client_id}`}
+                  className="w-full text-left p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-text-primary truncate">{row.client_name}</p>
+                      <p className="text-[11px] text-text-tertiary truncate">
+                        {[row.cnpj, row.saas_id].filter(Boolean).join(' · ') || '—'}
+                      </p>
+                    </div>
+                    <span className="text-sm font-bold tabular-nums whitespace-nowrap text-text-primary">{formatBRL(row.mrr_real)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap mt-2">
+                    <span className="text-[11px] text-text-tertiary">{billingTypeLabel(row.billing_type)} · uso {row.uso_cur ?? 0}</span>
+                    {row.excecao_desc && <span className={BADGE_AMBER}>{row.excecao_desc}</span>}
+                    {row.payment_status === 'adimplente' && <span className={BADGE_GREEN}>Adimplente</span>}
+                    {row.payment_status === 'inadimplente' && (
+                      <span className={BADGE_RED}>Inadimplente{Number(row.delay_days) > 0 ? ` ${row.delay_days}d` : ''}</span>
+                    )}
+                    <span className={`ml-auto text-[11px] font-semibold ${dd.color}`}>{dd.text}{dd.arrow}</span>
+                  </div>
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Desktop table: 7 columns, fits the container (no horizontal scroll) */}
       {!isLoading && (rows || []).length > 0 && filtered.length > 0 && (
-        <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
-          <div className="overflow-x-auto w-full">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white w-8" />
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-white min-w-[220px]">Cliente</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Tipo</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">Piso</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Uso</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Billable</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">Valor unit.</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">MRR mínimo</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">MRR real</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white">Exceção</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white whitespace-nowrap">Adimplência</th>
-                  <th className="px-4 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-white w-20">Δ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(row => {
-                  const isOpen = openSet.has(row.client_id)
-                  const dd = deltaDisplay(row.mrr_delta)
-                  const isZeroed = Number(row.mrr_real) === 0 && row.excecao_desc != null
-                  const escopoHint = row.excecao_escopo === 'cliente' ? 'cliente' : 'série'
-                  const rowBg = row.payment_status === 'inadimplente'
-                    ? 'bg-donc-red/10'
-                    : row.excecao_desc
-                      ? 'bg-donc-amber/10'
-                      : ''
-
-                  return (
-                    <Fragment key={row.client_id}>
-                      <tr
+        <div className="hidden lg:block mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
+          <table className="w-full text-sm table-fixed">
+            <thead>
+              <tr className="bg-donc-navy text-white text-xs uppercase tracking-wider">
+                <th scope="col" className="w-8 px-3 py-2.5" />
+                <th scope="col" className="px-4 py-2.5 text-left">Cliente</th>
+                <th scope="col" className="w-28 px-4 py-2.5 text-center">Tipo</th>
+                <th scope="col" className="w-20 px-4 py-2.5 text-center">Uso</th>
+                <th scope="col" className="w-32 px-4 py-2.5 text-center whitespace-nowrap">MRR mínimo</th>
+                <th scope="col" className="w-32 px-4 py-2.5 text-center whitespace-nowrap">MRR real</th>
+                <th scope="col" className="w-16 px-4 py-2.5 text-center">Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((row) => {
+                const isOpen = openClientId === row.client_id
+                const dd = deltaDisplay(row.mrr_delta)
+                const isZeroed = Number(row.mrr_real) === 0 && row.excecao_desc != null
+                const rowBg = row.payment_status === 'inadimplente'
+                  ? 'bg-donc-red/10'
+                  : row.excecao_desc
+                    ? 'bg-donc-amber/10'
+                    : ''
+                return (
+                  <tr key={row.client_id} className={`border-b border-border-tertiary transition-colors hover:bg-bg-secondary ${rowBg}`}>
+                    <td className="px-3 py-2.5 align-middle">
+                      <button
+                        type="button"
                         onClick={() => toggleRow(row.client_id)}
-                        className={`border-b border-border-tertiary transition-colors hover:bg-bg-secondary cursor-pointer ${rowBg}`}
+                        aria-expanded={isOpen}
+                        aria-controls={`financeiro-detail-${row.client_id}`}
+                        aria-label={isOpen ? 'Recolher detalhe' : 'Expandir detalhe'}
+                        className="p-1 text-text-tertiary hover:text-text-primary transition-colors"
                       >
-                        <td className="px-4 py-2.5">
-                          <ChevronIcon open={isOpen} />
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <div className="text-text-primary font-semibold truncate max-w-[220px]" title={row.client_name || ''}>
-                            {row.client_name}
+                        <ChevronIcon open={isOpen} />
+                      </button>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        type="button"
+                        onClick={() => toggleRow(row.client_id)}
+                        className="text-left min-w-0 w-full"
+                      >
+                        <div className="text-text-primary font-semibold truncate" title={row.client_name || ''}>{row.client_name}</div>
+                        <div
+                          className="text-[11px] text-text-tertiary truncate"
+                          title={[row.cnpj, row.saas_id].filter(Boolean).join(' · ')}
+                        >
+                          {[row.cnpj, row.saas_id].filter(Boolean).join(' · ') || '—'}
+                        </div>
+                        {(row.excecao_desc || row.payment_status) && (
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            {row.excecao_desc && <span className={BADGE_AMBER}>{row.excecao_desc}</span>}
+                            {row.payment_status === 'adimplente' && <span className={BADGE_GREEN}>Adimplente</span>}
+                            {row.payment_status === 'inadimplente' && (
+                              <span className={BADGE_RED}>Inadimplente{Number(row.delay_days) > 0 ? ` ${row.delay_days}d` : ''}</span>
+                            )}
                           </div>
-                          <div className="text-[11px] text-text-tertiary truncate max-w-[220px]">
-                            {[row.cnpj, row.saas_id].filter(Boolean).join(' · ') || '—'}
-                          </div>
-                        </td>
-                        <td className="px-4 py-2.5 text-center text-text-secondary whitespace-nowrap">{billingTypeLabel(row.billing_type)}</td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(row.billing_floor)}</td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-text-primary">{row.uso_cur ?? '—'}</td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-text-primary">{row.billable ?? '—'}</td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(row.valor_unit)}</td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(row.mrr_min)}</td>
-                        <td className="px-4 py-2.5 text-center tabular-nums text-text-primary whitespace-nowrap">
-                          {isZeroed ? (
-                            <>
-                              <span className="font-semibold">{formatBRL(0)}</span>
-                              <div className="text-[10px] font-normal text-text-tertiary">fatura zerada</div>
-                            </>
-                          ) : (
-                            <span className="font-semibold">{formatBRL(row.mrr_real)}</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-center">
-                          {row.excecao_desc ? (
-                            <span className={BADGE_AMBER} title={row.excecao_desc}>
-                              <Icons.AlertTriangle className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate max-w-[110px]">{row.excecao_desc}</span>
-                              <span className="opacity-80 flex-shrink-0">· {escopoHint}</span>
-                            </span>
-                          ) : (
-                            <span className="text-text-tertiary">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                          {row.payment_status === 'adimplente' && <span className={BADGE_GREEN}>Adimplente</span>}
-                          {row.payment_status === 'inadimplente' && (
-                            <span className={BADGE_RED}>
-                              Inadimplente{Number(row.delay_days) > 0 ? ` ${row.delay_days}d` : ''}
-                            </span>
-                          )}
-                          {!row.payment_status && <span className="text-text-tertiary">—</span>}
-                        </td>
-                        <td className="px-4 py-2.5 text-center">
-                          <span className={`text-[11px] font-semibold whitespace-nowrap ${dd.color}`}>{dd.text}{dd.arrow}</span>
-                        </td>
-                      </tr>
-
-                      {/* Expanded detail row */}
-                      {isOpen && (
-                        <tr>
-                          <td colSpan={12} className="p-0 border-b border-border-tertiary bg-bg-secondary/20">
-                            <FinanceiroRowDetail
-                              clientId={row.client_id}
-                              refMonth={refMonth}
-                              billingType={row.billing_type}
-                              row={row}
-                            />
-                          </td>
-                        </tr>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-4 py-2.5 text-center text-text-secondary whitespace-nowrap">{billingTypeLabel(row.billing_type)}</td>
+                    <td className="px-4 py-2.5 text-center tabular-nums text-text-primary">{row.uso_cur ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-center tabular-nums text-text-primary whitespace-nowrap">{formatBRL(row.mrr_min)}</td>
+                    <td className="px-4 py-2.5 text-center tabular-nums text-text-primary whitespace-nowrap">
+                      {isZeroed ? (
+                        <>
+                          <span className="font-semibold">{formatBRL(0)}</span>
+                          <div className="text-[10px] font-normal text-text-tertiary">fatura zerada</div>
+                        </>
+                      ) : (
+                        <span className="font-semibold">{formatBRL(row.mrr_real)}</span>
                       )}
-                    </Fragment>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className={`text-[11px] font-semibold whitespace-nowrap ${dd.color}`}>{dd.text}{dd.arrow}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Expanded client panel (outside the table — no width/scroll coupling) */}
+      {!isLoading && openRow && (
+        <div className="mt-5">
+          <FinanceiroClientPanel
+            clientId={openRow.client_id}
+            refMonth={refMonth}
+            row={openRow}
+            onClose={() => setOpenClientId(null)}
+          />
         </div>
       )}
 
