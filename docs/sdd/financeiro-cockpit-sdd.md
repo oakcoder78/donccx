@@ -22,7 +22,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** **Phase 4 — ready to start** (Phase 3 complete 2026-09-11).
+- **Active phase:** **Phase 5 — ready to start** (Phase 4 complete 2026-09-11).
 
 **What already exists related to this work:**
 
@@ -42,10 +42,11 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 - **Fase 1 aplicada (2026-09-11):** migration `20260911191431_financeiro_cockpit_core.sql` — `contract_series.usage_driven` (backfill 26/26 originals) + `correction_anniversary/percent/rule`; `billing_exceptions` (4 tipos; RLS select `admin,manager,finance,sales`, write `admin,finance`; trigger `set_updated_at`); flag `cockpit_financeiro` (`false`, `admin,manager,finance`); RPCs `get_financeiro_cockpit`/`get_financeiro_detalhe`/`get_financeiro_export` + engine privado `_financeiro_series_month`. Smoke `2026-08`: 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; guard `csm` → 42501; matemática conferida (Multiloja 260 × R$ 58,50 = R$ 15.210,00; Koerich 400 × R$ 40,00 = R$ 16.000,00).
 - **Fase 2 implementada (2026-09-11):** `src/lib/financeiro.js` + `src/hooks/useFinanceiroCockpit.js` (`useFinanceiroCockpit`/`useFinanceiroDetalhe`/`useLastDoncSync`) + `src/pages/FinanceiroCockpitPage.jsx` (KPIs T1-T7, toolbar, accordion lazy por mount, banner Q9, CSV sintético); rota `<CockpitRoute flagKey="cockpit_financeiro">` + card no hub + registro em `SettingsFeatureFlags`; `Icons.Percent`; form V2 com `usage_driven` + reajuste (aniversário/regra/percentual) + renovação assistida; `resolveMRR` com paridade (usage_driven sem regras = piso × valor, 0 sem piso). Flag permanece `false` (QA com flag on na Phase 5).
 - **Fase 3 implementada (2026-09-11):** `ExcecaoModal` (4 tipos, escopo cliente/série, sem retroativo, overlap warning, audit) + `PaymentToggle` (adimplência por série) + `useBillingExceptions`; ações na página; espelho no `ClientSubDados` e card read-only na aba Contrato (`ClientFormContent`) para admin/manager/finance/sales (Q8). Matriz RLS validada em produção (manager read-only, finance/admin write, sales lê e não escreve, cockpit bloqueia sales).
+- **Fase 4 implementada (2026-09-11):** exports na página — visões geral/faturável/isento, CSV sintético (com escopo e escape), CSV analítico global (RPC `get_financeiro_export`) e por cliente (detalhe), PDF por cliente com CNPJ/SaaS_ID e rodapé de build; fix de data BRT.
 
 **What does NOT exist and needs to be created:**
 
-- Exports CSV analítico/PDF (**Phase 4**) e Help do cockpit (**Phase 5**).
+- Help do cockpit (**Phase 5**) + QA de papéis com flag on + `docs/modules/clients.md`.
 - `src/lib/financeiro.js`, `src/hooks/useFinanceiroCockpit.js`, `src/pages/FinanceiroCockpitPage.jsx`.
 - `src/components/financeiro/ExcecaoModal.jsx`, `PaymentToggle.jsx`.
 - Route `/financeiro-cockpit` (via `CockpitRoute`) + card no `CockpitsPage.jsx` + registro em `SettingsFeatureFlags.jsx`.
@@ -562,7 +563,7 @@ interface FinanceiroDetail {
 
 ### Phase 4 — Exports + Audit (sem retroatividade)
 
-**Status:** Not started
+**Status:** Complete (2026-09-11)
 
 **Rationale:** Exports são o entregável auditável (CNPJ+SaaS_ID). Sem retroatividade (validado 2026-09-11), o export reflete o mês como fechado — sem coluna de delta retroativo nem fluxo de reemissão.
 
@@ -571,18 +572,19 @@ interface FinanceiroDetail {
 
 #### Checklist
 
-- [ ] **CSV:** `EXPORT_VIEWS = { faturavel, isento, geral }` (`ViewToggle` segmented); `csvSintetico(rows)` colunas `Cliente | CNPJ | SaaS_ID | Tipo | Piso | Uso | Billable | Valor unit. | MRR mínimo | MRR real | Excedente | Exceção | Escopo | Adimplência | Δ MRR`; `csvAnalitico` via `supabase.rpc('get_financeiro_export')` (global) + `detailCache` (row) com `Série | Modo | Módulo | Valor rateado | %` + profissionais/OS when `por_licenca`
-- [ ] **Download:** `downloadFile(content, filename, mime)` com BOM `\uFEFF` (copy `ProfissionaisCockpitPage.jsx:48`); filenames `financeiro-sintetico-${view}-${refMonth}.csv` / `financeiro-analitico-...`
-- [ ] **PDF:** `exportPdf(row)` `<!DOCTYPE html><meta charset="utf-8">` + cards `MRR mínimo | MRR real | Excedente` + badges + table `tabular-nums` + header `Financeiro · ${client_name} — ${monthLabel(refMonth)} · ${view.label}` + `CNPJ / SaaS_ID`; `window.open + document.write + w.print()` `@media print .no-print{display:none}`
-- [ ] **Build:** `npm run build` with no errors
-- [ ] **Verify:** Excel PT-BR abre com BOM, PDF ok, valores batem com a tabela
-- [ ] **Commit:** `git add src/pages/FinanceiroCockpitPage.jsx src/hooks/useFinanceiroCockpit.js && git commit -m "feat(financeiro): phase 4 exports CSV/PDF" && git push origin main`
+- [x] **CSV:** `EXPORT_VIEWS = { geral, faturavel, isento }` (segmented no dropdown; `faturavel` = `mrr_real > 0`, `isento` = fatura zerada); `csvSintetico(rows)` com `Cliente | CNPJ | SaaS_ID | Tipo | Piso | Uso | Billable | Valor unit. | MRR mínimo | MRR real | Excedente | Exceção | Escopo | Adimplência | Δ`; `csvAnaliticoGlobal` via `supabase.rpc('get_financeiro_export')` (filtra pelos ids visíveis) + `csvAnaliticoRow` via `get_financeiro_detalhe` (séries + módulos + exceções + profissionais concatenados)
+- [x] **Download:** `downloadFile` com BOM `\uFEFF` + `csvField` (escape de `;`/aspas/quebra); filenames `financeiro-sintetico-${view}-${refMonth}.csv`, `financeiro-analitico-${view}-${refMonth}.csv`, `financeiro-analitico-geral-${cliente}-${refMonth}.csv`
+- [x] **PDF:** `exportPdfRow(row, refMonth)` — HTML standalone `<!DOCTYPE html><meta charset="utf-8">` + cards `MRR mínimo | MRR real | Excedente` + header `Financeiro · Faturamento` com CNPJ/SaaS_ID + tabela de séries + exceções + rateio + adimplência + contagem de profissionais + rodapé com build (`__COMMIT_HASH__`); `window.open + document.write + w.print()` + `@media print`
+- [x] **Fix inline:** `formatDate` do cockpit agora trata `YYYY-MM-DD` com `T00:00:00` (evita shift de fuso em BRT)
+- [x] **Build:** `npm run build` — OK (7.3s, 2808 módulos)
+- [x] **Verify:** chaves de `get_financeiro_export` conferidas em produção (22 colunas); CSV/PDF usam os mesmos dados da tabela. Validação visual final no QA da Phase 5 (flag on)
+- [ ] **Commit:** `git add src/pages/FinanceiroCockpitPage.jsx docs/sdd/financeiro-cockpit-sdd.md && git commit -m "feat(financeiro): phase 4 exports CSV/PDF" && git push origin main`
 
 #### Implementation Log (Phase 4)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-09-11 | (pending) | `src/pages/FinanceiroCockpitPage.jsx` | Exports: visões geral/faturável/isento, CSV sintético (com escopo) e analítico (global via RPC + por cliente), PDF por cliente com CNPJ/SaaS_ID; escape CSV e fix de data |
 
 ---
 
@@ -626,6 +628,7 @@ interface FinanceiroDetail {
 - **Phase 1 aplicada (2026-09-11):** `billing_exceptions` (4 tipos) + `usage_driven`/`correction_*` por série + 3 RPCs + engine; smoke `2026-08` → 16 clientes, MRR real R$ 122.692,83, excedente R$ 16.587,36; grants verificados (anon bloqueado, helper privado).
 - **Phase 2 implementada (2026-09-11):** página/hook/helpers + rota/card/flag registrada + form V2 com `usage_driven`/reajuste/renovação assistida + paridade `resolveMRR`. Deploy Vercel pendente do push; flag permanece `false` até a Phase 5.
 - **Phase 3 implementada (2026-09-11):** exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe e na aba Contrato; matriz RLS validada em produção.
+- **Phase 4 implementada (2026-09-11):** exports CSV (3 visões; global e por cliente) + PDF por cliente; chaves do RPC de export conferidas em produção.
 - **Histórico de migrations reconciliado (2026-09-11):** 8 versões locais marcadas `applied` e 8 órfãs remotas `reverted` (migrations de 02–07/09 aplicadas via MCP com timestamps diferentes). `split_health_cockpit` (pendente antiga) aplicada no mesmo push — flag `health_cockpit` criada.
 - Regras validadas por Financeiro/Vendas em 2026-09-11 (ata no BRD 0.6); HTML v1.1 será o Help do cockpit (Phase 5).
 
@@ -750,6 +753,7 @@ When resuming this document for implementation:
 | 0.4 | 2026-09-11 | DoncCX Hub | Phase 1 implementada: migration `20260911191431_financeiro_cockpit_core` aplicada (engine series-aware, `billing_exceptions` 4 tipos, `usage_driven`/`correction_*`, flag, 3 RPCs); histórico de migrations reconciliado; smoke `2026-08` ok |
 | 0.5 | 2026-09-11 | DoncCX Hub | Phase 2 implementada: página/hook/helpers, rota + card + flag registrada, form V2 (`usage_driven` + reajuste + renovação assistida), paridade `resolveMRR`; flag permanece off até a Phase 5 |
 | 0.6 | 2026-09-11 | DoncCX Hub | Phase 3 implementada: CRUD de exceções (4 tipos, escopo cliente/série, sem retroativo) + adimplência por série + espelhos no detalhe/aba Contrato; matriz RLS validada em produção |
+| 0.7 | 2026-09-11 | DoncCX Hub | Phase 4 implementada: exports CSV (geral/faturável/isento; global e por cliente) + PDF por cliente com CNPJ/SaaS_ID; fix de data BRT |
 
 ---
 

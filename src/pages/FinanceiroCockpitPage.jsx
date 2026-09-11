@@ -10,6 +10,8 @@ import {
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Icons } from '@/lib/icons'
 import { useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { supabase } from '@/lib/supabaseClient'
 import { ExcecaoModal } from '@/components/financeiro/ExcecaoModal'
 import { PaymentToggle } from '@/components/financeiro/PaymentToggle'
 import {
@@ -122,7 +124,8 @@ function formatDateTime(value) {
 
 function formatDate(value) {
   if (!value) return '—'
-  return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const d = String(value).length === 10 ? new Date(`${value}T00:00:00`) : new Date(value)
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function downloadFile(content, filename, mime) {
@@ -133,6 +136,237 @@ function downloadFile(content, filename, mime) {
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+// ─── Exports (Phase 4) ─────────────────────────────────────────────────────────
+
+const EXPORT_VIEWS = [
+  { key: 'geral', label: 'Geral' },
+  { key: 'faturavel', label: 'Faturável' },
+  { key: 'isento', label: 'Isento' },
+]
+
+function applyExportView(rows, view) {
+  if (view === 'faturavel') return (rows || []).filter((r) => Number(r.mrr_real) > 0)
+  if (view === 'isento') return (rows || []).filter((r) => Number(r.mrr_real) === 0 && Number(r.series_count) > 0)
+  return rows || []
+}
+
+function csvField(value) {
+  const s = value === null || value === undefined ? '' : String(value)
+  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+function csvLine(values) {
+  return values.map(csvField).join(';')
+}
+
+function slugify(value) {
+  return (
+    String(value || 'cliente')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'cliente'
+  )
+}
+
+async function fetchFinanceiroDetail(clientId, refMonth) {
+  const { data, error } = await supabase.rpc('get_financeiro_detalhe', {
+    p_client_id: clientId,
+    p_ref_month: refMonth,
+  })
+  if (error) throw error
+  return data?.[0] || null
+}
+
+function paymentText(status, delayDays) {
+  if (status === 'adimplente') return 'Adimplente'
+  if (status === 'inadimplente') return `Inadimplente${Number(delayDays) > 0 ? ` ${delayDays}d` : ''}`
+  return ''
+}
+
+function profsLabel(profs) {
+  return (profs || []).map((p) => p.nome).filter(Boolean).join('; ')
+}
+
+const ANALITICO_HEADER = [
+  'Cliente', 'CNPJ', 'SaaS ID', 'Série', 'Tipo de série', 'Plano', 'Modo',
+  'Piso', 'Uso', 'Billable', 'Valor unit.', 'MRR mínimo', 'MRR real', 'Excedente',
+  'Exceção', 'Escopo', 'Adimplência', 'Atraso (d)', 'Pago em', 'Índice de reajuste',
+  'Reajuste (%)', 'Profissionais',
+]
+
+function analiticoRowFromExport(r) {
+  return csvLine([
+    r.client_name, r.cnpj, r.saas_id, r.series_label, r.series_kind,
+    billingTypeLabel(r.billing_type),
+    r.mode === 'base_excedente' ? 'Base + excedente' : 'Travado',
+    r.billing_floor, r.uso, r.billable, formatBRL(r.valor_unit),
+    formatBRL(r.mrr_min), formatBRL(r.mrr_real), formatBRL(r.excedente),
+    r.excecao_desc, r.excecao_escopo === 'serie' ? 'série' : (r.excecao_escopo || ''),
+    paymentText(r.payment_status, r.delay_days),
+    r.delay_days, r.paid_at ? formatDate(r.paid_at) : '',
+    r.correction_index, r.correction_percent, profsLabel(r.profissionais),
+  ])
+}
+
+async function csvAnaliticoGlobal({ refMonth, rows, view }) {
+  const { data, error } = await supabase.rpc('get_financeiro_export', { p_ref_month: refMonth })
+  if (error) throw error
+  const ids = new Set((rows || []).map((r) => String(r.client_id)))
+  const scoped = applyExportView((data || []).filter((r) => ids.has(String(r.client_id))), view)
+  const lines = [csvLine(ANALITICO_HEADER), ...scoped.map(analiticoRowFromExport)]
+  downloadFile(lines.join('\n'), `financeiro-analitico-${view}-${refMonth}.csv`, 'text/csv;charset=utf-8')
+}
+
+async function csvAnaliticoRow({ row, refMonth }) {
+  const detail = await fetchFinanceiroDetail(row.client_id, refMonth)
+  const series = detail?.series || []
+  const modulos = detail?.modulos || []
+  const excecoes = detail?.excecoes || []
+  const payment = detail?.payment || []
+  const profs = detail?.profissionais || []
+  const header = [
+    'Cliente', 'CNPJ', 'SaaS ID', 'Série', 'Tipo de série', 'Plano', 'Modo',
+    'Uso', 'MRR mínimo', 'MRR real', 'Excedente', 'Exceções', 'Módulos', 'Adimplência', 'Profissionais',
+  ]
+  const lines = [csvLine(header)]
+  if (series.length === 0) {
+    lines.push(csvLine([row.client_name, row.cnpj, row.saas_id]))
+  }
+  series.forEach((s) => {
+    const modsOfSeries = modulos
+      .filter((m) => m.series_id === s.series_id)
+      .map((m) => `${m.nome}=${formatBRL(m.valor_rateado)}${m.pct != null ? ` (${formatPercent(m.pct)})` : ''}`)
+      .join('; ')
+    const excOfScope = excecoes
+      .filter((e) => (e.series_id || null) === (s.series_id || null))
+      .map((e) => `${excecaoLabel(e.type, e)} · ${e.valid_from}→${e.valid_to}`)
+      .join('; ')
+    const pay = payment.find((p) => p.series_id === s.series_id)
+    lines.push(csvLine([
+      row.client_name, row.cnpj, row.saas_id, s.label, s.kind,
+      billingTypeLabel(s.billing_type), seriesModeLabel(s.mode),
+      s.uso, formatBRL(s.min), formatBRL(s.total),
+      formatBRL(Number(s.total) - Number(s.min)),
+      excOfScope, modsOfSeries,
+      pay ? paymentText(pay.status, pay.delay_days) : '',
+      s.billing_type === 'por_licenca' ? profsLabel(profs) : '',
+    ]))
+  })
+  downloadFile(
+    lines.join('\n'),
+    `financeiro-analitico-geral-${slugify(row.client_name)}-${refMonth}.csv`,
+    'text/csv;charset=utf-8'
+  )
+}
+
+function buildPdfHtml(row, detail, refMonth) {
+  const series = detail?.series || []
+  const modulos = detail?.modulos || []
+  const excecoes = detail?.excecoes || []
+  const payment = detail?.payment || []
+  const profs = detail?.profissionais || []
+  const commit = typeof __COMMIT_HASH__ !== 'undefined' ? __COMMIT_HASH__ : 'dev'
+  const esc = (s) =>
+    String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const seriesRows = series
+    .map(
+      (s) => `<tr>
+        <td>${esc(s.label)}<br><span class="muted">${esc(s.kind)}</span></td>
+        <td>${esc(billingTypeLabel(s.billing_type))}</td>
+        <td>${esc(seriesModeLabel(s.mode))}</td>
+        <td class="num">${formatBRL(s.min)}</td>
+        <td class="num">${s.uso ?? ''}</td>
+        <td class="num">${formatBRL(s.excedente)}</td>
+        <td class="num"><strong>${formatBRL(s.total)}</strong></td>
+      </tr>`
+    )
+    .join('')
+  const modRows = modulos
+    .map(
+      (m) => `<tr><td>${esc(m.nome)}</td><td class="num">${formatBRL(m.valor_rateado)}</td><td class="num">${m.pct != null ? formatPercent(m.pct) : '—'}</td><td>${esc(m.status || '—')}</td></tr>`
+    )
+    .join('')
+  const excecoesList = excecoes.length
+    ? `<ul>${excecoes.map((e) => `<li><strong>${esc(excecaoLabel(e.type, e))}</strong> · ${e.escopo === 'serie' ? 'série' : 'cliente'} · ${formatDate(e.valid_from)} → ${formatDate(e.valid_to)}<br><span class="muted">${esc(e.reason)}</span></li>`).join('')}</ul>`
+    : '<p class="muted">Sem exceções no mês.</p>'
+  const paymentList = payment.length
+    ? `<ul>${payment.map((p) => {
+        const s = series.find((x) => x.series_id === p.series_id)
+        return `<li>${esc(s?.label || 'Série')} · ${esc(paymentText(p.status, p.delay_days))}${p.paid_at ? ` · pago em ${formatDate(p.paid_at)}` : ''}</li>`
+      }).join('')}</ul>`
+    : '<p class="muted">Sem dados de adimplência.</p>'
+  const ativos = profs.filter((p) => p.ativo).length
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<title>Financeiro — ${esc(row.client_name)} — ${esc(monthLabel(refMonth))}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1a18;margin:32px;font-size:12px}
+  h1{font-size:18px;margin:0}
+  h2{font-size:15px;margin:16px 0 6px}
+  .muted{color:#888780}
+  .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #173557;padding-bottom:10px}
+  .cards{display:flex;gap:10px;margin:14px 0}
+  .card{flex:1;border:1px solid #e8e7e3;border-radius:10px;padding:10px 12px}
+  .card .label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#888780}
+  .card .value{font-size:16px;font-weight:700;margin-top:2px}
+  table{width:100%;border-collapse:collapse;margin-top:4px}
+  th{background:#173557;color:#fff;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px}
+  td{border-bottom:1px solid #e8e7e3;padding:6px 8px;vertical-align:top}
+  .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  ul{margin:4px 0 0 16px;padding:0}
+  li{margin-bottom:4px}
+  .footer{margin-top:24px;border-top:1px solid #e8e7e3;padding-top:8px;color:#888780;font-size:10px;display:flex;justify-content:space-between}
+  @media print{body{margin:12mm}.no-print{display:none}}
+</style></head><body>
+<div class="header">
+  <div>
+    <h1>Financeiro · Faturamento</h1>
+    <div><strong>${esc(row.client_name)}</strong></div>
+    <div class="muted">${esc(row.cnpj || 'CNPJ —')} · SaaS_ID ${esc(row.saas_id || '—')}</div>
+  </div>
+  <div class="num muted">${esc(monthLabel(refMonth))}</div>
+</div>
+<div class="cards">
+  <div class="card"><div class="label">MRR mínimo garantido</div><div class="value">${formatBRL(row.mrr_min)}</div></div>
+  <div class="card"><div class="label">MRR real faturável</div><div class="value">${formatBRL(row.mrr_real)}</div></div>
+  <div class="card"><div class="label">Excedente</div><div class="value">${formatBRL(row.excedente)}</div></div>
+</div>
+<h2>Séries do mês</h2>
+${series.length
+    ? `<table><thead><tr><th>Série</th><th>Plano</th><th>Modo</th><th class="num">Mínimo</th><th class="num">Uso</th><th class="num">Excedente</th><th class="num">Total</th></tr></thead><tbody>${seriesRows}</tbody></table>`
+    : '<p class="muted">Sem séries no mês.</p>'}
+<h2>Exceções vigentes</h2>${excecoesList}
+${modRows ? `<h2>Divisão do MRR por produto</h2><table><thead><tr><th>Produto</th><th class="num">Valor rateado</th><th class="num">%</th><th>Status</th></tr></thead><tbody>${modRows}</tbody></table>` : ''}
+<h2>Adimplência</h2>${paymentList}
+${profs.length ? `<h2>Profissionais / OS</h2><p>${profs.length} profissionais no mês (${ativos} ativos).</p>` : ''}
+<div class="footer">
+  <span>DoncCX Hub · Financeiro — ${esc(monthLabel(refMonth))}</span>
+  <span>Gerado em ${new Date().toLocaleString('pt-BR')} · build ${esc(commit)}</span>
+</div>
+</body></html>`
+}
+
+async function exportPdfRow(row, refMonth) {
+  const w = window.open('', '_blank')
+  if (!w) {
+    toast.error('Permita pop-ups para gerar o PDF')
+    return
+  }
+  try {
+    const detail = await fetchFinanceiroDetail(row.client_id, refMonth)
+    w.document.write(buildPdfHtml(row, detail, refMonth))
+    w.document.close()
+    w.focus()
+    setTimeout(() => w.print(), 250)
+  } catch (e) {
+    w.close()
+    toast.error('Erro ao gerar PDF: ' + e.message)
+  }
 }
 
 // ─── KPI Card ───────────────────────────────────────────────────────────────────
@@ -282,6 +516,22 @@ function FinanceiroRowDetail({ clientId, refMonth, billingType, row }) {
           className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
         >
           Adimplência
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            csvAnaliticoRow({ row, refMonth }).catch((e) => toast.error('Erro no CSV: ' + e.message))
+          }
+          className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+        >
+          CSV
+        </button>
+        <button
+          type="button"
+          onClick={() => exportPdfRow(row, refMonth)}
+          className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+        >
+          PDF
         </button>
       </div>
 
@@ -499,6 +749,8 @@ export default function FinanceiroCockpitPage() {
   const [onlyExcedentes, setOnlyExcedentes] = useState(false)
   const [openSet, setOpenSet] = useState(new Set())
   const [csvDropdownOpen, setCsvDropdownOpen] = useState(false)
+  const [exportView, setExportView] = useState('geral')
+  const [exporting, setExporting] = useState(false)
 
   const fallbackMonth = defaultRefMonth()
 
@@ -571,36 +823,37 @@ export default function FinanceiroCockpitPage() {
   // ─── CSV export ──────────────────────────────────────────────────────────────
 
   function csvSintetico(scopeRows) {
+    const scoped = applyExportView(scopeRows, exportView)
     const header = [
       'Cliente', 'CNPJ', 'SaaS ID', 'Tipo', 'Piso', 'Uso', 'Billable', 'Valor unit.',
-      'MRR mínimo', 'MRR real', 'Excedente', 'Exceção', 'Adimplência', 'Δ',
+      'MRR mínimo', 'MRR real', 'Excedente', 'Exceção', 'Escopo', 'Adimplência', 'Δ',
     ]
-    const lines = [header.join(';')]
-    scopeRows.forEach(r => {
+    const lines = [csvLine(header)]
+    scoped.forEach((r) => {
       const dd = deltaDisplay(r.mrr_delta)
-      const adimplencia = r.payment_status === 'adimplente'
-        ? 'Adimplente'
-        : r.payment_status === 'inadimplente'
-          ? `Inadimplente ${r.delay_days || 0}d`
-          : ''
-      lines.push([
-        r.client_name || '',
-        r.cnpj || '',
-        r.saas_id || '',
+      lines.push(csvLine([
+        r.client_name,
+        r.cnpj,
+        r.saas_id,
         billingTypeLabel(r.billing_type),
-        formatBRL(r.billing_floor),
+        r.billing_floor,
         r.uso_cur ?? '',
         r.billable ?? '',
         formatBRL(r.valor_unit),
         formatBRL(r.mrr_min),
         formatBRL(r.mrr_real),
         formatBRL(r.excedente),
-        r.excecao_desc || '',
-        adimplencia,
+        r.excecao_desc,
+        r.excecao_escopo === 'serie' ? 'série' : (r.excecao_escopo || ''),
+        paymentText(r.payment_status, r.delay_days),
         `${dd.text}${dd.arrow}`,
-      ].join(';'))
+      ]))
     })
-    downloadFile(lines.join('\n'), `financeiro-sintetico-${refMonth}.csv`, 'text/csv;charset=utf-8')
+    downloadFile(
+      lines.join('\n'),
+      `financeiro-sintetico-${exportView}-${refMonth}.csv`,
+      'text/csv;charset=utf-8'
+    )
   }
 
   // ─── Guard (defense-in-depth; CockpitRoute already gates the route) ──────────
@@ -778,20 +1031,48 @@ export default function FinanceiroCockpitPage() {
             <ChevronIcon open={csvDropdownOpen} />
           </button>
           {csvDropdownOpen && (
-            <div className="absolute right-0 mt-1 w-56 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-1">
-              <button
-                onClick={() => { csvSintetico(filtered); setCsvDropdownOpen(false) }}
-                className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
-              >
-                CSV sintético
-              </button>
-              <button
-                disabled
-                title="Fase 4"
-                className="w-full text-left px-3 py-2 text-sm text-text-tertiary cursor-not-allowed"
-              >
-                CSV analítico
-              </button>
+            <div className="absolute right-0 mt-1 w-64 bg-bg-primary border border-border-tertiary rounded-lg shadow-lg z-30 py-2">
+              <div className="px-3 pb-1 text-[11px] font-medium text-text-tertiary uppercase tracking-wider">Visão</div>
+              <div className="flex gap-1 px-3 pb-2">
+                {EXPORT_VIEWS.map((v) => (
+                  <button
+                    key={v.key}
+                    onClick={() => setExportView(v.key)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium border transition-colors ${
+                      exportView === v.key
+                        ? 'bg-donc-navy text-white border-donc-navy'
+                        : 'bg-bg-primary text-text-secondary border-border-tertiary hover:bg-bg-secondary'
+                    }`}
+                  >
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-border-tertiary pt-1">
+                <button
+                  onClick={() => { csvSintetico(filtered); setCsvDropdownOpen(false) }}
+                  className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary"
+                >
+                  CSV sintético ({EXPORT_VIEWS.find((v) => v.key === exportView)?.label})
+                </button>
+                <button
+                  disabled={exporting}
+                  onClick={async () => {
+                    setExporting(true)
+                    try {
+                      await csvAnaliticoGlobal({ refMonth, rows: filtered, view: exportView })
+                    } catch (e) {
+                      toast.error('Erro no CSV analítico: ' + e.message)
+                    } finally {
+                      setExporting(false)
+                      setCsvDropdownOpen(false)
+                    }
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-text-primary hover:bg-bg-secondary disabled:opacity-50"
+                >
+                  {exporting ? 'Gerando…' : `CSV analítico (${EXPORT_VIEWS.find((v) => v.key === exportView)?.label})`}
+                </button>
+              </div>
             </div>
           )}
         </div>
