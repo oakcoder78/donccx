@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { useBillingPaymentsMutations } from '@/hooks/useBillingPayments'
+import { useEffect, useMemo, useState } from 'react'
+import { useBillingPayments, useBillingPaymentsMutations } from '@/hooks/useBillingPayments'
+import { useContractSeries } from '@/hooks/useContractCharges'
 import { monthLabel } from '@/lib/financeiro'
 import { Icons } from '@/lib/icons'
 
@@ -31,6 +32,7 @@ function StatusBadge({ status, delayDays }) {
 
 /**
  * Adimplência por fatura = (cliente, série, mês).
+ * A competência é selecionável (o Financeiro confirma meses anteriores sem sair do cockpit).
  * Write: admin/finance (RLS `billing_payments_write`); demais leem.
  */
 export function PaymentToggle({
@@ -39,20 +41,46 @@ export function PaymentToggle({
   clientId,
   clientName,
   refMonth,
-  series = [],
-  payments = [],
+  months = [],
   canWrite = false,
   onSaved,
 }) {
   const { mutateAsync } = useBillingPaymentsMutations(clientId)
+  const { data: payments = [] } = useBillingPayments(clientId)
+  const { data: allSeries = [] } = useContractSeries(clientId)
+  const [month, setMonth] = useState(refMonth)
   const [draft, setDraft] = useState({})
   const [savingId, setSavingId] = useState(null)
+
+  useEffect(() => {
+    if (open) setMonth(refMonth)
+  }, [open, refMonth])
+
+  const monthOptions = useMemo(() => {
+    const set = new Set([...(months || []), refMonth, ...(payments || []).map((p) => p.ref_month)])
+    return [...set].filter(Boolean).sort().reverse()
+  }, [months, refMonth, payments])
+
+  const series = useMemo(() => {
+    if (!month) return []
+    const first = `${month}-01`
+    const [yy, mm] = month.split('-').map(Number)
+    const last = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10)
+    return (allSeries || [])
+      .filter((s) => s.status === 'ativa' && s.billing_start <= last && (!s.billing_end || s.billing_end >= first))
+      .map((s) => ({ series_id: s.id, label: s.label, kind: s.kind }))
+  }, [allSeries, month])
+
+  const monthPayments = useMemo(
+    () => (payments || []).filter((p) => p.ref_month === month),
+    [payments, month]
+  )
 
   useEffect(() => {
     if (!open) return
     const init = {}
     ;(series || []).forEach((s) => {
-      const p = (payments || []).find((x) => x.series_id === s.series_id)
+      const p = (monthPayments || []).find((x) => x.series_id === s.series_id)
       init[s.series_id] = {
         status: p?.status || '',
         delay_days: p?.delay_days != null ? String(p.delay_days) : '',
@@ -61,7 +89,7 @@ export function PaymentToggle({
       }
     })
     setDraft(init)
-  }, [open, series, payments])
+  }, [open, series, monthPayments])
 
   if (!open) return null
 
@@ -76,7 +104,7 @@ export function PaymentToggle({
     try {
       await mutateAsync({
         series_id: seriesId,
-        ref_month: refMonth,
+        ref_month: month,
         status: row.status,
         delay_days: Number(row.delay_days) || 0,
         paid_at: row.paid_at || null,
@@ -104,7 +132,7 @@ export function PaymentToggle({
             <h3 className="text-base font-bold text-text-primary">Adimplência</h3>
             <p className="text-xs text-text-tertiary mt-0.5">
               {clientName ? `${clientName} · ` : ''}
-              {monthLabel(refMonth)}
+              {monthLabel(month || refMonth)}
             </p>
           </div>
           <button
@@ -116,15 +144,32 @@ export function PaymentToggle({
           </button>
         </div>
 
+        {monthOptions.length > 1 && (
+          <div className="mt-3">
+            <label className="label-sm">Competência</label>
+            <select
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="input-base w-full"
+            >
+              {monthOptions.map((m) => (
+                <option key={m} value={m}>
+                  {monthLabel(m)}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {!canWrite && (
-          <p className="text-[11px] text-text-tertiary mb-3">
+          <p className="text-[11px] text-text-tertiary mt-3">
             Somente Admin/Financeiro editam — você está no modo leitura.
           </p>
         )}
 
         {(series || []).length === 0 ? (
           <div className="text-center py-8 text-text-tertiary text-sm">
-            Nenhuma série ativa neste mês.
+            Nenhuma série ativa em {monthLabel(month || refMonth)}.
           </div>
         ) : (
           <div className="space-y-3 mt-3">

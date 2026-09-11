@@ -84,3 +84,18 @@ export function useLastDoncSync(refMonth) {
     enabled: !!refMonth,
   })
 }
+
+/** Pendências de adimplência: faturas de meses anteriores sem status. */
+export function useFinanceiroPendencias(monthsBack = 3) {
+  return useQuery({
+    queryKey: ['financeiro_pendencias', monthsBack],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_financeiro_pendencias', {
+        p_months_back: monthsBack,
+      })
+      if (error) throw error
+      return data || []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+}

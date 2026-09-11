@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback, useEffect, Fragment } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
@@ -6,7 +6,9 @@ import {
   useFinanceiroCockpit,
   useFinanceiroDetalhe,
   useLastDoncSync,
+  useFinanceiroPendencias,
 } from '@/hooks/useFinanceiroCockpit'
+import { useContractSeries } from '@/hooks/useContractCharges'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/lib/icons'
@@ -105,6 +107,21 @@ function prevMonthOf(refMonth) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+/** Matches a CSS media query (used to mount the detail panel only in the visible branch). */
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(
+    () => (typeof window !== 'undefined' ? window.matchMedia(query).matches : true)
+  )
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const onChange = (e) => setMatches(e.matches)
+    mql.addEventListener('change', onChange)
+    setMatches(mql.matches)
+    return () => mql.removeEventListener('change', onChange)
+  }, [query])
+  return matches
+}
+
 /** Percent delta vs a previous total; null when there is no baseline. */
 function pctDelta(cur, prev) {
   if (!prev || prev <= 0) return null
@@ -198,19 +215,15 @@ function paymentText(status, delayDays) {
   return ''
 }
 
-function profsLabel(profs) {
-  return (profs || []).map((p) => p.nome).filter(Boolean).join('; ')
-}
-
 const ANALITICO_HEADER = [
   'Cliente', 'CNPJ', 'SaaS ID', 'Série', 'Tipo de série', 'Plano', 'Modo',
   'Piso', 'Uso', 'Billable', 'Valor unit.', 'MRR mínimo', 'MRR real', 'Excedente',
   'Exceção', 'Escopo', 'Adimplência', 'Atraso (d)', 'Pago em', 'Índice de reajuste',
-  'Reajuste (%)', 'Profissionais',
+  'Reajuste (%)', 'Nome', 'E-mail', 'Último login',
 ]
 
-function analiticoRowFromExport(r) {
-  return csvLine([
+function analiticoBaseValues(r) {
+  return [
     r.client_name, r.cnpj, r.saas_id, r.series_label, r.series_kind,
     billingTypeLabel(r.billing_type),
     r.mode === 'base_excedente' ? 'Base + excedente' : 'Travado',
@@ -219,8 +232,20 @@ function analiticoRowFromExport(r) {
     r.excecao_desc, r.excecao_escopo === 'serie' ? 'série' : (r.excecao_escopo || ''),
     paymentText(r.payment_status, r.delay_days),
     r.delay_days, r.paid_at ? formatDate(r.paid_at) : '',
-    r.correction_index, r.correction_percent, profsLabel(r.profissionais),
-  ])
+    r.correction_index, r.correction_percent,
+  ]
+}
+
+/** Um profissional ativo por linha (séries sem ativo saem em 1 linha com campos vazios). */
+function analiticoRowsFromExport(r) {
+  const base = analiticoBaseValues(r)
+  const ativos = (r.profissionais || []).filter((p) => p.ativo)
+  if (r.billing_type !== 'por_licenca' || ativos.length === 0) {
+    return [csvLine([...base, '', '', ''])]
+  }
+  return ativos.map((p) =>
+    csvLine([...base, p.nome, p.email, formatDateTime(p.data_ultimo_login)])
+  )
 }
 
 async function csvAnaliticoGlobal({ refMonth, rows, view }) {
@@ -228,7 +253,7 @@ async function csvAnaliticoGlobal({ refMonth, rows, view }) {
   if (error) throw error
   const ids = new Set((rows || []).map((r) => String(r.client_id)))
   const scoped = applyExportView((data || []).filter((r) => ids.has(String(r.client_id))), view)
-  const lines = [csvLine(ANALITICO_HEADER), ...scoped.map(analiticoRowFromExport)]
+  const lines = [csvLine(ANALITICO_HEADER), ...scoped.flatMap(analiticoRowsFromExport)]
   downloadFile(lines.join('\n'), `financeiro-analitico-${view}-${refMonth}.csv`, 'text/csv;charset=utf-8')
 }
 
@@ -241,7 +266,8 @@ async function csvAnaliticoRow({ row, refMonth }) {
   const profs = detail?.profissionais || []
   const header = [
     'Cliente', 'CNPJ', 'SaaS ID', 'Série', 'Tipo de série', 'Plano', 'Modo',
-    'Uso', 'MRR mínimo', 'MRR real', 'Excedente', 'Exceções', 'Módulos', 'Adimplência', 'Profissionais',
+    'Uso', 'MRR mínimo', 'MRR real', 'Excedente', 'Exceções', 'Módulos', 'Adimplência',
+    'Nome', 'E-mail', 'Último login',
   ]
   const lines = [csvLine(header)]
   if (series.length === 0) {
@@ -257,15 +283,22 @@ async function csvAnaliticoRow({ row, refMonth }) {
       .map((e) => `${excecaoLabel(e.type, e)} · ${e.valid_from}→${e.valid_to}`)
       .join('; ')
     const pay = payment.find((p) => p.series_id === s.series_id)
-    lines.push(csvLine([
+    const base = [
       row.client_name, row.cnpj, row.saas_id, s.label, s.kind,
       billingTypeLabel(s.billing_type), seriesModeLabel(s.mode),
       s.uso, formatBRL(s.min), formatBRL(s.total),
       formatBRL(Number(s.total) - Number(s.min)),
       excOfScope, modsOfSeries,
       pay ? paymentText(pay.status, pay.delay_days) : '',
-      s.billing_type === 'por_licenca' ? profsLabel(profs) : '',
-    ]))
+    ]
+    const ativos = s.billing_type === 'por_licenca' ? profs.filter((p) => p.ativo) : []
+    if (ativos.length === 0) {
+      lines.push(csvLine([...base, '', '', '']))
+    } else {
+      ativos.forEach((p) => {
+        lines.push(csvLine([...base, p.nome, p.email, formatDateTime(p.data_ultimo_login)]))
+      })
+    }
   })
   downloadFile(
     lines.join('\n'),
@@ -310,7 +343,7 @@ function buildPdfHtml(row, detail, refMonth, opts = {}) {
     : opts.includeProfs
       ? `<h2>Profissionais ativos (${ativosList.length})</h2>
 <table><thead><tr><th>Nome</th><th>E-mail</th><th>Último login</th></tr></thead><tbody>${ativosList.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.email || '—')}</td><td>${formatDateTime(p.data_ultimo_login)}</td></tr>`).join('')}</tbody></table>`
-      : `<h2>Profissionais ativos</h2><p>${ativosList.length} ativos de ${profs.length} profissionais no mês.</p>`
+      : `<h2>Profissionais ativos</h2><p>${ativosList.length} profissionais ativos.</p>`
 
   return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Financeiro — ${esc(row.client_name)} — ${esc(monthLabel(refMonth))}</title>
@@ -424,8 +457,9 @@ function seriesLabelFor(series, seriesId) {
   return match?.label || null
 }
 
-function FinanceiroClientPanel({ clientId, refMonth, row, onClose }) {
+function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }) {
   const { data, isLoading, error, refetch } = useFinanceiroDetalhe(clientId, refMonth, true)
+  const { data: seriesMeta = [] } = useContractSeries(clientId)
   const qc = useQueryClient()
   const { effectiveRole } = useAuth()
   const canWrite = ['admin', 'finance'].includes(effectiveRole)
@@ -473,6 +507,10 @@ function FinanceiroClientPanel({ clientId, refMonth, row, onClose }) {
   const payment = data.payment || []
   const profissionais = data.profissionais || []
   const ativos = profissionais.filter((p) => p.ativo)
+  const metaById = Object.fromEntries((seriesMeta || []).map((s) => [s.id, s]))
+  const sumMin = series.reduce((t, s) => t + (Number(s.min) || 0), 0)
+  const sumExc = series.reduce((t, s) => t + (Number(s.excedente) || 0), 0)
+  const sumTotal = series.reduce((t, s) => t + (Number(s.total) || 0), 0)
   const correctionPercent = row?.correction_percent ?? data.correction_percent
   const correctionAnniversary = row?.correction_anniversary ?? data.correction_anniversary
   const hasCorrection = correctionPercent !== null && correctionPercent !== undefined && correctionPercent !== ''
@@ -585,42 +623,111 @@ function FinanceiroClientPanel({ clientId, refMonth, row, onClose }) {
           </div>
         </div>
 
-        {/* Séries */}
+        {/* Séries — extrato da competência */}
         <section>
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Séries do mês</h4>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">Séries do mês</h4>
+            <span className="text-[11px] text-text-tertiary">
+              Competência {monthLabel(refMonth)} · {series.length} série{series.length !== 1 ? 's' : ''}
+            </span>
+          </div>
           {series.length === 0 ? (
             <p className="text-sm text-text-tertiary">Sem séries no mês.</p>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {series.map((s, i) => (
-                <div key={s.series_id ?? i} className="rounded-lg border border-border-tertiary p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-text-primary truncate" title={s.label || ''}>{s.label || '—'}</p>
-                      <p className="text-[11px] text-text-tertiary">
-                        {s.kind} · {billingTypeLabel(s.billing_type)} · {seriesModeLabel(s.mode)}
-                      </p>
+            <div className="rounded-lg border border-border-tertiary overflow-hidden">
+              {/* Desktop: extrato alinhado */}
+              <div className="hidden md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-bg-secondary text-[10px] uppercase tracking-wider text-text-tertiary">
+                      <th scope="col" className="px-3 py-2 text-left font-semibold">Série</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Mínimo</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Uso</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Excedente</th>
+                      <th scope="col" className="px-3 py-2 text-right font-semibold">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {series.map((s, i) => {
+                      const meta = metaById[s.series_id]
+                      return (
+                        <tr key={s.series_id ?? i} className="border-t border-border-tertiary odd:bg-bg-secondary/30">
+                          <td className="px-3 py-2.5">
+                            <p className="text-text-primary font-medium truncate" title={s.label || ''}>{s.label || '—'}</p>
+                            <p className="text-[11px] text-text-tertiary">
+                              {s.kind} · {billingTypeLabel(s.billing_type)} · {seriesModeLabel(s.mode)}
+                            </p>
+                            {meta && (
+                              <p className="text-[11px] text-text-tertiary">
+                                vence dia {meta.due_day} · {formatDate(meta.billing_start)} → {meta.billing_end ? formatDate(meta.billing_end) : 'em aberto'}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.min)}</td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-text-primary">{s.uso ?? '—'}</td>
+                          <td className={`px-3 py-2.5 text-right tabular-nums whitespace-nowrap ${Number(s.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
+                            {formatBRL(s.excedente)}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-text-primary whitespace-nowrap">{formatBRL(s.total)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-border-tertiary bg-bg-secondary/60">
+                      <td className="px-3 py-2 text-text-secondary text-[11px] uppercase tracking-wider">Total do mês</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(sumMin)}</td>
+                      <td />
+                      <td className="px-3 py-2 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(sumExc)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-bold text-text-primary whitespace-nowrap">{formatBRL(sumTotal)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              {/* Mobile: linhas empilhadas */}
+              <div className="md:hidden divide-y divide-border-tertiary">
+                {series.map((s, i) => {
+                  const meta = metaById[s.series_id]
+                  return (
+                    <div key={s.series_id ?? i} className="p-3 odd:bg-bg-secondary/30">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-text-primary truncate">{s.label || '—'}</p>
+                          <p className="text-[11px] text-text-tertiary">
+                            {s.kind} · {billingTypeLabel(s.billing_type)} · {seriesModeLabel(s.mode)}
+                          </p>
+                          {meta && (
+                            <p className="text-[11px] text-text-tertiary">
+                              vence dia {meta.due_day} · {formatDate(meta.billing_start)} → {meta.billing_end ? formatDate(meta.billing_end) : 'em aberto'}
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-base font-bold tabular-nums text-text-primary whitespace-nowrap">{formatBRL(s.total)}</p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div>
+                          <span className="block text-[11px] text-text-tertiary">Mínimo</span>
+                          <span className="text-xs tabular-nums text-text-primary">{formatBRL(s.min)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-text-tertiary">Uso</span>
+                          <span className="text-xs tabular-nums text-text-primary">{s.uso ?? '—'}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[11px] text-text-tertiary">Excedente</span>
+                          <span className={`text-xs tabular-nums ${Number(s.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
+                            {formatBRL(s.excedente)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-base font-bold text-text-primary tabular-nums whitespace-nowrap">{formatBRL(s.total)}</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 mt-3">
-                    <div>
-                      <span className="block text-[11px] text-text-tertiary">Mínimo</span>
-                      <span className="text-xs tabular-nums text-text-primary">{formatBRL(s.min)}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] text-text-tertiary">Uso</span>
-                      <span className="text-xs tabular-nums text-text-primary">{s.uso ?? '—'}</span>
-                    </div>
-                    <div>
-                      <span className="block text-[11px] text-text-tertiary">Excedente</span>
-                      <span className={`text-xs tabular-nums ${Number(s.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
-                        {formatBRL(s.excedente)}
-                      </span>
-                    </div>
-                  </div>
+                  )
+                })}
+                <div className="p-3 bg-bg-secondary/60 flex items-center justify-between">
+                  <span className="text-[11px] uppercase tracking-wider text-text-secondary">Total do mês</span>
+                  <span className="text-sm font-bold tabular-nums text-text-primary">{formatBRL(sumTotal)}</span>
                 </div>
-              ))}
+              </div>
             </div>
           )}
         </section>
@@ -745,8 +852,7 @@ function FinanceiroClientPanel({ clientId, refMonth, row, onClose }) {
         clientId={clientId}
         clientName={row?.client_name}
         refMonth={refMonth}
-        series={series}
-        payments={payment}
+        months={months}
         canWrite={canWrite}
         onSaved={invalidate}
       />
@@ -770,6 +876,8 @@ export default function FinanceiroCockpitPage() {
   const [csvDropdownOpen, setCsvDropdownOpen] = useState(false)
   const [exportView, setExportView] = useState('geral')
   const [exporting, setExporting] = useState(false)
+  const [pendenciasOpen, setPendenciasOpen] = useState(true)
+  const [pendenciaTarget, setPendenciaTarget] = useState(null)
 
   const fallbackMonth = defaultRefMonth()
 
@@ -782,6 +890,9 @@ export default function FinanceiroCockpitPage() {
   const { data: rows, isLoading, error, refetch } = useFinanceiroCockpit(refMonth)
   const { data: prevRows } = useFinanceiroCockpit(prevMonthOf(refMonth))
   const { data: lastSync } = useLastDoncSync(refMonth)
+  const { data: pendencias = [] } = useFinanceiroPendencias(3)
+  const qc = useQueryClient()
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
   // ─── Filtering ────────────────────────────────────────────────────────────────
 
@@ -833,11 +944,6 @@ export default function FinanceiroCockpitPage() {
   const toggleRow = useCallback((clientId) => {
     setOpenClientId((prev) => (prev === clientId ? null : clientId))
   }, [])
-
-  const openRow = useMemo(
-    () => (rows || []).find((r) => r.client_id === openClientId) || null,
-    [rows, openClientId]
-  )
 
   // Trocar o mês fecha o painel (dados de outro mês)
   useEffect(() => {
@@ -1133,6 +1239,50 @@ export default function FinanceiroCockpitPage() {
         </div>
       )}
 
+      {/* Pendências de adimplência (faturas de meses anteriores sem status) */}
+      {pendencias.length > 0 && (
+        <div className="mt-4 bg-bg-primary border border-donc-amber/40 rounded-lg overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setPendenciasOpen((v) => !v)}
+            aria-expanded={pendenciasOpen}
+            className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-bg-secondary transition-colors"
+          >
+            <Icons.AlertTriangle className="w-4 h-4 text-donc-amber flex-shrink-0" />
+            <span className="text-sm font-semibold text-text-primary">Pendências de adimplência</span>
+            <span className="text-xs text-text-tertiary">{pendencias.length} fatura(s) de meses anteriores sem status</span>
+            <span className="ml-auto"><ChevronIcon open={pendenciasOpen} /></span>
+          </button>
+          {pendenciasOpen && (
+            <div className="divide-y divide-border-tertiary border-t border-border-tertiary">
+              {pendencias.map((p, i) => (
+                <div key={`${p.client_id}-${p.series_id}-${p.ref_month}-${i}`} className="flex items-center gap-3 flex-wrap px-4 py-2.5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">{p.client_name}</p>
+                    <p className="text-[11px] text-text-tertiary">
+                      {p.series_label} · {monthLabel(p.ref_month)} · vence {formatDate(p.due_date)}
+                      {Number(p.days_overdue) > 0 ? ` · ${p.days_overdue}d em atraso` : ''}
+                    </p>
+                  </div>
+                  <span className="ml-auto text-sm font-semibold tabular-nums text-text-primary whitespace-nowrap">
+                    {formatBRL(p.mrr_real)}
+                  </span>
+                  {['admin', 'finance'].includes(effectiveRole) && (
+                    <button
+                      type="button"
+                      onClick={() => setPendenciaTarget({ clientId: p.client_id, clientName: p.client_name, refMonth: p.ref_month })}
+                      className="px-2.5 py-1 text-xs rounded-lg border border-border-tertiary text-text-secondary hover:bg-bg-secondary transition-colors"
+                    >
+                      Lançar
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Loading state */}
       {isLoading && (
         <div className="mt-5 bg-bg-primary border border-border-tertiary rounded-lg overflow-hidden">
@@ -1175,7 +1325,8 @@ export default function FinanceiroCockpitPage() {
                 ? 'border-donc-amber/40'
                 : 'border-border-tertiary'
             return (
-              <div key={row.client_id} className={`bg-bg-primary border ${cardBorder} rounded-xl`}>
+              <div key={row.client_id} className="space-y-2">
+                <div className={`bg-bg-primary border ${cardBorder} rounded-xl`}>
                 <button
                   type="button"
                   onClick={() => toggleRow(row.client_id)}
@@ -1202,6 +1353,16 @@ export default function FinanceiroCockpitPage() {
                     <span className={`ml-auto text-[11px] font-semibold ${dd.color}`}>{dd.text}{dd.arrow}</span>
                   </div>
                 </button>
+                </div>
+                {!isDesktop && isOpen && (
+                  <FinanceiroClientPanel
+                    clientId={row.client_id}
+                    refMonth={refMonth}
+                    row={row}
+                    months={months}
+                    onClose={() => setOpenClientId(null)}
+                  />
+                )}
               </div>
             )
           })}
@@ -1234,7 +1395,8 @@ export default function FinanceiroCockpitPage() {
                     ? 'bg-donc-amber/10'
                     : ''
                 return (
-                  <tr key={row.client_id} className={`border-b border-border-tertiary transition-colors hover:bg-bg-secondary ${rowBg}`}>
+                  <Fragment key={row.client_id}>
+                  <tr className={`border-b border-border-tertiary transition-colors hover:bg-bg-secondary ${rowBg}`}>
                     <td className="px-3 py-2.5 align-middle">
                       <button
                         type="button"
@@ -1288,22 +1450,26 @@ export default function FinanceiroCockpitPage() {
                       <span className={`text-[11px] font-semibold whitespace-nowrap ${dd.color}`}>{dd.text}{dd.arrow}</span>
                     </td>
                   </tr>
+                  {isDesktop && isOpen && (
+                    <tr>
+                      <td colSpan={7} className="p-0 border-b border-border-tertiary bg-bg-secondary/20">
+                        <div className="p-4">
+                          <FinanceiroClientPanel
+                            clientId={row.client_id}
+                            refMonth={refMonth}
+                            row={row}
+                            months={months}
+                            onClose={() => setOpenClientId(null)}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 )
               })}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {/* Expanded client panel (outside the table — no width/scroll coupling) */}
-      {!isLoading && openRow && (
-        <div className="mt-5">
-          <FinanceiroClientPanel
-            clientId={openRow.client_id}
-            refMonth={refMonth}
-            row={openRow}
-            onClose={() => setOpenClientId(null)}
-          />
         </div>
       )}
 
@@ -1315,6 +1481,21 @@ export default function FinanceiroCockpitPage() {
           </div>
         </div>
       )}
+
+      <PaymentToggle
+        open={!!pendenciaTarget}
+        onClose={() => setPendenciaTarget(null)}
+        clientId={pendenciaTarget?.clientId}
+        clientName={pendenciaTarget?.clientName}
+        refMonth={pendenciaTarget?.refMonth}
+        months={months}
+        canWrite={['admin', 'finance'].includes(effectiveRole)}
+        onSaved={() => {
+          qc.invalidateQueries({ queryKey: ['financeiro_pendencias'] })
+          qc.invalidateQueries({ queryKey: ['financeiro_cockpit', refMonth] })
+          qc.invalidateQueries({ queryKey: ['billing_payments'] })
+        }}
+      />
     </div>
   )
 }
