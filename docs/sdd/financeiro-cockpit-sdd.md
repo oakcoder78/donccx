@@ -766,7 +766,7 @@ Validação visual em produção com login fica com o time (rota autenticada).
 - **DB:** migration `20260911215006_financeiro_cockpit_pendencias.sql` — RPC `get_financeiro_pendencias(p_months_back int)` (`SECURITY DEFINER`, guard `admin/manager/finance`, reusa `_financeiro_series_month`; vencimento = competência + `due_day` com clamp; anti-join `billing_payments`). Smoke: 40 pendências / R$ 356.566,72 (3 meses).
 - **PDF:** profissionais apenas **ativos**; sem a lista aberta mostra **"N profissionais ativos"** (sem "X de Y no mês").
 - **CSV analítico (global e por cliente):** **uma linha por profissional ativo** (colunas `Nome | E-mail | Último login`) repetindo as colunas da série; séries sem ativo saem em 1 linha com campos vazios.
-- **Help:** `docs/sdd/financeiro-cockpit-regras.html` + `public/help/financeiro-regras.html` refatorados para **padrão de ajuda v1.0** (sem enquadramento de validação; TOC; FAQ de uso; badge "Guia rápido — Financeiro & Admin"), revisados por `technical-writer`.
+- **Help:** `docs/sdd/financeiro-cockpit-regras.html` + `public/help/financeiro-regras.html` refatorados para **padrão de ajuda v1.0** (sem enquadramento de validação; TOC; FAQ de uso; badge "Guia rápido — Financeiro & Admin"), revisados por `technical-writer`. Navegação em **índice lateral** (sidebar sticky no desktop + bloco `<details>` no mobile), sem barra de rolagem horizontal.
 
 ---
 

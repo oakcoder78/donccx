@@ -29,21 +29,6 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
   </div>
 </header>
 
-<nav class="bg-white border-b border-border-tertiary sticky top-14 z-30 no-print" aria-label="Seções da ajuda">
-  <div class="max-w-[1120px] mx-auto px-4 md:px-8"><div class="flex gap-1 overflow-x-auto py-2 text-xs font-medium whitespace-nowrap">
-    <a href="#intro" class="px-3 py-1.5 rounded-full bg-donc-navy text-white">Como usar esta página</a>
-    <a href="#resumo" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Visão geral</a>
-    <a href="#series" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Séries</a>
-    <a href="#modos" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Modos de cobrança</a>
-    <a href="#excecoes" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Exceções</a>
-    <a href="#correcao" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Reajuste</a>
-    <a href="#adimplencia" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Adimplência</a>
-    <a href="#na-pratica" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Exemplos</a>
-    <a href="#perfis" class="px-3 py-1.5 rounded-full hover:bg-bg-secondary text-text-secondary">Quem faz o quê</a>
-    <a href="#perguntas-frequentes" class="px-3 py-1.5 rounded-full bg-donc-verde/10 text-donc-navy border border-donc-verde/40 font-semibold">Perguntas frequentes</a>
-  </div></div>
-</nav>
-
 <section class="bg-donc-navy text-white">
   <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-10 md:py-12">
     <div class="flex flex-wrap gap-2 mb-4">
@@ -76,6 +61,41 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
     </div>
   </div>
 </section>
+
+<div class="max-w-[1120px] mx-auto px-4 md:px-8 lg:flex lg:gap-10">
+  <aside class="hidden lg:block w-60 flex-shrink-0 no-print" aria-label="Índice da ajuda">
+    <nav class="sticky top-24">
+      <p class="text-[11px] font-bold uppercase tracking-widest text-text-tertiary mb-2">Índice</p>
+      <ol class="space-y-0.5">
+        <li><a href="#intro" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">01</span> Como usar esta página</a></li>
+        <li><a href="#resumo" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">02</span> Visão geral</a></li>
+        <li><a href="#series" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">03</span> Séries</a></li>
+        <li><a href="#modos" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">04</span> Modos de cobrança</a></li>
+        <li><a href="#excecoes" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">05</span> Exceções</a></li>
+        <li><a href="#correcao" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">06</span> Reajuste</a></li>
+        <li><a href="#adimplencia" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">07</span> Adimplência</a></li>
+        <li><a href="#na-pratica" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">08</span> Exemplos</a></li>
+        <li><a href="#perfis" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">09</span> Quem faz o quê</a></li>
+        <li><a href="#perguntas-frequentes" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">10</span> Perguntas frequentes</a></li>
+      </ol>
+    </nav>
+  </aside>
+  <details class="lg:hidden mb-4 rounded-lg border border-border-tertiary bg-white no-print" open>
+    <summary class="px-4 py-2.5 text-sm font-semibold cursor-pointer">Índice</summary>
+    <div class="px-4 pb-3 space-y-1.5 text-sm">
+      <a href="#intro" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">01</span> Como usar esta página</a>
+      <a href="#resumo" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">02</span> Visão geral</a>
+      <a href="#series" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">03</span> Séries</a>
+      <a href="#modos" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">04</span> Modos de cobrança</a>
+      <a href="#excecoes" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">05</span> Exceções</a>
+      <a href="#correcao" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">06</span> Reajuste</a>
+      <a href="#adimplencia" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">07</span> Adimplência</a>
+      <a href="#na-pratica" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">08</span> Exemplos</a>
+      <a href="#perfis" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">09</span> Quem faz o quê</a>
+      <a href="#perguntas-frequentes" class="block text-[13px] px-3 py-1.5 rounded-md text-text-secondary hover:bg-bg-secondary hover:text-donc-navy"><span class="tabular-nums text-text-tertiary">10</span> Perguntas frequentes</a>
+    </div>
+  </details>
+  <main class="flex-1 min-w-0">
 
 <section id="intro" class="max-w-[1120px] mx-auto px-4 md:px-8 pt-8" aria-label="Como usar esta página">
   <div class="bg-donc-verde/10 border border-donc-verde/40 rounded-xl p-5 md:p-6 print-break">
@@ -489,7 +509,8 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
       </li>
     </ol>
   </div>
-</section>
+  </main>
+</div>
 
 <footer class="max-w-[1120px] mx-auto px-4 md:px-8 py-10">
   <p class="text-[11px] text-text-tertiary text-center leading-relaxed">DoncCX Hub · Cockpit Financeiro — Como funciona a cobrança · Set 2026</p>
