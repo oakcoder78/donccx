@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/Card'
-import { usePermissions } from '@/hooks/usePermissions'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useCatalog } from '@/hooks/useCatalog'
@@ -258,7 +257,6 @@ function DoncInstancesSection({ clientId }) {
 }
 
 export function ClientSubDados({ client }) {
-  const { canViewFinancial } = usePermissions()
   const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const canViewFinancialEffective = isEnabled('financial_data', effectiveRole)
@@ -286,15 +284,6 @@ export function ClientSubDados({ client }) {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <InfoRow label="Início Contrato" value={formatDate(client.contract_start)} />
           <InfoRow label="Renovação" value={formatDate(client.contract_renewal)} />
-          {canViewFinancialEffective && (
-            <>
-              <InfoRow label="MRR" value={client.mrr ? `R$ ${Number(client.mrr).toLocaleString('pt-BR')}` : null} />
-              <InfoRow
-                label="Licenças"
-                value={client.billing_floor ? `${client.billing_floor} × R$ ${Number(client.billing_base_value || 0).toLocaleString('pt-BR')}` : null}
-              />
-            </>
-          )}
           <InfoRow
             label="Unidades previstas (início)"
             value={client.unidades_donc > 0 ? String(client.unidades_donc) : null}
@@ -449,7 +438,7 @@ export function ClientSubDados({ client }) {
       )}
 
       {/* Cronograma de cobrança (séries) */}
-      <BillingSchedule client={client} />
+      {canViewFinancialEffective && <BillingSchedule client={client} />}
     </div>
   )
 }

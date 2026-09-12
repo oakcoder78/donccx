@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useClients, useAllClients } from '@/hooks/useClients'
 import { useAuth } from '@/contexts/AuthContext'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { supabase } from '@/lib/supabaseClient'
 import { PageHeader } from '../ui/PageHeader'
 import { Button } from '../ui/Button'
@@ -54,9 +55,9 @@ export default function ClientsPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { profile, effectiveRole } = useAuth()
+  const { isEnabled } = useFeatureFlags()
   const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager' || effectiveRole === 'finance'
-  const canMutateEmpresas = ['admin', 'manager', 'finance', 'sales'].includes(effectiveRole)
-  const canSeeFinancial = ['admin', 'manager', 'finance'].includes(effectiveRole)
+  const canMutateEmpresas = isEnabled('empresas_mutate', effectiveRole)
 
   const [search,          setSearch]          = useState('')
   const [filter,          setFilter]          = useState(searchParams.get('filter') || 'todos')
@@ -76,10 +77,11 @@ export default function ClientsPage() {
   }
 
   // Call both hooks; enable only the relevant one (avoids conditional hook calls)
+  // The list never displays financial values (see CompanyCard) — fetch only SAFE_CLIENT_COLS.
   const { data: activeClients = [], isLoading: loadingActive } =
-    useClients(baseFilters, { enabled: !!profile && !showInactive, includeFinancial: canSeeFinancial })
+    useClients(baseFilters, { enabled: !!profile && !showInactive, includeFinancial: false })
   const { data: allClients = [],    isLoading: loadingAll    } =
-    useAllClients(baseFilters, { enabled: !!profile && showInactive, includeFinancial: canSeeFinancial })
+    useAllClients(baseFilters, { enabled: !!profile && showInactive, includeFinancial: false })
 
   const clients   = showInactive ? allClients   : activeClients
   const isLoading = showInactive ? loadingAll   : loadingActive
@@ -192,7 +194,7 @@ export default function ClientsPage() {
       {isLoading ? <PageSpinner /> : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map(c => (
-            <CompanyCard key={c.id} client={c} canSeeFinancial={canSeeFinancial} onClick={() => navigate(`/empresas/${c.id}?tab=overview`)} />
+            <CompanyCard key={c.id} client={c} onClick={() => navigate(`/empresas/${c.id}?tab=overview`)} />
           ))}
           {filtered.length === 0 && (
             <div className="col-span-3 text-center py-16 text-text-tertiary">Nenhuma empresa encontrada.</div>
@@ -203,7 +205,7 @@ export default function ClientsPage() {
   )
 }
 
-function CompanyCard({ client: c, onClick, canSeeFinancial }) {
+function CompanyCard({ client: c, onClick }) {
   const isInactive   = c.contract_active === false
   const isCliente    = c.lifecycle_stage === 'cliente'
   const displayName  = c.fantasy_name || c.name
@@ -252,11 +254,6 @@ function CompanyCard({ client: c, onClick, canSeeFinancial }) {
         <div className="flex items-center gap-2 flex-wrap mb-3">
           {c.abc_class && <Badge variant={abcVariant(c.abc_class)}>ABC {c.abc_class}</Badge>}
           <HealthScore score={c.health_total || 0} />
-          {canSeeFinancial && c.mrr > 0 && (
-            <span className="text-xs text-text-tertiary">
-              {c.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-            </span>
-          )}
           {penetrationPct !== null && (
             <span className="text-xs text-text-tertiary">
               {c.unidades_donc}/{c.unidades_total} un. ({penetrationPct}%)

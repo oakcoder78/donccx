@@ -110,15 +110,12 @@ function PrivateRoute() {
 
 function AdminRoute() {
   const { profile, effectiveRole } = useAuth()
-  const { isEnabled, loading: flagsLoading } = useFeatureFlags()
+  const { loading: flagsLoading } = useFeatureFlags()
   if (flagsLoading) return null
   // Use effectiveRole so impersonation previews correct access; original admin can still exit preview via banner
+  // Per-section visibility inside Configurações is handled by each section's own feature flag —
+  // this guard only checks role, so a flag change never accidentally locks the whole route.
   if (effectiveRole !== 'admin' && effectiveRole !== 'manager') return <Navigate to="/dashboard" replace />
-  if (effectiveRole === 'manager') {
-    if (!isEnabled('settings_menu', effectiveRole)) return <Navigate to="/dashboard" replace />
-    if (!isEnabled('api_donc', effectiveRole)) return <Navigate to="/dashboard" replace />
-    if (!isEnabled('freshdesk', effectiveRole)) return <Navigate to="/dashboard" replace />
-  }
   return <Outlet />
 }
 

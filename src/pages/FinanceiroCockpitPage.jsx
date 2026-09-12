@@ -1025,7 +1025,7 @@ export default function FinanceiroCockpitPage() {
 
   // ─── Guard (defense-in-depth; CockpitRoute already gates the route) ──────────
 
-  if (!isEnabled('cockpit_financeiro', effectiveRole) || !isEnabled('financial_data', effectiveRole)) {
+  if (!isEnabled('cockpit_financeiro', effectiveRole)) {
     return <Navigate to="/module-unavailable" replace />
   }
 

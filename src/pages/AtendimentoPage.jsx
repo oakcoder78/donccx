@@ -6,7 +6,6 @@ import { getAsanaConfig, createAsanaTask } from '../lib/asanaConfig'
 import { Modal } from '../components/ui/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useQuery } from '@tanstack/react-query'
-import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import toast from 'react-hot-toast'
 import { Icons } from "../lib/icons"
 
@@ -882,10 +881,9 @@ function Step3({ data, onChange, onBack, onSuccess }) {
     }).catch(() => {})
   }, [])
 
-  const { effectiveRole } = useAuth()
-  const { isEnabled: isFlagEnabled } = useFeatureFlags()
-  const canUseAsanaFlag = isFlagEnabled('asana', effectiveRole)
-  const showAsana = canUseAsanaFlag && asanaEnabled
+  // Using Asana (create task from a ticket) is not role-gated, same as Freshdesk itself —
+  // the `asana` flag only controls who can configure the integration in Configurações.
+  const showAsana = asanaEnabled
 
   useEffect(() => {
     getAsanaConfig()

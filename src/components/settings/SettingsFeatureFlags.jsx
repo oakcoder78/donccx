@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 const FLAG_GROUPS = {
   'Barra principal': ['whatsapp_atendimento', 'settings_menu'],
   'Equipe': ['users'],
+  'Empresas': ['empresas_mutate', 'financial_data'],
   'Produto': ['stages', 'segments', 'catalog'],
   'Projetos': ['fase_types', 'activity_types', 'project_templates', 'brief_templates'],
   'Health Score': ['health'],
@@ -15,7 +16,7 @@ const FLAG_GROUPS = {
   'Integrações': ['freshdesk', 'api_donc', 'asana'],
   'Comunicação': ['email_templates'],
   'Governança': ['logs', 'features'],
-  'Cockpits & Dashboards': ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'cockpit_financeiro', 'dashboard_v3', 'financial_data'],
+  'Cockpits & Dashboards': ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'cockpit_financeiro', 'dashboard_v3'],
 }
 
 export function SettingsFeatureFlags() {
