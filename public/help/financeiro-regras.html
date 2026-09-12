@@ -97,14 +97,14 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
   </details>
   <main class="flex-1 min-w-0">
 
-<section id="intro" class="pb-8" aria-label="Como usar esta página">
+<section id="intro" class="max-w-[1120px] mx-auto px-4 md:px-8 pb-8" aria-label="Como usar esta página">
   <div class="bg-donc-verde/10 border border-donc-verde/40 rounded-xl p-5 md:p-6 print-break">
     <span class="badge bg-donc-verde text-white">Como usar esta página</span>
     <p class="text-sm text-text-secondary mt-3 leading-relaxed">Esta é a tela de ajuda <strong class="text-text-primary">"Como funciona a cobrança"</strong>, aberta pelo cabeçalho do Cockpit Financeiro. O texto é escrito em linguagem simples e <strong class="text-text-primary">sem termos técnicos</strong>, para consulta no dia a dia. Os exemplos trazem valores reais e as perguntas frequentes ao final respondem às dúvidas mais comuns.</p>
   </div>
 </section>
 
-<section id="resumo" class="py-8">
+<section id="resumo" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
   <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">1</span><h2 class="text-xl font-bold text-donc-navy">Visão geral</h2></div>
   <p class="text-sm text-text-secondary mt-3 leading-relaxed">O Cockpit Financeiro reúne, em uma só tela, quanto cada cliente deve pagar em cada mês.</p>
   <p class="text-sm text-text-secondary mt-3 leading-relaxed">Para chegar a esse valor, o cockpit cruza o contrato, os aditivos, as negociações, o uso real do mês e o que já foi pago — e mostra a conta aberta, linha por linha. As informações ficam consolidadas por <strong class="text-text-primary">mês de competência</strong>, o mês a que a cobrança se refere.</p>
@@ -155,7 +155,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
   </div>
 </section>
 
-<section id="series" class="py-8">
+<section id="series" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
   <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">2</span><h2 class="text-xl font-bold text-donc-navy">Séries contratuais</h2></div>
   <p class="text-sm text-text-secondary mt-3 leading-relaxed">Cada cliente tem uma <strong class="text-text-primary">série contratual</strong> para cada combinado de cobrança. A série é a ficha de cobrança completa daquele combinado. Existem três tipos:</p>
   <div class="mt-4 print-break border border-border-secondary rounded-xl bg-white shadow-sm overflow-hidden">
@@ -207,7 +207,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
 </section>
 
 <section id="modos" class="bg-white border-y border-border-tertiary">
-  <div class="py-8">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
     <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">3</span><h2 class="text-xl font-bold text-donc-navy">Modos de cobrança: travado ou base + excedente</h2></div>
     <p class="text-sm text-text-secondary mt-3 leading-relaxed">Cada série é configurada em um de dois modos. O modo define se o uso do mês muda ou não a fatura.</p>
     <h3 class="font-bold text-donc-navy mt-6">Travado no valor da série</h3>
@@ -286,7 +286,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
   </div>
 </section>
 
-<section id="excecoes" class="py-8">
+<section id="excecoes" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
   <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">4</span><h2 class="text-xl font-bold text-donc-navy">Exceções: negociações com prazo</h2></div>
   <p class="text-sm text-text-secondary mt-3 leading-relaxed">Uma <strong class="text-text-primary">exceção</strong> é um ajuste negociado com data de início e data de fim. Existem quatro tipos:</p>
   <div class="mt-4 print-break border border-border-secondary rounded-xl bg-white shadow-sm overflow-hidden">
@@ -364,7 +364,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
 </section>
 
 <section id="correcao" class="bg-white border-y border-border-tertiary">
-  <div class="py-8">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
     <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">5</span><h2 class="text-xl font-bold text-donc-navy">Reajuste anual</h2></div>
     <p class="text-sm text-text-secondary mt-3 leading-relaxed">O reajuste acontece <strong class="text-text-primary">uma vez por ano</strong>, na data de aniversário do contrato. Por padrão, o aniversário é a data de assinatura, e pode ser configurado em cada série.</p>
     <p class="text-sm text-text-secondary mt-3 leading-relaxed">O percentual é <strong class="text-text-primary">editável</strong>, porque os contratos podem prever um percentual fixo (X%), o índice (IPCA ou IGP-M) ou o maior entre os dois.</p>
@@ -388,7 +388,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
   </div>
 </section>
 
-<section id="adimplencia" class="py-8">
+<section id="adimplencia" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
   <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">6</span><h2 class="text-xl font-bold text-donc-navy">Adimplência</h2></div>
   <p class="text-sm text-text-secondary mt-3 leading-relaxed">Adimplência é o status de pagamento de cada fatura. O Financeiro marca <strong class="text-text-primary">manualmente</strong>, fatura por fatura (série × mês):</p>
   <div class="grid md:grid-cols-3 gap-3 mt-4">
@@ -409,7 +409,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
 </section>
 
 <section id="na-pratica" class="bg-white border-y border-border-tertiary">
-  <div class="py-8">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
     <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">7</span><h2 class="text-xl font-bold text-donc-navy">Exemplos: cenários com valores</h2></div>
     <p class="text-sm text-text-secondary mt-3 leading-relaxed">Consolidação dos exemplos A a F, com os valores exatos de cada fatura.</p>
     <div class="mt-4 print-break border border-border-secondary rounded-xl bg-white shadow-sm overflow-hidden">
@@ -429,7 +429,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
   </div>
 </section>
 
-<section id="perfis" class="py-8">
+<section id="perfis" class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
   <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">8</span><h2 class="text-xl font-bold text-donc-navy">Quem vê e quem faz o quê</h2></div>
   <div class="mt-4 print-break border border-border-secondary rounded-xl bg-white shadow-sm overflow-hidden">
     <table class="w-full text-sm">
@@ -449,7 +449,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
 </section>
 
 <section id="perguntas-frequentes" class="bg-donc-amber/5 border-y border-donc-amber/20">
-  <div class="py-8">
+  <div class="max-w-[1120px] mx-auto px-4 md:px-8 py-8">
     <div class="flex items-center gap-2"><span class="badge bg-donc-navy text-white">9</span><h2 class="text-xl font-bold text-donc-navy">Perguntas frequentes</h2></div>
     <p class="text-sm text-text-secondary mt-3 leading-relaxed">Respostas rápidas para o dia a dia no cockpit.</p>
     <ol class="space-y-3 mt-5">
