@@ -517,21 +517,30 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
     || (excecoes.length > 0 ? excecaoLabel(excecoes[0].type, excecoes[0]) : null)
   const isLate = row?.payment_status === 'inadimplente' || Number(row?.delay_days) > 0
   const dd = deltaDisplay(row?.mrr_delta)
+  const allAdimplente = payment.length === 0 || payment.every((p) => p.status === 'adimplente')
+  const nothingToReport = excecoes.length === 0 && allAdimplente
 
   return (
-    <div id={`financeiro-detail-${clientId}`} className="bg-bg-primary border border-border-tertiary rounded-xl">
+    <div id={`financeiro-detail-${clientId}`} className="relative bg-bg-primary border border-border-tertiary rounded-xl">
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 left-0 w-1 rounded-l-xl ${isLate ? 'bg-donc-red' : 'bg-donc-verde'}`}
+      />
       {/* Header: veredito + ações */}
-      <div className="flex flex-wrap items-start justify-between gap-3 px-5 py-4 border-b border-border-tertiary">
+      <div className="flex flex-wrap items-start justify-between gap-3 pl-6 pr-5 py-4 border-b border-border-tertiary">
         <div className="min-w-0">
-          <p className="text-sm text-text-secondary tabular-nums">
-            <span className="text-base font-bold text-text-primary">{formatBRL(row?.mrr_real)}</span> faturado
+          <p className="text-xl font-bold text-text-primary tabular-nums">
+            {formatBRL(row?.mrr_real)}
             {row?.payment_status && (
-              <span className={isLate ? 'text-donc-red' : 'text-donc-verde'}>
-                {' · '}{isLate ? 'Inadimplente' : 'Adimplente'}
+              <span className={`ml-1.5 ${isLate ? 'text-donc-red' : 'text-donc-verde'}`}>
+                · {isLate ? 'inadimplente' : 'adimplente'}
               </span>
             )}
+          </p>
+          <p className="text-xs text-text-secondary mt-0.5">
+            faturado
             {row?.mrr_delta != null && (
-              <span className={`ml-2 text-xs font-semibold ${dd.color}`}>{dd.text}{dd.arrow} vs mês anterior</span>
+              <> · <span className={`font-semibold ${dd.color}`}>{dd.text}{dd.arrow}</span> vs mês anterior</>
             )}
           </p>
           {(excecaoBadge || hasCorrection) && (
@@ -598,22 +607,22 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
         </div>
       </div>
 
-      <div className="p-5 space-y-6">
-        {/* Resumo */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-lg border border-border-tertiary px-4 py-3">
+      <div className="pl-6 pr-5 py-5 space-y-5">
+        {/* Resumo — faixa de estatísticas, sem caixas separadas */}
+        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 sm:gap-x-6 sm:gap-y-3">
+          <div className="pb-3 sm:pb-0 sm:pr-6 border-b sm:border-b-0 sm:border-r border-border-tertiary last:border-0 last:pb-0">
             <p className="text-[11px] uppercase tracking-wider text-text-tertiary">MRR mínimo garantido</p>
-            <p className="text-lg font-bold text-text-primary tabular-nums mt-0.5">{formatBRL(row?.mrr_min)}</p>
+            <p className="text-base font-bold text-text-primary tabular-nums mt-0.5">{formatBRL(row?.mrr_min)}</p>
             <p className="text-[11px] text-text-tertiary">Piso {row?.billing_floor ?? 0} · {billingTypeLabel(row?.billing_type)}</p>
           </div>
-          <div className="rounded-lg border border-border-tertiary px-4 py-3">
+          <div className="pb-3 sm:pb-0 sm:pr-6 border-b sm:border-b-0 sm:border-r border-border-tertiary last:border-0 last:pb-0">
             <p className="text-[11px] uppercase tracking-wider text-text-tertiary">MRR real faturável</p>
-            <p className="text-lg font-bold text-text-primary tabular-nums mt-0.5">{formatBRL(row?.mrr_real)}</p>
+            <p className="text-base font-bold text-text-primary tabular-nums mt-0.5">{formatBRL(row?.mrr_real)}</p>
             <p className="text-[11px] text-text-tertiary">Uso {row?.uso_cur ?? 0} · Billable {row?.billable ?? '—'}</p>
           </div>
-          <div className="rounded-lg border border-border-tertiary px-4 py-3">
+          <div className="pb-3 sm:pb-0 sm:pr-6 border-b sm:border-b-0 sm:border-r border-border-tertiary last:border-0 last:pb-0">
             <p className="text-[11px] uppercase tracking-wider text-text-tertiary">Excedente</p>
-            <p className={`text-lg font-bold tabular-nums mt-0.5 ${Number(row?.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
+            <p className={`text-base font-bold tabular-nums mt-0.5 ${Number(row?.excedente) > 0 ? 'text-donc-verde' : 'text-text-primary'}`}>
               {formatBRL(row?.excedente)}
             </p>
             <p className="text-[11px] text-text-tertiary">Valor unit. {formatBRL(row?.valor_unit)}</p>
@@ -621,7 +630,7 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
         </div>
 
         {/* Séries — extrato da competência */}
-        <section>
+        <section className="pt-5 border-t border-border-tertiary">
           <div className="flex items-center justify-between gap-2 mb-2">
             <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">Séries do mês</h4>
             <span className="text-[11px] text-text-tertiary">
@@ -742,107 +751,125 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
           )}
         </section>
 
-        {/* Exceções + Adimplência */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <section>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Exceções vigentes</h4>
-            {excecoes.length === 0 ? (
-              <p className="text-sm text-text-tertiary">Sem exceções no mês.</p>
-            ) : (
-              <ul className="space-y-2">
-                {excecoes.map((ex, i) => (
-                  <li key={ex.id ?? i} className="rounded-lg border border-border-tertiary px-3 py-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
-                      <span className={BADGE_MUTED}>
-                        {ex.escopo === 'serie' ? (seriesLabelFor(series, ex.series_id) || 'série') : 'cliente'}
-                      </span>
-                      <span className="text-[11px] text-text-tertiary ml-auto">
-                        {formatDate(ex.valid_from)} → {formatDate(ex.valid_to)}
-                      </span>
-                      {canWrite && (
-                        <button
-                          type="button"
-                          onClick={() => setExcecaoModal({ excecao: ex })}
-                          className="text-[11px] text-donc-sky hover:underline"
-                        >
-                          Editar
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-xs text-text-secondary mt-1 truncate" title={ex.reason || ''}>{ex.reason || '—'}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section>
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Adimplência</h4>
-            {payment.length === 0 ? (
-              <p className="text-sm text-text-tertiary">Sem dados de adimplência no mês.</p>
-            ) : (
-              <ul className="space-y-2">
-                {payment.map((p, i) => (
-                  <li key={p.series_id ?? i} className="flex items-center gap-2 flex-wrap text-sm">
-                    <span className="text-text-secondary">{seriesLabelFor(series, p.series_id) || 'Série'}</span>
-                    <span className={p.status === 'adimplente' ? BADGE_GREEN : p.status === 'inadimplente' ? BADGE_RED : BADGE_MUTED}>
-                      {p.status === 'adimplente'
-                        ? 'Adimplente'
-                        : p.status === 'inadimplente'
-                          ? `Inadimplente${Number(p.delay_days) > 0 ? ` ${p.delay_days}d` : ''}`
-                          : (p.status || '—')}
-                    </span>
-                    {p.paid_at && <span className="text-[11px] text-text-tertiary">pago em {formatDate(p.paid_at)}</span>}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        {/* Profissionais ativos (disclosure) */}
-        {row?.billing_type === 'por_licenca' && (
-          <section>
-            <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary">
-                Profissionais ativos <span className="normal-case">({ativos.length} de {profissionais.length})</span>
-              </h4>
-              {ativos.length > 0 && (
-                <Button size="xs" variant="secondary" onClick={() => setShowProfs((v) => !v)}>
-                  {showProfs ? 'Ocultar lista' : `Ver lista completa (${ativos.length})`}
-                </Button>
-              )}
+        {/* Exceções + Adimplência — colapsa numa linha quando não há nada a reportar */}
+        <section className="pt-5 border-t border-border-tertiary">
+          {nothingToReport ? (
+            <div className="flex items-center gap-2 text-sm text-text-tertiary">
+              <span className="w-1.5 h-1.5 rounded-full bg-donc-verde flex-shrink-0" aria-hidden="true" />
+              Sem exceções vigentes · Adimplente em todas as séries
             </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Exceções vigentes</h4>
+                {excecoes.length === 0 ? (
+                  <p className="text-sm text-text-tertiary">Sem exceções no mês.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {excecoes.map((ex, i) => (
+                      <li key={ex.id ?? i} className="rounded-lg border border-border-tertiary px-3 py-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-text-primary">{excecaoLabel(ex.type, ex)}</span>
+                          <span className={BADGE_MUTED}>
+                            {ex.escopo === 'serie' ? (seriesLabelFor(series, ex.series_id) || 'série') : 'cliente'}
+                          </span>
+                          <span className="text-[11px] text-text-tertiary ml-auto">
+                            {formatDate(ex.valid_from)} → {formatDate(ex.valid_to)}
+                          </span>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => setExcecaoModal({ excecao: ex })}
+                              className="text-[11px] text-donc-sky hover:underline"
+                            >
+                              Editar
+                            </button>
+                          )}
+                        </div>
+                        <p className="text-xs text-text-secondary mt-1 truncate" title={ex.reason || ''}>{ex.reason || '—'}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Adimplência</h4>
+                {payment.length === 0 ? (
+                  <p className="text-sm text-text-tertiary">Sem dados de adimplência no mês.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {payment.map((p, i) => (
+                      <li key={p.series_id ?? i} className="flex items-center gap-2 flex-wrap text-sm">
+                        <span className="text-text-secondary">{seriesLabelFor(series, p.series_id) || 'Série'}</span>
+                        <span className={p.status === 'adimplente' ? BADGE_GREEN : p.status === 'inadimplente' ? BADGE_RED : BADGE_MUTED}>
+                          {p.status === 'adimplente'
+                            ? 'Adimplente'
+                            : p.status === 'inadimplente'
+                              ? `Inadimplente${Number(p.delay_days) > 0 ? ` ${p.delay_days}d` : ''}`
+                              : (p.status || '—')}
+                        </span>
+                        {p.paid_at && <span className="text-[11px] text-text-tertiary">pago em {formatDate(p.paid_at)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Profissionais ativos — rodapé com o mesmo chevron usado no resto da tela */}
+        {row?.billing_type === 'por_licenca' && (
+          <section className="pt-5 border-t border-border-tertiary">
             {profissionais.length === 0 ? (
               <p className="text-sm text-text-tertiary">Sem profissionais vinculados.</p>
-            ) : showProfs ? (
-              <div className="rounded-lg border border-border-tertiary overflow-hidden">
-                <div className="max-h-72 overflow-y-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-donc-navy text-white sticky top-0 z-10">
-                        <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">Nome</th>
-                        <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">E-mail</th>
-                        <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">Último login</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {ativos.map((p, i) => (
-                        <tr key={`${p.email || p.nome || 'prof'}-${i}`} className="border-b border-border-tertiary last:border-0 hover:bg-bg-secondary">
-                          <td className="px-4 py-2 text-text-primary">{p.nome || '—'}</td>
-                          <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
-                          <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{formatDateTime(p.data_ultimo_login)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             ) : (
-              <p className="text-sm text-text-tertiary">
-                {ativos.length} ativos de {profissionais.length} profissionais no mês. Abra a lista para detalhar — o PDF inclui os profissionais apenas com a lista aberta.
-              </p>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowProfs((v) => !v)}
+                  aria-expanded={showProfs}
+                  aria-controls={`financeiro-profs-${clientId}`}
+                  className="w-full flex items-center gap-2 text-left"
+                >
+                  <span className="text-sm text-text-secondary">
+                    <span className="font-semibold text-text-primary">Profissionais ativos</span>
+                    {' · '}{ativos.length} de {profissionais.length} no mês
+                  </span>
+                  <span className="ml-auto"><ChevronIcon open={showProfs} /></span>
+                </button>
+                {showProfs ? (
+                  <div id={`financeiro-profs-${clientId}`} className="mt-3 rounded-lg border border-border-tertiary overflow-hidden">
+                    <div className="max-h-72 overflow-y-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-donc-navy text-white sticky top-0 z-10">
+                            <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">Nome</th>
+                            <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">E-mail</th>
+                            <th scope="col" className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wider">Último login</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ativos.map((p, i) => (
+                            <tr key={`${p.email || p.nome || 'prof'}-${i}`} className="border-b border-border-tertiary last:border-0 hover:bg-bg-secondary">
+                              <td className="px-4 py-2 text-text-primary">{p.nome || '—'}</td>
+                              <td className="px-4 py-2 text-text-secondary">{p.email || '—'}</td>
+                              <td className="px-4 py-2 text-text-secondary whitespace-nowrap">{formatDateTime(p.data_ultimo_login)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : (
+                  ativos.length > 0 && (
+                    <p className="text-xs text-text-tertiary mt-1">
+                      O PDF inclui os profissionais apenas com a lista aberta.
+                    </p>
+                  )
+                )}
+              </>
             )}
           </section>
         )}
