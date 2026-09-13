@@ -15,7 +15,6 @@ import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { EmailComposerModal } from '../email/EmailComposerModal'
 import { Icons } from '@/lib/icons'
 import { useAuth } from '@/contexts/AuthContext'
-import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 
 const TABS = [
   { key: 'overview', label: 'Visão Geral' },
@@ -33,12 +32,11 @@ export default function ClientDetail() {
   const tab = searchParams.get('tab') || 'overview'
   const [showEmail, setShowEmail] = useState(false)
   const { profile, effectiveRole } = useAuth()
-  const { isEnabled } = useFeatureFlags()
   const canEditGlobal = ['admin', 'manager', 'finance'].includes(effectiveRole)
-  const canSeeFinancial = isEnabled('financial_data', effectiveRole)
   const canAccessAllTabs = ['admin', 'manager'].includes(effectiveRole)
 
-  const { data: client, isLoading } = useClient(id, { includeFinancial: canSeeFinancial })
+  // Financial columns are masked server-side by clients_safe (financial_data flag) regardless of role here.
+  const { data: client, isLoading } = useClient(id)
 
   const isCliente = client?.lifecycle_stage === 'cliente'
 

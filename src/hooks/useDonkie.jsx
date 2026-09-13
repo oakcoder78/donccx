@@ -89,7 +89,7 @@ function fmtPct(v) {
 
 async function fetchClientDossie(clientId) {
   const { data, error } = await supabase
-    .from('clients')
+    .from('clients_safe')
     .select(`
       id, name, fantasy_name, abc_class, mrr, segment,
       health_total, health_uso, health_suporte,

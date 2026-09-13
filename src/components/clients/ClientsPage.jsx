@@ -77,11 +77,11 @@ export default function ClientsPage() {
   }
 
   // Call both hooks; enable only the relevant one (avoids conditional hook calls)
-  // The list never displays financial values (see CompanyCard) — fetch only SAFE_CLIENT_COLS.
+  // Financial columns are masked server-side by clients_safe regardless of what's requested here.
   const { data: activeClients = [], isLoading: loadingActive } =
-    useClients(baseFilters, { enabled: !!profile && !showInactive, includeFinancial: false })
+    useClients(baseFilters, { enabled: !!profile && !showInactive })
   const { data: allClients = [],    isLoading: loadingAll    } =
-    useAllClients(baseFilters, { enabled: !!profile && showInactive, includeFinancial: false })
+    useAllClients(baseFilters, { enabled: !!profile && showInactive })
 
   const clients   = showInactive ? allClients   : activeClients
   const isLoading = showInactive ? loadingAll   : loadingActive

@@ -3,27 +3,21 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuditLog } from './useAuditLog'
 import toast from 'react-hot-toast'
 
-const FINANCIAL_COLS = 'mrr,licencas,valor_lic,billing_type,billing_base_value,billing_floor,correction_index,billing_status,billing_suspended_until'
-const SAFE_CLIENT_COLS = 'id,name,cnpj,segment,csm_id,stage_id,stage_override,abc_class,contract_start,contract_renewal,delay_days,onb_start,golive,health_uso,health_suporte,health_relacionamento,health_financeiro,health_projeto,health_total,created_at,updated_at,fantasy_name,logo_url,contract_active,unidades_total,unidades_donc,segment_id,site,address_cep,address_street,address_number,address_complement,address_neighborhood,address_city,address_state,contract_signed_date,description,freshdesk_company_id,health_calculated_at,freshdesk_company_ids,csm_temperature,temperature_updated_at,temperature_note,lifecycle_stage,comercial_id,erp,ti_tipo'
-
-function getClientSelect(includeFinancial) {
-  const cols = includeFinancial ? '*' : SAFE_CLIENT_COLS
-  return `
-  ${cols},
+// Financial columns (mrr, billing_*, ...) are masked server-side by the
+// clients_safe view based on the financial_data feature flag — see
+// supabase/migrations/20260913193000_clients_financial_safe_view.sql.
+// Reads always go through the view; writes still target public.clients.
+const CLIENT_SELECT = `
+  *,
   stage:stages(*),
   csm:profiles!clients_csm_id_fkey(id, name, email),
   comercial:profiles!clients_comercial_id_fkey(id, name, email),
   client_catalog(id, catalog_item_id, status, catalog_items(*)),
   onboardings(id, context, status, situacao_geral, created_at, end_date, projects(id))
 `
-}
 
-const CLIENT_SELECT = getClientSelect(true)
-const CLIENT_SELECT_SAFE = getClientSelect(false)
-
-function buildClientsQuery(filters, includeFinancial = true) {
-  const sel = includeFinancial ? CLIENT_SELECT : CLIENT_SELECT_SAFE
-  let q = supabase.from('clients').select(sel).order('name')
+function buildClientsQuery(filters) {
+  let q = supabase.from('clients_safe').select(CLIENT_SELECT).order('name')
   if (filters.csm_id)   q = q.eq('csm_id', filters.csm_id)
   if (filters.comercial_id) q = q.eq('comercial_id', filters.comercial_id)
   if (filters._labs_dual_owner) q = q.or(`csm_id.eq.${filters._labs_dual_owner},comercial_id.eq.${filters._labs_dual_owner}`)
@@ -37,14 +31,11 @@ function buildClientsQuery(filters, includeFinancial = true) {
 
 /** Default query — active companies only (contract_active = true). */
 export function useClients(filters = {}, options = {}) {
-  const { includeFinancial = true, ...rest } = options
-  // include in queryKey so cache separates financial vs safe
-  const qk = ['clients', filters, includeFinancial]
   return useQuery({
-    queryKey: qk,
-    ...rest,
+    queryKey: ['clients', filters],
+    ...options,
     queryFn: async () => {
-      const { data, error } = await buildClientsQuery(filters, includeFinancial).eq('contract_active', true)
+      const { data, error } = await buildClientsQuery(filters).eq('contract_active', true)
       if (error) { console.error('[useClients] query error:', error); return [] }
       return data ?? []
     },
@@ -54,13 +45,11 @@ export function useClients(filters = {}, options = {}) {
 
 /** Admin/recovery variant — includes inactive companies. */
 export function useAllClients(filters = {}, options = {}) {
-  const { includeFinancial = true, ...rest } = options
-  const qk = ['clients_all', filters, includeFinancial]
   return useQuery({
-    queryKey: qk,
-    ...rest,
+    queryKey: ['clients_all', filters],
+    ...options,
     queryFn: async () => {
-      const { data, error } = await buildClientsQuery(filters, includeFinancial)
+      const { data, error } = await buildClientsQuery(filters)
       if (error) { console.error('[useAllClients] query error:', error); return [] }
       return data ?? []
     },

@@ -181,7 +181,7 @@ export async function recalculateAndSave(client, rules, weights) {
  */
 export async function recalculateAllHealthScores() {
   const [clientsResult, rules, weights] = await Promise.all([
-    supabase.from('clients').select(FULL_CLIENT_SELECT).eq('contract_active', true),
+    supabase.from('clients_safe').select(FULL_CLIENT_SELECT).eq('contract_active', true),
     fetchRules(),
     fetchWeights(),
   ])

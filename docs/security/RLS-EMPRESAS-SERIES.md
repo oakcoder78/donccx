@@ -14,9 +14,24 @@ Estado em produção em 2026-09-07. Cada policy abaixo informa a migration de or
 
 Sem `DELETE` fora de `admin/manager`. Enforcement real é o banco; o frontend apenas esconde CTAs (`+ Nova Empresa`/`Editar` só `admin/manager/finance` + sales na carteira).
 
-## Financeiro blindado no Network
+## Financeiro blindado no banco (não só no frontend)
 
-Papéis sem `financial_data` (`sales/csm/analyst`) recebem `SELECT` explícito sem `mrr/licencas/valor_lic/billing_type/billing_base_value/billing_floor/correction_index/billing_status/billing_suspended_until` (`SAFE_CLIENT_COLS` em `useClients.js`/`useClient.js`) — o dado não vaza nem no DevTools. `admin/manager/finance` seguem com `*`.
+Atualizado em 2026-09-13 (`20260913193000_clients_financial_safe_view.sql`):
+o mascaramento das 9 colunas financeiras (`mrr/licencas/valor_lic/billing_type/
+billing_base_value/billing_floor/correction_index/billing_status/
+billing_suspended_until`) agora acontece **no banco**, não só na convenção de
+frontend. `public.clients_safe` é uma view (`security_invoker = true`, então
+o RLS de linha de `clients` continua valendo igual) que devolve essas colunas
+como `NULL` pra quem não tem a flag `financial_data`, via a função
+`public.has_financial_data_access()` — que lê a própria tabela
+`feature_flags` (mesma fonte de verdade do frontend, sem role list duplicada
+em SQL). `useClients.js`/`useClient.js` e qualquer outra leitura (ex.
+`useDonkie.jsx`, `useHealthScore.js`) devem ler de `clients_safe`, nunca de
+`clients` diretamente, para leitura — a antiga convenção `SAFE_CLIENT_COLS`
+(que dependia de cada call site lembrar de pedir só as colunas certas, e já
+tinha pelo menos 2 exceções reais: `useDonkie.jsx` e `useHealthScore.js`
+selecionavam financeiro sem checagem nenhuma) foi removida. Escritas
+(`insert`/`update`) continuam direto em `public.clients`, sem mudança.
 
 ## `contract_series` / `contract_charges` / `billing_payments`
 
