@@ -3,6 +3,81 @@
 
 # Changelog — 2026-09
 
+## 2026-09-13
+
+### Auditoria de permissões — flags, RLS de coluna financeira, effectiveRole
+
+Levantamento completo de acesso (perfil × módulo) a pedido do usuário, seguido por várias rodadas
+de correção em produção. Nenhuma migration de schema além da view de mascaramento financeiro —
+todo o resto foi dado em `feature_flags` + código.
+
+**Rodada 1 — flags e desacoplamentos (`7b1beb5`, `7e7a998`)**
+- `feature_flags`: `+sales` em `projects_cockpit`, `health_cockpit`, `profissionais_cockpit`,
+  `financial_data`; `+manager` em `stages`; virou admin-only `fase_types`, `activity_types`,
+  `project_templates`, `brief_templates`, `health`, `ai`, `email_templates`, `logs`, `freshdesk`,
+  `api_donc`; `asana` perdeu manager e manteve analyst; nova flag `empresas_mutate`.
+- Financeiro Cockpit não exige mais duas flags simultâneas (`cockpit_financeiro` sozinha decide).
+- `AdminRoute` não trava mais `/configuracoes` pra manager por causa de flags não relacionadas —
+  cada seção dentro se esconde sozinha pela própria flag.
+- Usar o Asana a partir de um ticket em `/atendimento` não depende mais de role (só configurar a
+  integração depende) — mesmo padrão do Freshdesk.
+- Lista de empresas parou de buscar/mostrar MRR; campos brutos de MRR/Licenças saíram da aba
+  "Dados" do detalhe (só existem no formulário de edição agora).
+- **Bugs achados no processo:** `BillingSchedule` (cronograma de cobrança) não tinha nenhuma
+  checagem de permissão; "API DONC" nunca lia a própria flag (só um `managerOnly` hardcoded que
+  excluía até o admin); "Templates de E-mail"/"Envio em Massa" ficaram inacessíveis a todo mundo
+  quando a flag virou admin-only (tinham um `isManager &&` hardcoded somado por cima).
+
+**Rodada 2 — os achados restantes de menor risco (`fd73358`)**
+- Navbar: `cockpit_financeiro` entrou em `COCKPIT_FLAGS` — o link "Cockpits" não some mais
+  indevidamente quando os outros 4 cockpits estão desligados pro usuário.
+- Nova flag `financeiro_cockpit_write` (`admin, finance`) substitui o array hardcoded que se
+  repetia em 2 pontos de `FinanceiroCockpitPage.jsx`.
+- `MRR_ROLES` do Meu Dia v3 removido — o resumo financeiro passa a ler `financial_data`.
+
+**Rodada 3 — RLS de coluna financeira (`3d3ad1a`)**
+- Nova view `public.clients_safe` (migration `20260913193000_clients_financial_safe_view.sql`,
+  `security_invoker=true` — RLS de linha de `clients` não muda) zera as 9 colunas financeiras pra
+  quem não tem a flag `financial_data`, via `public.has_financial_data_access()` (lê a própria
+  tabela `feature_flags` ao vivo, sem lista de roles duplicada em SQL).
+- `useClients.js`/`useClient.js` sempre leem de `clients_safe` agora; o mecanismo antigo
+  `SAFE_CLIENT_COLS`/`includeFinancial` foi removido inteiramente.
+- **2 vazamentos reais fechados:** `useDonkie.jsx` (`fetchClientDossie`) e `useHealthScore.js`
+  (`FULL_CLIENT_SELECT`) liam colunas financeiras sem checagem nenhuma — não dependiam da
+  convenção `SAFE_CLIENT_COLS` e escapavam da proteção antiga.
+- `docs/security/RLS-EMPRESAS-SERIES.md` atualizado.
+
+**Rodada 4 — role real vs `effectiveRole` (`4eb6fd4`)**
+- 6 arquivos corrigidos para decidir "o que essa tela mostra" com `effectiveRole` em vez do
+  `profile.role` real: `SettingsPage.jsx` (todos os `case`/filtros de menu), `HealthDashboardPage.jsx`,
+  `CsRadarPage.jsx`, `ProjectsPage.jsx`, `useProjectCockpit.js`, `DashboardPage.jsx` (legado) — sem
+  isso, um admin usando "Ver como" via um mix inconsistente de regras (foi exatamente essa
+  inconsistência que escondeu o bug do "API DONC" na rodada 1).
+- Bônus: em `ProjectsPage.jsx`, "ver todos os projetos" checava só `isManager` — excluía admins
+  de verdade, não só durante impersonation.
+- Mantido como role real, de propósito: o próprio controle "Ver como", `useNotifications`
+  (ferramenta pessoal do admin), a exclusão-por-admin em `ClientSubAnexos`, e os toggles de edição
+  inline dentro das telas de Settings — são checagem de identidade/override, não "o que esse
+  papel deveria ver". Ver `docs/modules/contexts.md` para a convenção documentada.
+
+**Rodada 5 — últimos hardcodes puros de role (`aa7758c`)**
+- `ClientDetail.jsx`: `canAccessAllTabs` e `canEditGlobal` viram as flags novas
+  `empresas_full_tabs` (`admin, manager`) e `empresas_edit_global` (`admin, manager, finance`) —
+  mesmos roles de antes, zero mudança de comportamento.
+- `usePermissions.js`: `canManageUsers`/`canViewSettings` removidos — duplicavam exatamente as
+  flags `users`/`settings_menu`. Call sites (`SettingsUsers.jsx`, `Navbar.jsx`) chamam
+  `isEnabled(...)` direto agora; em `SettingsPage.jsx` era código morto (nunca lido).
+- **Deixado hardcoded, de propósito** (documentado no commit): checagens baseadas em dono do
+  registro (`isSalesOwned`, `canDrillIn`, exclusão de anexo por autor — uma flag `allowed_roles`
+  não representa "só se for dono"), o próprio controle de impersonation, a tela "Status da
+  Sincronização" (admin-only por segurança, não por falta de flag), e regras de exclusão de baixo
+  valor de configurabilidade (`Minha Agenda`, "ver tickets" do analyst).
+
+**Ferramenta usada:** consultas e updates diretos em `feature_flags` via script Node temporário
+com `SUPABASE_SECRET_KEY` (criado, rodado, apagado a cada vez — não versionado). Ver
+`docs/modules/settings.md`, `docs/modules/clients.md`, `docs/modules/hooks.md` e
+`docs/modules/contexts.md` para o estado atual de cada área.
+
 ## 2026-09-11
 
 ### Cockpit Financeiro — SDD 0–5 + UI v2/v2.1 + Help v1.0

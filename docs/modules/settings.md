@@ -40,9 +40,9 @@ The Settings module is the administrative hub of the application. It centralises
 
 ## UI Architecture
 - **Layout** – a two‑column flex layout: a fixed‑width sidebar (`aside`) with navigation buttons and a main content area (`main`).
-- **Sidebar** – generated from `BASE_MENU`; each entry contains an icon, label, and optional `adminOnly` / `managerOnly` flags. The menu is filtered at runtime based on the current user's permissions (`usePermissions`, `useAuth`).
+- **Sidebar** – generated from `MENU_GROUPS`; each entry has an icon, label, and either a `featureFlag` key or a hardcoded `adminOnly` (only `sync-status` today; `logs`, `freshdesk`, `donkie`/`ai`, `donc‑api`, `features`, and every other privileged section are all `featureFlag`-driven now). Filtering (2026-09-13) uses `effectiveRole` — not the real `profile.role` — so an admin previewing another role via "Ver como" sees exactly what that role would see.
 - **Content Switching** – the `section` state (via `useState`) determines which sub‑component is rendered. Clicking a sidebar button updates this state, causing React to mount the corresponding Settings component.
-- **Permission gating** – components that require higher privileges (`logs`, `freshdesk`, `donkie`, `ai`, `donc‑api`, `features`) are conditionally rendered only when the current user satisfies the required role (`isAdmin`, `isManager`).
+- **Permission gating** – `renderSection`'s `switch` re-checks the same flag per case (`isEnabled(key, effectiveRole)`) as defense-in-depth against a stale `section` in `localStorage`. `donc-api` used to be gated only by a hardcoded `managerOnly` that excluded even real admins and never read its own `api_donc` flag — fixed 2026-09-13, it's flag-driven like the rest.
 
 ### SettingsSectionHeader Pattern
 All Settings pages now use a shared header component called `SettingsSectionHeader`. This component standardises:
@@ -79,7 +79,7 @@ Primary actions must be placed in the header using the `actions` property. Examp
    - `birth_date` field persisted alongside `gender`/`phone` in UserEditModal.jsx
 
 ## Dependencies
-- **Hooks** – `usePermissions`, `useAuth`, `useHealthConfig`, `useHealthConfigMutations`, `useQuery`, `useMutation`, `useQueryClient`.
+- **Hooks** – `useAuth`, `useFeatureFlags`, `useHealthConfig`, `useHealthConfigMutations`, `useQuery`, `useMutation`, `useQueryClient`. `usePermissions` no longer covers Settings access — `canManageUsers`/`canViewSettings` were removed from it (2026-09-13, duplicated the `users`/`settings_menu` flags); call sites read `isEnabled(...)` directly. `usePermissions` still provides ownership-flavored helpers unrelated to Settings (`canViewFinancial`, `canViewCSMManagement`, `isSales`, `isFinance`, `canViewComercial`).
 - **Libraries** – `@tanstack/react-query`, `react-hot-toast`, Supabase client (`supabaseClient.js`).
 - **UI primitives** – shared components (`Button`, `Spinner`) from `src/components/ui`.
 - **Icons** – `SettingsMenuIcons`, `HealthDimensionIcons`, `ActionIcons` from `src/lib/icons`.
@@ -113,7 +113,7 @@ The previous tab-based structure in SettingsFreshdesk was replaced with a unifie
 ## State Management
 - **Local component state** – `useState` for form fields, active tabs, loading flags, etc.
 - **React Query cache** – shared data fetched once per component (`useQuery`) and refreshed via `invalidateQueries`.
-- **Context‑derived state** – `useAuth` provides `isAdmin` / `isManager`; `usePermissions` provides `canManageUsers`.
+- **Context‑derived state** – `useAuth` provides `effectiveRole` (used for all "what should this role see" gating, so it respects impersonation) and the real-role `isAdmin`/`isManager`/`profile.role` (kept only for identity/override checks — e.g. the inline edit toggles inside Health/Catalog/Stages/Templates sub-screens are deliberately real-role: don't let an admin previewing another role commit real writes). `canManageUsers` is now `isEnabled('users', effectiveRole)`, called directly (`usePermissions` no longer exposes it).
 - **Props** – only the top‑level `SettingsPage` passes the selected `section` to child components; each child manages its own internal state.
 
 ## Known Risks

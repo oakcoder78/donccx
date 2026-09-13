@@ -50,11 +50,12 @@ The Clients module provides the primary user interface for managing customer rec
 - **ClientFormContent** (v2 form, rotas `/empresas/nova` e `/empresas/:id/editar`) usa o mesmo padrão na barra `Dados da Empresa → Endereço → Contrato → Operacional` (`ClientFormContent.jsx:506`).
 - All components consume the `styles` object from `OnboardingStyles.js` for consistent layout and theming.
 
-### Modelo de acesso — Empresas (2026-09-07)
+### Modelo de acesso — Empresas (atualizado 2026-09-13)
 - **Leitura global:** `clients_global_select FOR SELECT USING (true)` (`20260903000001`) — todos os papéis veem todos os cards (listagem rica); `baseFilters` sem carteira.
-- **Financeiro blindado no Network:** `useClients.js`/`useClient.js` usam `SELECT` explícito sem `mrr/billing_*` para papéis sem `financial_data` (`SAFE_CLIENT_COLS`); card só renderiza MRR com `canSeeFinancial` (`admin/manager/finance`).
-- **Detalhe:** só `admin/manager` veem todas as tabs; demais só `overview` + `anexos` (tabs desabilitadas + redirect automático).
-- **`+ Nova Empresa`/`Editar`:** só `admin/manager/finance` + `sales` na carteira (`comercial_id/csm_id = profile.id`); form defaulta `comercial_id` ao próprio sales. RLS `20260903000002` (`clients_sales_insert/update` com `WITH CHECK` de carteira).
+- **Financeiro blindado no banco, não só no frontend (2026-09-13):** view `public.clients_safe` (`security_invoker=true`, migration `20260913193000`) zera as 9 colunas financeiras (`mrr/licencas/valor_lic/billing_type/billing_base_value/billing_floor/correction_index/billing_status/billing_suspended_until`) pra quem não tem a flag `financial_data`, via `public.has_financial_data_access()` (lê a própria tabela `feature_flags`, não uma lista de roles duplicada em SQL). `useClients.js`/`useClient.js` sempre leem de `clients_safe` agora — o mecanismo antigo `SAFE_CLIENT_COLS`/`includeFinancial` foi removido. A lista de empresas não busca nem mostra MRR pra ninguém mais (esse valor só existe no formulário de edição); `useDonkie.jsx` e `useHealthScore.js` também foram religados pra `clients_safe` (liam financeiro sem checagem nenhuma antes). Escritas continuam direto em `public.clients`.
+- **Detalhe — abas:** `canAccessAllTabs` lê a flag `empresas_full_tabs` (`admin, manager` — era array hardcoded até 2026-09-13); demais roles só `overview` + `anexos` (tabs desabilitadas + redirect automático).
+- **Detalhe — editar fora da carteira:** `canEditGlobal` lê a flag `empresas_edit_global` (`admin, manager, finance` — idem, era hardcoded); `sales` edita fora disso só se dono (`comercial_id/csm_id = profile.id`).
+- **`+ Nova Empresa`/criar/editar/excluir (lista):** flag `empresas_mutate` (`admin, manager, finance, sales` — criada 2026-09-13, mesmos roles do array hardcoded anterior); `sales` só de fato grava dentro da própria carteira via RLS `20260903000002` (`clients_sales_insert/update` com `WITH CHECK` de carteira), já que a flag só decide quem vê o botão.
 
 ### Contact Panel (ClientTabContatos)
 

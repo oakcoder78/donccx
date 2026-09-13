@@ -32,7 +32,7 @@ Custom hooks encapsulate data access, backend integration, reusable logic. Decou
 - `useModulePricing.js` — obtain pricing data per module.
 - `useNotifications.js` — polls `notifications` table every 30s, returns `unreadCount`. Badge displayed on admin avatar in Navbar.
 - `useOnboardings.js` — list onboarding steps and status. Queries fetch fases with `onboarding_fase_types` (including `is_milestone`, `requires_evidence`, `allows_attachments`) and fase instance fields (`evidence_required`, `allows_attachments`). `createFasesFromTemplate` propagates `evidence_required` and `allows_attachments` from template fases.
-- `usePermissions.js` — load user‑permission matrix.
+- `usePermissions.js` — small set of ownership-flavored role checks (`canViewFinancial`, `canViewCSMManagement`, `isSales`, `isFinance`, `canViewComercial`), all effectiveRole-based via `effectiveProfile`. No longer covers Settings access (`canManageUsers`/`canViewSettings` removed 2026-09-13 — they duplicated the `users`/`settings_menu` feature flags; call `useFeatureFlags().isEnabled(...)` directly instead).
 - `useProfiles.js` — fetch profile list, current user profile.
 - `useProjects.js` — CRUD operations for projects.
 - `useSegments.js` — retrieve segmentation rules.

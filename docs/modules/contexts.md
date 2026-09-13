@@ -7,7 +7,7 @@ Context layer supplies global authentication state to React tree. Wraps Supabase
 - Initialise Supabase session on app start.
 - Subscribe to auth state changes (login, logout, token refresh).
 - Fetch user profile from `profiles` table when user available.
-- Expose `user`, `profile`, `loading` and role booleans (`isAdmin`, `isManager`, `isAnalyst`).
+- Expose `user`, `profile`, `loading`, the real-role booleans (`isAdmin`, `isManager`, `isAnalyst`, `isSales`, `isFinance`), and `effectiveRole`/`effectiveProfile` (real role, or the impersonated one when an admin is previewing via "Ver como").
 - Provide auth actions: `signIn`, `signInWithGoogle`, `signOut`, `refreshProfile`.
 - Clean up subscription on unmount.
 
@@ -30,6 +30,19 @@ access token is already expired. The `role_impersonations` cleanup that precedes
 `try/catch` so a dead session can never block logout. Callers should also hard-redirect
 (`window.location.assign('/login')`) rather than rely on `await signOut()` resolving — see
 `Navbar.handleSignOut`.
+
+### `effectiveRole` vs the real role (convention, reinforced 2026-09-13)
+`isAdmin`/`isManager`/`isAnalyst`/`isSales`/`isFinance` and `profile.role` always reflect the
+**real** signed-in user — `role_impersonations` never changes them. `effectiveRole` (and
+`effectiveProfile.role`) resolves to the impersonated role while an admin is previewing via
+"Ver como" (`setImpersonation`, expires in 1h, also rewrites what RLS sees server-side via
+`get_user_role()` — impersonation is not cosmetic). Anything that decides **what a screen shows**
+should use `effectiveRole`, so the preview is accurate; only genuine identity/override checks
+(the impersonation control itself, `useNotifications`, an admin-can-always-delete override, the
+inline edit toggles inside Settings sub-screens) should stay on the real role. A 2026-09-13 sweep
+fixed six files that mixed the two for content gating (`SettingsPage.jsx`, `HealthDashboardPage.jsx`,
+`CsRadarPage.jsx`, `ProjectsPage.jsx`, `useProjectCockpit.js`, the legacy `DashboardPage.jsx`) —
+see `docs/CHANGELOG-2026-09.md`.
 
 ## Dependencies
 - `../lib/supabaseClient` – Supabase JS client.
