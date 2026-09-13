@@ -70,8 +70,8 @@ const MENU_GROUPS = [
   { label: 'Integrações', items: [
     { key: 'freshdesk', label: 'Freshdesk', featureFlag: 'freshdesk' },
     { key: 'asana',     label: 'Asana',     featureFlag: 'asana' },
-    { key: 'donc-api',  label: 'API DONC',   managerOnly: true },
-    { key: 'sync-status', label: 'Status da Sincronização', managerOnly: true },
+    { key: 'donc-api',  label: 'API DONC',   featureFlag: 'api_donc' },
+    { key: 'sync-status', label: 'Status da Sincronização', adminOnly: true },
   ]},
   { label: 'Comunicação', items: [
     { key: 'email-templates', label: 'Templates de E-mail', featureFlag: 'email_templates' },
@@ -115,15 +115,15 @@ export default function SettingsPage() {
       case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
       case 'asana':     return isEnabled('asana', profile?.role) && <SettingsAsana />
       case 'donkie':   return isEnabled('ai', profile?.role) && <SettingsAI />
-      case 'donc-api': return isManager && <SettingsDoncAPI />
-      case 'sync-status': return isManager && <SettingsSyncStatus />
+      case 'donc-api': return isEnabled('api_donc', profile?.role) && <SettingsDoncAPI />
+      case 'sync-status': return isAdmin && <SettingsSyncStatus />
       case 'features': return isEnabled('features', profile?.role) && <SettingsFeatureFlags />
       case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
       case 'activity-types': return isEnabled('activity_types', profile?.role) && <SettingsActivityTypes />
       case 'project-templates': return isEnabled('project_templates', profile?.role) && <SettingsProjectTemplates />
       case 'brief-templates': return isEnabled('brief_templates', profile?.role) && <SettingsBriefTemplates />
-      case 'email-templates': return isManager && isEnabled('email_templates', profile?.role) && <EmailTemplatesManager />
-      case 'email-blast': return isManager && isEnabled('email_templates', profile?.role) && <SettingsEmailBlast />
+      case 'email-templates': return isEnabled('email_templates', profile?.role) && <EmailTemplatesManager />
+      case 'email-blast': return isEnabled('email_templates', profile?.role) && <SettingsEmailBlast />
       default: return null
     }
   }
