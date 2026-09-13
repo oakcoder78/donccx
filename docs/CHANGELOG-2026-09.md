@@ -5,6 +5,19 @@
 
 ## 2026-09-13
 
+### Projetos — mesmo modelo (ver tudo, dono edita) (`0a9f3aa`)
+
+Extensão consultiva do modelo de Empresas: usuário pediu pra alinhar com Salesforce/HubSpot
+("view everything, edit owned") em tudo **exceto** financeiro, Configurações e os Cockpits
+(atuais e os que ainda serão criados por papel). Auditei `ActivitiesPage`/`ContactsPage` — já
+não tinham filtro de carteira, nada a fazer. `ProjectsPage.jsx` tinha o mesmo problema dos
+Contatos: filtro forçado por `responsible_id === profile.id` pra qualquer role fora admin/manager,
+sem opção de ver os demais. Virou filtro opcional (`csmFilter`) disponível pra todos. Achado extra:
+a escrita em `projects` já era só admin/manager na RLS (`projects_admin_all`) — csm/sales só tinham
+SELECT — então o dono de um projeto não conseguia nem mudar o próprio status. Nova migration
+(`20260913200000_projects_owner_write.sql`) adiciona `projects_csm_update`/`_delete` e
+`projects_sales_update`/`_delete`, escopados pela mesma carteira já usada nas policies de SELECT.
+
 ### Empresas — ver tudo, editar só o seu (`d5060c8`)
 
 Reportado: CSM em `/empresas/2?tab=contatos` não via contatos. Causa: `empresas_full_tabs`

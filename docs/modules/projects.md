@@ -193,13 +193,14 @@ Each top‑level key contains nested objects that map directly to JSX elements v
 - **Hooks**: `useAllProjects`, `useUpdateProjectStatus`, `useAllOnboardings`, `useClients`, `useProfiles`, `useCatalogItems`, `useOnboarding`, `useOnboardingCapabilities`, `useCreateOnboardingFlow`, `useUpdateOnboardingFlow`, `useCreateInternalProject`, `useUpdateProject`.
 - **UI components**: `PageHeader`, `Badge`, `PageSpinner`, `ActionIcons`, `DragDropContext`/`Droppable`/`Draggable`.
 - **Routing**: `useNavigate` for navigation from board cards and drawer items.
-- **Auth context**: `useAuth` for role‑based filter visibility.
+- **Auth context**: `useAuth` (`effectiveRole`) — view is unrestricted for every role since 2026-09-13 (view-everything/edit-owner model); the CSM filter dropdown is just an optional filter now, not a forced carteira restriction.
 
 
 ## Integration Points
 - **Clients** – projects reference a `client_id`; client data is displayed on cards and used for filtering.
 - **Onboardings** – onboarding projects link to onboarding records; capability chips and kickoff dates interact with onboarding flows.
-- **Profiles** – CSM/responsible selection pulls from user profiles; role checks determine filter availability.
+- **Profiles** – CSM/responsible selection pulls from user profiles.
+- **RLS (2026-09-13)** – `projects_admin_all` (admin/manager, ALL) was the only write policy; csm/sales only had SELECT (`projects_csm_select`, `projects_sales_select`, scoped by the owning client's `csm_id`/`comercial_id`). New `projects_csm_update`/`_delete` and `projects_sales_update`/`_delete` (`20260913200000_projects_owner_write.sql`) let the owner actually edit/delete their own client's projects, mirroring the same carteira scoping already used for SELECT.
 - **Catalog** – capability chips are built from catalog items (`servico`, `solucao`).
 - **Audit Logs** – All actions (created, activated, advanced, reopened, updated) are logged to `audit_logs` table with `entity_type='onboarding_fase'` or `'onboarding_activity'`, `action`, `user_id`, `user_name`.
 
