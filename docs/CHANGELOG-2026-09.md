@@ -5,6 +5,25 @@
 
 ## 2026-09-13
 
+### Fix: 2 regressões do dia no dashboard v3 (`d16cb69`)
+
+Reportado pelo usuário direto no console/produção:
+
+1. **Hero "Profissionais Ativos" mostrando o total da empresa pro csm/sales**, sem bater com "Nossa
+   força em números". Causa: `useActiveProfissionais` somava `client_usage.active_users` sem filtro de
+   `client_id`, contando só com a RLS pra restringir as linhas à carteira — funcionava porque `csm`/
+   `sales` só liam a própria carteira em `client_usage`. Quebrou na hora que a flag de leitura global
+   dessa tabela foi ligada mais cedo hoje (ver seção anterior). Fix: hook passa a receber `clientIds`
+   explícito (reaproveita `heroClients`, já escopado por `useDashboardClients`) e filtra por
+   `.in('client_id', ...)`; admin/manager continuam com `null` = soma da empresa toda.
+2. **`get_finance_summary` retornando 403 pro sales.** A RPC é `SECURITY DEFINER` com guard próprio
+   hardcoded (`admin,manager,finance`, escrito no corpo da função, sem ler `feature_flags`). Na Rodada 2
+   de hoje, o `enabled` do `useFinanceSummary` foi trocado pra checar a flag `financial_data` — que
+   ganhou `sales` na Rodada 1 por um motivo diferente (ver MRR por cliente). O front passou a disparar a
+   RPC pro sales, e o guard da própria função rejeitava. Consertado revertendo pra uma checagem hardcoded
+   que espelha o guard real da RPC — `financial_data` e "pode ver este resumo financeiro da empresa
+   inteira" são permissões diferentes que pareciam a mesma coisa.
+
 ### Fix: abrir a aba não bastava — leitura das tabelas relacionadas ainda era por carteira
 
 Reportado: usuário de teste com perfil sales, sem carteira própria em `/empresas/18`, não via

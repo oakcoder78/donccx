@@ -76,17 +76,24 @@ failing source never blanks the page. Section order is personal-first.
 | `finance` | MRR · mês (+ YTD est.) | Clientes em atraso (R$) | Renovação em 30D | `get_finance_summary` |
 | `analyst` | Total Tickets | Tickets em Aberto | Taxa de Resolução | `client_support` aggregate |
 
-Clientes + Health Score come from `useDashboardClients(profile)` (RLS-scoped); Profissionais Ativos from
-`useActiveProfissionais` (RLS-scoped sum). No "Ordens de Serviço" card, no "Δ vs média 90 dias" (revised
-2026-08-30). Finance cards come from `get_finance_summary()` (role-guarded RPC) — never the clients query
-(gotcha A3).
+Clientes + Health Score come from `useDashboardClients(profile)` (explicit `labsFilterFor` query, not RLS
+alone). Profissionais Ativos from `useActiveProfissionais(clientIds)` — **explicit** `client_id` filter as
+of 2026-09-13 (passed `heroClients.map(c => c.id)` for csm/sales, `null` for admin/manager): it used to rely
+on RLS alone to narrow `client_usage` rows, which broke the moment that table got a global SELECT policy
+the same day (view-everything model) — the HERO started showing the company total for csm/sales. No "Ordens
+de Serviço" card, no "Δ vs média 90 dias" (revised 2026-08-30). Finance cards come from
+`get_finance_summary()` (role-guarded RPC, hardcoded to `admin/manager/finance` **in the function body**,
+independent of any feature flag) — never the clients query (gotcha A3). `useFinanceSummary`'s `enabled`
+check must mirror that exact role list; gating it by the `financial_data` flag caused a 403 for `sales`
+once that flag also started including `sales` (2026-09-13) for an unrelated reason (per-client MRR
+visibility) — the two are different permissions that happened to look alike.
 
 ## Data Flow
 
 ```
 useAuth ──► profile, effectiveRole
-useDashboardClients(profile)      ──► HERO clients   (RLS: carteira for csm/sales, base for admin/manager)
-useActiveProfissionais()          ──► HERO Profissionais Ativos  (RLS-scoped sum of client_usage.active_users)
+useDashboardClients(profile)      ──► HERO clients   (explicit filter: carteira for csm/sales, base for admin/manager)
+useActiveProfissionais(clientIds) ──► HERO Profissionais Ativos  (explicit client_id filter, reuses heroClients ids)
 useActivities(filter)             ──► my agenda      (responsible_id for non-manager; no participant model)
 useHealthConfig()                 ──► thresholds     (never hardcode 75/50)
 useDashboardClientsOverview()     ──► RPC get_dashboard_clients_overview  (Saúde + Mapa — geral, no MRR)
@@ -196,7 +203,7 @@ their own carteira; finance stays read-only (hide write CTAs).
 | `src/components/dashboard/v3/EcossistemaUfDrawer.jsx` | drawer por UF — fantasia, cidade, health, cliente desde + drill-in por linha |
 | `src/hooks/useDashboardClients.js` | HERO clients — `useClients(labsFilterFor(profile))` wrapper |
 | `src/hooks/useDashboardOverview.js` | `useDashboardClientsOverview()` + `useOpenProjectsOverview()` — geral RPCs |
-| `src/hooks/useActiveProfissionais.js` | HERO Profissionais Ativos — RLS-scoped `client_usage` sum |
+| `src/hooks/useActiveProfissionais.js` | HERO Profissionais Ativos — `client_usage` sum, explicit `client_id` filter (2026-09-13; was RLS-scoped alone, broke when the table got global SELECT) |
 | `src/hooks/useOperationalDeltas.js` | `useOperationalDeltas()` (RPC `get_operational_deltas`) + `useOpClientHistory(id)` |
 | `src/hooks/useDashboardYtd.js` | `useDashboardYtd()` (`get_dashboard_ytd`); `useOperational90dAvg()` unused by v3 |
 | `src/lib/scoring.js` | tokens + helpers + `ymOffset`/`fmtMonth*`/`dataRefMonth` |
