@@ -8,7 +8,7 @@ import toast from 'react-hot-toast'
 const FLAG_GROUPS = {
   'Barra principal': ['whatsapp_atendimento', 'settings_menu'],
   'Equipe': ['users'],
-  'Empresas': ['empresas_mutate', 'empresas_full_tabs', 'empresas_edit_global', 'financial_data'],
+  'Empresas': ['empresas_mutate', 'empresas_edit_global', 'financial_data'],
   'Produto': ['stages', 'segments', 'catalog'],
   'Projetos': ['fase_types', 'activity_types', 'project_templates', 'brief_templates'],
   'Health Score': ['health'],

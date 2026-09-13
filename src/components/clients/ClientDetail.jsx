@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom'
 import { useClient } from '@/hooks/useClient'
 import { PageSpinner } from '../ui/Spinner'
@@ -35,7 +35,6 @@ export default function ClientDetail() {
   const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const canEditGlobal = isEnabled('empresas_edit_global', effectiveRole)
-  const canAccessAllTabs = isEnabled('empresas_full_tabs', effectiveRole)
 
   // Financial columns are masked server-side by clients_safe (financial_data flag) regardless of role here.
   const { data: client, isLoading } = useClient(id)
@@ -43,22 +42,17 @@ export default function ClientDetail() {
   const isCliente = client?.lifecycle_stage === 'cliente'
 
   function setTab(t) {
-    if (!canAccessAllTabs && !['overview', 'anexos'].includes(t)) return
     setSearchParams({ tab: t })
   }
-
-  const ALLOWED_FOR_ALL = ['overview', 'anexos']
-  useEffect(() => {
-    if (!canAccessAllTabs && !ALLOWED_FOR_ALL.includes(tab) && !isLoading && client) {
-      setSearchParams({ tab: 'overview' }, { replace: true })
-    }
-  }, [tab, canAccessAllTabs, isLoading, client, setSearchParams])
 
   if (isLoading) return <PageSpinner />
   if (!client) return <div className="p-6 text-text-tertiary">Empresa não encontrada.</div>
 
-  const isSalesOwned = effectiveRole === 'sales' && (client.comercial_id === profile?.id || client.csm_id === profile?.id)
-  const canEditEmpresas = canEditGlobal || isSalesOwned
+  // Any role can view every tab — visibility is intentionally broad (Salesforce/HubSpot pattern:
+  // "view everything, edit only what's yours"). Editing is scoped to admin/manager/finance
+  // (empresas_edit_global) plus whoever owns this specific client (sales via comercial_id, csm via csm_id).
+  const isOwner = ['sales', 'csm'].includes(effectiveRole) && (client.comercial_id === profile?.id || client.csm_id === profile?.id)
+  const canEditEmpresas = canEditGlobal || isOwner
 
   const displayName = client.fantasy_name || client.name
 
@@ -104,19 +98,16 @@ export default function ClientDetail() {
         preselectedClientId={client?.id}
       />
 
-      {/* Tabs */}
+      {/* Tabs — visíveis pra qualquer role; Operacional/Health só fazem sentido pra lifecycle "cliente" */}
       <div className="flex gap-0 border-b border-border-tertiary mt-4 mb-5 overflow-x-auto overflow-y-hidden">
         {TABS.map(t => {
-          const isRestricted = !canAccessAllTabs && !['overview', 'anexos'].includes(t.key)
-          const isDisabledTab = ((t.key === 'operacional' || t.key === 'health') && !isCliente) || isRestricted
-          const title = isRestricted ? 'Acesso restrito' : undefined
+          const isDisabledTab = (t.key === 'operacional' || t.key === 'health') && !isCliente
           return (
             <button
               key={t.key}
               onClick={() => {
                 if (!isDisabledTab) setTab(t.key)
               }}
-              title={title}
               className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 tab === t.key
                   ? 'text-donc-navy border-donc-navy'
@@ -132,13 +123,13 @@ export default function ClientDetail() {
         })}
       </div>
 
-      {/* Tab Content — overview+anexos para todos, demais só admin/manager */}
+      {/* Tab Content */}
       {tab === 'overview' && <ClientTabOverview client={client} />}
       {tab === 'anexos' && <ClientSubAnexos client={client} allowUpload={canEditEmpresas} />}
-      {canAccessAllTabs && tab === 'atividades' && <ClientTabActivities client={client} />}
-      {canAccessAllTabs && tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
-      {canAccessAllTabs && tab === 'health' && isCliente && <ClientTabHealth client={client} />}
-      {canAccessAllTabs && tab === 'contatos' && <ClientTabContatos client={client} />}
+      {tab === 'atividades' && <ClientTabActivities client={client} />}
+      {tab === 'operacional' && isCliente && <ClientTabOperacional client={client} />}
+      {tab === 'health' && isCliente && <ClientTabHealth client={client} />}
+      {tab === 'contatos' && <ClientTabContatos client={client} />}
     </div>
   )
 }
