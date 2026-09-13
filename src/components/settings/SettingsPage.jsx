@@ -12,7 +12,6 @@ import { SettingsDoncAPI } from './SettingsDoncAPI'
 import { SettingsSyncStatus } from './SettingsSyncStatus'
 
 import { SettingsFeatureFlags } from './SettingsFeatureFlags'
-import { usePermissions } from '@/hooks/usePermissions'
 import { useAuth } from '@/contexts/AuthContext'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { Icons } from '@/lib/icons'
@@ -84,7 +83,6 @@ const MENU_GROUPS = [
 ]
 
 export default function SettingsPage() {
-  const { canManageUsers } = usePermissions()
   const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const [section, setSection] = useState(() => localStorage.getItem('settings_section') || 'users')

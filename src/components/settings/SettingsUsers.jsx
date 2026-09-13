@@ -3,8 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Icons } from '@/lib/icons'
 import { ROLE_OPTIONS, ROLE_LABEL } from '@/lib/roles'
 import { useProfiles, useProfilesMutations } from '@/hooks/useProfiles'
-import { usePermissions } from '@/hooks/usePermissions'
 import { useAuth } from '@/contexts/AuthContext'
+import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { Avatar } from '../ui/Avatar'
 import { Badge } from '../ui/Badge'
@@ -239,8 +239,9 @@ export function SettingsUsers() {
   const UsersIcon = Icons.Users
   const { data: profiles = [], isLoading, refetch } = useProfiles()
   const { updateStatus, updateRole } = useProfilesMutations()
-  const { canManageUsers } = usePermissions()
   const { effectiveRole } = useAuth()
+  const { isEnabled } = useFeatureFlags()
+  const canManageUsers = isEnabled('users', effectiveRole)
   const [showInviteUser, setShowInviteUser]   = useState(false)
   const roleOptionsForManager = effectiveRole === 'manager'
     ? ROLE_OPTIONS.filter(r => !['admin', 'manager'].includes(r.value))

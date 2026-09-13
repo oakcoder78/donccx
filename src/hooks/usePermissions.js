@@ -5,9 +5,7 @@ export function usePermissions() {
   const role = effectiveProfile?.role || null
 
   return {
-    canManageUsers:      role === 'admin' || role === 'manager',
     canViewFinancial:    role === 'admin' || role === 'manager' || role === 'finance',
-    canViewSettings:     role === 'admin' || role === 'manager',
     canViewCSMManagement: role === 'admin' || role === 'manager',
     isSales:             role === 'sales',
     isFinance:           role === 'finance',

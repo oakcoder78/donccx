@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
-import { usePermissions } from '@/hooks/usePermissions'
 import { useFeatureFlags } from '@/hooks/useFeatureFlags'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useSyncStatus } from '@/hooks/useSyncStatus'
@@ -31,7 +30,6 @@ const analystNavLinks = [
 
 export function Navbar({ googleOAuthSignal }) {
   const { user, profile, effectiveRole, impersonatedRole, isImpersonating, setImpersonation, clearImpersonation, signOut, refreshProfile } = useAuth()
-  const { canViewSettings } = usePermissions()
   const { isEnabled, flags } = useFeatureFlags()
   const navigate = useNavigate()
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -71,7 +69,7 @@ export function Navbar({ googleOAuthSignal }) {
 
   const links = isAnalyst
     ? availableLinks(analystNavLinks)
-    : canViewSettings && isEnabled('settings_menu', effectiveRole)
+    : isEnabled('settings_menu', effectiveRole)
       ? [...availableLinks(mainNavLinks), { to: '/configuracoes', label: 'Configurações' }]
       : availableLinks(mainNavLinks)
 
