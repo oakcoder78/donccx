@@ -111,10 +111,7 @@ function StatCard({ label, value, color, onClick }) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
-  const { profile, effectiveRole } = useAuth()
-  // effectiveRole (not the real role) so "Ver como" previews the right project scope.
-  // Was `isManager` alone before, which excluded real admins from "see all projects" too.
-  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager'
+  const { effectiveRole } = useAuth()
 
   const { data: projects     = [], isLoading }  = useAllProjects()
   const { data: onboardings  = [] }             = useAllOnboardings()
@@ -137,12 +134,12 @@ export default function ProjectsPage() {
   const [showModal,  setShowModal]  = useState(false)
   const [drawerKey,  setDrawerKey]  = useState(null) // which stat card is open
 
-  const effectiveCsmFilter = isAdminOrManager ? csmFilter : (profile?.id ?? null)
-
+  // Ver tudo por padrão (qualquer role); csmFilter é um filtro opcional, não mais uma
+  // restrição forçada por carteira para quem não é admin/manager.
   const filtered = useMemo(() => {
     let list = local
     if (selectedFilterClient) list = list.filter(p => p.client_id === selectedFilterClient.id)
-    if (effectiveCsmFilter)   list = list.filter(p => p.responsible_id === effectiveCsmFilter)
+    if (csmFilter)          list = list.filter(p => p.responsible_id === csmFilter)
     if (typeFilter)         list = list.filter(p => p.type === typeFilter)
     if (deadlineFilter === 'atrasado') {
       list = list.filter(p => p.end_date && p.end_date < todayStr && p.status !== 'concluido')
@@ -152,10 +149,10 @@ export default function ProjectsPage() {
       list = list.filter(p => !p.end_date)
     }
     return list
-  }, [local, selectedFilterClient, effectiveCsmFilter, typeFilter, deadlineFilter])
+  }, [local, selectedFilterClient, csmFilter, typeFilter, deadlineFilter])
 
   const csmProfiles = profiles.filter(p => ['csm', 'admin', 'manager'].includes(p.role))
-  const hasFilters  = !!selectedFilterClient || (isAdminOrManager && csmFilter) || deadlineFilter || typeFilter
+  const hasFilters  = !!selectedFilterClient || !!csmFilter || deadlineFilter || typeFilter
 
   const filterSuggestions = filterSearch.trim()
     ? clients.filter(c => {
@@ -394,14 +391,12 @@ export default function ProjectsPage() {
           )}
         </div>
 
-        {isAdminOrManager && (
-          <select value={csmFilter} onChange={e => setCsmFilter(e.target.value)} className={SELECT_CLS}>
-            <option value="">Todos os CSMs</option>
-            {csmProfiles.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        )}
+        <select value={csmFilter} onChange={e => setCsmFilter(e.target.value)} className={SELECT_CLS}>
+          <option value="">Todos os CSMs</option>
+          {csmProfiles.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
 
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={SELECT_CLS}>
           <option value="">Todos os tipos</option>
