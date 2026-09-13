@@ -5,6 +5,22 @@
 
 ## 2026-09-13
 
+### Fix: abrir a aba não bastava — leitura das tabelas relacionadas ainda era por carteira
+
+Reportado: usuário de teste com perfil sales, sem carteira própria em `/empresas/18`, não via
+nada em nenhuma aba. Investigado com simulação de RLS ao vivo (`set local role authenticated` +
+`request.jwt.claims`, via MCP do Supabase, sem alterar dado nenhum) antes de mexer em qualquer
+coisa: confirmado que o registro da empresa já carregava normal (a mudança de tabs da rodada
+anterior funcionou), mas `activities`, `contact_links`, `client_usage`, `client_support`,
+`client_catalog`, `onboardings` e `projects` continuavam com SELECT escopado por carteira pra
+`csm`/`sales` (`finance`/`analyst` já liam global) — 0 linhas, sem erro, pra qualquer cliente fora
+da carteira do usuário. Não era bug desta sessão, era o RLS original, nunca desenhado pra "ver
+tudo". Confirmado com o usuário que a intenção é essa mesmo (visão total, exceto financeiro/
+Configurações/Cockpits) e que edição continua só carteira. Migration
+`20260913210000_relationship_tables_global_select.sql` adiciona `<tabela>_global_select
+USING (true)` nas 7 tabelas — mesma receita do `clients_global_select`. Validado depois com a
+mesma simulação: as 7 tabelas retornam dado real pro mesmo usuário no mesmo cliente de teste.
+
 ### Projetos — mesmo modelo (ver tudo, dono edita) (`0a9f3aa`)
 
 Extensão consultiva do modelo de Empresas: usuário pediu pra alinhar com Salesforce/HubSpot
