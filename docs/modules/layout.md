@@ -5,7 +5,7 @@ Provides the base visual structure and global navigation for the application. `N
 
 ## Responsibilities
 - Render brand logo and site title.
-- Determine navigation set based on user role (`analyst` vs others) and permission (`canViewSettings`).
+- Determine navigation set based on `effectiveRole` (`analyst` vs others) and the `settings_menu` feature flag (`isEnabled('settings_menu', effectiveRole)` — `usePermissions`'s `canViewSettings` was removed 2026-09-13, it duplicated this same flag).
 - Highlight active route via `NavLink` styling.
 - Show user avatar/initials, name, role.
 - Show red notification badge on admin avatar when unread model‑failure alerts exist (via `useNotifications` polling every 30s).
@@ -24,16 +24,16 @@ The previous separate profile editing page in Settings (`SettingsMinhaConta`) ha
 
 ## Module Structure
 - `Navbar.jsx` — main header component.
-  - Imports `useAuth` for user/session data, `usePermissions` for role‑based link visibility.
-  - Builds `links` array: analyst view (single Atendimento link) or full set plus optional Configurações link.
+  - Imports `useAuth` for user/session data (`effectiveRole`, so "Ver como" previews the right nav), `useFeatureFlags` for flag-driven link visibility.
+  - Builds `links` array: analyst view (single Atendimento link) or full set plus optional Configurações link (shown when `isEnabled('settings_menu', effectiveRole)`).
   - Handles sign‑out via `signOut` then navigation.
   - Manages local UI state (`dropdownOpen`, `showProfile`).
   - Renders `UserEditModal` when profile requested.
 
 ## Data Flow
-1. On render, `useAuth` provides `user`, `profile`, `signOut`, `refreshProfile`.
-2. `usePermissions` supplies `canViewSettings` boolean.
-3. Based on `profile.role`, selects navigation array.
+1. On render, `useAuth` provides `user`, `profile`, `effectiveRole`, `signOut`, `refreshProfile`.
+2. `useFeatureFlags().isEnabled('settings_menu', effectiveRole)` gates the Configurações link.
+3. Based on `effectiveRole`, selects navigation array (analyst vs the rest).
 4. `NavLink` from `react-router-dom` automatically marks active route, applying active CSS.
 5. Clicking user button toggles dropdown; selecting "Minha conta" sets `showProfile` → renders `UserEditModal` with current profile and email.
 6. "Sair" triggers async `signOut`, then `navigate('/login')`.
@@ -42,7 +42,7 @@ The previous separate profile editing page in Settings (`SettingsMinhaConta`) ha
 - React (`useState`).
 - `react-router-dom` (`NavLink`, `useNavigate`).
 - `AuthContext` (`useAuth`).
-- `usePermissions` hook.
+- `useFeatureFlags` hook.
 - `useNotifications` hook — polls unread notification count for admin badge.
 - UI components: `UserEditModal`.
 - Tailwind CSS utilities for layout and colors.
