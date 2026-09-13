@@ -54,7 +54,7 @@ export function Navbar({ googleOAuthSignal }) {
 
   const isAnalyst = effectiveRole === 'analyst'
 
-  const COCKPIT_FLAGS = ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit']
+  const COCKPIT_FLAGS = ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'cockpit_financeiro']
   const hasHealthCockpitFlag = flags.some(f => f.key === 'health_cockpit')
   const isCockpitEnabled = (k, role) => {
     if (k === 'health_cockpit' && !hasHealthCockpitFlag) return isEnabled('health', role)

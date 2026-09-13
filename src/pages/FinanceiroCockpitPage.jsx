@@ -462,7 +462,8 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
   const { data: seriesMeta = [] } = useContractSeries(clientId)
   const qc = useQueryClient()
   const { effectiveRole } = useAuth()
-  const canWrite = ['admin', 'finance'].includes(effectiveRole)
+  const { isEnabled } = useFeatureFlags()
+  const canWrite = isEnabled('financeiro_cockpit_write', effectiveRole)
   const [excecaoModal, setExcecaoModal] = useState(null)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
@@ -1526,7 +1527,7 @@ export default function FinanceiroCockpitPage() {
         clientName={pendenciaTarget?.clientName}
         refMonth={pendenciaTarget?.refMonth}
         months={months}
-        canWrite={['admin', 'finance'].includes(effectiveRole)}
+        canWrite={isEnabled('financeiro_cockpit_write', effectiveRole)}
         onSaved={() => {
           qc.invalidateQueries({ queryKey: ['financeiro_pendencias'] })
           qc.invalidateQueries({ queryKey: ['financeiro_cockpit', refMonth] })

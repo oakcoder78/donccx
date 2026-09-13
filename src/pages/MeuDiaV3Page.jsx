@@ -23,12 +23,11 @@ import { ForcaNumerosBlock } from '@/components/dashboard/v3/ForcaNumerosBlock'
 import { EcossistemaMapBlock } from '@/components/dashboard/v3/EcossistemaMapBlock'
 import { OperacionalVariacaoBlock } from '@/components/dashboard/v3/OperacionalVariacaoBlock'
 
-const MRR_ROLES = ['admin', 'manager', 'finance']
-
 function useFinanceSummary(effectiveRole) {
+  const { isEnabled } = useFeatureFlags()
   return useQuery({
     queryKey: ['finance_summary'],
-    enabled: MRR_ROLES.includes(effectiveRole),
+    enabled: isEnabled('financial_data', effectiveRole),
     staleTime: 5 * 60 * 1000,
     retry: 0,
     queryFn: async () => {
