@@ -78,7 +78,7 @@ function ScoreCard({ label, value, color, large }) {
 export default function HealthDashboardPage() {
   const navigate = useNavigate()
 
-  const { profile } = useAuth()
+  const { profile, effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -91,12 +91,12 @@ export default function HealthDashboardPage() {
   const drawerOpen = !!drawerClientId
 
   useEffect(() => {
-    if (profile && !isEnabled('health', profile.role)) {
+    if (profile && !isEnabled('health', effectiveRole)) {
       navigate('/dashboard', { replace: true })
     }
-  }, [profile])
+  }, [profile, effectiveRole])
 
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager'
   const baseFilters = isAdminOrManager
     ? { lifecycle_stage: 'cliente' }
     : { csm_id: profile?.id, lifecycle_stage: 'cliente' }

@@ -111,8 +111,10 @@ function StatCard({ label, value, color, onClick }) {
 
 export default function ProjectsPage() {
   const navigate = useNavigate()
-  const { profile, isManager, isAdmin } = useAuth()
-  const isAdminOrManager = isManager
+  const { profile, effectiveRole } = useAuth()
+  // effectiveRole (not the real role) so "Ver como" previews the right project scope.
+  // Was `isManager` alone before, which excluded real admins from "see all projects" too.
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager'
 
   const { data: projects     = [], isLoading }  = useAllProjects()
   const { data: onboardings  = [] }             = useAllOnboardings()
@@ -537,7 +539,7 @@ export default function ProjectsPage() {
                                       {formatDate(proj.end_date)}
                                     </span>
                                   )}
-                                  {isAdmin && (
+                                  {effectiveRole === 'admin' && (
                                     <div
                                       className="relative ml-auto"
                                       onClick={e => e.stopPropagation()}

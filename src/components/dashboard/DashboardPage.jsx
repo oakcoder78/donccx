@@ -308,8 +308,8 @@ function DimBadge({ cls, label }) {
 export default function DashboardPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { profile } = useAuth()
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
+  const { profile, effectiveRole } = useAuth()
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager'
 
   // CSM filter
   const [selectedCsm, setSelectedCsm] = useState('')

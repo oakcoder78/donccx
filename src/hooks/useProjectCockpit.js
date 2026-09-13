@@ -14,13 +14,13 @@ function getMostRelevant(projects) {
 }
 
 export function useProjectCockpit() {
-  const { profile } = useAuth()
+  const { profile, effectiveRole } = useAuth()
 
   return useQuery({
     queryKey: ['projects_cockpit'],
     queryFn: async () => {
       const profileId = profile?.id
-      const role = profile?.role
+      const role = effectiveRole
       if (!role || role === 'analyst') return []
 
       const { data: projects, error } = await supabase
@@ -225,6 +225,6 @@ export function useProjectCockpit() {
     staleTime: 30 * 1000,
     retry: 1,
     gcTime: 5 * 60 * 1000,
-    enabled: !!profile?.role && profile?.role !== 'analyst',
+    enabled: !!effectiveRole && effectiveRole !== 'analyst',
   })
 }

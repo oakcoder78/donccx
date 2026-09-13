@@ -146,7 +146,7 @@ const TYPE_COLORS = {
 }
 
 export default function CsRadarPage() {
-  const { profile } = useAuth()
+  const { profile, effectiveRole } = useAuth()
   const [period, setPeriod] = useState('30d')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -223,7 +223,7 @@ export default function CsRadarPage() {
     [data?.clients]
   )
 
-  const isAdminOrManager = profile?.role === 'admin' || profile?.role === 'manager'
+  const isAdminOrManager = effectiveRole === 'admin' || effectiveRole === 'manager'
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

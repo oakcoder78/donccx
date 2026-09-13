@@ -85,7 +85,7 @@ const MENU_GROUPS = [
 
 export default function SettingsPage() {
   const { canManageUsers } = usePermissions()
-  const { isAdmin, isManager, profile } = useAuth()
+  const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
   const [section, setSection] = useState(() => localStorage.getItem('settings_section') || 'users')
 
@@ -94,36 +94,38 @@ export default function SettingsPage() {
     setSection(key)
   }
 
+  // Gates below use effectiveRole (not the real profile.role) so that an admin
+  // previewing another role via "Ver como" sees exactly what that role would see.
   const MENU = MENU_GROUPS.map(group => ({
     ...group,
     items: group.items.filter(item => {
-      if (item.featureFlag && !isEnabled(item.featureFlag, profile?.role)) return false
-      if (item.adminOnly && !isAdmin) return false
-      if (item.managerOnly && !isManager) return false
+      if (item.featureFlag && !isEnabled(item.featureFlag, effectiveRole)) return false
+      if (item.adminOnly && effectiveRole !== 'admin') return false
+      if (item.managerOnly && effectiveRole !== 'manager') return false
       return true
     })
   })).filter(group => group.items.length > 0)
 
   const renderSection = (key) => {
     switch (key) {
-      case 'health':    return isEnabled('health', profile?.role) && <SettingsHealth />
-      case 'catalog':  return isEnabled('catalog', profile?.role) && <SettingsCatalog />
-      case 'segments': return isEnabled('segments', profile?.role) && <SettingsSegments />
-      case 'stages':   return isEnabled('stages', profile?.role) && <SettingsStages />
-      case 'users':    return isEnabled('users', profile?.role) && <SettingsUsers />
-      case 'logs':     return isEnabled('logs', profile?.role) && <SettingsLogs />
-      case 'freshdesk': return isEnabled('freshdesk', profile?.role) && <SettingsFreshdesk />
-      case 'asana':     return isEnabled('asana', profile?.role) && <SettingsAsana />
-      case 'donkie':   return isEnabled('ai', profile?.role) && <SettingsAI />
-      case 'donc-api': return isEnabled('api_donc', profile?.role) && <SettingsDoncAPI />
-      case 'sync-status': return isAdmin && <SettingsSyncStatus />
-      case 'features': return isEnabled('features', profile?.role) && <SettingsFeatureFlags />
-      case 'fase-types': return isEnabled('fase_types', profile?.role) && <SettingsFaseTypes />
-      case 'activity-types': return isEnabled('activity_types', profile?.role) && <SettingsActivityTypes />
-      case 'project-templates': return isEnabled('project_templates', profile?.role) && <SettingsProjectTemplates />
-      case 'brief-templates': return isEnabled('brief_templates', profile?.role) && <SettingsBriefTemplates />
-      case 'email-templates': return isEnabled('email_templates', profile?.role) && <EmailTemplatesManager />
-      case 'email-blast': return isEnabled('email_templates', profile?.role) && <SettingsEmailBlast />
+      case 'health':    return isEnabled('health', effectiveRole) && <SettingsHealth />
+      case 'catalog':  return isEnabled('catalog', effectiveRole) && <SettingsCatalog />
+      case 'segments': return isEnabled('segments', effectiveRole) && <SettingsSegments />
+      case 'stages':   return isEnabled('stages', effectiveRole) && <SettingsStages />
+      case 'users':    return isEnabled('users', effectiveRole) && <SettingsUsers />
+      case 'logs':     return isEnabled('logs', effectiveRole) && <SettingsLogs />
+      case 'freshdesk': return isEnabled('freshdesk', effectiveRole) && <SettingsFreshdesk />
+      case 'asana':     return isEnabled('asana', effectiveRole) && <SettingsAsana />
+      case 'donkie':   return isEnabled('ai', effectiveRole) && <SettingsAI />
+      case 'donc-api': return isEnabled('api_donc', effectiveRole) && <SettingsDoncAPI />
+      case 'sync-status': return effectiveRole === 'admin' && <SettingsSyncStatus />
+      case 'features': return isEnabled('features', effectiveRole) && <SettingsFeatureFlags />
+      case 'fase-types': return isEnabled('fase_types', effectiveRole) && <SettingsFaseTypes />
+      case 'activity-types': return isEnabled('activity_types', effectiveRole) && <SettingsActivityTypes />
+      case 'project-templates': return isEnabled('project_templates', effectiveRole) && <SettingsProjectTemplates />
+      case 'brief-templates': return isEnabled('brief_templates', effectiveRole) && <SettingsBriefTemplates />
+      case 'email-templates': return isEnabled('email_templates', effectiveRole) && <EmailTemplatesManager />
+      case 'email-blast': return isEnabled('email_templates', effectiveRole) && <SettingsEmailBlast />
       default: return null
     }
   }
