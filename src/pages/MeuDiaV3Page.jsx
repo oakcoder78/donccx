@@ -23,11 +23,17 @@ import { ForcaNumerosBlock } from '@/components/dashboard/v3/ForcaNumerosBlock'
 import { EcossistemaMapBlock } from '@/components/dashboard/v3/EcossistemaMapBlock'
 import { OperacionalVariacaoBlock } from '@/components/dashboard/v3/OperacionalVariacaoBlock'
 
+// get_finance_summary() is SECURITY DEFINER with its own hardcoded guard
+// (admin/manager/finance only) — NOT the financial_data flag, which now also
+// includes sales for a different purpose (per-client MRR). Gating this query by
+// financial_data caused a 403 for sales (flag said yes, the RPC's own check said
+// no). Keep this check in sync with the RPC's guard, not with financial_data.
+const FINANCE_SUMMARY_ROLES = ['admin', 'manager', 'finance']
+
 function useFinanceSummary(effectiveRole) {
-  const { isEnabled } = useFeatureFlags()
   return useQuery({
     queryKey: ['finance_summary'],
-    enabled: isEnabled('financial_data', effectiveRole),
+    enabled: FINANCE_SUMMARY_ROLES.includes(effectiveRole),
     staleTime: 5 * 60 * 1000,
     retry: 0,
     queryFn: async () => {
@@ -94,7 +100,12 @@ export default function MeuDiaV3Page() {
   const syncQ = useSyncStatus({ enabled: !!profile })
   const financeQ = useFinanceSummary(effectiveRole)
   const ticketsQ = useAnalystTickets(effectiveRole)
-  const profQ = useActiveProfissionais()
+  // client_usage got a global SELECT policy 2026-09-13 — filter explicitly by the
+  // already carteira-scoped heroClients instead of relying on RLS to narrow rows.
+  const profQ = useActiveProfissionais(
+    isAdminManager ? null : heroClients.map(c => c.id),
+    { enabled: !!profile && (isAdminManager || clientsQ.isSuccess) }
+  )
 
   const healthMedia = useMemo(() => {
     const scored = heroClients.filter(c => c.health_total != null)
