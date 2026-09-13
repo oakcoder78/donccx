@@ -5,6 +5,20 @@
 
 ## 2026-09-13
 
+### Empresas — ver tudo, editar só o seu (`d5060c8`)
+
+Reportado: CSM em `/empresas/2?tab=contatos` não via contatos. Causa: `empresas_full_tabs`
+(admin/manager) bloqueava Atividades/Operacional/Health/Contatos pra qualquer outro role — mas o
+RLS por trás dessas 4 tabelas já libera csm/sales (por carteira) e finance/analyst (global) desde
+as migrations de Fase 1/`20260824000002`/`20260824000009`. O gate de aba nunca foi atualizado
+junto. Comparado com Salesforce (Account OWD default = Public Read Only; controle fino é FLS por
+campo + sharing por dono) e HubSpot (View: Everything / Edit: Owned é o padrão recomendado) —
+nenhum dos dois tem um eixo de permissão por "aba do registro". Resolvido retirando o gate de
+visibilidade por completo (flag `empresas_full_tabs` deletada, não só desligada) — toda role vê
+todas as abas agora, o RLS de cada tabela continua sendo a fronteira real. De quebra, generalizei
+`isSalesOwned` → `isOwner`: csm passou a editar a própria carteira (`csm_id = si mesmo`), que antes
+não tinha nenhum caminho de edição por posse, só `sales` tinha.
+
 ### Auditoria de permissões — flags, RLS de coluna financeira, effectiveRole
 
 Levantamento completo de acesso (perfil × módulo) a pedido do usuário, seguido por várias rodadas
