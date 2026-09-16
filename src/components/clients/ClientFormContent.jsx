@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { calculateUnitValue } from '@/lib/billing'
-import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations } from '@/hooks/useContractCharges'
+import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations, friendlyDbError } from '@/hooks/useContractCharges'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { Modal } from '../ui/Modal'
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
@@ -655,7 +655,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     })
     for (let i = 0; i < finalSeries.length; i++) {
       const s = finalSeries[i]
-      const end = s.auto_renew ? (s.billing_end || null) : (s.billing_end || billingEnd(s.billing_start, s.N) || null)
+      // Only a typed end date is persisted; the computed "fim dos N meses" shown in
+      // the form stays virtual (NULL = open-ended) so saving never hides a client
+      // from the finance cockpit by accident.
+      const end = s.billing_end || null
       let saved
       try {
         saved = await saveSeries({
@@ -682,7 +685,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           },
           clientId, userId: profile?.id,
         })
-      } catch (e) { toast.error(`Série "${s.label || KIND_LABELS[s.kind]}": ${e.message}`); continue }
+      } catch (e) { toast.error(`Série "${s.label || KIND_LABELS[s.kind]}": ${friendlyDbError(e)}`); continue }
       const rec = s.rules.length > 0 ? expandRulesToCharges(s.rules, s.N, { seriesId: saved.id, billingStart: saved.billing_start }) : []
       const ev = expandEventuais((s.eventuais || []).filter(x => Number(x.total) > 0), { seriesId: saved.id, billingStart: saved.billing_start })
       const all = [...rec, ...ev]
@@ -693,7 +696,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         } else if (hadRows) {
           await saveCharges({ charges: [], clientId, seriesId: saved.id, userId: profile?.id })
         }
-      } catch (e) { toast.error(`Contrato (${saved.label}): ${e.message}`) }
+      } catch (e) { toast.error(`Contrato (${saved.label}): ${friendlyDbError(e)}`) }
       // Tiers por série
       const tiers = (s.tiers || []).map((t, idx) => ({ ...t, tier_order: idx + 1 }))
       const hadTiers = (existingTiersBySeries[s.id] || []).length > 0

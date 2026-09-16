@@ -141,7 +141,7 @@ export function ExcecaoModal({ open, onClose, clientId, clientName, excecao = nu
       onSaved?.()
       onClose()
     } catch (e) {
-      const msg = e?.code === '42501' ? 'Ação não permitida' : e.message
+      const msg = e?.code === '42501' ? 'Sem permissão para salvar exceções — fale com um administrador' : e.message
       toast.error(msg)
       setError(msg)
     } finally {
@@ -161,7 +161,7 @@ export function ExcecaoModal({ open, onClose, clientId, clientName, excecao = nu
       onSaved?.()
       onClose()
     } catch (e) {
-      toast.error(e?.code === '42501' ? 'Ação não permitida' : e.message)
+      toast.error(e?.code === '42501' ? 'Sem permissão para excluir exceções — fale com um administrador' : e.message)
     } finally {
       setSaving(false)
     }

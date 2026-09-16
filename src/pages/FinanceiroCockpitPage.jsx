@@ -1305,7 +1305,7 @@ export default function FinanceiroCockpitPage() {
                   <span className="ml-auto text-sm font-semibold tabular-nums text-text-primary whitespace-nowrap">
                     {formatBRL(p.mrr_real)}
                   </span>
-                  {['admin', 'finance'].includes(effectiveRole) && (
+                  {isEnabled('financeiro_cockpit_write', effectiveRole) && (
                     <button
                       type="button"
                       onClick={() => setPendenciaTarget({ clientId: p.client_id, clientName: p.client_name, refMonth: p.ref_month })}

@@ -75,6 +75,14 @@ export function useBillingPaymentsMutations(clientId) {
       qc.invalidateQueries({ queryKey: ['client', clientId] })
       toast.success('Adimplência salva')
     },
-    onError: (e) => toast.error(e.message),
+    onError: (e) => {
+      // Sole caller (PaymentToggle) relies on this toast; map RLS denials to PT-BR
+      const msg = String(e?.message || '')
+      if (e?.code === '42501' || /row-level security/i.test(msg)) {
+        toast.error('Sem permissão para lançar adimplência — fale com um administrador')
+      } else {
+        toast.error(msg || 'Erro ao salvar adimplência')
+      }
+    },
   })
 }

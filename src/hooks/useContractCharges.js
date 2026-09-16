@@ -34,6 +34,16 @@ export function useContractSeries(clientId) {
   })
 }
 
+/** PostgREST/RLS failures as a readable PT-BR message (406/PGRST116 = 0 rows via RLS). */
+export function friendlyDbError(e) {
+  const msg = String(e?.message || '')
+  if (e?.code === '42501' || e?.status === 406 || e?.code === 'PGRST116'
+    || /cannot coerce/i.test(msg) || /row-level security/i.test(msg)) {
+    return 'Sem permissão para salvar o contrato — fale com um administrador'
+  }
+  return msg || 'Erro ao salvar'
+}
+
 export function useContractSeriesMutations(clientId) {
   const qc = useQueryClient()
   return useMutation({
@@ -83,7 +93,7 @@ export function useContractSeriesMutations(clientId) {
       qc.invalidateQueries({ queryKey: ['contract_series', clientId] })
       toast.success('Série salva')
     },
-    onError: (e) => toast.error(e.message),
+    // No onError toast: the sole caller (ClientFormContent) toasts with context
   })
 }
 
@@ -131,6 +141,6 @@ export function useContractChargesMutations(clientId) {
       qc.invalidateQueries({ queryKey: ['contract_charges', clientId] })
       toast.success('Regras de contrato salvas')
     },
-    onError: (e) => toast.error(e.message),
+    // No onError toast: the sole caller (ClientFormContent) toasts with context
   })
 }

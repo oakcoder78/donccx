@@ -262,7 +262,10 @@ agrega `(série, competência)`: renegociação exibe `original − desconto = a
 **Negociações vigentes:** exceções do cockpit (`billing_exceptions`, 4 tipos, escopo cliente/série,
 sem retroativo) aparecem read-only na aba Contrato (admin/manager/finance/sales) e em
 `ClientSubDados` (junto do último status de adimplência via `billing_payments`); o CRUD vive no
-cockpit financeiro (`/financeiro-cockpit`, flag `cockpit_financeiro`).
+cockpit financeiro (`/financeiro-cockpit`, flag `cockpit_financeiro`). Escrita desde 2026-09-16:
+`billing_payments`/`billing_exceptions`/`contract_series` = `admin,manager,finance,sales`
+(migration `20260916120000`); leitura do cockpit segue `admin,manager,finance`. O "Fim da cobrança"
+automático exibido no form (fim dos N meses) é virtual — só data digitada é persistida.
 
 ### Flow: View Client Detail
 1. User clicks a client card.
