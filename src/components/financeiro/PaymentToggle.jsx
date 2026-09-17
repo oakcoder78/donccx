@@ -70,6 +70,9 @@ export function PaymentToggle({
     const last = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10)
     return (allSeries || [])
       .filter((s) => s.status === 'ativa' && s.billing_start <= last && (!s.billing_end || s.billing_end >= first))
+      // Non-billable series never enter the cockpit: no payment to track
+      .filter((s) => (s.billing_status || 'ativo') !== 'nao_bilhetavel')
+      .filter((s) => (s.billing_status || 'ativo') !== 'suspenso' || (s.billing_suspended_until && s.billing_suspended_until < first))
       .map((s) => ({ series_id: s.id, label: s.label, kind: s.kind, due_day: s.due_day || 5 }))
   }, [allSeries, month])
 

@@ -179,7 +179,8 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
     <div class="bg-white border border-border-secondary rounded-xl px-5 py-4 shadow-sm text-sm text-text-secondary md:col-span-2">Índice de reajuste (IPCA ou IGP-M)</div>
   </div>
   <p class="text-sm text-text-secondary mt-4 leading-relaxed">O índice de reajuste (IPCA ou IGP-M) fica registrado na série como informação do contrato. O percentual aplicado é editável no momento da renovação anual, quando o valor corrigido é confirmado pelo Financeiro.</p>
-  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Os status "Suspenso até uma data" e "Não cobrar" zeram a cobrança daquela série no período — a fatura do mês aparece como R$ 0,00, com um selo indicando o status.</p>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Só aparece no cockpit o que foi <strong class="text-text-primary">lançado</strong> para o mês: períodos em "Valores da recorrência", faixas por OS ou cobranças eventuais. O plano (valor e piso) é referência e não fatura sozinho.</p>
+  <p class="text-sm text-text-secondary mt-3 leading-relaxed">Os status "Suspenso até uma data" e "Não cobrar", a isenção total e a série original pausada por renegociação <strong class="text-text-primary">não aparecem no cockpit</strong> — nem zerados. A negociação continua visível na ficha do cliente, em "Negociações vigentes".</p>
   <h3 class="font-bold text-donc-navy mt-6">Uma fatura por série, por mês</h3>
   <div class="bg-donc-navy rounded-xl text-white p-5 md:p-6 mt-3 print-break">
     <div class="calc text-lg font-bold">1 fatura por série × mês</div>
@@ -293,7 +294,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
     <table class="w-full text-sm">
       <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Tipo</th><th class="px-4 py-2.5 text-left">O que faz</th></tr></thead>
       <tbody>
-        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Isenção total</td><td class="px-4 py-3 text-text-secondary">Não cobra nada no período (R$ 0,00)</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Isenção total</td><td class="px-4 py-3 text-text-secondary">Não cobra nada no período — a série não aparece no cockpit</td></tr>
         <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Desconto percentual</td><td class="px-4 py-3 text-text-secondary">Aplica um percentual de desconto ao valor (maior que 0% e até 100%)</td></tr>
         <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Valor reduzido</td><td class="px-4 py-3 text-text-secondary">Substitui o cálculo por um valor fixo mensal</td></tr>
         <tr><td class="px-4 py-3 font-semibold">Desconto por licença/OS (R$)</td><td class="px-4 py-3 text-text-secondary">Aplica um desconto fixo em reais por licença ou por OS, por um período</td></tr>
@@ -315,7 +316,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
       <p class="text-sm text-text-secondary leading-relaxed">Contrato original R$ 2.995,00 + Aditivo Rotas R$ 500,00 = R$ 3.495,00. O time negociou o Aditivo Rotas, mas não vai cobrá-lo por 3 meses.</p>
       <div class="mt-3 rounded-lg bg-bg-secondary border border-border-tertiary px-4 py-3 calc text-xs space-y-1.5">
         <div>Exceção "Isenção total" somente na série Rotas, com vigência de 3 meses</div>
-        <div>Fatura no período = <strong>R$ 2.995,00</strong> — o Rotas aparece com R$ 0,00 e o original continua integral</div>
+        <div>Fatura no período = <strong>R$ 2.995,00</strong> — o Rotas não aparece no cockpit e o original continua integral</div>
         <div class="text-text-tertiary">Alternativa — desconto de 10% no cliente inteiro: R$ 3.495,00 × 0,90 = <strong class="text-text-secondary">R$ 3.145,50</strong></div>
       </div>
     </div>
@@ -419,7 +420,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
           <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">A</td><td class="px-4 py-3 text-text-secondary">Uso de 38 licenças, abaixo do piso de 50. Vale o mínimo: 50 × R$ 59,90</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.995,00</td></tr>
           <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">B</td><td class="px-4 py-3 text-text-secondary">Uso de 62 licenças, acima do piso. Vale o uso real: 62 × R$ 59,90 (excedente de R$ 718,80)</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 3.713,80</td></tr>
           <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">C</td><td class="px-4 py-3 text-text-secondary">Sem piso. Uso de 4.200 OS × R$ 1,93 (mínimo R$ 0,00)</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 8.106,00</td></tr>
-          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">D</td><td class="px-4 py-3 text-text-secondary">Isenção total no Aditivo Rotas por 3 meses. Original R$ 2.995,00 + Rotas R$ 0,00</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.995,00</td></tr>
+          <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">D</td><td class="px-4 py-3 text-text-secondary">Isenção total no Aditivo Rotas por 3 meses. Original R$ 2.995,00; o Rotas não aparece</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.995,00</td></tr>
           <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">D <span class="font-medium text-text-tertiary">(alternativa)</span></td><td class="px-4 py-3 text-text-secondary">Desconto de 10% no cliente inteiro: R$ 3.495,00 × 0,90</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 3.145,50</td></tr>
           <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-bold text-donc-navy">E</td><td class="px-4 py-3 text-text-secondary">Renegociação de R$ 2.395,00 por 6 meses; o original fica pausado</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 2.395,00/mês</td></tr>
           <tr><td class="px-4 py-3 font-bold text-donc-navy">F</td><td class="px-4 py-3 text-text-secondary">Aditivo travado no valor da série; o uso não altera a fatura</td><td class="px-4 py-3 text-right calc font-semibold whitespace-nowrap">R$ 500,00</td></tr>
@@ -436,7 +437,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
       <thead><tr class="bg-donc-navy text-white text-xs uppercase tracking-wider"><th class="px-4 py-2.5 text-left">Perfil</th><th class="px-4 py-2.5 text-left">O que vê</th><th class="px-4 py-2.5 text-left">O que pode fazer</th></tr></thead>
       <tbody>
         <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Admin e Financeiro</td><td class="px-4 py-3 text-text-secondary">Cockpit completo</td><td class="px-4 py-3 text-text-secondary">Criar e editar exceções, reajustes e status de pagamento</td></tr>
-        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Manager</td><td class="px-4 py-3 text-text-secondary">Tudo, com exportação</td><td class="px-4 py-3 text-text-secondary">Somente leitura em exceções, reajustes e pagamentos</td></tr>
+        <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Manager</td><td class="px-4 py-3 text-text-secondary">Tudo, com exportação</td><td class="px-4 py-3 text-text-secondary">Lança exceções, adimplência e edita séries, como Admin e Financeiro</td></tr>
         <tr class="border-b border-border-tertiary"><td class="px-4 py-3 font-semibold">Vendas</td><td class="px-4 py-3 text-text-secondary">As séries contratuais dos clientes da própria carteira</td><td class="px-4 py-3 text-text-secondary">Negociar e editar séries na tela Empresas; vê os detalhes completos das exceções na ficha do cliente, sem acesso ao cockpit financeiro</td></tr>
         <tr><td class="px-4 py-3 font-semibold">CS (Customer Success) / Analista</td><td class="px-4 py-3 text-text-secondary">Sem acesso a valores financeiros</td><td class="px-4 py-3 text-text-secondary">—</td></tr>
       </tbody>
@@ -466,8 +467,8 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
         <div class="flex gap-3">
           <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">2</span>
           <div class="flex-1">
-            <p class="text-sm font-semibold text-text-primary leading-relaxed">O que é uma fatura zerada?</p>
-            <p class="text-sm text-text-secondary mt-2 leading-relaxed">É a fatura de uma série suspensa, marcada como "Não cobrar", ou com isenção total no período. Ela aparece no cockpit como R$ 0,00, e o status continua visível na ficha do cliente — a negociação não desaparece.</p>
+            <p class="text-sm font-semibold text-text-primary leading-relaxed">Por que um cliente não aparece no cockpit?</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Porque não há nada faturado para ele no mês: sem períodos lançados, a série não gera lançamento — nem zerado. Séries suspensas, marcadas como "Não cobrar", com isenção total ou pausadas por renegociação também não aparecem. As negociações continuam visíveis na ficha do cliente, em "Negociações vigentes".</p>
           </div>
         </div>
       </li>
@@ -494,7 +495,7 @@ tailwind.config = { theme: { extend: { colors: { donc:{navy:'#173557',sky:'#59c2
           <span class="w-7 h-7 rounded-full bg-donc-verde/15 text-donc-verde font-bold text-xs flex items-center justify-center flex-shrink-0">5</span>
           <div class="flex-1">
             <p class="text-sm font-semibold text-text-primary leading-relaxed">Quem pode lançar exceções?</p>
-            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Admin e Financeiro criam e editam exceções; o Manager tem acesso somente leitura. Vendas vê os detalhes na ficha do cliente, sem acesso ao cockpit financeiro.</p>
+            <p class="text-sm text-text-secondary mt-2 leading-relaxed">Admin, Financeiro e Manager criam e editam exceções e lançam adimplência no cockpit. Vendas ajusta as séries na ficha do cliente e vê os detalhes das exceções lá, sem acesso ao cockpit financeiro.</p>
           </div>
         </div>
       </li>

@@ -171,12 +171,12 @@ function downloadFile(content, filename, mime) {
 const EXPORT_VIEWS = [
   { key: 'geral', label: 'Geral' },
   { key: 'faturavel', label: 'Faturável' },
-  { key: 'isento', label: 'Isento' },
 ]
 
 function applyExportView(rows, view) {
-  if (view === 'faturavel') return (rows || []).filter((r) => Number(r.mrr_real) > 0)
-  if (view === 'isento') return (rows || []).filter((r) => Number(r.mrr_real) === 0 && Number(r.series_count) > 0)
+  // Billed-value only: zero rows never reach the cockpit (nao_bilhetavel /
+  // suspenso / isento / paused are excluded by the engine).
+  if (view === 'faturavel') return (rows || []).filter((r) => Number(r.mrr_real) > 0 || Number(r.eventuais) > 0)
   return rows || []
 }
 
