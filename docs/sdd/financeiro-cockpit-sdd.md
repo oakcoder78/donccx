@@ -803,6 +803,7 @@ Validação visual em produção com login fica com o time (rota autenticada).
 | 1.5 | 2026-09-17 | DoncCX Hub | Adendo pré-produção: MRR obrigatória (motor exclui série sem valor faturado salvo zero intencional; form bloqueia série incompleta); cabeçalho da série reagrupado + auto default ON + Fim condicional; reajuste condicional + aniversário `start + 1 ano` (backfill); seção `Valores da recorrência`; baixa em lote no PaymentToggle |
 | 1.6 | 2026-09-18 | DoncCX Hub | Fonte de verdade = só o lançado: motor rules-only (contratado = `rules_total`, sem fallback base; `uso_os` = OS criadas; exclusão pelo contratado); `eventuais` em linha própria (cockpit + detalhe + sintético); flip `auto_renew` em massa (só 29 mantém fim); validação invertida (base sozinha não passa) + alerta persistente |
 | 1.7 | 2026-09-18 | DoncCX Hub | Só valor faturado aparece (revoga Q4): engine exclui tudo zerado (`raw_min==0 AND raw_real==0`, sem isenções — regra 0 sem excedente some); cockpit lista clientes com MRR ou eventuais (`UNION`); `PaymentToggle` esconde não-cobrar/suspensas; visão `isento` removida; Help reescrito (fatura zerada não existe; negociações na ficha) |
+| 1.8 | 2026-09-18 | DoncCX Hub | Hotfix 400 `client_id is ambiguous`: refs desqualificadas colidem com OUT params em PL/pgSQL — `allc` qualificada (`fin_cur.client_id`/`ev_cur.client_id`). Lição: em RPC `RETURNS TABLE`, qualificar TODAS as colunas |
 
 ---
 
