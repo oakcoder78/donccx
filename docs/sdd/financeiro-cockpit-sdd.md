@@ -189,7 +189,7 @@ serie_zerada(s)    = s.billing_status='nao_bilhetavel'
 
 # Uso (client_usage do ref; aplicado só à série usage_driven — original)
 uso                = por_licenca: count(profissionais_versao WHERE ativo=true)
-                     por_os:       count(dataUltimaOS ∈ ref_month)
+                     por_os:       SUM(snapshot.totalOs ?? os_created) do mês (OS criadas)
 
 # Valor unitário da série (reajuste anual NÃO é calculado aqui — o valor já vem corrigido na série)
 unit(s)            = s.billing_base_value − desconto_unidade_vigente(s)   # exceção desconto_unidade
@@ -197,15 +197,17 @@ excedente_uso(s)   = por_licenca: max(0, uso − s.billing_floor) × unit(s)
                      por_os tiers: uso > tier.limit_to → (uso − tier.limit_to) × excess_unit_price
                      por_os s/tiers: max(0, uso − floor) × unit(s)
 
-# Valor contratado da série no mês
-contratado(s)      = regras recorrencia em ref ? seriesMonthTotal(s.charges, ref, getBaseTotal(s))
-                     else getBaseTotal(s) = floor>0 ? base×floor : base
+# Valor contratado da série no mês (fonte de verdade = só o lançado; base é visual)
+contratado(s)      = rules_total em ref (0 sem regra; regra 0 conta como lançada)
 
 # Modo de cobrança
-bruto(s)           = usage_driven=true  ? contratado_com_regra + excedente_uso(s)
-                                           # sem regras: bruto = max(uso, floor) × unit(s)
-                     : contratado(s)        # travado — uso só informativo
+bruto(s)           = usage_driven=true  ? rules_total(ref) + excedente_uso(s)
+                     : rules_total(ref)   # travado — sem regra no mês, 0
                      (por_os com tiers: tier.fixed_value + excedente acima do limite)
+
+# Gate de lançamento (repactuação 2026-09-18): a série SÓ aparece se
+# (has_rules_month OR has_tiers) AND NOT pausada AND NOT zerada AND NOT isenta.
+# Excedente sem período lançado não fatura. Eventuais entram por UNION no cockpit.
 
 # Exceções: série primeiro, cliente depois (aplicam em min E real)
 mrr_min_serie(s)   = contratado(s)
@@ -804,6 +806,7 @@ Validação visual em produção com login fica com o time (rota autenticada).
 | 1.6 | 2026-09-18 | DoncCX Hub | Fonte de verdade = só o lançado: motor rules-only (contratado = `rules_total`, sem fallback base; `uso_os` = OS criadas; exclusão pelo contratado); `eventuais` em linha própria (cockpit + detalhe + sintético); flip `auto_renew` em massa (só 29 mantém fim); validação invertida (base sozinha não passa) + alerta persistente |
 | 1.7 | 2026-09-18 | DoncCX Hub | Só valor faturado aparece (revoga Q4): engine exclui tudo zerado (`raw_min==0 AND raw_real==0`, sem isenções — regra 0 sem excedente some); cockpit lista clientes com MRR ou eventuais (`UNION`); `PaymentToggle` esconde não-cobrar/suspensas; visão `isento` removida; Help reescrito (fatura zerada não existe; negociações na ficha) |
 | 1.8 | 2026-09-18 | DoncCX Hub | Hotfix 400 `client_id is ambiguous`: refs desqualificadas colidem com OUT params em PL/pgSQL — `allc` qualificada (`fin_cur.client_id`/`ev_cur.client_id`). Lição: em RPC `RETURNS TABLE`, qualificar TODAS as colunas |
+| 1.9 | 2026-09-18 | DoncCX Hub | Gate por lançamento (repactuação): série entra sse `(has_rules_month OR has_tiers) AND NOT pausada/zerada/isenta` — excedente sem período não fatura nem aparece; agosto esvazia, só 29 em set |
 
 ---
 
