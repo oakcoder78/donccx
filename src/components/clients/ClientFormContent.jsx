@@ -389,15 +389,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       if (s.billing_status === 'suspenso' && !s.billing_suspended_until) {
         return `Informe "Suspenso até"${tag} quando o status for Suspenso.`
       }
-      // MRR required: an active, billable series must carry a contracted value,
-      // otherwise it generates no cockpit entry. Suspended/non-billable series
-      // are explicitly zero and stay visible as R$ 0,00.
+      // Launched values required: only launched periods/tiers bill. The plan
+      // (Valor/Piso, MRR base card) is visual reference and never bills alone.
+      // Suspended/non-billable series are explicitly zero and stay visible as R$ 0,00.
       if ((!s.status || s.status === 'ativa') && (s.billing_status || 'ativo') === 'ativo') {
-        const contracted = getBaseTotal(s.billing_base_value, s.billing_floor) > 0
-          || (s.rules || []).length > 0
+        const launched = (s.rules || []).length > 0
           || ((s.tiers || []).some(t => Number(t.fixed_value) > 0 || Number(t.excess_unit_price) > 0))
-        if (!contracted) {
-          return `Série${tag} sem valor de recorrência: informe Valor/Piso no plano de cobrança ou lance períodos em "Valores da recorrência".`
+        if (!launched) {
+          return `Série${tag} sem períodos lançados: adicione períodos em "Valores da recorrência" (a base do plano é só referência e não fatura).`
         }
       }
       for (const ev of s.eventuais) {
@@ -1200,7 +1199,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             </div>
 
             <div className="bg-donc-navy rounded-lg p-4 text-white">
-              <p className="text-xs text-white/60 mb-0.5">MRR base</p>
+              <p className="text-xs text-white/60 mb-0.5">MRR base (referência — não fatura)</p>
               <p className="text-xl font-bold">
                 {fmtBRL(baseTotal)}<span className="text-sm font-normal text-white/70">/mês</span>
               </p>
@@ -1267,9 +1266,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
           <FormSection
             title="Valores da recorrência"
-            hint={`Defina quanto o cliente paga em cada período da série selecionada${activeSeries ? ` (${activeSeries.label || KIND_LABELS[activeSeries.kind]})` : ''}. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Sem períodos, a recorrência é sempre o MRR base. A duração (meses) fica no cabeçalho da série, acima.`}
+            hint={`Defina quanto o cliente paga em cada período da série selecionada${activeSeries ? ` (${activeSeries.label || KIND_LABELS[activeSeries.kind]})` : ''}. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Só períodos lançados faturam — a base do plano é só referência. A duração (meses) fica no cabeçalho da série, acima.`}
             valid={contractRules.length > 0 && validateRulesContiguous(contractRules, contractN).ok}
           >
+            {contractRules.length === 0 && !activeReadOnly && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+                Nenhum período lançado — nada será faturado nesta série até lançar ao menos um período.
+              </p>
+            )}
             <ContractChargesSection
               N={contractN}
               rules={contractRules}

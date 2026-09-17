@@ -225,14 +225,15 @@ flush/load ao trocar de série); `clients.*` é espelho da série original:
   anual** (aniversário default = `billing_start + 1 ano`, editável, backfill nas 27 séries
   em `20260917090000`; campos Percentual/Índice condicionais à regra) com **renovação sugerida**
   `base × (1 + percentual/100)`.
-  *MRR base* (card navy) — base da série ativa (`usage_driven` sem regras = `piso × valor`,
-  0 quando não há piso; travado sem regras = valor base).
+  *MRR base* (card navy, **referência — não fatura**) — base da série ativa; o motor só
+  fatura períodos lançados (`rules_total` do mês) + excedente + faixas + eventuais (linha própria).
 - *Status de cobrança* — 3 states por série; `contract_active`/`mrr` derivam da original;
   `mrr` via `resolveMRR` com **base própria por série** (percent resolve na base da série).
 - *Valores da recorrência* — `ContractChargesSection` por série; preview com
-  **data cheia de vencimento** (`05/set/26 → R$ 4.000`). Série ativa faturável sem valor
-  contratado (base×piso zero, sem períodos, sem faixas com valor) **não salva** — MRR é
-  obrigatória desde 2026-09-17 (suspenso/não cobrar passam como zero intencional).
+  **data cheia de vencimento** (`05/set/26 → R$ 4.000`). Série ativa faturável sem **períodos
+  lançados nem faixas com valor não salva** — só o lançado fatura (base do plano é
+  referência visual); suspenso/não cobrar passam como zero intencional. Seção vazia exibe
+  alerta âmbar persistente ("nada será faturado").
 - *Cobranças Eventuais* — `EventuaisSection` com date picker DD/MM/AAAA real por linha (coluna Data = `startDate`, fonte de verdade; coluna Início removida da tela, mês segue derivado por baixo). Cada parcela persiste `due_date` (`20260907000003`, backfill com dia do vencimento da série e clamp de fim de mês); `month_index`/`ref_month` derivam da data.
 - *Faixas de preço por OS* — `OsTiersSection` por série (PK `(client, series, order)`),
   `readOnly` em série encerrada.

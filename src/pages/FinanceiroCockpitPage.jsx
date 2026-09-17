@@ -506,11 +506,14 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
   const series = data.series || []
   const excecoes = data.excecoes || []
   const payment = data.payment || []
+  const eventuais = data.eventuais || []
   const profissionais = data.profissionais || []
   const ativos = profissionais.filter((p) => p.ativo)
   const metaById = Object.fromEntries((seriesMeta || []).map((s) => [s.id, s]))
   const sumExc = series.reduce((t, s) => t + (Number(s.excedente) || 0), 0)
   const sumTotal = series.reduce((t, s) => t + (Number(s.total) || 0), 0)
+  const sumEv = eventuais.reduce((t, e) => t + (Number(e.amount) || 0), 0)
+  const sumTotalMes = sumTotal + sumEv
   const correctionPercent = row?.correction_percent ?? data.correction_percent
   const correctionAnniversary = row?.correction_anniversary ?? data.correction_anniversary
   const hasCorrection = correctionPercent !== null && correctionPercent !== undefined && correctionPercent !== ''
@@ -688,6 +691,17 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                     })}
                   </tbody>
                   <tfoot>
+                    {sumEv > 0 && (
+                      <tr className="border-t border-border-tertiary">
+                        <td className="px-3 py-2 text-text-secondary text-[11px] uppercase tracking-wider">Eventuais</td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                        <td />
+                        <td className="px-3 py-2 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(sumEv)}</td>
+                      </tr>
+                    )}
                     <tr className="border-t border-border-tertiary bg-bg-secondary/60">
                       <td className="px-3 py-2 text-text-secondary text-[11px] uppercase tracking-wider">Total do mês</td>
                       <td />
@@ -695,7 +709,7 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                       <td />
                       <td />
                       <td className="px-3 py-2 text-right tabular-nums text-text-primary whitespace-nowrap">{formatBRL(sumExc)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums font-bold text-text-primary whitespace-nowrap">{formatBRL(sumTotal)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-bold text-text-primary whitespace-nowrap">{formatBRL(sumTotalMes)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -743,14 +757,38 @@ function FinanceiroClientPanel({ clientId, refMonth, row, months = [], onClose }
                     </div>
                   )
                 })}
+                {sumEv > 0 && (
+                  <div className="p-3 flex items-center justify-between">
+                    <span className="text-[11px] uppercase tracking-wider text-text-secondary">Eventuais</span>
+                    <span className="text-sm tabular-nums text-text-primary">{formatBRL(sumEv)}</span>
+                  </div>
+                )}
                 <div className="p-3 bg-bg-secondary/60 flex items-center justify-between">
                   <span className="text-[11px] uppercase tracking-wider text-text-secondary">Total do mês</span>
-                  <span className="text-sm font-bold tabular-nums text-text-primary">{formatBRL(sumTotal)}</span>
+                  <span className="text-sm font-bold tabular-nums text-text-primary">{formatBRL(sumTotalMes)}</span>
                 </div>
               </div>
             </div>
           )}
         </section>
+
+        {/* Eventuais do mês — linha própria, fora do MRR */}
+        {eventuais.length > 0 && (
+          <section className="pt-5 border-t border-border-tertiary">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-text-tertiary mb-2">Cobranças eventuais do mês</h4>
+            <ul className="divide-y divide-border-tertiary">
+              {eventuais.map((e, i) => (
+                <li key={`${e.series_id}-${i}`} className="py-2 flex items-center gap-2 text-sm">
+                  <span className="font-medium text-text-primary truncate">{e.label || 'Eventual'}</span>
+                  {e.due_date && (
+                    <span className="text-[11px] text-text-tertiary">vence {formatDate(e.due_date)}</span>
+                  )}
+                  <span className="ml-auto text-sm tabular-nums text-text-primary whitespace-nowrap">{formatBRL(e.amount)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Exceções + Adimplência — colapsa numa linha quando não há nada a reportar */}
         <section className="pt-5 border-t border-border-tertiary">
@@ -994,7 +1032,7 @@ export default function FinanceiroCockpitPage() {
     const scoped = applyExportView(scopeRows, exportView)
     const header = [
       'Cliente', 'CNPJ', 'SaaS ID', 'Tipo', 'Piso', 'Uso', 'Billable', 'Valor unit.',
-      'MRR mínimo', 'MRR real', 'Excedente', 'Exceção', 'Escopo', 'Adimplência', 'Δ',
+      'MRR mínimo', 'MRR real', 'Excedente', 'Eventuais', 'Exceção', 'Escopo', 'Adimplência', 'Δ',
     ]
     const lines = [csvLine(header)]
     scoped.forEach((r) => {
@@ -1011,6 +1049,7 @@ export default function FinanceiroCockpitPage() {
         formatBRL(r.mrr_min),
         formatBRL(r.mrr_real),
         formatBRL(r.excedente),
+        formatBRL(r.eventuais),
         r.excecao_desc,
         r.excecao_escopo === 'serie' ? 'série' : (r.excecao_escopo || ''),
         paymentText(r.payment_status, r.delay_days),

@@ -47,7 +47,7 @@ export function ContractChargesSection({ N, rules, setRules, billingBaseValue, b
     <div className="space-y-1.5 overflow-x-auto">
       {rules.length === 0 && (
         <p className="text-xs text-text-tertiary">
-          Nenhum período definido — a recorrência é a mesma do mês 1 ao {N}.
+          Nenhum período lançado — nada será faturado nesta série (a base do plano é só referência).
         </p>
       )}
 
