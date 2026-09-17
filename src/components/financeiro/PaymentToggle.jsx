@@ -50,7 +50,9 @@ export function PaymentToggle({
   const { data: allSeries = [] } = useContractSeries(clientId)
   const [month, setMonth] = useState(refMonth)
   const [draft, setDraft] = useState({})
+  const [selected, setSelected] = useState({})
   const [savingId, setSavingId] = useState(null)
+  const [bulkSaving, setBulkSaving] = useState(false)
 
   useEffect(() => {
     if (open) setMonth(refMonth)
@@ -68,8 +70,17 @@ export function PaymentToggle({
     const last = new Date(Date.UTC(yy, mm, 0)).toISOString().slice(0, 10)
     return (allSeries || [])
       .filter((s) => s.status === 'ativa' && s.billing_start <= last && (!s.billing_end || s.billing_end >= first))
-      .map((s) => ({ series_id: s.id, label: s.label, kind: s.kind }))
+      .map((s) => ({ series_id: s.id, label: s.label, kind: s.kind, due_day: s.due_day || 5 }))
   }, [allSeries, month])
+
+  /** Default payment date = due day of the month (clamped to month length). */
+  function dueDateOf(seriesMeta) {
+    const [yy, mm] = String(month || '').split('-').map(Number)
+    if (!yy || !mm) return ''
+    const last = new Date(Date.UTC(yy, mm, 0)).getUTCDate()
+    const d = Math.min(Math.max(1, Number(seriesMeta?.due_day) || 5), last)
+    return `${month}-${String(d).padStart(2, '0')}`
+  }
 
   const monthPayments = useMemo(
     () => (payments || []).filter((p) => p.ref_month === month),
@@ -79,6 +90,7 @@ export function PaymentToggle({
   useEffect(() => {
     if (!open) return
     const init = {}
+    const sel = {}
     ;(series || []).forEach((s) => {
       const p = (monthPayments || []).find((x) => x.series_id === s.series_id)
       init[s.series_id] = {
@@ -87,8 +99,10 @@ export function PaymentToggle({
         paid_at: p?.paid_at || '',
         note: p?.note || '',
       }
+      sel[s.series_id] = true
     })
     setDraft(init)
+    setSelected(sel)
   }, [open, series, monthPayments])
 
   if (!open) return null
@@ -97,17 +111,19 @@ export function PaymentToggle({
     setDraft((prev) => ({ ...prev, [seriesId]: { ...(prev[seriesId] || {}), ...patch } }))
   }
 
-  async function saveRow(seriesId) {
+  async function saveRow(seriesId, forcePaid = false) {
+    const meta = (series || []).find((s) => s.series_id === seriesId)
     const row = draft[seriesId] || {}
-    if (!row.status) return
+    const status = forcePaid ? 'adimplente' : row.status
+    if (!status) return
     setSavingId(seriesId)
     try {
       await mutateAsync({
         series_id: seriesId,
         ref_month: month,
-        status: row.status,
+        status,
         delay_days: Number(row.delay_days) || 0,
-        paid_at: row.paid_at || null,
+        paid_at: row.paid_at || (forcePaid ? dueDateOf(meta) : null) || null,
         note: row.note || null,
       })
       onSaved?.()
@@ -116,6 +132,30 @@ export function PaymentToggle({
     } finally {
       setSavingId(null)
     }
+  }
+
+  const selectedIds = useMemo(
+    () => (series || []).map((s) => s.series_id).filter((id) => selected[id]),
+    [series, selected]
+  )
+
+  /** Mark all selected series as paid (adimplente, paid on due date by default). */
+  async function saveBulkPaid() {
+    if (selectedIds.length === 0 || bulkSaving) return
+    setBulkSaving(true)
+    try {
+      for (const id of selectedIds) {
+        await saveRow(id, true)
+      }
+    } finally {
+      setBulkSaving(false)
+    }
+  }
+
+  function toggleAll(on) {
+    const next = {}
+    ;(series || []).forEach((s) => { next[s.series_id] = on })
+    setSelected(next)
   }
 
   return (
@@ -173,13 +213,33 @@ export function PaymentToggle({
           </div>
         ) : (
           <div className="space-y-3 mt-3">
+            {canWrite && (series || []).length > 1 && (
+              <label className="flex items-center gap-1.5 text-xs text-text-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.length === (series || []).length && (series || []).length > 0}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                />
+                Selecionar todas
+              </label>
+            )}
             {(series || []).map((s) => {
               const row = draft[s.series_id] || {}
               const label = s.label || KIND_LABELS[s.kind] || 'Série'
               return (
                 <div key={s.series_id} className="rounded-lg border border-border-tertiary p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-sm font-medium text-text-primary truncate">{label}</span>
+                    <span className="flex items-center gap-2 text-sm font-medium text-text-primary truncate">
+                      {canWrite && (
+                        <input
+                          type="checkbox"
+                          checked={!!selected[s.series_id]}
+                          onChange={(e) => setSelected((prev) => ({ ...prev, [s.series_id]: e.target.checked }))}
+                          aria-label={`Selecionar ${label}`}
+                        />
+                      )}
+                      <span className="truncate">{label}</span>
+                    </span>
                     {!canWrite && <StatusBadge status={row.status} delayDays={row.delay_days} />}
                   </div>
                   {canWrite ? (
@@ -247,6 +307,18 @@ export function PaymentToggle({
                 </div>
               )
             })}
+            {canWrite && (series || []).length > 0 && (
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={saveBulkPaid}
+                  disabled={selectedIds.length === 0 || bulkSaving}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-donc-verde text-white font-medium hover:bg-donc-verde/90 transition-colors disabled:opacity-50"
+                >
+                  {bulkSaving ? 'Marcando…' : `Marcar ${selectedIds.length > 0 ? `${selectedIds.length} ` : ''}como quitada${selectedIds.length === 1 ? '' : 's'}`}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

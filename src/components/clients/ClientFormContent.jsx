@@ -21,7 +21,7 @@ import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
-import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, addMonthsClamped, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
 import { renewalSuggestion, excecaoLabel } from '@/lib/financeiro'
 import { useBillingExceptions } from '@/hooks/useBillingExceptions'
 import toast from 'react-hot-toast'
@@ -203,7 +203,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       return {
         ...s,
         billing_end: s.billing_end || '', reason: s.reason || '',
-        endDirty: !!(s.billing_end || s.auto_renew),
         usage_driven: s.usage_driven ?? false,
         correction_anniversary: s.correction_anniversary || '',
         correction_percent: s.correction_percent ?? '',
@@ -234,13 +233,13 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       const start = form.contract_start || new Date().toISOString().slice(0, 10)
       built = [{
         id: null, label: 'Contrato original', kind: 'original',
-        billing_start: start, billing_end: '', endDirty: false,
+        billing_start: start, billing_end: '',
         due_day: Number(String(start).slice(8, 10)) || 5,
-        auto_renew: false, status: 'ativa', reason: '',
+        auto_renew: true, status: 'ativa', reason: '',
         billing_type: 'por_licenca', billing_base_value: '', billing_floor: '',
         contract_signed_date: '', contract_renewal: '', correction_index: '',
         billing_status: 'ativo', billing_suspended_until: '',
-        usage_driven: true, correction_anniversary: '', correction_percent: '', correction_rule: '',
+        usage_driven: true, correction_anniversary: addMonthsClamped(start, 12), correction_percent: '', correction_rule: '',
         N: 36, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
       }]
     }
@@ -351,16 +350,16 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     const today = new Date().toISOString().slice(0, 10)
     const draft = {
       id: null, label: '', kind: hasOriginal ? 'aditivo' : 'original',
-      billing_start: today, billing_end: '', endDirty: false,
+      billing_start: today, billing_end: '',
       due_day: Number(today.slice(8, 10)) || 5,
-      auto_renew: false, status: 'ativa', reason: '',
+      auto_renew: true, status: 'ativa', reason: '',
       billing_type: form.billing_type || 'por_licenca',
       billing_base_value: form.billing_base_value || '',
       billing_floor: form.billing_floor || '',
       contract_signed_date: '', contract_renewal: '', correction_index: '',
       billing_status: 'ativo', billing_suspended_until: '',
       usage_driven: !hasOriginal,
-      correction_anniversary: '', correction_percent: '', correction_rule: '',
+      correction_anniversary: addMonthsClamped(today, 12), correction_percent: '', correction_rule: '',
       N: 12, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
     }
     const next = [...seriesWithBuffer(), draft]
@@ -389,6 +388,17 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       }
       if (s.billing_status === 'suspenso' && !s.billing_suspended_until) {
         return `Informe "Suspenso até"${tag} quando o status for Suspenso.`
+      }
+      // MRR required: an active, billable series must carry a contracted value,
+      // otherwise it generates no cockpit entry. Suspended/non-billable series
+      // are explicitly zero and stay visible as R$ 0,00.
+      if ((!s.status || s.status === 'ativa') && (s.billing_status || 'ativo') === 'ativo') {
+        const contracted = getBaseTotal(s.billing_base_value, s.billing_floor) > 0
+          || (s.rules || []).length > 0
+          || ((s.tiers || []).some(t => Number(t.fixed_value) > 0 || Number(t.excess_unit_price) > 0))
+        if (!contracted) {
+          return `Série${tag} sem valor de recorrência: informe Valor/Piso no plano de cobrança ou lance períodos em "Valores da recorrência".`
+        }
       }
       for (const ev of s.eventuais) {
         if (!(Number(ev.total) > 0)) continue
@@ -1001,6 +1011,26 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     </select>
                   </div>
                   <div>
+                    <label className="label-sm">Data de assinatura</label>
+                    <input
+                      type="date"
+                      value={activeSeries.contract_signed_date || ''}
+                      onChange={e => updateSeriesMeta({ contract_signed_date: e.target.value })}
+                      disabled={activeReadOnly}
+                      className="input-base w-full disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="label-sm">Tempo de contrato (meses)</label>
+                    <input
+                      type="number" min="1" max="120"
+                      value={contractN}
+                      onChange={e => setContractN(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
+                      disabled={activeReadOnly}
+                      className="input-base w-full disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
                     <label className="label-sm">Início da cobrança *</label>
                     <input
                       type="date"
@@ -1022,16 +1052,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     />
                   </div>
                   <div>
-                    <label className="label-sm">Data de assinatura</label>
-                    <input
-                      type="date"
-                      value={activeSeries.contract_signed_date || ''}
-                      onChange={e => updateSeriesMeta({ contract_signed_date: e.target.value })}
-                      disabled={activeReadOnly}
-                      className="input-base w-full disabled:opacity-50"
-                    />
-                  </div>
-                  <div>
                     <label className="label-sm">Renovação</label>
                     <input
                       type="date"
@@ -1040,19 +1060,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                       disabled={activeReadOnly}
                       className="input-base w-full disabled:opacity-50"
                     />
-                  </div>
-                  <div>
-                    <label className="label-sm">Fim da cobrança</label>
-                    <input
-                      type="date"
-                      value={activeSeries.auto_renew ? (activeSeries.billing_end || '') : (activeSeries.billing_end || billingEnd(activeSeries.billing_start, activeSeries.N) || '')}
-                      onChange={e => updateSeriesMeta({ billing_end: e.target.value, endDirty: true })}
-                      disabled={activeReadOnly || !!activeSeries.auto_renew}
-                      className="input-base w-full disabled:opacity-50"
-                    />
-                    {!activeSeries.auto_renew && !activeSeries.endDirty && (
-                      <p className="text-[11px] text-text-tertiary mt-0.5">Automático: fim dos {activeSeries.N} meses.</p>
-                    )}
                   </div>
                   <div className="flex flex-col gap-1">
                     <span className="label-sm invisible select-none" aria-hidden="true">·</span>
@@ -1066,6 +1073,23 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                       Renovação automática mês a mês
                     </label>
                   </div>
+                  {!activeSeries.auto_renew && (
+                    <div className="col-span-2">
+                      <label className="label-sm">Fim da cobrança</label>
+                      <input
+                        type="date"
+                        value={activeSeries.billing_end || ''}
+                        onChange={e => updateSeriesMeta({ billing_end: e.target.value })}
+                        disabled={activeReadOnly}
+                        className="input-base w-full disabled:opacity-50"
+                      />
+                      {!activeSeries.billing_end && activeSeries.billing_start && (
+                        <p className="text-[11px] text-text-tertiary mt-0.5">
+                          Em aberto — projeção: {billingEnd(activeSeries.billing_start, contractN) || '—'} ({contractN} meses).
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
                 {(activeSeries.kind === 'renegociacao' || activeSeries.reason) && (
                   <div>
@@ -1121,10 +1145,12 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 <label className="label-sm">Piso mínimo ({form.billing_type === 'por_os' ? 'OS/mês' : 'licenças'})</label>
                 <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
               </div>
-              <div className="col-span-2">
-                <label className="label-sm">Índice de reajuste</label>
-                <input name="correction_index" value={form.correction_index} onChange={handleChange} className="input-base w-full" placeholder="Ex: IPCA, IGP-M" />
-              </div>
+              {form.correction_rule !== 'percentual' && (
+                <div className="col-span-2">
+                  <label className="label-sm">Índice de reajuste</label>
+                  <input name="correction_index" value={form.correction_index} onChange={handleChange} className="input-base w-full" placeholder="Ex: IPCA, IGP-M" />
+                </div>
+              )}
             </div>
             <p className="text-[11px] text-text-tertiary">Datas (assinatura, início, renovação) ficam na série acima — esta seção é o plano da série selecionada.</p>
 
@@ -1159,10 +1185,12 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     <option value="maior">O maior entre os dois</option>
                   </select>
                 </div>
-                <div>
-                  <label className="label-sm">Percentual do reajuste (%)</label>
-                  <input name="correction_percent" type="number" min="0" max="50" step="0.01" value={form.correction_percent ?? ''} onChange={handleChange} className="input-base w-full" placeholder="—" disabled={activeReadOnly} />
-                </div>
+                {form.correction_rule !== 'indice' && (
+                  <div>
+                    <label className="label-sm">Percentual do reajuste (%)</label>
+                    <input name="correction_percent" type="number" min="0" max="50" step="0.01" value={form.correction_percent ?? ''} onChange={handleChange} className="input-base w-full" placeholder="—" disabled={activeReadOnly} />
+                  </div>
+                )}
               </div>
               {renewalHint && (
                 <p className="text-[11px] text-text-tertiary">
@@ -1238,20 +1266,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           )}
 
           <FormSection
-            title="Evolução da recorrência (MRR)"
-            hint={`Defina quanto o cliente paga em cada período da série selecionada${activeSeries ? ` (${activeSeries.label || KIND_LABELS[activeSeries.kind]})` : ''}. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Sem períodos, a recorrência é sempre o MRR base.`}
+            title="Valores da recorrência"
+            hint={`Defina quanto o cliente paga em cada período da série selecionada${activeSeries ? ` (${activeSeries.label || KIND_LABELS[activeSeries.kind]})` : ''}. Ex: R$ 2.500 do mês 1 ao 5 e R$ 4.000 do mês 6 até o fim. Sem períodos, a recorrência é sempre o MRR base. A duração (meses) fica no cabeçalho da série, acima.`}
             valid={contractRules.length > 0 && validateRulesContiguous(contractRules, contractN).ok}
-            action={
-              <label className="flex items-center gap-1.5 text-xs text-text-secondary">
-                Contrato de
-                <input
-                  type="number" min="1" max="120" value={contractN}
-                  onChange={e => setContractN(Math.min(120, Math.max(1, Number(e.target.value) || 1)))}
-                  className="input-base w-16 text-center"
-                />
-                meses
-              </label>
-            }
           >
             <ContractChargesSection
               N={contractN}

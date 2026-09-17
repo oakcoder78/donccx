@@ -20,7 +20,7 @@ The Clients module provides the primary user interface for managing customer rec
 | `ClientFormContent.jsx` | V2 form body — 5 tabs (Dados, Endereço, Contrato, Operacional, Anexos). Rendered by `ClientFormPage` and `EmpresasV2Page`. Único form em produção (legado `ClientForm.jsx` removido). |
 | `form/FormSection.jsx` | Flat form-section primitive (title + hairline + body; optional collapse). |
 | `form/InfoHint.jsx` | Discreet `?` popover — the only place a section carries an explanation. |
-| `sections/ContractChargesSection.jsx` | "Evolução da recorrência (MRR)" — per-period recurring value editor + month-by-month preview. |
+| `sections/ContractChargesSection.jsx` | "Valores da recorrência" — per-period recurring value editor + month-by-month preview. |
 | `sections/EventuaisSection.jsx` | "Cobranças Eventuais" — one-off charges with installments. |
 | `sections/OsTiersSection.jsx` | "Faixas de preço por OS" — volume-band pricing (only when `billing_type = por_os`). |
 | `TemperaturaCSM.jsx` | UI widget (purpose not identifiable from provided code). |
@@ -213,22 +213,26 @@ search (`useAllClients`) that links to `/labs/empresas_v2/:id/editar`.
 **Contrato tab** (business-language UI, no table/column names on screen) — série = folha
 completa: tudo abaixo (exceto catálogo de serviços) é **por série ativa** (buffer com
 flush/load ao trocar de série); `clients.*` é espelho da série original:
-- *Séries contratuais* — pills + `+ Nova série` (`Button secondary sm`); meta por série:
-  Rótulo, Tipo (`Contrato original | Aditivo (novo módulo) | Renegociação (desconto temporário)`),
-  Assinatura, Início da cobrança, Fim (auto = último dia de `billing_start + N − 1`,
-  editável, ignorado com auto-renovação), Dia do vencimento, Renovação, Renovação automática,
+- *Séries contratuais* — pills + `+ Nova série` (`Button secondary sm`); meta por série
+  (ordem 2026-09-17): Rótulo, Tipo (`Contrato original | Aditivo (novo módulo) | Renegociação (desconto temporário)`),
+  Assinatura, Tempo de contrato (N meses), Início da cobrança, Dia do vencimento, Renovação,
+  Renovação automática (default ON em séries novas), Fim (só visível com auto OFF; vazio =
+  em aberto; projeção `billing_start + N` vira ajuda, nunca é persistida),
   Motivo (obrigatório em renegociação), `Encerrar série…` (`Button secondary sm` + modal `max-w-sm`).
 - *Plano de cobrança* — `billing_type` (por licença / por OS), valor base, piso, índice
   (datas ficam na série), **`usage_driven`** ("Cobrar excedente por uso acima do piso":
   ligado = uso acima do piso compõe o MRR; desligado = valor travado na série) e **reajuste
-  anual** (aniversário default = data de assinatura, editável; regra `percentual | indice |
-  maior`; percentual editável 0–50%) com **renovação sugerida** `base × (1 + percentual/100)`.
+  anual** (aniversário default = `billing_start + 1 ano`, editável, backfill nas 27 séries
+  em `20260917090000`; campos Percentual/Índice condicionais à regra) com **renovação sugerida**
+  `base × (1 + percentual/100)`.
   *MRR base* (card navy) — base da série ativa (`usage_driven` sem regras = `piso × valor`,
   0 quando não há piso; travado sem regras = valor base).
 - *Status de cobrança* — 3 states por série; `contract_active`/`mrr` derivam da original;
   `mrr` via `resolveMRR` com **base própria por série** (percent resolve na base da série).
-- *Evolução da recorrência (MRR)* — `ContractChargesSection` por série; preview com
-  **data cheia de vencimento** (`05/set/26 → R$ 4.000`).
+- *Valores da recorrência* — `ContractChargesSection` por série; preview com
+  **data cheia de vencimento** (`05/set/26 → R$ 4.000`). Série ativa faturável sem valor
+  contratado (base×piso zero, sem períodos, sem faixas com valor) **não salva** — MRR é
+  obrigatória desde 2026-09-17 (suspenso/não cobrar passam como zero intencional).
 - *Cobranças Eventuais* — `EventuaisSection` com date picker DD/MM/AAAA real por linha (coluna Data = `startDate`, fonte de verdade; coluna Início removida da tela, mês segue derivado por baixo). Cada parcela persiste `due_date` (`20260907000003`, backfill com dia do vencimento da série e clamp de fim de mês); `month_index`/`ref_month` derivam da data.
 - *Faixas de preço por OS* — `OsTiersSection` por série (PK `(client, series, order)`),
   `readOnly` em série encerrada.

@@ -6,7 +6,7 @@ import { Icons } from '@/lib/icons'
 const ROW = 'grid grid-cols-[3rem_4rem_1.5rem_4rem_12rem_9rem_1fr_2rem] items-center gap-2 min-w-[44rem]'
 
 /**
- * "Evolução da recorrência (MRR)" — how much the client pays in each stretch of
+ * "Valores da recorrência" — how much the client pays in each stretch of
  * the contract. Business language only: no table/column names.
  * The parent wraps this in a <FormSection> (title + duration + hint).
  */
