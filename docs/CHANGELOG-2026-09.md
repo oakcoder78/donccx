@@ -3,6 +3,52 @@
 
 # Changelog — 2026-09
 
+## 2026-09-26
+
+### Backlog — reorganização estrutural do catálogo
+
+`docs/backlog.md` (493 → 599 linhas) foi reorganizado sem reescrever conteúdo: todas as seções
+`Context`/`Files`/`Risks` foram movidas verbatim, só a ordem e a hierarquia mudaram. O arquivo
+estava estruturalmente quebrado e nenhuma das referências entre os itens era confiável:
+
+- **Summary table truncada** — as linhas do TD-001..TD-009 declaravam a tabela e nunca a
+  fechavam; as duas linhas do IDEA-001/IDEA-002 ficaram órfãs coladas no fim da seção do
+  TD-005, fora de qualquer tabela. Quem lesse o índice do backlog via grep por `IDEA-` não
+  encontrava nada.
+- **Ordem sem critério** — TD-006 → TD-007 → TD-008 → TD-005 → TD-004 → IDEA-002 → IDEA-001.
+  Nem por ID, nem por prioridade, nem por status. Pior: TD-006 e TD-009 estão `Done` mas
+  moravam na área de itens abertos.
+- **Snapshot duplicado** — `### Por status (2026-09-07)` era uma cópia manual da tabela, com
+  19 dias de atraso. É drift garantido, então foi removido e virou `## Next up` (3 linhas,
+  sem reestatística).
+- **Follow-up sem ID** — a fase 2 do TD-006 ("migrar `SettingsSyncStatus` de `sync_log` para
+  `sync_service_log`") era só prosa dentro do `Known issues` do TD-006, invisível para quem
+  filtra por status. Promovida a item próprio: **TD-011** (M, Ready), com escopo e aceite —
+  `useSyncStatus.js` ainda lê `sync_log` em `:9,30` e `SettingsSyncStatus.jsx` (22.5 KB) é o
+  maior consumidor.
+- **Referência órfã** — `docs/README.md:3` citava "backlog TD-010" desde antes de o item
+  existir. **TD-010** criado de fato (L): migração da estrutura-alvo de `docs/`, que o README
+  promete "landing in stages" e nunca formalizou.
+- **Front-matter ausente** — o arquivo não tinha `status`/`verified` de nenhum jeito. Adicionado
+  inline no padrão dos 3 irmãos na raiz (`README.md`/`CHANGELOG.md`/`LEGACY.md`, que usam
+  `> Status: vivo.`): `> Status: vivo. Catálogo de débitos técnicos… Última revisão: 2026-09-26.`
+  **Sem bloco de front-matter de propósito** — `docs-writer` exige front-matter só nos dirs
+  `product/`/`architecture/`/`modules/`/`operations/`, e o `backlog.md` é um catálogo
+  pré-priorização na raiz, junto dos irmãos que usam status inline. `owner:` também não entra:
+  o campo é `<domain/team>` e nenhum doc do repo declara `product` (só `backend` existe, em
+  runbook de infra). O `expires: 2026-12-26` migrou para uma nota de revisão periódica ao pé do
+  *How to use*.
+
+**Hierarquia nova:** `## Open items` e `## Closed items` como seções, itens rebaixados para
+`###` e subseções para `####` (âncoras preservadas — o slug do GitHub não depende do nível).
+Ordem documentada no *How to use*: prioridade H→L, no empate `TD-###` antes de `IDEA-###`, e
+`Closed items` em data-desc.
+
+**Referências quebradas corrigidas** — `docs/sdd/2026-08-16-freshdesk-operations-center-sdd.md`
+citava `docs/backlog.md:111` para o TD-007 em dois pontos; a linha já estava errada antes da
+edição (o TD-007 fica em outra seção) e refs por número de linha quebram a cada reordenação.
+Trocado por `docs/backlog.md` + ID. Regra virou item de aceite do TD-010.
+
 ## 2026-09-13
 
 ### Fix: 2 regressões do dia no dashboard v3 (`d16cb69`)
