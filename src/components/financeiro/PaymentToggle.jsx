@@ -108,6 +108,11 @@ export function PaymentToggle({
     setSelected(sel)
   }, [open, series, monthPayments])
 
+  const selectedIds = useMemo(
+    () => (series || []).map((s) => s.series_id).filter((id) => selected[id]),
+    [series, selected]
+  )
+
   if (!open) return null
 
   function update(seriesId, patch) {
@@ -136,11 +141,6 @@ export function PaymentToggle({
       setSavingId(null)
     }
   }
-
-  const selectedIds = useMemo(
-    () => (series || []).map((s) => s.series_id).filter((id) => selected[id]),
-    [series, selected]
-  )
 
   /** Mark all selected series as paid (adimplente, paid on due date by default). */
   async function saveBulkPaid() {
