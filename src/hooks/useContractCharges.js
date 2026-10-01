@@ -41,6 +41,16 @@ export function friendlyDbError(e) {
     || /cannot coerce/i.test(msg) || /row-level security/i.test(msg)) {
     return 'Sem permissão para salvar o contrato — fale com um administrador'
   }
+  // CHECK violations surface as the raw Postgres text; map the ones reachable from the form
+  if (/contract_series_check/.test(msg)) return 'O fim da cobrança não pode ser antes do início.'
+  if (/correction_percent_check/.test(msg)) return 'Percentual do reajuste precisa ser maior que 0 e no máximo 50.'
+  if (/contract_series_due_day_check/.test(msg)) return 'Dia de vencimento precisa estar entre 1 e 31.'
+  if (/chk_series_reason/.test(msg)) return 'Renegociação exige motivo com pelo menos 10 caracteres.'
+  if (/chk_amount_xor_percent|amount_check|percent_check/.test(msg)) {
+    return 'Valor e percentual são mutuamente exclusivos: informe apenas um, maior que zero.'
+  }
+  if (/invalid input syntax for type date/.test(msg)) return 'Data inválida — use o formato dd/mm/aaaa.'
+  if (e?.code === '23514') return 'Valor fora do intervalo permitido — revise os campos informados.'
   return msg || 'Erro ao salvar'
 }
 

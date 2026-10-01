@@ -380,6 +380,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       const s = list[i]
       const tag = list.length > 1 ? ` (${s.label || KIND_LABELS[s.kind] || `série ${i + 1}`})` : ''
       if (!s.billing_start) return `Informe o início da cobrança${tag}.`
+      if (s.billing_end && s.billing_end < s.billing_start) return `O fim da cobrança${tag} não pode ser antes do início.`
+      const cp = Number(s.correction_percent)
+      if (s.correction_percent !== '' && s.correction_percent != null && !(cp > 0 && cp <= 50)) {
+        return `Percentual do reajuste${tag} precisa ser maior que 0 e no máximo 50.`
+      }
       if (s.kind === 'renegociacao' && !(s.reason || '').trim()) return `Renegociação${tag} exige motivo.`
       if (s.kind === 'renegociacao' && String(s.reason || '').trim().length < 10) return `Motivo da renegociação${tag} precisa de ao menos 10 caracteres.`
       if (s.rules.length > 0) {
@@ -1187,7 +1192,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 {form.correction_rule !== 'indice' && (
                   <div>
                     <label className="label-sm">Percentual do reajuste (%)</label>
-                    <input name="correction_percent" type="number" min="0" max="50" step="0.01" value={form.correction_percent ?? ''} onChange={handleChange} className="input-base w-full" placeholder="—" disabled={activeReadOnly} />
+                    <input name="correction_percent" type="number" min="0.01" max="50" step="0.01" value={form.correction_percent ?? ''} onChange={handleChange} className="input-base w-full" placeholder="—" disabled={activeReadOnly} />
                   </div>
                 )}
               </div>
