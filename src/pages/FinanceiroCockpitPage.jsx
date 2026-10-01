@@ -17,6 +17,7 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabaseClient'
 import { ExcecaoModal } from '@/components/financeiro/ExcecaoModal'
 import { PaymentToggle } from '@/components/financeiro/PaymentToggle'
+import { SeriesVencidasAlerta } from '@/components/clients/SeriesVencidasAlerta'
 import {
   formatBRL,
   formatPercent,
@@ -1313,6 +1314,13 @@ export default function FinanceiroCockpitPage() {
         <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-donc-amber/10 border border-donc-amber/30 rounded-lg text-donc-amber text-xs">
           <Icons.AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
           Uso de {monthDisplay} não sincronizou — contate o suporte DoncCX Hub
+        </div>
+      )}
+
+      {/* Séries vencidas — o contrato acabou e ninguém decidiu se continua */}
+      {isEnabled('contract_series_lifecycle', effectiveRole) && (
+        <div className="mt-4">
+          <SeriesVencidasAlerta />
         </div>
       )}
 

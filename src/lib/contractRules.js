@@ -128,6 +128,26 @@ export function regroupRecorrencia(charges) {
   return { rules, N: Math.max(...sorted.map(c => c.month_index)) }
 }
 
+/**
+ * Recorta as regras nos primeiros N meses.
+ *
+ * `N` de `regroupRecorrencia` é `max(month_index)` — ou seja, o horizonte já
+ * materializado, que com `auto_renew` vai muito além do contrato assinado. A
+ * cauda da folga repete o valor da última regra, então mostrar só 1..N mantém a
+ * tela honesta sem esconder nada: o que passa do contrato é automático.
+ */
+export function clampRulesToN(rules, N) {
+  const n = Number(N)
+  if (!n || n <= 0) return rules || []
+  const clipped = []
+  for (const r of [...(rules || [])].sort((a, b) => a.from - b.from)) {
+    if (r.from > n) break
+    const to = Math.min(r.to, n)
+    clipped.push(to === r.to ? r : { ...r, to })
+  }
+  return clipped
+}
+
 /** Soma meses com clamp no fim do mês → 'YYYY-MM-DD' */
 export function addMonthsClamped(dateISO, add) {
   const [y, m, d] = String(dateISO || '').split('-').map(Number)

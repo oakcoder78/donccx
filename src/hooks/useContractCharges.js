@@ -54,6 +54,17 @@ export function friendlyDbError(e) {
   return msg || 'Erro ao salvar'
 }
 
+/**
+ * Materializes the recurrence horizon for one series: the signed term, plus 12
+ * months ahead while the series rolls month to month, and past months marked as
+ * adimplente. Called after the rules are saved (it replicates the last recurrence
+ * row) and by the monthly job — the same DB function, so the two cannot drift.
+ */
+export async function ensureSeriesHorizon(seriesId) {
+  const { error } = await supabase.rpc('ensure_series_horizon', { p_series_id: seriesId })
+  if (error) throw error
+}
+
 export function useContractSeriesMutations(clientId) {
   const qc = useQueryClient()
   return useMutation({
@@ -86,7 +97,11 @@ export function useContractSeriesMutations(clientId) {
         correction_rule: series.correction_rule || null,
         usage_driven: series.usage_driven ?? false,
         contract_signed_date: series.contract_signed_date || null,
-        contract_renewal: series.contract_renewal || null,
+        // Signed term. Drives the horizon and the derived contract_renewal.
+        contract_months: Number(series.contract_months) || null,
+        // contract_renewal is NOT sent: it is derived from billing_start +
+        // contract_months by trg_sync_contract_renewal. Sending it would be
+        // ignored on update and rejected on insert.
         created_by: userId || null,
       }
       let query = supabase.from('contract_series')
@@ -152,5 +167,66 @@ export function useContractChargesMutations(clientId) {
       toast.success('Regras de contrato salvas')
     },
     // No onError toast: the sole caller (ClientFormContent) toasts with context
+  })
+}
+
+/**
+ * Séries ativas cujo contrato assinado acabou e que ninguém decidiu o destino
+ * ainda. Antes desta RPC a série simplesmente silenciava: parava de ser lançada
+ * e sumia do cockpit, sem sinal de que havia uma decisão pendente.
+ *
+ * Séries com auto_renew não entram — rolar é a decisão que já foi tomada.
+ */
+export function useSeriesVencidas(enabled = true) {
+  return useQuery({
+    queryKey: ['series_vencidas'],
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_series_vencidas')
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+/**
+ * Lifecycle actions on an expired series. Both are ordinary series writes, so
+ * RLS already gates them through series_write; the UI additionally checks the
+ * `contract_series_lifecycle` flag so Financeiro can restrict without a deploy.
+ */
+export function useSeriesLifecycleMutations() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ seriesId, action, reason }) => {
+      if (action === 'encerrar') {
+        const { error } = await supabase
+          .from('contract_series')
+          .update({ status: 'encerrada', reason: reason || null })
+          .eq('id', seriesId)
+        if (error) throw error
+        return
+      }
+      if (action === 'renovar') {
+        const { error } = await supabase
+          .from('contract_series')
+          .update({ auto_renew: true })
+          .eq('id', seriesId)
+        if (error) throw error
+        // Roll immediately instead of waiting for the monthly job, so the
+        // decision shows up in the cockpit right away.
+        await ensureSeriesHorizon(seriesId)
+        return
+      }
+      throw new Error(`Ação desconhecida: ${action}`)
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['series_vencidas'] })
+      qc.invalidateQueries({ queryKey: ['contract_series'] })
+      toast.success(vars.action === 'encerrar'
+        ? 'Série encerrada'
+        : 'Renovação automática ativada — a recorrência continua sendo lançada')
+    },
+    onError: (e) => toast.error(friendlyDbError(e)),
   })
 }

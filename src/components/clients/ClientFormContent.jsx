@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { calculateUnitValue } from '@/lib/billing'
-import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations, friendlyDbError } from '@/hooks/useContractCharges'
+import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations, friendlyDbError, ensureSeriesHorizon } from '@/hooks/useContractCharges'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { Modal } from '../ui/Modal'
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
@@ -21,7 +21,7 @@ import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
-import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, addMonthsClamped, getBaseTotal, formatBRL4 } from '@/lib/contractRules'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, addMonthsClamped, getBaseTotal, formatBRL4, clampRulesToN } from '@/lib/contractRules'
 import { renewalSuggestion, excecaoLabel } from '@/lib/financeiro'
 import { useBillingExceptions } from '@/hooks/useBillingExceptions'
 import toast from 'react-hot-toast'
@@ -200,14 +200,21 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       const { rules, N } = regroupRecorrencia(ch)
       const evs = regroupEventuais(ch)
       const maxEv = evs.reduce((m, e) => Math.max(m, (Number(e.startMonth) || 1) + (Number(e.installments) || 1) - 1), 0)
+      // contract_months is the signed term; regroupRecorrencia's N is whatever
+      // happens to be materialized, which with auto_renew runs past the term.
+      // The signed term wins so the form shows the contract, not the horizon.
+      const termN = s.contract_months != null
+        ? Math.max(s.contract_months, maxEv, 1)
+        : Math.max(N, maxEv, 1)
       return {
         ...s,
         billing_end: s.billing_end || '', reason: s.reason || '',
+        contract_months: s.contract_months ?? termN,
         usage_driven: s.usage_driven ?? false,
         correction_anniversary: s.correction_anniversary || '',
         correction_percent: s.correction_percent ?? '',
         correction_rule: s.correction_rule || '',
-        N: Math.max(N, maxEv, 1), rules, eventuais: evs,
+        N: termN, rules: clampRulesToN(rules, termN), eventuais: evs,
         mods: toMods(modsBySeries[s.id] || []), tiers: toTiers(tiersBySeries[s.id] || []),
         services: s.kind === 'original' ? [...seedServices] : [],
       }
@@ -240,6 +247,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         contract_signed_date: '', contract_renewal: '', correction_index: '',
         billing_status: 'ativo', billing_suspended_until: '',
         usage_driven: true, correction_anniversary: addMonthsClamped(start, 12), correction_percent: '', correction_rule: '',
+        contract_months: 36,
         N: 36, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
       }]
     }
@@ -310,6 +318,27 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const activeSeries = seriesList[activeSeriesIdx] || null
   const activeReadOnly = activeSeries?.status === 'encerrada'
 
+  /**
+   * contract_renewal é calculada no banco (billing_start + contract_months).
+   * Aqui só espelha a data para o usuário não ter que fazer a conta de cabeça
+   * — o input é read-only, então o valor nunca sai daqui.
+   */
+  const contractRenewalLabel = (() => {
+    if (!activeSeries?.billing_start) return 'Informe o início da cobrança para calcular a renovação.'
+    const d = addMonthsClamped(activeSeries.billing_start, contractN)
+    if (!d) return '—'
+    const br = d.split('-').reverse().join('/')
+    const vencida = d < new Date().toISOString().slice(0, 10)
+    if (activeSeries.auto_renew) {
+      return vencida
+        ? `Contrato original terminou em ${br} — hoje segue no mês a mês.`
+        : `Contrato original até ${br} — depois segue no mês a mês.`
+    }
+    return vencida
+      ? `Contrato venceu em ${br}. Desligue a renovação automática ou encerre a série.`
+      : `Contrato até ${br}.`
+  })()
+
   function planFromForm(f) {
     return Object.fromEntries(PLAN_KEYS.map(k => [k, f[k]]))
   }
@@ -360,6 +389,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       billing_status: 'ativo', billing_suspended_until: '',
       usage_driven: !hasOriginal,
       correction_anniversary: addMonthsClamped(today, 12), correction_percent: '', correction_rule: '',
+      contract_months: 12,
       N: 12, rules: [], eventuais: [], mods: {}, tiers: [], services: [],
     }
     const next = [...seriesWithBuffer(), draft]
@@ -606,7 +636,13 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       billing_floor: origForMirror.billing_floor !== '' ? Number(origForMirror.billing_floor) : 0,
       contract_signed_date: origForMirror.contract_signed_date || null,
       contract_start: origForMirror.billing_start || null,
-      contract_renewal: origForMirror.contract_renewal || null,
+      // Derived in the DB from billing_start + contract_months. Mirrored here too
+      // because on client creation the series does not exist yet, so there is no
+      // DB value to copy — and the client insert happens before the series write.
+      contract_renewal: origForMirror.contract_renewal
+        || (origForMirror.billing_start
+          ? addMonthsClamped(origForMirror.billing_start, Number(origForMirror.contract_months || origForMirror.N || 0)) || null
+          : null),
       correction_index: origForMirror.correction_index || null,
       // billing_status drives contract contribution: only 'ativo' bills
       billing_status: origForMirror.billing_status || 'ativo',
@@ -695,7 +731,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             correction_rule: s.correction_rule || null,
             usage_driven: !!s.usage_driven,
             contract_signed_date: s.contract_signed_date || null,
-            contract_renewal: s.contract_renewal || null,
+            contract_months: s.N,
           },
           clientId, userId: profile?.id,
         })
@@ -710,7 +746,18 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         } else if (hadRows) {
           await saveCharges({ charges: [], clientId, seriesId: saved.id, userId: profile?.id })
         }
-      } catch (e) { toast.error(`Contrato (${saved.label}): ${friendlyDbError(e)}`) }
+      } catch (e) { toast.error(`Contrato (${saved.label}): ${friendlyDbError(e)}`); continue }
+      // Horizon runs AFTER saveCharges: it replicates the last recurrence row, so
+      // calling it earlier would extend with the previous value and then have the
+      // rules rewrite wipe it. Same function the monthly job calls.
+      try {
+        await ensureSeriesHorizon(saved.id)
+      } catch (e) {
+        // Non-fatal: the signed term is saved and will be completed on the next
+        // save or by the monthly job.
+        console.error('ensure_series_horizon failed', saved.id, e)
+        toast.error(`Contrato (${saved.label}): recorrência não estendida — ${friendlyDbError(e)}`)
+      }
       // Tiers por série
       const tiers = (s.tiers || []).map((t, idx) => ({ ...t, tier_order: idx + 1 }))
       const hadTiers = (existingTiersBySeries[s.id] || []).length > 0
@@ -1019,7 +1066,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     <input
                       type="date"
                       value={activeSeries.contract_signed_date || ''}
-                      onChange={e => updateSeriesMeta({ contract_signed_date: e.target.value })}
+                      onChange={e => set('contract_signed_date', e.target.value)}
                       disabled={activeReadOnly}
                       className="input-base w-full disabled:opacity-50"
                     />
@@ -1033,6 +1080,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                       disabled={activeReadOnly}
                       className="input-base w-full disabled:opacity-50"
                     />
+                    <p className="text-[11px] text-text-tertiary mt-0.5">
+                      {contractRenewalLabel}
+                    </p>
                   </div>
                   <div>
                     <label className="label-sm">Início da cobrança *</label>
@@ -1060,8 +1110,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     <input
                       type="date"
                       value={activeSeries.contract_renewal || ''}
-                      onChange={e => updateSeriesMeta({ contract_renewal: e.target.value })}
-                      disabled={activeReadOnly}
+                      readOnly
+                      disabled
+                      title="Calculada a partir do início da cobrança + tempo de contrato"
                       className="input-base w-full disabled:opacity-50"
                     />
                   </div>
@@ -1076,6 +1127,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                       />
                       Renovação automática mês a mês
                     </label>
+                    <p className="text-[11px] text-text-tertiary leading-snug">
+                      Ligada, a recorrência continua sendo lançada sozinha depois do
+                      fim do contrato, sem novo lançamento manual.
+                    </p>
                   </div>
                   {!activeSeries.auto_renew && (
                     <div className="col-span-2">

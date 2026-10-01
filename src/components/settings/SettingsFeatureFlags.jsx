@@ -17,6 +17,7 @@ const FLAG_GROUPS = {
   'Comunicação': ['email_templates'],
   'Governança': ['logs', 'features'],
   'Cockpits & Dashboards': ['health_cockpit', 'cs_radar', 'projects_cockpit', 'profissionais_cockpit', 'cockpit_financeiro', 'financeiro_cockpit_write', 'dashboard_v3'],
+  'Contratos': ['contract_series_lifecycle'],
 }
 
 export function SettingsFeatureFlags() {
