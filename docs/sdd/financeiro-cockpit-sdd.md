@@ -644,11 +644,11 @@ interface FinanceiroDetail {
 |---|---|---|
 | 1 | Modos travado/base+excedente refletem negociações | mantido |
 | 2 | Defaults: original base+excedente; aditivo/renegociação travado | mantido |
-| 3 | Admin/Finance escrevem; Manager read-only | mantido |
+| 3 | Admin/Finance escrevem; Manager read-only | **corrigido no adendo 2026-10-01** — escrita = `series_write` = `admin,manager,finance,sales` |
 | 4 | Aditivo isento aparece zerado (R$ 0,00) | fatura zerada visível com selo |
 | 5 | Valor reduzido mensal OK **+ desconto por licença/OS** | 4º tipo `desconto_unidade` |
 | 6 | Sem piso = cobra consumo | mantido |
-| 7 | Reajuste é anual, no aniversário (assinatura, configurável), percentual editável (X% e/ou índice), **sem retroativo**, renovação com valor já corrigido | remove `billing_corrections`/toggle/retroativo; `correction_anniversary/percent/rule` na série |
+| 7 | Reajuste é anual, no aniversário (assinatura, configurável), percentual editável (X% e/ou índice), **sem retroativo**, renovação com valor já corrigido | **corrigido no adendo 2026-10-01** — corrige-se a série existente a partir de um vencimento; "sem retroatividade" = sem mexer em mês fechado |
 | 8 | Vendas vê detalhes das exceções na ficha | RLS SELECT `sales` + card na aba Contrato (detalhe completo) |
 | 9 | Falha no uso do mês → avisar e direcionar ao suporte | banner sem decisão de faturamento |
 | 10 | Sem outros tipos de negociação além do item 5 | 4 tipos |
@@ -665,7 +665,7 @@ interface FinanceiroDetail {
 | **4 tipos** (`isencao_total`, `desconto_percent`, `valor_reduzido`, `desconto_unidade`); `piso_zerado` removido | Q5 validada: percentual e R$/licença coexistem; `desconto_unidade` preserva piso/excedente. Piso é da série; "sem piso" = `floor=0` + `usage_driven`. |
 | `contract_series.usage_driven` | Reconcilia contratado × uso: `true` = excedente acima do piso compõe o MRR; `false` = travado, uso informativo. Backfill `(kind='original')`. |
 | Uso aplicado só à série original quando há múltiplas `usage_driven` | `client_usage` é do cliente; aplicar em N séries duplicaria excedente. |
-| **Reajuste anual sem cálculo no cockpit** (`correction_anniversary` + `correction_percent` editável + `correction_rule`) | Financeiro cria a renovação como nova série com o valor já corrigido; o cockpit exibe o valor da série + selo. Percentual editável cobre X% fixo, índice ou o maior. |
+| **Reajuste anual sem cálculo no cockpit** (`correction_anniversary` + `correction_percent` editável + `correction_rule`) | **Superado pelo adendo 2026-10-01**: o valor é corrigido na série existente a partir de um vencimento, não por série nova. Percentual editável cobre X% fixo, índice ou o maior. Implementação no backlog. |
 | **Sem retroatividade em correções e exceções** | Validado (Q7.3 + "ignora o passado"): nenhum mês fechado é reprocessado; não há reemissão/complemento nem coluna de delta retroativo. |
 | Fatura zerada visível (R$ 0,00 + selo) | Q4: isenção/suspensão/não cobrar aparecem para dar visibilidade à negociação. |
 | Falha de sync = aviso + suporte (sem decisão de faturamento) | Q9: o cockpit não fatura pelo piso nem segura em silêncio; direciona ao suporte DoncCX. |
@@ -807,6 +807,50 @@ Validação visual em produção com login fica com o time (rota autenticada).
 | 1.7 | 2026-09-18 | DoncCX Hub | Só valor faturado aparece (revoga Q4): engine exclui tudo zerado (`raw_min==0 AND raw_real==0`, sem isenções — regra 0 sem excedente some); cockpit lista clientes com MRR ou eventuais (`UNION`); `PaymentToggle` esconde não-cobrar/suspensas; visão `isento` removida; Help reescrito (fatura zerada não existe; negociações na ficha) |
 | 1.8 | 2026-09-18 | DoncCX Hub | Hotfix 400 `client_id is ambiguous`: refs desqualificadas colidem com OUT params em PL/pgSQL — `allc` qualificada (`fin_cur.client_id`/`ev_cur.client_id`). Lição: em RPC `RETURNS TABLE`, qualificar TODAS as colunas |
 | 1.9 | 2026-09-18 | DoncCX Hub | Gate por lançamento (repactuação): série entra sse `(has_rules_month OR has_tiers) AND NOT pausada/zerada/isenta` — excedente sem período não fatura nem aparece; agosto esvazia, só 29 em set |
+| 2.0 | 2026-10-01 | DoncCX Hub | Adendo ciclo de vida da série: `contract_months` separa duração do contrato do horizonte lançado; `contract_renewal` vira coluna gerada; `auto_renew` passa a rollar a recorrência por job mensal com 12 meses de folga; alerta de série vencida; correção das decisões #3 e #7 (ver adendo) |
+
+---
+
+## Adendo 2026-10-01 (v2.0) — Ciclo de vida da série contratual
+
+Duas decisões do documento estavam desatualizadas em relação à operação, e um furo de regra de negócio ficou exposto: **série com renovação automática marcada parou de lançar depois que o horizonte de meses acabou**. O cliente 21 é o caso — `auto_renew = true`, `billing_end IS NULL`, `status = 'ativa'`, mas a recorrência terminava em `2025-09` e o cliente sumiu do cockpit sem aviso.
+
+Causa raiz: `auto_renew` era gravado em `contract_series` e **nenhum código de faturamento o lia**. O que limitava o lançamento era `N` ("tempo de contrato"), expandido uma única vez no save. O rótulo "Renovação automática mês a mês" prometia uma renovação que o motor não implementava.
+
+### Correções às decisões validadas
+
+**#3 — "Admin/Finance escrevem; Manager read-only" está errado.** A tabela acima reflecte 2026-09-11. A migration `20260916120000` deu escrita a `manager` em `billing_payments`, `billing_exceptions` e `contract_series` (a policy `charges_write` foi alinhada depois, em `20261001201606`). A regra real é `series_write` = `admin,manager,finance,sales`. Manager acompanha `series_write`.
+
+**#7 — "renovação com valor já corrigido / Financeiro cria a renovação como nova série" não descreve a prática.** A operação corrige a série **existente** a partir de um vencimento, com regra de dia: aplicou antes do dia de vencimento, vale naquele mês; aplicou depois, vale no próximo. Não há criação de série nova, e a não-retroatividade se aplica a **meses já fechados**, não ao mês corrente em aberto. O ajuste fica detalhado no backlog (reajuste anual assistido), fora do escopo desta entrega — este adendo registra a direção correta para quando for implementado.
+
+### Regras do ciclo de vida
+
+**`contract_months` é a duração do contrato.** Nova coluna em `contract_series`, separada do horizonte de lançamento. Hoje `N` é inferido de `max(month_index)` (`src/lib/contractRules.js:128`), ou seja do dado materializado — com o job crescendo o lançamento, o "tempo de contrato" inflateria a cada execução. As séries existentes recebem `contract_months` a partir de `max(month_index)`; as ainda não cadastradas pelo Financeiro ficam `NULL` até serem preenchidas.
+
+**`contract_renewal` é calculada, não digitada.** Vira coluna gerada: `(billing_start + make_interval(months => contract_months))::date`. É referência para o usuário saber a data sem calcular de cabeça, e read-only no próprio banco — não por convenção de UI. Sem `auto_renew` é a data em que a série vence; com `auto_renew` é a data em que o **termo original** venceu, e a série segue no mês a mês por decisão — pode estar no passado, e isso é a informação útil.
+
+**`auto_renew` = rolagem indefinida.** Uma série ativa com `auto_renew` e `billing_end IS NULL` continua sendo lançada mês a mês, indefinidamente, replicando o valor da última linha de recorrência, até alguém encerrar a série (`status = 'encerrada'`) ou tirar o flag. Sem `auto_renew`, o lançamento para em `contract_months`.
+
+**O crescimento é automático, disparado pelo save.** Não existe lançamento em lote. O Financeiro abre o cliente, cria a série, salva — e a partir daí o sistema assume:
+
+1. materializa a recorrência de `billing_start` até `max(contract_months, mês atual + 12)`;
+2. grava `billing_payments` como `adimplente`, com `paid_at` na data de vencimento, para os meses já passados sem registro;
+3. todo dia 1 o job repõe a folga, para o lançamento nunca parar;
+4. `contract_renewal` é recalculada a cada escrita da série.
+
+Os passos 1 e 2 acontecem por uma **única RPC** (`ensure_series_horizon`), chamada tanto pelo save quanto pelo job, para não existirem dois caminhos que divergem. O histórico passado entra como pago em dia — é o contrato de dados que o Financeiro definiu; inadimplência real é registrada depois, mês a mês, pelo `PaymentToggle`. Consequência que fica registrada: um `billing_start` errado no cadastro gera meses de faturamento e de adimplência que nunca existiram, então o `billing_start` é dado que precisa de atenção no preenchimento.
+
+**Folga de 12 meses, e nunca vira previsão.** O job lanza meses futuros para que uma falha pontual (deploy, indisponibilidade, timeout) não abra buraco. Todos os consumidores de `contract_charges` filtram por `ref_month` exato — `_financeiro_series_month` (`rc.ref_month = p_ref_month`) e `get_financeiro_pendencias` (itera meses anteriores) — e dash/relatórios leem `clients.mrr` e `client_usage`, que não vêm de charges. Meses futuros ficam inertes: não somam em MRR, não geram pendência, não aparecem em relatório. São 12 falhas seguidas do job para haver buraco.
+
+**Série vencida gera alerta, não silêncio.** Série ativa, sem `auto_renew`, com `contract_renewal` no passado é exibida no `/financeiro-cockpit` e na lista de clientes, com as ações **Encerrar série** e **Ativar renovação automática**. As ações ficam atrás da flag `contract_series_lifecycle` (Configurações → Funcionalidades, grupo Empresas), com `sales` habilitado — refletindo o comportamento de hoje, mas configurável sem deploy.
+
+### Teto de `month_index`
+
+`contract_charges.month_index` tem `CHECK (month_index BETWEEN 1 AND 120)`, um limite arbitrário da criação da tabela (`20260902000003`), não uma regra de negócio. Como `month_index` é a posição contada do início da série, o cliente 21 (início `2022-10`) bate o teto em **set/2032** e o 18 em **dez/2033** — e passados ~6 anos o job passa a falhar em toda série, silenciosamente, na mesma forma deste bug. O teto sobe para **600** (50 anos).
+
+### Idempotência
+
+`contract_charges` tem `UNIQUE (series_id, kind, month_index, installment_group)`, mas as linhas de recorrência têm `installment_group IS NULL` — e no Postgres NULLs são distintos num índice único, então `ON CONFLICT` **não** deduplica recorrência. A RPC guarda por `max(month_index)` explicitamente. `billing_payments` tem PK `(client_id, series_id, ref_month)` e **não** tem FK para `contract_charges`: sobrevive ao delete+insert do save (desejado — o histórico de pagamento não deve sumir quando a recorrência é reescrita), e a mesma RPC remove os pagamentos de meses que deixaram de existir quando o tempo de contrato encolhe.
 
 ---
 

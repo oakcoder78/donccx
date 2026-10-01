@@ -3,11 +3,11 @@
 > Status: vivo. Catálogo de débitos técnicos, refactors pendentes e ideias de feature.
 > Diferente de um SDD: aqui ficam itens **pré-priorização**. Itens que viram
 > trabalho ativo saem do backlog e migram para um SDD dedicado em `docs/sdd/`.
-> Última revisão: 2026-09-26.
+> Última revisão: 2026-10-01.
 
 ## How to use
 
-1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-012`**), add to "Open items" and to the Summary table.
+1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-013`**), add to "Open items" and to the Summary table.
 2. **Ordenação:** Summary table e blocos seguem a mesma regra — prioridade H→L; no empate, `TD-###` antes de `IDEA-###`, depois ID ascendente. `Closed items` em data-desc (mais recente primeiro).
 3. **Triaging:** bump Priority; mark `Status: Ready` when scope is clear and effort is estimated.
 4. **Activating:** when work starts, create or link a SDD in `docs/sdd/` and set `Status: Active → docs/sdd/<name>-sdd.md`.
@@ -33,6 +33,8 @@
 | TD-009 | Refactor | Remover modal legado `ClientForm.jsx` (V2 definitivo) | M | Done | `docs/sdd/empresas-form-v2-sdd.md` |
 | TD-011 | Tech Debt | Migrar `SettingsSyncStatus` de `sync_log` para `sync_service_log` | M | Ready | — |
 | IDEA-001 | Idea | UI Pattern Library — Phase 2 (8 patterns restantes) | M | Ready | `docs/sdd/ui-patterns-phase2-sdd.md` |
+| TD-012 | Tech Debt | Decidir entre migrations versionadas e aplicação via MCP | M | Backlog | — |
+| IDEA-003 | Idea | Reajuste anual assistido por série | M | Backlog | `docs/sdd/financeiro-cockpit-sdd.md` |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-010 | Refactor | Migrar estrutura-alvo de `docs/` (README em fases) | L | Backlog | — |
@@ -223,6 +225,88 @@ A v3 evoluiu (v1→v3) de "Genérica" para uma dashboard completa que re-incorpo
 
 - `SettingsSyncStatus.jsx` é o maior consumidor (22.5 KB) e pode ter lógica acoplada ao formato de `sync_log.summary`.
 - Agrupar por `service_name` muda a forma do dado devolvido pelo hook — consumidores indiretos de `useSyncStatus` podem quebrar silenciosamente.
+
+---
+
+### TD-012 — Decidir entre migrations versionadas e aplicação via MCP
+
+**Type:** Tech Debt
+**Priority:** M
+**Status:** Backlog
+**Parent:** —
+**Origin:** 2026-10-01 — o fluxo documentado (`supabase db push --include-all`) não roda neste ambiente, e o banco vem sendo criado via MCP desde sempre
+**Linked SDD:** —
+**Related:** `AGENTS.md` § Deploy Workflow, `docs/operations/`
+
+#### Context
+
+O AGENTS.md manda deployar migrations com `supabase db push --include-all`, mas o CLI instalado é o binário do Windows (`/mnt/c/Users/Carvalho/AppData/Roaming/npm`) e não tem pacote para `linux-x64` — o comando falha antes de rodar. Não testado se `npx supabase` resolve, porque o caminho que funciona é o MCP `apply_migration`.
+
+Na prática o banco já é criado e alterado por MCP, e não por migrations versionadas. O custo apareceu em 2026-10-01: criei `20260930120000_charges_write_manager.sql` local, apliquei via MCP (que gera o próprio timestamp → `20261001201606`), e os dois divergiram. Tive que renomear o arquivo para não reaplicar no próximo push. Ainda não é destrutivo, porque a migration era `DROP POLICY IF EXISTS` + `CREATE POLICY` e roda duas vezes sem efeito — mas uma migration não-idempotente divergiria do mesmo jeito.
+
+Uma diferença que importa: `db push` lê `SUPABASE_ACCESS_TOKEN` + `SUPABASE_DB_PASSWORD`, e o `.env.local` tem o token de Management API mas **não** a senha do banco. O MCP usa a conexão que o próprio servidor já tem. Então MCP não é só atalho, é o caminho que os segredos disponíveis suportam.
+
+#### Proposed approach
+
+Decidir entre:
+
+1. **MCP como caminho único**, abandoning `supabase/migrations/` como histórico — e ajustar o AGENTS.md para dizer isso, para parar de instruir um comando que falha.
+2. **Instalar o CLI Linux** e voltar a `db push`, mantendo MCP só para correções pontuais de exploração. Custa confirmar que a senha do banco entra no ambiente.
+3. **Os dois, com regra explícita** — migration em arquivo para mudanças estruturais que valem histórico; MCP para ajuste pontual. Exige convenção sobre quando cada um, que é a parte que costuma ficar ambígua.
+
+Independente da escolha: decidir se `contract_series` ganha índice único real para a recorrência (hoje `installment_group IS NULL` anula o unique — ver adendo v2.0 do SDD do cockpit), porque isso torna a idempotência do job dependente de guarda em código.
+
+#### Files
+
+- `AGENTS.md` (Modify — § Deploy Workflow, se for MCP como caminho único)
+- `docs/operations/` (Modify — registrar o fluxo real)
+
+#### Acceptance
+
+- Um comando novo responde: o que eu uso para uma mudança de schema?
+- `docs/` e `AGENTS.md` dizem a mesma coisa
+- Não existe mais divergência entre `supabase_migrations.schema_migrations` e `supabase/migrations/`
+
+---
+
+### IDEA-003 — Reajuste anual assistido por série
+
+**Type:** Idea
+**Priority:** M
+**Status:** Backlog
+**Parent:** —
+**Origin:** 2026-10-01 — adendo v2.0 do SDD do cockpit corrigiu a decisão #7 e definiu a direção; falta fechar o que fazer com mês já fechado
+**Linked SDD:** `docs/sdd/financeiro-cockpit-sdd.md` (adendo 2026-10-01, v2.0)
+**Related commits:** —
+
+#### Context
+
+O reajuste anual já tem a **coluna** na série (`correction_anniversary`, `correction_percent`, `correction_rule`) e nenhum **comportamento**: nada calcula, nada alerta, nada aplica. Ambos os clientes com série lançada estão com `correction_percent IS NULL`, então na prática o reajuste nunca foi exercido — a feature foi construída adiada.
+
+O SDD v1.0 (decisão #7) dizia "sem retroatividade, Financeiro cria a renovação como nova série". O adendo v2.0 registra que a operação real é outra: **corrige-se a série existente** a partir de um vencimento. A regra de dia, validada: aplicou antes do dia de vencimento, vale naquele mês; aplicou depois, vale no próximo. Exemplo dado — aniversário 01/10/2026, vencimento dia 15, aplicado dia 8 → vale para 2026-10.
+
+O que falta decidir antes de codar é o comportamento com **mês já fechado** (fatura lançada, pagamento registrado), porque é exatamente onde "não retroativo" deixa de ser óbvio: corrigir o valor de um mês com pagamento lançado implica mexer em histórico de adimplência.
+
+#### Proposed approach
+
+1. Alerta de reajuste pendente — série cuja `correction_anniversary` passou e não há ajuste aplicado para o ciclo. Onde o alerta aparece é a mesma decisão já tomada para série vencida: cockpit + lista, com ação.
+2. Ação "aplicar reajuste" — o Financeiro define o valor conforme `correction_rule` (`percentual` / `indice` / `maior`) e confirma. Sem fonte de IPCA/IGP-M no projeto: o valor é digitado, não calculado.
+3. Efeito — grava o novo valor na recorrência a partir do mês de vigência pelo `month_index`. Como `ensure_series_horizon` replica a última linha, o novo valor passa a ser o replicado nos meses seguintes automaticamente.
+4. Definir e documentar o comportamento com pagamento já lançado no mês afetado.
+
+#### Files
+
+- `src/components/clients/ClientFormContent.jsx` (Modify — ação de aplicar +(rule, valor)
+- `src/lib/contractRules.js` (Modify — cálculo do mês de vigência)
+- `src/pages/FinanceiroCockpitPage.jsx` (Modify — alerta)
+- `src/components/clients/ClientsPage.jsx` (Modify — alerta)
+- `supabase/migrations/` (Modify — registro do ajuste aplicado, se auditado)
+
+#### Risks
+
+- Corrigir valor de mês com pagamento lançado mexe em adimplência já registrada
+- `correction_rule = 'indice'` sem fonte de índice no projeto — se um dia virar cálculo automático, precisa de fonte e cache
+- Reajuste aplicado corrige o mês de vigência mas a folga já materializada carrega o valor antigo — `ensure_series_horizon` precisa reprocessar a cauda
 
 ---
 
