@@ -52,16 +52,28 @@ function Modal({ title, subtitle, children, onClose }) {
  * reabrir reconstrói a cauda pela ensure_series_horizon, que replica a última
  * linha de recorrência. A escolha é higiene de dado, não a dados.
  */
-export function EncerrarSerieDialog({ series, mesesFuturos = 0, onClose, onDone }) {
+export function EncerrarSerieDialog({
+  series,
+  mesesFuturos = 0,
+  motivo = null,
+  onClose,
+  onDone,
+}) {
   const [remover, setRemover] = useState(true)
   const [comMulta, setComMulta] = useState(false)
   const [valorMulta, setValorMulta] = useState('')
   const [motivoMulta, setMotivoMulta] = useState('')
+  const [textoMotivo, setTextoMotivo] = useState(motivo || '')
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
 
   const label = series?.series_label || series?.label || 'série'
   const motivoCurto = motivoMulta.trim().length > 0 && motivoMulta.trim().length < 10
+  // O motivo só é obrigatório onde já era obrigatório (o encerramento pelo form).
+  // A partir do alerta de série vencida ele é opcional: o porquê já está no
+  // próprio fato de a série ter parado de ser lançada.
+  const motivoEncerramentoCurto =
+    motivo !== null && textoMotivo.trim().length > 0 && textoMotivo.trim().length < 10
 
   async function confirmar() {
     setSalvando(true)
@@ -77,6 +89,7 @@ export function EncerrarSerieDialog({ series, mesesFuturos = 0, onClose, onDone 
               reason: motivoMulta.trim() || null,
             }
           : null,
+        p_motivo: textoMotivo.trim() || null,
       })
       onDone?.()
     } catch (e) {
@@ -153,6 +166,21 @@ export function EncerrarSerieDialog({ series, mesesFuturos = 0, onClose, onDone 
         Lançar multa ou ajuste como cobrança eventual
       </label>
 
+      {motivo !== null && (
+        <div className="mb-3">
+          <label className="label-sm">
+            Motivo {motivoEncerramentoCurto ? '*' : '(opcional)'}
+          </label>
+          <textarea
+            value={textoMotivo}
+            onChange={(e) => setTextoMotivo(e.target.value)}
+            rows={2}
+            className="input-base w-full resize-none"
+            placeholder="Ex: contrato finalizado em comum acordo"
+          />
+        </div>
+      )}
+
       {comMulta && (
         <div className="grid grid-cols-2 gap-2 mb-4">
           <div>
@@ -200,7 +228,11 @@ export function EncerrarSerieDialog({ series, mesesFuturos = 0, onClose, onDone 
           variant="danger"
           size="sm"
           onClick={confirmar}
-          disabled={salvando || (comMulta && (Number(valorMulta) <= 0 || motivoCurto))}
+          disabled={
+            salvando ||
+            (comMulta && (Number(valorMulta) <= 0 || motivoCurto)) ||
+            motivoEncerramentoCurto
+          }
         >
           {salvando ? 'Encerrando…' : 'Encerrar série'}
         </Button>

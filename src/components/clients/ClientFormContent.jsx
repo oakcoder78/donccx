@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { useClientMutations } from '@/hooks/useClients'
@@ -13,9 +13,8 @@ import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { calculateUnitValue } from '@/lib/billing'
 import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations, friendlyDbError, ensureSeriesHorizon } from '@/hooks/useContractCharges'
-import { NaoCobrarDialog } from '@/components/clients/ContractLifecycleDialogs'
+import { NaoCobrarDialog, EncerrarSerieDialog } from '@/components/clients/ContractLifecycleDialogs'
 import { useAuditLog } from '@/hooks/useAuditLog'
-import { Modal } from '../ui/Modal'
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
 import { ContractChargesSection } from './sections/ContractChargesSection'
 import { OsTiersSection } from './sections/OsTiersSection'
@@ -141,7 +140,16 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [seriesReady, setSeriesReady] = useState(false)
   const [encerrarOpen, setEncerrarOpen] = useState(false)
   const [naoCobrarOpen, setNaoCobrarOpen] = useState(false)
-  const [encerrarReason, setEncerrarReason] = useState('')
+  // Quantos meses de recorrência ainda estão além do mês corrente na série ativa.
+  // O diálogo de encerramento usa isso para decidir se a escolha sobre a cauda
+  // faz sentido — e existingCharges já está em memória, não custa query.
+  const mesesFuturosAtiva = useMemo(() => {
+    if (!activeSeries?.id) return 0
+    const atual = new Date().toISOString().slice(0, 7)
+    return existingCharges.filter(
+      (c) => c.series_id === activeSeries.id && c.kind === 'recorrencia' && c.ref_month > atual
+    ).length
+  }, [activeSeries?.id, existingCharges])
   const { profile, effectiveRole } = useAuth()
   const { data: billingExceptions = [] } = useBillingExceptions(client?.id)
   const [pendingFiles, setPendingFiles] = useState([])
@@ -1252,7 +1260,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                   <div>
                     <Button
                       type="button" variant="secondary" size="sm"
-                      onClick={() => { setEncerrarReason(activeSeries.reason || ''); setEncerrarOpen(true) }}
+                      onClick={() => setEncerrarOpen(true)}
                       className="text-donc-red"
                     >
                       Encerrar série…
@@ -1826,33 +1834,27 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         </div>
       </div>
 
-      <Modal isOpen={encerrarOpen} onClose={() => setEncerrarOpen(false)} title="Encerrar série" maxWidth="max-w-sm">
-        <p className="text-sm text-text-secondary mb-3">
-          A série <span className="font-medium text-text-primary">{activeSeries?.label || KIND_LABELS[activeSeries?.kind]}</span> ficará
-          somente leitura e sairá do MRR. O histórico é preservado. Informe o motivo:
-        </p>
-        <textarea
-          value={encerrarReason}
-          onChange={e => setEncerrarReason(e.target.value)}
-          rows={3}
-          className="input-base w-full resize-none"
-          placeholder="Ex: contrato finalizado em comum acordo"
+      {encerrarOpen && activeSeries && (
+        <EncerrarSerieDialog
+          series={{
+            series_id: activeSeries.id,
+            series_label: activeSeries.label || KIND_LABELS[activeSeries.kind],
+          }}
+          mesesFuturos={mesesFuturosAtiva}
+          motivo={activeSeries.reason || ''}
+          onClose={() => setEncerrarOpen(false)}
+          onDone={() => {
+            setEncerrarOpen(false)
+            qc.removeQueries({ queryKey: ['client', clientId] })
+            qc.removeQueries({ queryKey: ['contract_charges', clientId] })
+            qc.removeQueries({ queryKey: ['contract_series', clientId] })
+            qc.invalidateQueries({ queryKey: ['clients'] })
+            qc.invalidateQueries({ queryKey: ['series_vencidas'] })
+            qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
+            toast.success('Série encerrada')
+          }}
         />
-        <div className="flex justify-end gap-2 mt-4">
-          <Button type="button" variant="secondary" onClick={() => setEncerrarOpen(false)}>Cancelar</Button>
-          <Button
-            type="button"
-            onClick={() => {
-              if (encerrarReason.trim().length < 10) { toast.error('Motivo precisa de ao menos 10 caracteres'); return }
-              updateSeriesMeta({ status: 'encerrada', reason: encerrarReason.trim() })
-              setEncerrarOpen(false)
-              toast.success('Série marcada como encerrada — salve para confirmar')
-            }}
-          >
-            Encerrar
-          </Button>
-        </div>
-      </Modal>
+      )}
 
       {naoCobrarOpen && (
         <NaoCobrarDialog
