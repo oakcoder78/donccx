@@ -6,7 +6,10 @@
  *   2. freshdesk sync — tickets e contatos (Freshdesk API direto, sem CORS no Edge)
  *   3. health-recalc  — recalcula health score de todos os clientes ativos
  *   4. health_trend   — snapshot mensal do health
- *   5. ensure_series_horizon — repõe o horizonte de recorrência das séries ativas
+ *
+ * O horizonte de recorrência das séries NÃO roda aqui: tem Edge Function própria
+ * (contract-series-sync) e cron próprio. Ver docs/sdd/contract-series-lifecycle-sdd.md
+ * Fase B.
  *
  * Acionado via pg_cron no primeiro dia de cada mês às 00:01 UTC.
  * Aceita service role key ou user com role admin/manager.
@@ -33,51 +36,6 @@ function prevMonth(): string {
   d.setUTCDate(1)
   d.setUTCMonth(d.getUTCMonth() - 1)
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
-}
-
-/**
- * Keeps the recurrence horizon topped up for every active series.
- *
- * A series with auto_renew bills month to month indefinitely, so it needs a new
- * materialized month whenever the horizon gets close. Without this the series
- * simply stops appearing in the cockpit once its months run out — which is
- * exactly what happened to client 21 (auto_renew, active, recurrence ended
- * 2025-09). auto_renew was stored but nothing in the billing path read it.
- *
- * Where the horizon should reach is decided by ensure_series_horizon itself, so
- * the form save and this job cannot drift apart. It runs 12 months ahead of the
- * current month so a failed run cannot open a hole; those future rows are inert
- * — every consumer filters on an exact ref_month.
- */
-async function syncSeriesHorizon(admin: SupabaseClient): Promise<{
-  series: number; launched: number
-}> {
-  const { data, error } = await admin
-    .from('contract_series')
-    .select('id')
-    .eq('status', 'ativa')
-
-  if (error) throw new Error(error.message)
-
-  let launched = 0
-  const rows = data ?? []
-
-  for (const s of rows) {
-    const { data: inserted, error: rpcErr } = await admin.rpc('ensure_series_horizon', {
-      p_series_id: s.id,
-    })
-    if (rpcErr) {
-      // One bad series must not stop the rest of the job.
-      console.error('monthly-sync: ensure_series_horizon failed for series', s.id, rpcErr.message)
-      continue
-    }
-    if (inserted > 0) {
-      launched += inserted
-      console.log('monthly-sync: series horizon extended', s.id, `+${inserted} meses`)
-    }
-  }
-
-  return { series: rows.length, launched }
 }
 
 // ─── FRESHDESK HELPERS — canonical (Phase 4) ─────────────────────────────────
@@ -296,21 +254,11 @@ serve(async (req) => {
       trendResult = { error: 'Internal error' }
     }
 
-    // 5. contract series horizon (auto_renew rolls month to month)
-    let seriesResult: any = null
-    try {
-      seriesResult = await syncSeriesHorizon(admin)
-      console.log('monthly-sync: series horizon done', seriesResult)
-    } catch (err) {
-      console.error('monthly-sync: series horizon error', err)
-      seriesResult = { error: 'Internal error' }
-    }
-
     if (hasLog) {
       await admin.from('sync_log').update({
         status: 'success',
         finished_at: new Date().toISOString(),
-        summary: { ref_month: month, donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult, series: seriesResult },
+        summary: { ref_month: month, donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult },
       }).eq('id', logId)
     }
 
@@ -325,7 +273,7 @@ serve(async (req) => {
       // non-critical — one-off cleanup is best-effort
     }
 
-    return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult, series: seriesResult })
+    return json({ donc: doncResult, freshdesk: freshdeskResult, health: healthResult, trend: trendResult })
   } catch (err) {
     console.error('monthly-sync:', err)
     // Try to update sync_log if we had a log entry

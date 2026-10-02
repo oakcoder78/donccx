@@ -13,6 +13,7 @@ import { ClientSubAnexos } from './tabs/operacional/ClientSubAnexos'
 import { saveActivityAttachments } from '@/services/activityAttachments/saveActivityAttachments'
 import { calculateUnitValue } from '@/lib/billing'
 import { useContractCharges, useContractChargesMutations, useContractSeries, useContractSeriesMutations, friendlyDbError, ensureSeriesHorizon } from '@/hooks/useContractCharges'
+import { NaoCobrarDialog } from '@/components/clients/ContractLifecycleDialogs'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { Modal } from '../ui/Modal'
 import { useBillingOsTiers, useBillingOsTiersMutations } from '@/hooks/useBillingOsTiers'
@@ -139,6 +140,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [activeSeriesIdx, setActiveSeriesIdx] = useState(0)
   const [seriesReady, setSeriesReady] = useState(false)
   const [encerrarOpen, setEncerrarOpen] = useState(false)
+  const [naoCobrarOpen, setNaoCobrarOpen] = useState(false)
   const [encerrarReason, setEncerrarReason] = useState('')
   const { profile, effectiveRole } = useAuth()
   const { data: billingExceptions = [] } = useBillingExceptions(client?.id)
@@ -203,9 +205,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       // contract_months is the signed term; regroupRecorrencia's N is whatever
       // happens to be materialized, which with auto_renew runs past the term.
       // The signed term wins so the form shows the contract, not the horizon.
-      const termN = s.contract_months != null
-        ? Math.max(s.contract_months, maxEv, 1)
-        : Math.max(N, maxEv, 1)
+      // Exception: a closed series is a record of what was charged, not a
+      // contract to complete — it shows the months that actually exist, otherwise
+      // closing a 60-month contract at month 40 would make the form demand rules
+      // up to 60 and refuse every save (including renaming the client).
+      const termN = s.status === 'encerrada'
+        ? Math.max(N, maxEv, 1)
+        : (s.contract_months != null
+          ? Math.max(s.contract_months, maxEv, 1)
+          : Math.max(N, maxEv, 1))
       return {
         ...s,
         billing_end: s.billing_end || '', reason: s.reason || '',
@@ -417,7 +425,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       }
       if (s.kind === 'renegociacao' && !(s.reason || '').trim()) return `Renegociação${tag} exige motivo.`
       if (s.kind === 'renegociacao' && String(s.reason || '').trim().length < 10) return `Motivo da renegociação${tag} precisa de ao menos 10 caracteres.`
-      if (s.rules.length > 0) {
+      // Contiguidade só é exigida de série que ainda vai faturar. Uma série
+      // encerrada é registro do que foi cobrado: as regras podem parar antes do
+      // N teórico e ainda assim estar corretas. Mesmo gate do bloco abaixo.
+      if (s.rules.length > 0 && (!s.status || s.status === 'ativa')) {
         const v = validateRulesContiguous(s.rules, s.N)
         if (!v.ok) return `Recorrência${tag}: ${v.error}`
       }
@@ -833,6 +844,50 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     onSuccess?.(clientId)
   }
 
+  // Reabrir age direto no banco (não é edição de form): a RPC reconstrói a cauda
+  // de recorrência. Por isso o botão recarrega o cliente em vez de pedir save.
+  const [reabrindo, setReabrindo] = useState(false)
+  async function handleReabrir() {
+    if (!activeSeries) return
+    setReabrindo(true)
+    try {
+      const { error } = await supabase.rpc('reabrir_series', { p_series_id: activeSeries.id })
+      if (error) throw error
+      qc.removeQueries({ queryKey: ['client', clientId] })
+      qc.removeQueries({ queryKey: ['contract_charges', clientId] })
+      qc.removeQueries({ queryKey: ['contract_series', clientId] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      qc.invalidateQueries({ queryKey: ['series_vencidas'] })
+      toast.success('Série reaberta — os meses à frente foram repostos')
+    } catch (e) {
+      toast.error(e?.message || 'Falha ao reabrir a série')
+    } finally {
+      setReabrindo(false)
+    }
+  }
+
+  // Mesma razão do reabrir: reativar é decisão sobre a série, não campo de form.
+  const [reativando, setReativando] = useState(false)
+  async function handleReativar() {
+    if (!activeSeries) return
+    setReativando(true)
+    try {
+      const { error } = await supabase.rpc('reativar_series', {
+        p_client_id: clientId,
+        p_series_id: activeSeries.id,
+      })
+      if (error) throw error
+      qc.removeQueries({ queryKey: ['client', clientId] })
+      qc.removeQueries({ queryKey: ['contract_series', clientId] })
+      qc.invalidateQueries({ queryKey: ['clients'] })
+      toast.success('Cobrança reativada nesta série')
+    } catch (e) {
+      toast.error(e?.message || 'Falha ao reativar a cobrança')
+    } finally {
+      setReativando(false)
+    }
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Tab bar */}
@@ -1032,10 +1087,40 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             {activeSeries && (
               <div className="space-y-3">
                 {activeSeries.status === 'encerrada' && (
-                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-                    Série encerrada — somente leitura.
-                    {activeSeries.reason ? ` Motivo: ${activeSeries.reason}` : ''}
-                  </p>
+                  <div className="flex items-start justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-2 py-1.5">
+                    <p className="text-xs text-amber-700">
+                      Série encerrada — somente leitura.
+                      {activeSeries.reason ? ` Motivo: ${activeSeries.reason}` : ''}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleReabrir}
+                      disabled={reabrindo}
+                      className="shrink-0"
+                    >
+                      {reabrindo ? 'Reabrindo…' : 'Reabrir série'}
+                    </Button>
+                  </div>
+                )}
+                {activeSeries.status !== 'encerrada' && activeSeries.billing_status === 'nao_bilhetavel' && (
+                  <div className="flex items-start justify-between gap-3 rounded border border-border-tertiary bg-bg-secondary px-2 py-1.5">
+                    <p className="text-xs text-text-secondary">
+                      Esta série está marcada como <strong>não cobrar</strong> e não entra no
+                      faturamento.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleReativar}
+                      disabled={reativando}
+                      className="shrink-0"
+                    >
+                      {reativando ? 'Reativando…' : 'Reativar cobrança'}
+                    </Button>
+                  </div>
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1273,30 +1358,29 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
           <FormSection
             title="Status de cobrança"
-            hint="Ativo: gera mensalidade normalmente. Suspenso: a mensalidade zera até a data informada e volta sozinha depois. Não cobrar: nunca gera mensalidade."
+            hint="Ativo: gera mensalidade normalmente. Não cobrar: a série sai do faturamento e o cliente continua ativo na carteira. Para uma suspensão temporária, registre uma Concessão no cockpit — assim a perda de receita fica visível em vez de a série simplesmente sumir."
           >
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               {[
                 { v: 'ativo', l: 'Ativo', c: 'bg-donc-verde text-white border-donc-verde' },
-                { v: 'suspenso', l: 'Suspenso', c: 'bg-amber-500 text-white border-amber-500' },
                 { v: 'nao_bilhetavel', l: 'Não cobrar', c: 'bg-border-secondary text-text-secondary border-border-secondary' },
               ].map(opt => (
                 <button
                   key={opt.v}
                   type="button"
-                  onClick={() => set('billing_status', opt.v)}
+                  onClick={() => {
+                    if (opt.v === 'nao_bilhetavel') {
+                      setNaoCobrarOpen(true)
+                      return
+                    }
+                    set('billing_status', opt.v)
+                  }}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${form.billing_status === opt.v ? opt.c : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
                 >
                   {opt.l}
                 </button>
               ))}
             </div>
-            {form.billing_status === 'suspenso' && (
-              <div>
-                <label className="label-sm">Suspenso até *</label>
-                <input name="billing_suspended_until" type="date" value={form.billing_suspended_until} onChange={handleChange} className="input-base w-48" />
-              </div>
-            )}
           </FormSection>
 
           {['admin', 'manager', 'finance', 'sales'].includes(effectiveRole) && (
@@ -1769,6 +1853,20 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           </Button>
         </div>
       </Modal>
+
+      {naoCobrarOpen && (
+        <NaoCobrarDialog
+          clientId={client?.id}
+          clientName={form.name || form.fantasy_name}
+          series={seriesList}
+          seriesAtivaId={activeSeries?.id}
+          onClose={() => setNaoCobrarOpen(false)}
+          onDone={() => {
+            setNaoCobrarOpen(false)
+            set('billing_status', 'nao_bilhetavel')
+          }}
+        />
+      )}
     </form>
   )
 }

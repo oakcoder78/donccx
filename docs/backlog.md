@@ -7,7 +7,7 @@
 
 ## How to use
 
-1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-013`**), add to "Open items" and to the Summary table.
+1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-014`**), add to "Open items" and to the Summary table.
 2. **Ordenação:** Summary table e blocos seguem a mesma regra — prioridade H→L; no empate, `TD-###` antes de `IDEA-###`, depois ID ascendente. `Closed items` em data-desc (mais recente primeiro).
 3. **Triaging:** bump Priority; mark `Status: Ready` when scope is clear and effort is estimated.
 4. **Activating:** when work starts, create or link a SDD in `docs/sdd/` and set `Status: Active → docs/sdd/<name>-sdd.md`.
@@ -35,6 +35,7 @@
 | IDEA-001 | Idea | UI Pattern Library — Phase 2 (8 patterns restantes) | M | Ready | `docs/sdd/ui-patterns-phase2-sdd.md` |
 | TD-012 | Tech Debt | Decidir entre migrations versionadas e aplicação via MCP | M | Backlog | — |
 | IDEA-003 | Idea | Reajuste anual assistido por série | M | Backlog | `docs/sdd/financeiro-cockpit-sdd.md` |
+| TD-013 | Bug | Cron exibido em UTC com `UTC_TO_BRT` somando 3h sobre horário já em BRT | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-010 | Refactor | Migrar estrutura-alvo de `docs/` (README em fases) | L | Backlog | — |
@@ -266,6 +267,51 @@ Independente da escolha: decidir se `contract_series` ganha índice único real 
 - Um comando novo responde: o que eu uso para uma mudança de schema?
 - `docs/` e `AGENTS.md` dizem a mesma coisa
 - Não existe mais divergência entre `supabase_migrations.schema_migrations` e `supabase/migrations/`
+
+---
+
+---
+
+### TD-013 — Cron exibido em UTC com `UTC_TO_BRT` somando 3h sobre horário já em BRT
+
+**Type:** Bug
+**Priority:** M
+**Status:** Backlog
+**Parent:** —
+**Origin:** 2026-10-02 — identificado ao criar o cron do `contract-series-sync`
+**Linked SDD:** `docs/sdd/contract-series-lifecycle-sdd.md`
+**Related:** `src/components/settings/SettingsSyncStatus.jsx`, `manage_cron_job`
+
+#### Context
+
+`cron.job.schedule` guarda a expressão que o pg_cron executa, e o pg_cron roda em UTC. Em Settings, `SettingsSyncStatus` mostra essa expressão convertida com `UTC_TO_BRT` — mas o navegador já está no fuso do usuário, então a conversão soma 3h a um valor que já era BRT.
+
+Consequência prática: o job `monthly-sync-job` roda `1 0 1 * *`, que é 00:01 UTC do dia 1 = **21:01 BRT do dia 31**. A tela diz que roda "às 00:01". Quem usa a tela para saber quando o faturamento do mês fecha lê 3 horas a mais, e a discrepancy é invisível porque nada mais mostra o horário real.
+
+Pior: como a conversão soma em vez de subtrair, um admin que tente "corrigir" o horário digitando o valor que a tela manda digitar (00:01) grava `1 0 1 * *` no cron — ou seja, o valor errado da tela é exatamente o valor certo do cron. O bug se autoconserta na primeira tentativa de ajuste, o que esconde o problema.
+
+`contract-series-sync-job` (`5 0 1 * *`) e `donc-api-monthly-sync` (`0 9 1 * *`) têm o mesmo problema de exibição.
+
+#### Proposed approach
+
+Tratar como exibição, não como agendamento: o `schedule` no banco é a fonte da verdade e já está correto.
+
+1. Remover a conversão e mostrar a expressão como ela é, com rótulo explícito de fuso (`"00:01 UTC (21:01 BRT)"`), calculando o BRT a partir da expressão e não a partir do texto exibido.
+2. Ou persistir um `timezone` no job e exibir o horário local direto, sem passar por UTC.
+3. Não "consertar" os valores já gravados no cron — eles estão certos; só a leitura está errada.
+
+Vale decidir junto com TD-011, que já mexe em `SettingsSyncStatus` e pode acabar mostrando `sync_service_log` no lugar de `cron.job`.
+
+#### Files
+
+- `src/components/settings/SettingsSyncStatus.jsx` (Modify — leitura do schedule)
+- `src/components/settings/SyncScheduleControl.jsx` (Modify, se houver o mesmo padrão)
+
+#### Acceptance
+
+- A tela mostra um horário que bate com o que aparece em `cron.job_run_details`
+- A conversão está documentada na tela (qual fuso é qual)
+- Um teste cobre um schedule de UTC que atravessa a meia-noite BRT (é justamente o caso do dia 1)
 
 ---
 

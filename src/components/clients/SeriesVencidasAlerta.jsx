@@ -3,11 +3,24 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Icons } from '@/lib/icons'
 import { useSeriesLifecycleMutations, useSeriesVencidas } from '@/hooks/useContractCharges'
 import { Button } from '@/components/ui/Button'
+import { EncerrarSerieDialog, CobrarMaisMesesDialog } from './ContractLifecycleDialogs'
+
+function brDate(iso) {
+  if (!iso) return '—'
+  const [y, m, d] = String(iso).slice(0, 10).split('-')
+  return `${d}/${m}/${y}`
+}
 
 /**
  * Séries contratuais vencidas: o contrato assinado acabou e a série não foi
  * marcada para rolar no mês a mês, então ela parou de ser lançada e sumiu do
- * cockpit. Aqui a decisão fica visível — continuar rolando ou encerrar.
+ * cockpit. Aqui a decisão fica visível.
+ *
+ * Três destinos possíveis, e os três já existiam por caminhos diferentes — o
+ * que faltava era torná-los descobríveis lado a lado:
+ *   · Renovar mês a mês      → liga auto_renew e repõe a folga na hora
+ *   · Cobrar mais N meses     → desliga auto_renew e dá a data (o caso do acordo)
+ *   · Encerrar                → a série para de vez (abre diálogo, pois apaga dado)
  *
  * Renderiza `null` quando não há nada pendente, para poder ser montado nas duas
  * telas (cockpit e lista de clientes) sem custo visual.
@@ -15,20 +28,27 @@ import { Button } from '@/components/ui/Button'
 export function SeriesVencidasAlerta() {
   const qc = useQueryClient()
   const [pendingId, setPendingId] = useState(null)
+  const [dialog, setDialog] = useState(null) // { tipo, serie }
   const mutate = useSeriesLifecycleMutations()
 
   const { data: series = [], isLoading } = useSeriesVencidas()
   if (isLoading || series.length === 0) return null
 
-  const acting = (seriesId, action) => {
-    setPendingId(`${seriesId}:${action}`)
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
+    qc.invalidateQueries({ queryKey: ['clients'] })
+    qc.invalidateQueries({ queryKey: ['contract_series'] })
+    qc.invalidateQueries({ queryKey: ['series_vencidas'] })
+  }
+
+  const acting = (serie, action) => {
+    setPendingId(`${serie.series_id}:${action}`)
     mutate.mutate(
-      { seriesId, action },
+      { seriesId: serie.series_id, action },
       {
         onSettled: () => {
           setPendingId(null)
-          qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
-          qc.invalidateQueries({ queryKey: ['clients'] })
+          invalidate()
         },
       }
     )
@@ -59,8 +79,7 @@ export function SeriesVencidasAlerta() {
                       {s.client_name}
                     </p>
                     <p className="text-xs text-text-tertiary">
-                      {s.series_label} · terminou em{' '}
-                      {String(s.contract_renewal).split('-').reverse().join('/')}
+                      {s.series_label} · terminou em {brDate(s.contract_renewal)}
                       {s.months_overdue > 0 && ` · ${s.months_overdue} meses atrás`}
                     </p>
                   </div>
@@ -70,16 +89,25 @@ export function SeriesVencidasAlerta() {
                       variant="secondary"
                       size="sm"
                       disabled={pendingId != null}
-                      onClick={() => acting(s.series_id, 'encerrar')}
+                      onClick={() => setDialog({ tipo: 'encerrar', serie: s })}
                     >
-                      {pendingId === `${s.series_id}:encerrar` ? 'Encerrando…' : 'Encerrar série'}
+                      Encerrar série
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      disabled={pendingId != null}
+                      onClick={() => setDialog({ tipo: 'cobrar', serie: s })}
+                    >
+                      Cobrar mais meses
                     </Button>
                     <Button
                       type="button"
                       variant="primary"
                       size="sm"
                       disabled={pendingId != null}
-                      onClick={() => acting(s.series_id, 'renovar')}
+                      onClick={() => acting(s, 'renovar')}
                     >
                       {pendingId === `${s.series_id}:renovar` ? 'Ativando…' : 'Renovar mês a mês'}
                     </Button>
@@ -90,6 +118,29 @@ export function SeriesVencidasAlerta() {
           </ul>
         </div>
       </div>
+
+      {dialog?.tipo === 'encerrar' && (
+        <EncerrarSerieDialog
+          series={dialog.serie}
+          mesesFuturos={dialog.serie.meses_futuros || 0}
+          onClose={() => setDialog(null)}
+          onDone={() => {
+            setDialog(null)
+            invalidate()
+          }}
+        />
+      )}
+
+      {dialog?.tipo === 'cobrar' && (
+        <CobrarMaisMesesDialog
+          series={dialog.serie}
+          onClose={() => setDialog(null)}
+          onDone={() => {
+            setDialog(null)
+            invalidate()
+          }}
+        />
+      )}
     </div>
   )
 }

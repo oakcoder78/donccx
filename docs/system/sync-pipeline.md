@@ -4,6 +4,8 @@
 
 Pipeline de sincronização que orquestra a coleta de dados de fontes externas com rastreamento granular por serviço. Cada serviço (`donc-api`, `freshdesk`, `health-recalc`) registra seu próprio log de execução em `sync_service_log`, enquanto o orquestrador `monthly-sync` mantém compatibilidade com o `sync_log` legado.
 
+O horizonte de recorrência das séries contratuais **não** faz parte do orquestrador mensal. Ele tem Edge Function e cron próprios (`contract-series-sync`), porque `ensure_series_horizon` é idempotente e não tem nada a ver com nenhuma API externa — ver "Horizonte de recorrência" abaixo e `docs/sdd/contract-series-lifecycle-sdd.md`.
+
 ## Architecture Role
 
 O pipeline ocupa a camada de ingestão de dados externos do sistema:
@@ -14,8 +16,10 @@ Fontes externas              Edge Functions               Destino               
 DONC API ──────────────→ donc-api-sync ──────────→ client_usage              sync_service_log
 Freshdesk API ─────────→ monthly-sync:syncFd ────→ client_support           (planejado)
 Health recalc ─────────→ monthly-sync:health ────→ health_score_history     (planejado)
-Cron (pg_cron) ────────→ monthly-sync ───────────→ (orquestrador)           sync_log
+Cron (pg_cron) ────────→ monthly-sync ───────────→ (orquestrador mensal)     sync_log
+Cron (pg_cron) ────────→ contract-series-sync ────→ contract_charges          (log da EF)
 Manual (Settings UI) ──→ donc-api-sync ──────────→ client_usage              sync_service_log
+Manual (Settings UI) ──→ sync-schedule:run-horizon → contract-series-sync ──→ contract_charges
 ```
 
 ## Integration Points
@@ -26,6 +30,7 @@ Manual (Settings UI) ──→ donc-api-sync ──────────→ c
 | Freshdesk | `monthly-sync` (sub-chamada) | cron | `sync_service_log` (fase 2) | Sim | — |
 | Health Recalc | `health-recalc` | cron / manual | `sync_service_log` (fase 2) | — | — |
 | Orquestrador | `monthly-sync` | cron / manual | `sync_log` (legado) | — | — |
+| Horizonte de séries | `contract-series-sync` | cron (dia 1) / manual (Settings) | log da própria EF | derivado do horizon | — |
 
 ## Data Flow
 
@@ -51,7 +56,8 @@ Manual (Settings UI) ──→ donc-api-sync ──────────→ c
 ### Write Flow — monthly-sync (Orquestrador)
 
 ```
-1. Acionado por pg_cron (dia 1 de cada mês, 09:00 UTC) ou manual (sync-schedule EF)
+1. Acionado por pg_cron (job 'monthly-sync-job', 1 0 1 * * = 00:01 UTC) ou manual
+   (sync-schedule EF, action 'run-now')
 2. INSERT sync_log { job_name:'monthly-sync', status:'running' }
 3. Sequencialmente:
    a. donc-api-sync (sub-chamada fetch, mês anterior)
@@ -59,6 +65,33 @@ Manual (Settings UI) ──→ donc-api-sync ──────────→ c
    c. health-recalc (sub-chamada fetch, todos os clientes)
    d. calculate_health_trends (RPC PostgreSQL)
 4. UPDATE sync_log { status:'success'/'failed', finished_at, summary:{donc, freshdesk, health, trend} }
+```
+
+O orquestrador **não** materializa recorrência. Rodar `ensure_series_horizon` aqui significava que a folga das séries só existia uma vez por mês, herdava a falha de qualquer serviço externo e não podia ser recuperada isoladamente — daí o serviço separado.
+
+### Write Flow — contract-series-sync (Horizonte de recorrência)
+
+```
+1. Acionado por pg_cron (job 'contract-series-sync-job', 5 0 1 * * = 00:05 UTC,
+   4 minutos depois do orquestrador) ou manual (sync-schedule EF, action 'run-horizon')
+2. SELECT id FROM contract_series WHERE status='ativa'
+3. Para CADA série: SELECT ensure_series_horizon(series_id)
+   - Idempotente: a segunda chamada seguida não insere nada.
+   - Uma série com erro é registrada e não derruba as outras.
+   - Só escreve contract_charges. Nunca cria billing_payments de mês futuro —
+     a folga é inerte e pré-marcar pagamento que não venceu seria errado.
+4. Loga em stdout { series, launched, por_serie, erros }
+```
+
+Manual é o caminho de recuperação: depois de um lançamento em lote no meio do mês, as séries novas precisam da folga agora — esperar o dia 1 as deixaria invisíveis no cockpit. O botão em Configurações → Sincronização faz exatamente essa chamada.
+
+### Read Flow — Settings UI (Horizonte)
+
+```
+1. Configurações → Sincronização → botão "Repor horizonte"
+2. sync-schedule { action:'run-horizon' } (admin/manager, ou x-webhook-secret)
+3. POST contract-series-sync com x-webhook-secret
+4. Toast com quantas séries foram estendidas e quantos meses entraram
 ```
 
 ### Read Flow — Cockpit
@@ -97,4 +130,6 @@ Manual (Settings UI) ──→ donc-api-sync ──────────→ c
 ## Known Issues
 
 - **Over-engineering** (rejected alternative): uma coluna `synced_at` + trigger no `client_usage` teria resolvido o requisito mínimo (exibir timestamp no cockpit) sem tabela nova, sem RLS novo, sem edge function modificada. Decisão (2026-07-28): manter `sync_service_log` porque a tabela abre caminho para granularidade por instância (`instance_id`) e fase 2 (migrar `SettingsSyncStatus` de `sync_log` para `sync_service_log` agrupando por `service_name`). A rejeição fica registrada para reavaliação se a fase 2 for cancelada.
+- **`manage_cron_job` tem URL padrão fixa** (`monthly-sync`). Agendar um job novo sem passar `p_url` cria silenciosamente um **segundo** agendamento do orquestrador — foi o que aconteceu com `contract-series-sync-job` em 2026-10-02 (criou jobid 14 apontando para `monthly-sync`). Ao agendar qualquer serviço que não seja o orquestrador, `p_url` é obrigatório, e vale conferir `cron.job` depois.
+- **Fuso na tela de cron**: `SettingsSyncStatus` converte `cron.job.schedule` com `UTC_TO_BRT` e soma 3h sobre um valor que já é BRT. O agendamento está certo; a exibição mente. Registrado como `TD-013`.
 - Resolvido em 2026-07-28 (`a685e9f` + `2f14ef5`): o timestamp não renderizava porque o `queryFn` do `useQuery` retornava o envelope `{data, error}` do supabase enquanto o destructuring `const { data: lastSync }` esperava o row direto — `lastSync.finished_at` era sempre `undefined`. QueryFn agora retorna `data` explicitamente e `throw error` em caso de falha, espelhando o padrão de `useProfissionaisCockpit.js:29-31`.

@@ -257,7 +257,7 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 ### Fase A — Limpeza dos crons
 
-**Status:** Not started
+**Status:** Done (2026-10-02)
 
 **Rationale:** Antes de extrair o serviço, o agendamento precisa estar correto — senão a EF nova nasce já rodando em duplicidade. O job `test-fix-$(date +%s)` é o mais urgente: ativo, dispara o orquestrador inteiro e tem data fixa (02/07).
 
@@ -267,11 +267,11 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 #### Checklist
 
-- [ ] **Cron:** `cron.unschedule('test-fix-$(date +%s)')` — confirmar pelo nome literal
-- [ ] **Cron:** `cron.unschedule('default-sync')`
-- [ ] **Cron:** confirmar que `monthly-sync-job` ficou como único orquestrador
-- [ ] **Doc:** `docs/system/sync-pipeline.md` reflete 1 orquestrador (está desatualizado desde 2026-10-01)
-- [ ] **Build:** `npm run build` sem erros
+- [x] **Cron:** `cron.unschedule('test-fix-$(date +%s)')` — confirmado pelo nome literal
+- [x] **Cron:** `cron.unschedule('default-sync')`
+- [x] **Cron:** `monthly-sync-job` é o único agendamento de `monthly-sync`
+- [x] **Doc:** `docs/system/sync-pipeline.md` atualizado (1 orquestrador + serviço do horizonte)
+- [x] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Fase A)
 
@@ -283,7 +283,7 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 ### Fase B — Horizonte como serviço independente
 
-**Status:** Not started
+**Status:** Done (2026-10-02)
 
 **Rationale:** `ensure_series_horizon` é idempotente por design — exatamente o perfil de algo que deve poder rodar quantas vezes quiser. Preso a um orquestrador que chama quatro serviços de rede externos, ele não roda quando precisa e herda a falha de qualquer um deles.
 
@@ -294,13 +294,13 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 #### Checklist
 
-- [ ] **EF:** criar `contract-series-sync` com log próprio
-- [ ] **Sync-schedule:** ação `run-horizon` apontando para a EF nova
-- [ ] **UI:** botão "Repor horizonte" em `SettingsSyncStatus.jsx`, irmão do "Executar agora"
-- [ ] **Monthly-sync:** remover `syncSeriesHorizon` e o passo 5
-- [ ] **Deploy:** `verify_jwt = false` confirmado após o deploy
-- [ ] **Verificação:** `select public.ensure_series_horizon(id)` devolve 0 e não altera contagem — idempotência
-- [ ] **Build:** `npm run build` sem erros
+- [x] **EF:** `contract-series-sync` criada e implantada (v1)
+- [x] **Sync-schedule:** ação `run-horizon` implantada (v13)
+- [x] **UI:** botão "Repor horizonte" em `SettingsSyncStatus.jsx`, irmão do "Executar agora"
+- [x] **Monthly-sync:** passo do horizonte removido do corpo e implantado (v37)
+- [x] **Deploy:** `verify_jwt = false` confirmado; `[functions.contract-series-sync]` em `config.toml`
+- [x] **Verificação:** 2ª passada em todas as séries ativas → `sum = 0`
+- [x] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Fase B)
 
@@ -312,7 +312,7 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 ### Fase C — Encerrar e reabrir
 
-**Status:** Not started
+**Status:** Done, exceto as verificações marcadas (2026-10-02)
 
 **Rationale:** Primeira operação do sistema que apaga dados financeiros. Vai por conta própria porque a validação do form precisa mudar junto, e as duas coisas só fazem sentido em conjunto.
 
@@ -323,17 +323,17 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 #### Checklist
 
-- [ ] **Migration:** `encerrar_series` — apaga `contract_charges` futuros, nunca `billing_payments`
-- [ ] **Migration:** `reabrir_series` — recusa sem linha para replicar; recalcula `contract_renewal`
-- [ ] **Migration:** verificar que `ensure_series_horizon` já retorna 0 com `status='encerrada'`
-- [ ] **Hook:** mutações em `useContractCharges.js`
-- [ ] **UI:** `ContractLifecycleDialogs.jsx` com o diálogo de encerramento
-- [ ] **Form:** `N` da série encerrada = `max(month_index)`
-- [ ] **Form:** regra contígua dentro do gate de `status === 'ativa'`
-- [ ] **Verificação:** encerrar o cliente 21 → 61 meses viram 47, 48 pagamentos intactos
-- [ ] **Verificação:** reabrir o cliente 21 → volta a 61 meses, `contract_renewal` de volta
-- [ ] **Verificação:** série encerrada continua editando nome do cliente sem erro de validação
-- [ ] **Build:** `npm run build` sem erros
+- [x] **Migration:** `encerrar_series` — apaga `contract_charges` futuros, nunca `billing_payments`
+- [x] **Migration:** `reabrir_series` — recusa sem linha para replicar; recalcula `contract_renewal`
+- [x] **Migration:** `ensure_series_horizon` retorna 0 com `status='encerrada'` (verificado)
+- [x] **Hook:** `useContractCharges.js` — o `UPDATE` cru de `encerrar` foi removido; encerrar só via RPC
+- [x] **UI:** `ContractLifecycleDialogs.jsx` com o diálogo de encerramento
+- [x] **Form:** `N` da série encerrada = o que existe, não o prazo contratado
+- [x] **Form:** regra contígua e exigência de período lançado dentro do gate de `status === 'ativa'`
+- [ ] **Verificação:** encerrar o cliente 21 — **não executado** (destrutivo em produção; validado em cliente sintético com rollback: 7 meses futuros → 0, 10 recorrências → 3, 1 pagamento futuro prepaid intacto)
+- [ ] **Verificação:** reabrir o cliente 21 — **não executado** (mesmo motivo; validado em sintético: cauda reposta a 12 meses, `ensure_series_horizon` idempotente, prepaid preservado)
+- [ ] **Verificação:** série encerrada continua editando nome do cliente — **pendente no navegador**
+- [x] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Fase C)
 
@@ -345,7 +345,7 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 ### Fase D — "Não cobrar" com escopo
 
-**Status:** Not started
+**Status:** Done (2026-10-02)
 
 **Rationale:** Hoje "Não cobrar" num cliente com aditivo ativo não para o aditivo — o motor lê `contract_series.billing_status` e o `clients.billing_status` é só espelho. Sem isso, 7 séries marcadas continuam faturando.
 
@@ -356,14 +356,14 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 #### Checklist
 
-- [ ] **Migration:** `set_nao_cobrar` com propagação por `p_series_id` nulo
-- [ ] **Migration:** espelha `clients.billing_status` e `contract_active`
-- [ ] **UI:** diálogo geral / só esta série
-- [ ] **UI:** botão "Não cobrar" abre o diálogo em vez de gravar direto
-- [ ] **UI:** caminho de reativação visível
-- [ ] **Verificação:** cliente com 2 séries → "todas" para as duas, "só esta" para uma
-- [ ] **Verificação:** materialização da folga **não** para (§1.7)
-- [ ] **Build:** `npm run build` sem erros
+- [x] **Migration:** `set_nao_cobrar` com propagação por `p_series_id` nulo
+- [x] **Migration:** espelha `clients.billing_status` (só em ação cliente-wide) e `contract_active` via trigger
+- [x] **UI:** diálogo geral / só esta série, com seletor quando o cliente tem >1 série
+- [x] **UI:** botão "Não cobrar" abre o diálogo em vez de gravar direto
+- [x] **UI:** caminho de reativação visível — botão na aba da série quando ela está `nao_bilhetavel`, via `reativar_series`
+- [x] **Verificação:** cliente com 2 séries → "todas" marca as 2 e o cliente; "só esta" marca 1 e o cliente segue `ativo`
+- [x] **Verificação:** materialização da folga **não** para (§1.7) — série `nao_bilhetavel` materializa 12 meses, e 0 pagamentos futuros
+- [x] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Fase D)
 
@@ -375,7 +375,7 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 ### Fase E — Remover suspensão
 
-**Status:** Not started
+**Status:** Done (2026-10-02)
 
 **Rationale:** Por último, porque até aqui a concessão temporária já está no lugar (`ExcecaoModal` do cockpit) e nada se perde. Nenhuma série usa `suspenso` hoje, então a remoção é só front + CHECK.
 
@@ -386,13 +386,13 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 
 #### Checklist
 
-- [ ] **Migration:** trigger reescrito, **mantendo** o sync de `contract_active` (o `syncFreshdesk` filtra por ele)
-- [ ] **Migration:** `CHECK (billing_status IN ('ativo','nao_bilhetavel'))` em `clients`
-- [ ] **Migration:** confirmar que `contract_series.billing_status` não tem CHECK próprio (não tem)
-- [ ] **UI:** remover botão "Suspenso" e input "Suspenso até"
-- [ ] **UI:** remover a validação que exige a data
-- [ ] **UI:** atualizar o hint de "Status de cobrança"
-- [ ] **Build:** `npm run build` sem erros
+- [x] **Migration:** trigger reescrito, **mantendo** o sync de `contract_active`
+- [x] **Migration:** `CHECK (billing_status IN ('ativo','nao_bilhetavel'))` em `clients` (confirmado em `pg_constraint`)
+- [x] **Migration:** `contract_series.billing_status` sem CHECK próprio — sem série em `suspenso` (0 de 26), sem backfill
+- [x] **UI:** botão "Suspenso" e input "Suspenso até" removidos
+- [x] **UI:** validação que exige a data, removida
+- [x] **UI:** hint de "Status de cobrança" aponta para Concessão no cockpit
+- [x] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Fase E)
 

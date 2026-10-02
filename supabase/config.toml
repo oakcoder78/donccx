@@ -24,6 +24,9 @@ verify_jwt = false
 [functions.monthly-sync]
 verify_jwt = false
 
+[functions.contract-series-sync]
+verify_jwt = false
+
 [functions.operational-report-sync]
 verify_jwt = false
 

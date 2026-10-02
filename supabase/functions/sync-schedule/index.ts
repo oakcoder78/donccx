@@ -112,6 +112,26 @@ serve(async (req) => {
       })
     }
 
+    // Recuperação do horizonte de recorrência, sem rodar o orquestrador inteiro.
+    // Útil depois de um lançamento em lote: as séries novas precisam da folga
+    // agora, e esperar o dia 1 as deixaria invisíveis no cockpit no meio do mês.
+    if (action === 'run-horizon') {
+      const res = await fetch(`${supabaseUrl}/functions/v1/contract-series-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-webhook-secret': Deno.env.get('SYNC_WEBHOOK_SECRET') ?? '',
+        },
+        body: JSON.stringify({ trigger: 'manual' }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || `HTTP ${res.status}`)
+
+      return new Response(JSON.stringify({ ok: true, result }), {
+        headers: { ...cors, 'Content-Type': 'application/json' },
+      })
+    }
+
     throw new Error(`Unknown action: ${action}`)
   } catch (err) {
     console.error('sync-schedule error:', err)

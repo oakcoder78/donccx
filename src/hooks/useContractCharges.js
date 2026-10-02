@@ -198,15 +198,11 @@ export function useSeriesVencidas(enabled = true) {
 export function useSeriesLifecycleMutations() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ seriesId, action, reason }) => {
-      if (action === 'encerrar') {
-        const { error } = await supabase
-          .from('contract_series')
-          .update({ status: 'encerrada', reason: reason || null })
-          .eq('id', seriesId)
-        if (error) throw error
-        return
-      }
+    // Closing a series is NOT here: it goes through the encerrar_series RPC via
+    // EncerrarSerieDialog. A plain UPDATE would leave contract_renewal set and the
+    // horizon tail materialized — the series would look closed in the tab while
+    // still billing. The RPC is the only closing path.
+    mutationFn: async ({ seriesId, action }) => {
       if (action === 'renovar') {
         const { error } = await supabase
           .from('contract_series')
@@ -223,9 +219,9 @@ export function useSeriesLifecycleMutations() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ['series_vencidas'] })
       qc.invalidateQueries({ queryKey: ['contract_series'] })
-      toast.success(vars.action === 'encerrar'
-        ? 'Série encerrada'
-        : 'Renovação automática ativada — a recorrência continua sendo lançada')
+      toast.success(vars.action === 'renovar'
+        ? 'Renovação automática ativada — a recorrência continua sendo lançada'
+        : 'Feito')
     },
     onError: (e) => toast.error(friendlyDbError(e)),
   })

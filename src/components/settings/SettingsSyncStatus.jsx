@@ -179,6 +179,7 @@ export function SettingsSyncStatus() {
   // ── Execução Manual ──
   const [month, setMonth] = useState(prevMonthValue())
   const [executing, setExecuting] = useState(false)
+  const [reposto, setReposto] = useState(false)
   const [datetime, setDatetime] = useState('')
   const [scheduling, setScheduling] = useState(false)
 
@@ -227,6 +228,23 @@ export function SettingsSyncStatus() {
       } finally {
         setExecuting(false)
       }
+    }
+  }
+
+  async function handleReporHorizonte() {
+    setReposto(true)
+    try {
+      const res = await callSyncSchedule({ action: 'run-horizon' })
+      const n = Number(res?.result?.launched) || 0
+      toast.success(
+        n > 0
+          ? `Horizonte estendido — ${n} mês(es) lançado(s) a mais`
+          : 'Horizonte em dia — nada a estender'
+      )
+    } catch (e) {
+      toast.error(friendlyError(e.message))
+    } finally {
+      setReposto(false)
     }
   }
 
@@ -334,6 +352,25 @@ export function SettingsSyncStatus() {
               {busy ? 'Processando...' : 'Executar'}
             </button>
           </div>
+        </div>
+
+        {/* O horizonte de recorrência tem gatilho próprio (contract-series-sync).
+            Depois de um lançamento em lote as séries novas precisam da folga agora
+            — esperar o dia 1 as deixaria fora do cockpit no meio do mês. */}
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+            <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#173557' }}>Repor horizonte das séries</div>
+            <div style={{ fontSize: '0.75rem', color: '#5a6b7d' }}>
+              Estende o lançamento das séries ativas até 12 meses à frente, sem rodar Freshdesk, DONC API nem health.
+            </div>
+          </div>
+          <button
+            style={{ ...S.btn('#59c2ed', busy || reposto), minWidth: 96, justifyContent: 'center', flexShrink: 0 }}
+            onClick={handleReporHorizonte}
+            disabled={busy || reposto}
+          >
+            {reposto ? 'Reposto' : 'Repor horizonte'}
+          </button>
         </div>
       </div>
 
