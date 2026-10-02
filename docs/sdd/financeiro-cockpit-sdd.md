@@ -8,6 +8,8 @@ It is designed to be read by both humans and LLM agents so that work can be resu
 
 Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 2026-09-11). Documento de regras: `docs/sdd/financeiro-cockpit-regras.html` v1.1 (validado; base do Help do cockpit na Phase 5). Template 1:1: `docs/archive/superpowers/specs/2026-07-26-profissionais-cockpit-design.md` + `src/pages/ProfissionaisCockpitPage.jsx` (736L).
 
+**Escopo deste documento: leitura.** Como o cockpit *lê* as séries para calcular MRR, uso e adimplência. **Mutar o ciclo de vida de uma série** — encerrar, reabrir, estender, suspender, não cobrar — é assunto do documento canônico `docs/sdd/contract-series-lifecycle-sdd.md`, criado em 2026-10-01. Duas decisões deste documento foram **superadas** por ele e estão marcadas como tal na seção de decisões validadas: o estado `suspenso` de `billing_status` (§1.0 Phase 1) e "fatura zerada não existe" (v1.7).
+
 ### How to use this document
 
 1. **Before implementing:** Read this document fully. Understand the data contracts, component tree, and business rules before touching any file.
@@ -26,7 +28,7 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 **What already exists related to this work:**
 
-- **Séries contratuais (2026-09-07, em produção):** `contract_series` (`kind original|aditivo|renegociacao`, `billing_start/end`, `due_day`, `auto_renew`, `status ativa|encerrada`, `reason`, plano por série `billing_type`/`billing_base_value`/`billing_floor`, `billing_status ativo|suspenso|nao_bilhetavel`, `billing_suspended_until`, `correction_index`, `contract_signed_date/renewal`) — migrations `20260907000001/2/3`. `clients.*` financeiro é espelho da série original.
+- **Séries contratuais (2026-09-07, em produção):** `contract_series` (`kind original|aditivo|renegociacao`, `billing_start/end`, `due_day`, `auto_renew`, `status ativa|encerrada`, `reason`, plano por série `billing_type`/`billing_base_value`/`billing_floor`, `billing_status ativo|suspenso|nao_bilhetavel` — *o estado `suspenso` sai do vocabulário em 2026-10-01, ver `contract-series-lifecycle-sdd.md` Fase E*, `billing_suspended_until`, `correction_index`, `contract_signed_date/renewal`, `contract_months` — duração assinada, derivada em 2026-10-01) — migrations `20260907000001/2/3` + `20261001224706`. `clients.*` financeiro é espelho da série original.
 - **Charges por série:** `contract_charges` (`series_id`, `kind implantacao|recorrencia`, `mode absolute|percent`, `month_index`, `ref_month` derivado, `due_date`, `installment_group`, `amount`/`percent`, `reason`); UNIQUE `(series_id, kind, month_index, installment_group)`. `billing_os_tiers` PK `(client_id, series_id, tier_order)` (`limit_to`, `fixed_value`, `excess_unit_price`). `module_pricing.series_id` (rateio de soluções por série).
 - **MRR helpers puros:** `src/lib/contractRules.js` — `resolveMRR` (:221), `seriesMonthTotal` (:205), `getBaseTotal` (:273), `expandRulesToCharges`, `expandEventuais`, `regroupRecorrencia`, `regroupEventuais`, `renegWindows`, `validateOsTiers`, `formatBRL4`, `TI_TIPO_OPTIONS`.
 - **Adimplência (Phase 3.5 do v0.1 — CONCLUÍDA):** `billing_payments` PK `(client_id, series_id, ref_month)`, `status adimplente|inadimplente`, `delay_days`, `paid_at`, `note`, `updated_by/at`; RLS SELECT `admin,manager,finance,sales,csm` / write `admin,manager,finance,sales` (ampliado 2026-09-16, migration `20260916120000`); trigger `sync_billing_payments_delay_days` espelha `clients.delay_days` (`SECURITY DEFINER` desde 2026-09-16 para não depender da policy de `clients` de cada role); hooks `useBillingPayments`/`useLatestBillingPayment`/`useBillingPaymentsMutations` (`src/hooks/useBillingPayments.js`); ledger read-only `src/components/clients/tabs/operacional/BillingSchedule.jsx`.
@@ -183,6 +185,9 @@ serie_pausada(s)   = s.kind='original' AND EXISTS renegociacao ativa com recorre
 
 # Status de cobrança por série (desde 2026-09-18 zeradas NUNCA aparecem — revoga Q4;
 # visibilidade da negociação fica em "Negociações vigentes" na ficha do cliente)
+# NOTA 2026-10-01: 'suspenso' sai do vocabulário — suspensão vira concessão em
+# billing_exceptions, para que a perda de receita fique visível em vez de a série
+# simplesmente sumir. Ver contract-series-lifecycle-sdd.md §1.5.
 serie_zerada(s)    = s.billing_status='nao_bilhetavel'
                      OR (s.billing_status='suspenso' AND s.billing_suspended_until >= first_day(ref))
 # + isencao_total vigente e original pausada: excluídas do cockpit em qualquer caso
@@ -645,7 +650,7 @@ interface FinanceiroDetail {
 | 1 | Modos travado/base+excedente refletem negociações | mantido |
 | 2 | Defaults: original base+excedente; aditivo/renegociação travado | mantido |
 | 3 | Admin/Finance escrevem; Manager read-only | **corrigido no adendo 2026-10-01** — escrita = `series_write` = `admin,manager,finance,sales` |
-| 4 | Aditivo isento aparece zerado (R$ 0,00) | fatura zerada visível com selo |
+| 4 | Aditivo isento aparece zerado (R$ 0,00) | **superado em 2026-10-01** — v1.7 já tinha revogado; ver `contract-series-lifecycle-sdd.md` |
 | 5 | Valor reduzido mensal OK **+ desconto por licença/OS** | 4º tipo `desconto_unidade` |
 | 6 | Sem piso = cobra consumo | mantido |
 | 7 | Reajuste é anual, no aniversário (assinatura, configurável), percentual editável (X% e/ou índice), **sem retroativo**, renovação com valor já corrigido | **corrigido no adendo 2026-10-01** — corrige-se a série existente a partir de um vencimento; "sem retroatividade" = sem mexer em mês fechado |
@@ -808,6 +813,7 @@ Validação visual em produção com login fica com o time (rota autenticada).
 | 1.8 | 2026-09-18 | DoncCX Hub | Hotfix 400 `client_id is ambiguous`: refs desqualificadas colidem com OUT params em PL/pgSQL — `allc` qualificada (`fin_cur.client_id`/`ev_cur.client_id`). Lição: em RPC `RETURNS TABLE`, qualificar TODAS as colunas |
 | 1.9 | 2026-09-18 | DoncCX Hub | Gate por lançamento (repactuação): série entra sse `(has_rules_month OR has_tiers) AND NOT pausada/zerada/isenta` — excedente sem período não fatura nem aparece; agosto esvazia, só 29 em set |
 | 2.0 | 2026-10-01 | DoncCX Hub | Adendo ciclo de vida da série: `contract_months` separa duração do contrato do horizonte lançado; `contract_renewal` vira coluna gerada; `auto_renew` passa a rollar a recorrência por job mensal com 12 meses de folga; alerta de série vencida; correção das decisões #3 e #7 (ver adendo) |
+| 2.1 | 2026-10-01 | DoncCX Hub | Escopo explicitado como **leitura**. Mutação do ciclo de vida (encerrar, reabrir, estender, suspender, não cobrar) movida para o SDD canônico `contract-series-lifecycle-sdd.md`; decisões #4 e o estado `suspenso` marcadas como superadas |
 
 ---
 

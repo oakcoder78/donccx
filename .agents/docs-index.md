@@ -1,7 +1,7 @@
 # doncCX Hub — Documentation Index
 
 > GENERATED — do not edit by hand. Sole writer: `index-updater` skill.
-> last-verified: 2026-09-11
+> last-verified: 2026-10-01
 
 ## Purpose
 
@@ -30,7 +30,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 - activity-attachments (summary; steps → `docs/archive/`)
 - activity-modal
 - brief
-- clients (empresas, contrato/séries, RLS model)
+- clients (empresas, contrato/séries, RLS model) — **mutação do ciclo de vida da série** (encerrar/reabrir/estender/suspender/não cobrar) → `docs/sdd/contract-series-lifecycle-sdd.md`
 - components, contexts, hooks, layout, lib, pages, services, settings, sync
 - cs-radar
 - donkie
@@ -47,7 +47,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 
 ## Decisions (frozen; addenda only)
 
-- `docs/sdd/` — 15 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v1.3 (2026-09-11, completo) + `financeiro-cockpit-regras.html` = Help v1.0 servido em `public/help/`; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
+- `docs/sdd/` — 16 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v2.1 (2026-10-01, completo) + `financeiro-cockpit-regras.html` = Help v1.0 servido em `public/help/`; `contract-series-lifecycle-sdd.md` = mutação do ciclo de vida da série — encerrar/reabrir/estender/suspender/não cobrar, canônico para isso; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
 - `docs/brd/brd-financeiro-cockpit.md` (+ 0.6 addendum — ata de validação Financeiro/Vendas, 2026-09-11)
 - `docs/decisions/` — planned (numbered ADRs)
 
