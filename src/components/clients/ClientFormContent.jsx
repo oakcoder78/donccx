@@ -140,16 +140,6 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const [seriesReady, setSeriesReady] = useState(false)
   const [encerrarOpen, setEncerrarOpen] = useState(false)
   const [naoCobrarOpen, setNaoCobrarOpen] = useState(false)
-  // Quantos meses de recorrência ainda estão além do mês corrente na série ativa.
-  // O diálogo de encerramento usa isso para decidir se a escolha sobre a cauda
-  // faz sentido — e existingCharges já está em memória, não custa query.
-  const mesesFuturosAtiva = useMemo(() => {
-    if (!activeSeries?.id) return 0
-    const atual = new Date().toISOString().slice(0, 7)
-    return existingCharges.filter(
-      (c) => c.series_id === activeSeries.id && c.kind === 'recorrencia' && c.ref_month > atual
-    ).length
-  }, [activeSeries?.id, existingCharges])
   const { profile, effectiveRole } = useAuth()
   const { data: billingExceptions = [] } = useBillingExceptions(client?.id)
   const [pendingFiles, setPendingFiles] = useState([])
@@ -332,6 +322,17 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   // Campos do plano que vivem por série (buffer = form da série ativa)
   const PLAN_KEYS = ['billing_type', 'billing_base_value', 'billing_floor', 'contract_signed_date', 'contract_renewal', 'correction_index', 'billing_status', 'billing_suspended_until', 'usage_driven', 'correction_anniversary', 'correction_percent', 'correction_rule']
   const activeSeries = seriesList[activeSeriesIdx] || null
+
+  // Quantos meses de recorrência ainda estão além do mês corrente na série ativa.
+  // O diálogo de encerramento usa isso para decidir se a escolha sobre a cauda
+  // faz sentido — e existingCharges já está em memória, não custa query.
+  const mesesFuturosAtiva = useMemo(() => {
+    if (!activeSeries?.id) return 0
+    const atual = new Date().toISOString().slice(0, 7)
+    return existingCharges.filter(
+      (c) => c.series_id === activeSeries.id && c.kind === 'recorrencia' && c.ref_month > atual
+    ).length
+  }, [activeSeries?.id, existingCharges])
   const activeReadOnly = activeSeries?.status === 'encerrada'
 
   /**

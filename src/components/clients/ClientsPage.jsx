@@ -10,7 +10,6 @@ import { Button } from '../ui/Button'
 import { Badge } from '../ui/Badge'
 import { StagePill } from '../ui/StagePill'
 import { HealthBar, HealthScore } from '../ui/HealthBar'
-import { SeriesVencidasAlerta } from './SeriesVencidasAlerta'
 import { Avatar } from '../ui/Avatar'
 import { Icons } from '@/lib/icons'
 import { PageSpinner } from '../ui/Spinner'
@@ -120,12 +119,6 @@ export default function ClientsPage() {
         subtitle={`${clients.length} empresa${clients.length !== 1 ? 's' : ''}`}
         action={canMutateEmpresas ? <Button onClick={() => navigate('/empresas/nova')}>+ Nova Empresa</Button> : null}
       />
-
-      {isEnabled('contract_series_lifecycle', effectiveRole) && (
-        <div className="mb-4">
-          <SeriesVencidasAlerta />
-        </div>
-      )}
 
       {estadoParam && (
         <div style={{ marginBottom: 12 }}>

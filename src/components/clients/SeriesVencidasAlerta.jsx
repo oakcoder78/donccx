@@ -22,8 +22,10 @@ function brDate(iso) {
  *   · Cobrar mais N meses     → desliga auto_renew e dá a data (o caso do acordo)
  *   · Encerrar                → a série para de vez (abre diálogo, pois apaga dado)
  *
- * Renderiza `null` quando não há nada pendente, para poder ser montado nas duas
- * telas (cockpit e lista de clientes) sem custo visual.
+ * Renderiza `null` quando não há nada pendente. Montado só no cockpit
+ * financeiro: a lista de empresas é uma tela de carteira, e um aviso de decisão
+ * de faturamento no meio dela displace a lista sem ser o lugar onde a decisão
+ * se toma.
  */
 export function SeriesVencidasAlerta() {
   const qc = useQueryClient()
