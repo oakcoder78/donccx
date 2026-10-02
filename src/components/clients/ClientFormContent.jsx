@@ -854,36 +854,47 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   }
 
   /**
-   * As ações de ciclo de vida gravam direto no banco via RPC. O form é um buffer
-   * semeado UMA vez (o efeito de seeding retorna se seriesReady), então sem isto
-   * salvar depois sobrescreve o que a RPC gravou — que é como "não cobrar" numa
-   * série terminava invertendo o status de todas as outras.
+   * As ações de ciclo de vida gravam direto no banco via RPC, e o form é um
+   * buffer semeado UMA vez (o efeito de seeding retorna se seriesReady). Se o
+   * buffer não for atualizado, o próximo Salvar sobrescreve o que a RPC gravou —
+   * foi assim que suspender uma série terminou invertendo o status das outras.
    *
-   * Volta o form ao estado do banco. Custo: edições não salvas da aba Contrato
-   * são descartadas. Aceitável, porque a ação é uma decisão sobre o banco e o
-   * buffer local já não representa a verdade.
+   * Atualizar só os campos que a ação mudou, na série que a ação tocou.
+   * Re-semear inteiro resolveria o mesmo problema, mas reescreve as 7 seções
+   * por-série a partir do banco e descarta edições não salvas — o usuário não
+   * tem como saber que isso aconteceu. Preservar o trabalho dele vale mais que
+   * reexibir uma contagem derivada.
+   *
+   * Só as leituras externas (cockpit, alerta, listas) são invalidadas; o buffer
+   * de edição fica intacto.
    */
-  function resincronizarComBanco() {
-    setSeriesReady(false)
-    qc.removeQueries({ queryKey: ['client', clientId] })
-    qc.removeQueries({ queryKey: ['contract_charges', clientId] })
-    qc.removeQueries({ queryKey: ['contract_series', clientId] })
-    qc.removeQueries({ queryKey: ['billing_os_tiers', clientId] })
-    qc.invalidateQueries({ queryKey: ['clients'] })
+  function aplicarNoForm(seriesId, patch) {
+    if (seriesId) {
+      setSeriesList(prev => prev.map(s => (s.id === seriesId ? { ...s, ...patch } : s)))
+      if (seriesId === activeSeries?.id) setForm(prev => ({ ...prev, ...patch }))
+    }
     qc.invalidateQueries({ queryKey: ['series_vencidas'] })
     qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
+    qc.invalidateQueries({ queryKey: ['clients'] })
+    // A cauda de recorrência muda em encerrar/reabrir. As contagens derivadas
+    // (N meses, "projeção: …") vêm daqui e ficam desatualizadas até recarregar a
+    // página — em troca, nenhuma edição não salva se perde.
+    qc.invalidateQueries({ queryKey: ['contract_charges', clientId] })
   }
 
   // Reabrir age direto no banco (não é edição de form): a RPC reconstrói a cauda
-  // de recorrência. Por isso o botão recarrega o cliente em vez de pedir save.
+  // de recorrência e recalcula a renovação.
   const [reabrindo, setReabrindo] = useState(false)
   async function handleReabrir() {
     if (!activeSeries) return
     setReabrindo(true)
     try {
-      const { error } = await supabase.rpc('reabrir_series', { p_series_id: activeSeries.id })
+      const { data, error } = await supabase.rpc('reabrir_series', { p_series_id: activeSeries.id })
       if (error) throw error
-      resincronizarComBanco()
+      const renewal = activeSeries.contract_months
+        ? addMonthsClamped(activeSeries.billing_start, Number(activeSeries.contract_months))
+        : null
+      aplicarNoForm(activeSeries.id, { status: 'ativa', contract_renewal: renewal })
       toast.success('Série reaberta — os meses à frente foram repostos')
     } catch (e) {
       toast.error(e?.message || 'Falha ao reabrir a série')
@@ -903,7 +914,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         p_series_id: activeSeries.id,
       })
       if (error) throw error
-      resincronizarComBanco()
+      aplicarNoForm(activeSeries.id, { billing_status: 'ativo' })
       toast.success('Cobrança reativada nesta série')
     } catch (e) {
       toast.error(e?.message || 'Falha ao reativar a cobrança')
@@ -1131,8 +1142,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 {activeSeries.status !== 'encerrada' && activeSeries.billing_status === 'nao_bilhetavel' && (
                   <div className="flex items-start justify-between gap-3 rounded border border-border-tertiary bg-bg-secondary px-2 py-1.5">
                     <p className="text-xs text-text-secondary">
-                      Esta série está marcada como <strong>não cobrar</strong> e não entra no
-                      faturamento.
+                      A cobrança desta série está <strong>suspensa</strong>: ela não entra no
+                      faturamento enquanto estiver assim.
                     </p>
                     <Button
                       type="button"
@@ -1382,12 +1393,12 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
 
           <FormSection
             title="Status de cobrança"
-            hint="Ativo: gera mensalidade normalmente. Não cobrar: a série sai do faturamento e o cliente continua ativo na carteira. Para uma suspensão temporária, registre uma Concessão no cockpit — assim a perda de receita fica visível em vez de a série simplesmente sumir."
+            hint="Valores desta seção são aplicados na hora — não precisa salvar o resto da aba. Ativo: gera mensalidade normalmente. Suspensa: a série sai do faturamento e continua aqui. Sem data de retorno: volta quando você reativar."
           >
             <div className="flex gap-2 flex-wrap items-center">
               {[
                 { v: 'ativo', l: 'Ativo', c: 'bg-donc-verde text-white border-donc-verde' },
-                { v: 'nao_bilhetavel', l: 'Não cobrar', c: 'bg-border-secondary text-text-secondary border-border-secondary' },
+                { v: 'nao_bilhetavel', l: 'Cobrança suspensa', c: 'bg-border-secondary text-text-secondary border-border-secondary' },
               ].map(opt => (
                 <button
                   key={opt.v}
@@ -1859,9 +1870,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           mesesFuturos={mesesFuturosAtiva}
           motivo={activeSeries.reason || ''}
           onClose={() => setEncerrarOpen(false)}
-          onDone={() => {
+          onDone={(patch) => {
             setEncerrarOpen(false)
-            resincronizarComBanco()
+            aplicarNoForm(activeSeries.id, patch)
             toast.success('Série encerrada')
           }}
         />
@@ -1874,10 +1885,14 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           series={seriesList}
           seriesAtivaId={activeSeries?.id}
           onClose={() => setNaoCobrarOpen(false)}
-          onDone={() => {
+          onDone={({ ids }) => {
             setNaoCobrarOpen(false)
-            resincronizarComBanco()
-            toast.success('Status de cobrança aplicado')
+            ids.forEach(id => aplicarNoForm(id, { billing_status: 'nao_bilhetavel' }))
+            toast.success(
+              ids.length > 1
+                ? `Cobrança suspensa em ${ids.length} séries`
+                : 'Cobrança suspensa nesta série'
+            )
           }}
         />
       )}

@@ -91,7 +91,13 @@ export function EncerrarSerieDialog({
           : null,
         p_motivo: textoMotivo.trim() || null,
       })
-      onDone?.()
+      // O form recebe o patch em vez de recarregar do banco: recarregar reescreve
+      // as seções por-série todas e joga fora edições não salvas.
+      onDone?.({
+        status: 'encerrada',
+        contract_renewal: null,
+        reason: textoMotivo.trim() || series.reason || null,
+      })
     } catch (e) {
       setErro(e?.message || 'Falha ao encerrar a série')
     } finally {
@@ -242,9 +248,12 @@ export function EncerrarSerieDialog({
 }
 
 /**
- * "Não cobrar" é uma ação sobre o cliente, mas o escopo não é óbvio: quem quer
- * parar de cobrar uma das duas séries usa Encerrar série, não esta. Por isso a
- * pergunta, em vez de assumir "todas".
+ * Suspender cobrança é reversível, então o botão de confirmar é neutro e
+ * `danger` fica reservado para encerrar série — as duas ações mudam o
+ * faturamento e são fáceis de confundir, a cor é o que separa.
+ *
+ * O escopo não é óbvio, por isso a pergunta em vez de assumir "todas": suspender
+ * uma série tira ela do faturamento sem tirar o cliente.
  */
 export function NaoCobrarDialog({
   clientId,
@@ -270,9 +279,14 @@ export function NaoCobrarDialog({
         p_client_id: clientId,
         p_series_id: escopo === 'serie' ? alvo : null,
       })
-      onDone?.()
+      // Escopo cliente-wide suspensa todas as séries ATIVAS; escopo série, só a
+      // escolhida. Encerradas não são tocadas pela RPC, então o patch do form
+      // só pode ser aplicado onde houve mudança — por isso `ativas`.
+      onDone?.({
+        ids: escopo === 'serie' ? [alvo] : ativas.map((s) => s.id),
+      })
     } catch (e) {
-      setErro(e?.message || 'Falha ao marcar como não cobrar')
+      setErro(e?.message || 'Falha ao suspender a cobrança')
     } finally {
       setSalvando(false)
     }
@@ -280,12 +294,13 @@ export function NaoCobrarDialog({
 
   return (
     <Modal
-      title="Não cobrar este cliente?"
-      subtitle={clientName}
+      title={escopo === 'serie' ? 'Suspender a cobrança desta série?' : 'Suspender a cobrança do cliente?'}
+      subtitle={escopo === 'serie' ? `${clientName} · ${ativas.find((s) => s.id === alvo)?.label ?? ''}` : clientName}
       onClose={onClose}
     >
       <p className="text-xs text-text-secondary mb-3">
-        Sai do faturamento, mas continua ativo na carteira.
+        Sai do faturamento enquanto estiver marcada. <strong>Não tem data de retorno</strong> — volta
+        quando alguém desmarcar. Os meses já lançados ficam no histórico.
       </p>
 
       <fieldset className="mb-3">
@@ -319,7 +334,7 @@ export function NaoCobrarDialog({
             Só uma série
             <span className="block text-text-tertiary">
               {!podeEscolherSerie
-                ? 'O cliente tem uma série só. Para parar de cobrar uma delas, use Encerrar série.'
+                ? 'O cliente tem uma série só — as duas opções fazem a mesma coisa.'
                 : 'As outras continuam sendo lançadas normalmente.'}
             </span>
           </span>
@@ -344,7 +359,9 @@ export function NaoCobrarDialog({
       )}
 
       <p className="text-[11px] text-text-tertiary mb-4">
-        Os meses já lançados são mantidos, para reverter quando quiser.
+        {escopo === 'todas' && ativas.length > 1
+          ? 'Marcando todas, o cliente inteiro sai do faturamento. Com apenas uma série marcada, ele continua ativo.'
+          : 'Para suspender várias séries de uma vez, use a lista de séries em vez deste diálogo.'}
       </p>
 
       {erro && (
@@ -359,12 +376,12 @@ export function NaoCobrarDialog({
         </Button>
         <Button
           type="button"
-          variant="danger"
+          variant="primary"
           size="sm"
           onClick={confirmar}
           disabled={salvando || (escopo === 'serie' && !alvo)}
         >
-          {salvando ? 'Aplicando…' : 'Confirmar'}
+          {salvando ? 'Aplicando…' : 'Suspender cobrança'}
         </Button>
       </div>
     </Modal>
