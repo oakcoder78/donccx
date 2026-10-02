@@ -1308,7 +1308,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                   key={opt.v}
                   type="button"
                   onClick={() => set('billing_type', opt.v)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${form.billing_type === opt.v ? 'bg-donc-navy text-white border-donc-navy' : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
+                  disabled={activeReadOnly}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${form.billing_type === opt.v ? 'bg-donc-navy text-white border-donc-navy' : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
                 >
                   {opt.l}
                 </button>
@@ -1318,16 +1319,16 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label-sm">Valor por {form.billing_type === 'por_os' ? 'OS' : 'licença'} (R$)</label>
-                <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.0001" placeholder="—" />
+                <input name="billing_base_value" type="number" value={form.billing_base_value} onChange={handleChange} className="input-base w-full" min="0" step="0.0001" placeholder="—" disabled={activeReadOnly} />
               </div>
               <div>
                 <label className="label-sm">Piso mínimo ({form.billing_type === 'por_os' ? 'OS/mês' : 'licenças'})</label>
-                <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" />
+                <input name="billing_floor" type="number" value={form.billing_floor} onChange={handleChange} className="input-base w-full" min="0" placeholder="—" disabled={activeReadOnly} />
               </div>
               {form.correction_rule !== 'percentual' && (
                 <div className="col-span-2">
                   <label className="label-sm">Índice de reajuste</label>
-                  <input name="correction_index" value={form.correction_index} onChange={handleChange} className="input-base w-full" placeholder="Ex: IPCA, IGP-M" />
+                  <input name="correction_index" value={form.correction_index} onChange={handleChange} className="input-base w-full" placeholder="Ex: IPCA, IGP-M" disabled={activeReadOnly} />
                 </div>
               )}
             </div>
@@ -1410,12 +1411,18 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     }
                     set('billing_status', opt.v)
                   }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${form.billing_status === opt.v ? opt.c : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
+                  disabled={activeReadOnly}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${form.billing_status === opt.v ? opt.c : 'bg-white text-text-secondary border-border-tertiary hover:bg-bg-secondary'}`}
                 >
                   {opt.l}
                 </button>
               ))}
             </div>
+            {activeReadOnly && (
+              <p className="text-[11px] text-text-tertiary">
+                Série encerrada: o status fica gravado como está. Para mudar, reabra a série.
+              </p>
+            )}
           </FormSection>
 
           {['admin', 'manager', 'finance', 'sales'].includes(effectiveRole) && (
@@ -1504,7 +1511,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                 <button
                   type="button"
                   onClick={toggleAll}
-                  className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary"
+                  disabled={activeReadOnly}
+                  className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className={`w-7 h-4 rounded-full transition-colors flex-shrink-0 ${allActive ? 'bg-donc-lime' : 'bg-border-secondary'}`}>
                     <span className={`block w-2.5 h-2.5 bg-white rounded-full shadow transition-transform ${allActive ? 'translate-x-3' : ''}`} style={{ marginTop: '3px', marginLeft: '3px' }} />
