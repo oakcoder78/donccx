@@ -853,6 +853,27 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     onSuccess?.(clientId)
   }
 
+  /**
+   * As ações de ciclo de vida gravam direto no banco via RPC. O form é um buffer
+   * semeado UMA vez (o efeito de seeding retorna se seriesReady), então sem isto
+   * salvar depois sobrescreve o que a RPC gravou — que é como "não cobrar" numa
+   * série terminava invertendo o status de todas as outras.
+   *
+   * Volta o form ao estado do banco. Custo: edições não salvas da aba Contrato
+   * são descartadas. Aceitável, porque a ação é uma decisão sobre o banco e o
+   * buffer local já não representa a verdade.
+   */
+  function resincronizarComBanco() {
+    setSeriesReady(false)
+    qc.removeQueries({ queryKey: ['client', clientId] })
+    qc.removeQueries({ queryKey: ['contract_charges', clientId] })
+    qc.removeQueries({ queryKey: ['contract_series', clientId] })
+    qc.removeQueries({ queryKey: ['billing_os_tiers', clientId] })
+    qc.invalidateQueries({ queryKey: ['clients'] })
+    qc.invalidateQueries({ queryKey: ['series_vencidas'] })
+    qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
+  }
+
   // Reabrir age direto no banco (não é edição de form): a RPC reconstrói a cauda
   // de recorrência. Por isso o botão recarrega o cliente em vez de pedir save.
   const [reabrindo, setReabrindo] = useState(false)
@@ -862,11 +883,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     try {
       const { error } = await supabase.rpc('reabrir_series', { p_series_id: activeSeries.id })
       if (error) throw error
-      qc.removeQueries({ queryKey: ['client', clientId] })
-      qc.removeQueries({ queryKey: ['contract_charges', clientId] })
-      qc.removeQueries({ queryKey: ['contract_series', clientId] })
-      qc.invalidateQueries({ queryKey: ['clients'] })
-      qc.invalidateQueries({ queryKey: ['series_vencidas'] })
+      resincronizarComBanco()
       toast.success('Série reaberta — os meses à frente foram repostos')
     } catch (e) {
       toast.error(e?.message || 'Falha ao reabrir a série')
@@ -886,9 +903,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
         p_series_id: activeSeries.id,
       })
       if (error) throw error
-      qc.removeQueries({ queryKey: ['client', clientId] })
-      qc.removeQueries({ queryKey: ['contract_series', clientId] })
-      qc.invalidateQueries({ queryKey: ['clients'] })
+      resincronizarComBanco()
       toast.success('Cobrança reativada nesta série')
     } catch (e) {
       toast.error(e?.message || 'Falha ao reativar a cobrança')
@@ -1846,12 +1861,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           onClose={() => setEncerrarOpen(false)}
           onDone={() => {
             setEncerrarOpen(false)
-            qc.removeQueries({ queryKey: ['client', clientId] })
-            qc.removeQueries({ queryKey: ['contract_charges', clientId] })
-            qc.removeQueries({ queryKey: ['contract_series', clientId] })
-            qc.invalidateQueries({ queryKey: ['clients'] })
-            qc.invalidateQueries({ queryKey: ['series_vencidas'] })
-            qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
+            resincronizarComBanco()
             toast.success('Série encerrada')
           }}
         />
@@ -1866,7 +1876,8 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           onClose={() => setNaoCobrarOpen(false)}
           onDone={() => {
             setNaoCobrarOpen(false)
-            set('billing_status', 'nao_bilhetavel')
+            resincronizarComBanco()
+            toast.success('Status de cobrança aplicado')
           }}
         />
       )}
