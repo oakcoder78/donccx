@@ -1262,7 +1262,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     <Button
                       type="button" variant="secondary" size="sm"
                       onClick={() => setEncerrarOpen(true)}
-                      className="text-donc-red"
+                      className="!text-donc-red"
                     >
                       Encerrar série…
                     </Button>
