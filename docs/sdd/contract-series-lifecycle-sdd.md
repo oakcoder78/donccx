@@ -114,21 +114,50 @@ Isso vale para os dois caminhos do diálogo de encerramento. Apagar e reabrir vo
 
 Única exceção: série encerrada **sem nenhuma recorrência lançada** não tem linha para replicar. A reabertura é recusada com mensagem pedindo o lançamento no form — que o `validateSeriesList` já exige antes de qualquer save.
 
-### 1.5 Suspender é conceder, não zerar
+### 1.5 Concessão é concessão, e é um caminho — o caminho da concessão
 
-Suspensão por dificuldade financeira **não zera a linha**. Ela representa perda de receita, e a gestão precisa saber que existem X reais em descontos.
+> **Correção 2026-10-03.** Esta seção dizia que a suspensão foi modelada como
+> concessão e que `billing_status = 'suspenso'` foi removido. A segunda metade é verdade; a
+> primeira nunca foi implementada. O texto antigo descrevia o desenho pretendido como se
+> estivesse em operação. Ver "Três mecanismos e um nome" abaixo.
 
-Por isso a suspensão é modelada como **concessão temporária**: `billing_exceptions` com vigência, já existente no cockpit (`ExcecaoModal`), com quatro tipos — `isencao_total`, `desconto_percent`, `valor_reduzido`, `desconto_unidade`. A recorrência mantém o valor contratado; a concessão aplica-se por cima só no período.
+Suspensão por dificuldade financeira **não zera a linha**. Ela representa perda de receita, e a gestão precisa saber que existem X reais em descontos. A concessão existe para isso: `billing_exceptions` com vigência, quatro tipos — `isencao_total`, `desconto_percent`, `valor_reduzido`, `desconto_unidade` — operada no cockpit por `ExcecaoModal`. A recorrência mantém o valor contratado; a concessão aplica-se por cima só no período.
 
-Consequência: o conceito `billing_status = 'suspenso'` é **removido**. Nenhuma série o usa hoje, então a remoção não custa migração.
+Consequência: o conceito `billing_status = 'suspenso'` é **removido**. Nenhuma série o usa hoje, então a remoção não custa migração. Confirmado em produção: `suspenso` = 0 séries, `billing_suspended_until` = 0 linhas não nulas.
+
+**Três mecanismos e um nome.** O codebase tem três coisas distintas, e duas delas carregam
+o nome "suspender" para quem opera:
+
+| Mecanismo | Como se manifesta | Inverso como | Estado real |
+|---|---|---|---|
+| **Concessão** | `billing_exceptions` + `ExcecaoModal`, no cockpit | Lançar a concessão | Tabela e modal existem; **0 concessões concedidas** — nunca operada |
+| **Não cobrar** | `set_nao_cobrar` → `billing_status='nao_bilhetavel'`, no form do cliente | `set_nao_cobrar(..., NULL)` | **7 séries** em `nao_bilhetavel` |
+| Suspensão por data | `billing_suspended_until` | — | **Morta**: coluna vazia, e o trigger a zera sempre que o status não é `suspenso` |
+
+O diálogo deste documento se chama **"Suspender cobrança"** e chama `set_nao_cobrar`, ou
+seja, ele opera o segundo mecanismo — um flag permanente de faturamento, sem concessão e
+sem data. Não é a concessão da primeira linha, e não volta sozinho como concessão volta.
+
+Isso é uma **colisão de nome entre dois mecanismos reais**, não uma implementação
+faltando. O nome foi escolhido na discussão da entrega (o antigo "Não cobrar" foi
+renomeado porque soava como crime), e a decisão sobre unificar ficou em aberto. Ver
+`TD-015` no backlog.
+
+**Código morto.** `check_billing_suspended_until` mantém o primeiro ramo que zera
+`billing_suspended_until`, e `_financeiro_series_month` ainda tem o filtro de `suspenso`.
+São inalcançáveis com os dados atuais, mas ficam como rede de segurança caso alguém
+reintroduza o status. Não removi: derrubar coluna e reescrever a função do cockpit é
+migração com risco de alterar MRR histórico, e o benefício é zero enquanto nada
+escrever `'suspenso'`. Se a decisão de `TD-015` passar a usar data, o código volta a ser
+necessário.
 
 O rótulo de concessão "não pagar por 6 meses" é `isencao_total`; "pagar 70%" é `desconto_percent`. A distinção entre "o contrato diz isso" e "aqui estamos conceder isso" é o que separa **regra de recorrência** de **concessão**, e as duas coisas precisam continuar separadas:
 
 | | Regra de recorrência | Concessão (`billing_exceptions`) |
 |---|---|---|
-| O que é | O valor contratado | Umobenefício comercial sobre o contratado |
+| O que é | O valor contratado | Um benefício comercial sobre o contratado |
 | Como se expressa | N períodos contíguos 1..N | 4 tipos com `valid_from`/`valid_to` |
-| Exemplo | Contrato de 36 meses: 12 × R$ 2.500 e depois 24 × R$ 5.000 | difficulty passage: 6 meses de isenção |
+| Exemplo | Contrato de 36 meses: 12 × R$ 2.500 e depois 24 × R$ 5.000 | Dificuldade financeira: 6 meses de isenção |
 | Alcance | A série inteira | Por série ou por cliente |
 | Onde | Form do cliente (períodos ilimitados) | Cockpit (`+ Exceção`) |
 
@@ -430,7 +459,9 @@ errada em silêncio.
 | 11 | O save gravava `contract_months: s.N` | Salvar uma série **encerrada** sobrescrevia o prazo assinado pelo N de registros. No cliente 21 (prazo 36, 49 registrados) salvar renomeando o cliente deixaria o prazo 49 | `N` é igual ao prazo em série **ativa**, então o bug só aparece depois que a Fase C passou a usar N = "o que foi registrado" |
 | 12 | `saveCharges` apagava **todas** as cobranças da série e reinseria as do form | Abrir o cliente 21, não mudar nada e salvar destruía 25 linhas de faturamento real (2025-11 a 2027-10). Voltavam porque `ensure_series_horizon` roda depois e reconstrói — ou seja, a integridade dependia de a reconstrução acertar | O horizonte mascara a perda: depois do save o estado final fica certo. Só apareceu ao comparar a quantidade de linhas com o que o form realmente edita (36) |
 
-**Lição que os dez têm em comum:** nenhum é um erro de cálculo. São erros de
+| 13 | §1.5 descrevia a concessão como caminho de suspensão, e o diálogo "Suspender cobrança" opera `nao_bilhetavel` | Quem lesse o documento acharia que suspender cobrança é lançar concessão. Não é: o diálogo liga uma flag permanente sem data. As 7 séries em `nao_bilhetavel` não têm concessão nenhuma | O documento passou a Fase E inteiro descrevendo um desenho, e o texto não foi conferido contra `pg_proc` depois. `billing_exceptions` existia, e isso foi tomado como "a concessão está no lugar" |
+
+**Lição que os treze têm em comum:** nenhum é um erro de cálculo. São erros de
 **contrato entre camadas** — entre o que a tela mostra e o que o buffer é, entre o
 que a RPC grava e o que o motor lê, entre o que duas colunas com o mesmo nome
 significam. Build, lint e teste de unidade não olham nenhuma dessas fronteiras.

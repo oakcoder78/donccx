@@ -7,7 +7,7 @@
 
 ## How to use
 
-1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-015`**), add to "Open items" and to the Summary table.
+1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-016`**), add to "Open items" and to the Summary table.
 2. **Ordenação:** Summary table e blocos seguem a mesma regra — prioridade H→L; no empate, `TD-###` antes de `IDEA-###`, depois ID ascendente. `Closed items` em data-desc (mais recente primeiro).
 3. **Triaging:** bump Priority; mark `Status: Ready` when scope is clear and effort is estimated.
 4. **Activating:** when work starts, create or link a SDD in `docs/sdd/` and set `Status: Active → docs/sdd/<name>-sdd.md`.
@@ -37,6 +37,7 @@
 | IDEA-003 | Idea | Reajuste anual assistido por série | M | Backlog | `docs/sdd/financeiro-cockpit-sdd.md` |
 | TD-013 | Bug | Cron exibido em UTC com `UTC_TO_BRT` somando 3h sobre horário já em BRT | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-014 | Refactor | Mover ações de ciclo de vida para o caminho de submit | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
+| TD-015 | Tech Debt | Unificar "Suspender cobrança" (`nao_bilhetavel`) com concessão (`billing_exceptions`) | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-010 | Refactor | Migrar estrutura-alvo de `docs/` (README em fases) | L | Backlog | — |
@@ -750,6 +751,83 @@ A tabela canônica é `client_donc_instances`, que carrega esses campos por cont
 - **Interno:** zero readers dessas colunas em `src/`, `supabase/functions/` ou `scripts/`. Edge Functions e scripts não as referenciam.
 - **Externo:** BI, exports ou integrações fora deste repositório que leiam `clients.app_code` / `clients.url_donc` quebrariam. Sem visibilidade aqui — registrar no log de deploy se houver essa dependência.
 - **Dados:** backfill cobre apenas primeira instância por cliente sem valor. Se uma empresa tem múltiplas instâncias e só uma delas estava populada, o backfill não sobrescreve — conservador e desejado.
+
+---
+
+### TD-015 — Unificar "Suspender cobrança" com concessão
+
+**Type:** Tech Debt
+**Priority:** M
+**Status:** Backlog
+**Origin:** 2026-10-03 — auditoria do §1.5 do SDD do ciclo de vida, achada ao registrar a verificação em produção
+**Linked SDD:** `docs/sdd/contract-series-lifecycle-sdd.md`
+**Related:** `ContractLifecycleDialogs.jsx`, `ExcecaoModal.jsx`, `set_nao_cobrar`, `_financeiro_series_month`, `check_billing_suspended_until`
+
+#### Context
+
+Existem **três** mecanismos de suspensão no codebase, e dois deles têm o mesmo nome para
+quem opera:
+
+| Mecanismo | Onde | Estado | Linhas |
+|---|---|---|---|
+| Concessão (`billing_exceptions`) | Cockpit, `ExcecaoModal` | Tabela e modal existem, **0 concessões** | 4 funções |
+| Não cobrar (`nao_bilhetavel`) | Form do cliente, diálogo "Suspender cobrança" | **7 séries** | `set_nao_cobrar` |
+| Suspensão por data (`billing_suspended_until`) | — | **Morta**: coluna vazia | trigger + cockpit |
+
+O diálogo "Suspender cobrança" — nome escolhido na Entrega 1, quando o antigo "Não cobrar"
+foi rejeitado por soar accusatório — opera o **segundo** mecanismo: um flag permanente de
+faturamento, sem concessão e sem data. O SDD §1.5 descrevia a suspensão como sendo o
+primeiro. Era contradição de nome entre dois mecanismos reais, não implementação faltando
+(registrado como defeito 13 na §4-bis).
+
+O peso de cada um é assimétrico: 7 séries em `nao_bilhetavel` contra 0 concessões. O
+caminho que ninguém usa é o que tem data; o que todo mundo usa não tem.
+
+#### Pergunta de decisão
+
+`nao_bilhetavel` deve virar concessão datada, `billing_exceptions` deve absorver o
+diálogo do form, ou os dois ficam separados e o que muda é **só o nome**?
+
+O que decide o custo:
+
+- **Flag → concessão datada** quebra as 7 séries existentes e mexe em `_financeiro_series_month`,
+  que hoje conta série encerrada e tem o filtro de `suspenso`. Risco de MRR histórico.
+- **Absorver no form** é interface apenas, sem migração, mas mantém dois lugares para a mesma
+  intenção.
+- **Só o nome** é o mais barato e resolve a confusão do próximo que lê. Não resolve a
+  pergunta de fundo: quem suspende por 6 meses sem querer zerar para sempre hoje não tem
+  caminho.
+
+#### Impacto colateral, se a decisão for por data
+
+`check_billing_suspended_until` e o filtro de `suspenso` em `_financeiro_series_month`
+passam a ser código necessário em vez de morto. Convém decidir isso **antes** de derrubar
+as duas coisas como limpeza.
+
+### Proposed approach
+
+1. Decidir a pergunta de decisão acima com o Financeiro — é decisão de negócio, não técnica.
+2. Se for "só o nome": renomear o diálogo para o que ele faz ("Não gerar cobrança desta
+   série" ou "Marcar como não faturável") e cruzá-lo com o `ExcecaoModal` no texto do cockpit.
+3. Se for concessão datada: migration primeiro, com backfill das 7 séries e `valid_from`
+   aberto (`valid_to` NULL = indeterminado), depois ajustar `_financeiro_series_month`.
+4. Em qualquer caminho: operar a concessão uma vez na tela antes de fechar, porque
+   `ExcecaoModal` tem **zero** registros e nunca foi exercitado.
+
+### Files
+
+- `docs/sdd/contract-series-lifecycle-sdd.md` (Modify — §1.5 já descreve os três mecanismos)
+- `src/components/clients/ContractLifecycleDialogs.jsx` (Modify — rótulo, se for só o nome)
+- `supabase/migrations/` (Create — só no caminho que exigir data)
+
+### Risks
+
+- **Não exercitada:** `ExcecaoModal` nunca rodou com registro real. Qualquer caminho que
+  dependa dele herda um bug não encontrado.
+- **MRR histórico:** `_financeiro_series_month` é a função que produz o MRR de referência.
+  Mexer nela exige recontar 26 séries contra o valor atual antes de aceitar o resultado.
+- **Sem dono:** essa decisão é do Financeiro. Ficar no backlog sem resposta é o mesmo
+  defeito 13 de novo, em outra forma.
 
 ---
 
