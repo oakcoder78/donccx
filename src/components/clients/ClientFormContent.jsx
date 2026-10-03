@@ -356,6 +356,16 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       (c) => c.series_id === activeSeries.id && c.kind === 'recorrencia' && c.ref_month > atual
     ).length
   }, [activeSeries?.id, existingCharges])
+
+  // O mês corrente só é uma decisão se ele tem cobrança emitida. Sem isso o
+  // diálogo perguntaria sobre um mês que não existe para esta série.
+  const mesAtualComCobranca = useMemo(() => {
+    if (!activeSeries?.id) return false
+    const atual = new Date().toISOString().slice(0, 7)
+    return existingCharges.some(
+      (c) => c.series_id === activeSeries.id && c.kind === 'recorrencia' && c.ref_month === atual
+    )
+  }, [activeSeries?.id, existingCharges])
   const activeReadOnly = activeSeries?.status === 'encerrada'
 
   /**
@@ -1940,6 +1950,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             series_label: activeSeries.label || KIND_LABELS[activeSeries.kind],
           }}
           mesesFuturos={mesesFuturosAtiva}
+          temMesAtual={mesAtualComCobranca}
           motivo={activeSeries.encerramento_motivo || ''}
           onClose={() => setEncerrarOpen(false)}
           onDone={async (patch) => {

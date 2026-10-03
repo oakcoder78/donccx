@@ -55,11 +55,16 @@ function Modal({ title, subtitle, children, onClose }) {
 export function EncerrarSerieDialog({
   series,
   mesesFuturos = 0,
+  temMesAtual = false,
   motivo = null,
   onClose,
   onDone,
 }) {
   const [remover, setRemover] = useState(true)
+  // Só aparece quando o mês corrente tem cobrança emitida. Fechar em outubro e
+  // decidir se outubro também cai é uma decisão diferente de fechar a partir de
+  // novembro — e o encerramento não pode assumir.
+  const [removerMesAtual, setRemoverMesAtual] = useState(false)
   const [comMulta, setComMulta] = useState(false)
   const [valorMulta, setValorMulta] = useState('')
   const [motivoMulta, setMotivoMulta] = useState('')
@@ -82,6 +87,7 @@ export function EncerrarSerieDialog({
       await callRpc('encerrar_series', {
         p_series_id: series.series_id,
         p_remover_futuro: remover,
+        p_remover_mes_atual: remover && removerMesAtual,
         p_eventual: comMulta
           ? {
               amount: Number(valorMulta),
@@ -159,8 +165,27 @@ export function EncerrarSerieDialog({
             </label>
           </fieldset>
 
+          {temMesAtual && (
+            <label className="flex items-start gap-2 text-xs text-text-primary cursor-pointer mb-3">
+              <input
+                type="checkbox"
+                checked={removerMesAtual}
+                onChange={(e) => setRemoverMesAtual(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Cancelar também o mês de agora
+                <span className="block text-text-tertiary">
+                  A cobrança deste mês já foi emitida. Deixe marcado para manter o que
+                  o cliente deve pagar agora.
+                </span>
+              </span>
+            </label>
+          )}
+
           <p className="text-[11px] text-text-tertiary mb-4">
-            As duas opções são reversíveis: reabrir a série reconstrói os meses à frente.
+            As opções são reversíveis: reabrir a série reconstrói o que foi removido.
+            Pagamentos nunca são apagados, nem de meses cancelados.
           </p>
         </>
       )}
