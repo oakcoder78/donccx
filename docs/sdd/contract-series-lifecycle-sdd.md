@@ -8,7 +8,7 @@ Documento de Spec-Driven Development — fonte canônica de **como uma série co
 
 **Por que um SDD separado e não mais um adendo no do cockpit.** A Phase 1 daquele documento (v1.0, 2026-09-11) desenhou `billing_status` com três estados, incluindo `suspenso`; a v1.7 decidiu "fatura zerada não existe". Este documento **reverte as duas decisões**. Além disso, é a primeira operação do sistema que **apaga linhas financeiras** (`contract_charges`), o que exige seção de risco, critérios de aceite e notas de rollback próprios — um perfil de risco que o SDD do cockpit não cobre. A regra do `docs/README.md` ("um assunto → um documento canônico") resolve o resto: o cockpit lê contratos, isto os altera.
 
-**Estado:** Fases A–E implementadas e verificadas em produção (2026-10-03), com fixture descartável. Ajustes de §1.2, §1.6 e §1.7 vieram do teste. Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N séries (exige `uuid[]`).
+**Estado:** Fases A–E implementadas e verificadas em produção (2026-10-03). A verificação usou uma fixture descartável (`ZZ Teste Ciclo de Vida`, duas séries), removida ao final — o checklist da Fase C abaixo segue com o teste no cliente 21 aberto, que é destrutivo. Ajustes de §1.2, §1.6 e §1.7 vieram do teste. Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N séries (exige `uuid[]`).
 
 ### How to use this document
 
