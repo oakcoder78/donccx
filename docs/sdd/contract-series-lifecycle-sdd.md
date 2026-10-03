@@ -8,7 +8,7 @@ Documento de Spec-Driven Development — fonte canônica de **como uma série co
 
 **Por que um SDD separado e não mais um adendo no do cockpit.** A Phase 1 daquele documento (v1.0, 2026-09-11) desenhou `billing_status` com três estados, incluindo `suspenso`; a v1.7 decidiu "fatura zerada não existe". Este documento **reverte as duas decisões**. Além disso, é a primeira operação do sistema que **apaga linhas financeiras** (`contract_charges`), o que exige seção de risco, critérios de aceite e notas de rollback próprios — um perfil de risco que o SDD do cockpit não cobre. A regra do `docs/README.md` ("um assunto → um documento canônico") resolve o resto: o cockpit lê contratos, isto os altera.
 
-**Estado:** drafted — aguardando portão de validação com o Financeiro antes de qualquer código.
+**Estado:** Fases A–E implementadas e verificadas em produção (2026-10-03), com fixture descartável. Ajustes de §1.2, §1.6 e §1.7 vieram do teste. Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N séries (exige `uuid[]`).
 
 ### How to use this document
 
@@ -87,19 +87,22 @@ Uma série nasce com um prazo (`contract_months`). Fazer o lançamento dos prime
 
 Encerrar significa que **aquele contrato não será mais cobrado**. É permanente enquanto a série não for reaberta.
 
-Três decisões que o encerramento precisa tomar:
+Quatro decisões que o encerramento precisa tomar:
 
 | Decisão | Padrão | Por quê |
 |---|---|---|
 | Meses futuros já lançados | Cancelar e não registrar | Eram folga, nunca foram contratados (caso do cliente no mês a mês) ou foram cancelados por acordo (caso do contrato vigente) |
+| **Mês corrente** | **Manter** | A cobrança já foi emitida e ainda é cobrável. Cancelá-la é uma decisão, não um detalhe — daí ser uma opção à parte (`p_remover_mes_atual`), não um efeito colateral |
 | `contract_renewal` | `NULL` | Contrato encerrado não tem renovação. Alimenta só o KPI de renovações em 30 dias, o filtro da lista e a tela do cliente — todos ficam certos com `NULL` |
 | `contract_months` | **Preservado** | É o registro do que foi contratado. Não alimenta decisão |
 
 `contract_renewal = NULL` é coerente com `contract_months` preservado: o prazo continua sendo um fato, a renovação deixa de existir.
 
+**O motivo do encerramento vai em `encerramento_motivo`, não em `reason`.** `reason` descreve a série — por que a renegociação existe — e sobrescrever o apagava para sempre. Testado: renegociação com motivo "Desconto de 20% por volume contratado", encerrada com "Cliente pediu cancelamento do contrato" deixava o motivo original como `(nulo)`. `reabrir_series` limpa `encerramento_motivo` pelo mesmo motivo que recalcula a renovação: os dois descrevem o estado atual da série.
+
 ### 1.3 Encerrar não é apagar pagamento
 
-Ao encerrar, apagam-se `contract_charges` acima do mês corrente. **`billing_payments` nunca é apagado** — inclusive o de meses futuros. Cliente que paga adiantado tem dinheiro entrando; apagar o registro seria errado. Hoje a UI não cria essa situação (as opções do `PaymentToggle` só trazem meses com dado de uso, que são passados), então é uma escolha defensiva para o futuro, mas o correto é preservar.
+Ao encerrar, apagam-se `contract_charges` acima do mês corrente — ou a partir do mês anterior, se o mês corrente também for cancelado (§1.2). **`billing_payments` nunca é apagado** — inclusive o de meses futuros. Cliente que paga adiantado tem dinheiro entrando; apagar o registro seria errado. Hoje a UI não cria essa situação (as opções do `PaymentToggle` só trazem meses com dado de uso, que são passados), então é uma escolha defensiva para o futuro, mas o correto é preservar.
 
 ### 1.4 Reabrir é sempre o caminho
 
@@ -129,9 +132,9 @@ O rótulo de concessão "não pagar por 6 meses" é `isencao_total`; "pagar 70%"
 
 "Contrato de 36 meses, nos 12 primeiros cobro metade" já é regra de recorrência e funciona hoje — `Adicionar período` não tem limite e `validateRulesContiguous` só exige cobertura contígua de 1..N.
 
-### 1.6 "Não cobrar" pergunta o escopo
+### 1.6 "Suspender cobrança" pergunta o escopo
 
-Não cobrar é uma ação sobre o cliente, mas **o escopo não é óbvio**: se o cliente tem duas séries ativas e quer encerrar uma, o caminho é **Encerrar série**, não "Não cobrar".
+Suspender cobrança é uma ação sobre o cliente, mas **o escopo não é óbvio**: se o cliente tem duas séries ativas e quer parar de lançar uma, o caminho pode ser **Encerrar série** (definitivo) ou só suspender aquela (reversível).
 
 Então o diálogo pergunta:
 
@@ -142,7 +145,7 @@ O botão **Não cobrar** materializa o cliente inteiro; o botão **Encerrar sér
 
 Propagar para todas as séries ativas é o que falta hoje (§0c).
 
-### 1.7 "Não cobrar" não interrompe a materialização
+### 1.7 "Suspender cobrança" não interrompe a materialização
 
 As linhas continuam sendo criadas para séries não-biletáveis. Reverter fica instantâneo porque os meses já existem, sem buraco até o próximo job.
 
@@ -399,6 +402,38 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | — | — | — | — |
+
+---
+
+## 4-bis. Defeitos encontrados na verificação manual
+
+Nenhum destes apareceu em build, em revisão ou nos testes de SQL das fases. Todos
+apareceram quando alguém operou a tela de verdade, sobre uma fixture descartável
+(cliente "ZZ Teste Ciclo de Vida", duas séries). O padrão é o mesmo em quase todos:
+**o banco estava certo e a tela dizia a coisa errada**, ou o banco fazia a coisa
+errada em silêncio.
+
+| # | Defeito | Como se manifestava | Por que escapou |
+|---|---|---|---|
+| 1 | `ensure_series_horizon` só aplicava o teto do prazo com `auto_renew=false AND billing_end IS NOT NULL` | Contrato encerrado continuava sendo lançado até `current+12`. O caso da série vencida — renovação desligada, `billing_end` nulo — é justamente o que pulava o clamp | A fixture da série vencida nunca passou por `ensure_series_horizon`; os testes anteriores só cobriam `auto_renew=true` |
+| 2 | `ensure_series_horizon` apagava `billing_payments` de meses futuros | Contrariava §1.3. Só apareceu ao corrigir (1), porque com o clamp certo o prepay passou a estar acima da última recorrência | O teste que exercitava o reaproveitamento nunca tinha pagamento órfão |
+| 3 | O `onDone` de "Não cobrar" escrevia no buffer da série **ativa**, sem olhar o escopo | Marcar "só a série Vencida" marcou a Original, o cliente inteiro saiu do faturamento, e a série realmente escolhida voltou para ativa no save seguinte | `form` é o buffer da série ativa; pareceria inofensivo lendo só o nome do campo |
+| 4 | O form semeia o estado **uma vez**; ação de ciclo de vida não ressemeava | Salvar sobrescrevia o que a RPC gravou | Só apareceu ao combinar ação de ciclo de vida com o botão Salvar |
+| 5 | `resincronizarComBanco` descartava edições não salvas das 7 seções por-série | Suspender cobrança apagava trabalho em Plano, Recorrência, Eventuais, Faixas e Produtos | Nenhuma verificação checava o que acontecia com o resto do form |
+| 6 | `aplicarNoForm` referenciava `clientId`, que só existe no `handleSubmit` | ReferenceError **depois** do patch: a série mudava na tela, as contagens não, e o erro parecia falha da ação | `clientId` é nome plausível; o `setSeriesReady(false)` da versão anterior rodava antes de estourar, o re-seed completava e o erro aparecia em lugar nenhum |
+| 7 | Encerrar só travava a folha até o fim do bloco da série | Daí para baixo tudo editável, e suspender ainda abria diálogo numa série encerrada | `activeReadOnly` era passado corretamente para 3 seções e faltava em 2 — sem teste de cobertura |
+| 8 | `contract_series.reason` fazia dois papéis | Encerrar uma renegociação apagava o motivo pelo qual ela existia | Nada escrevia nos dois campos ao mesmo tempo |
+| 9 | `_financeiro_series_month` filtrava por `status='ativa'` | Encerrar zerava o MRR de **todos** os meses, inclusive os pagos | O teste olhava o mês corrente, não o histórico |
+| 10 | Suspender ("Não cobrar") confirmava com `variant="danger"` | Ação reversível visualmente idêntica à irreversível | `danger` é a única cor de perigo da paleta e foi usada por costume |
+
+**Lição que os dez têm em comum:** nenhum é um erro de cálculo. São erros de
+**contrato entre camadas** — entre o que a tela mostra e o que o buffer é, entre o
+que a RPC grava e o que o motor lê, entre o que duas colunas com o mesmo nome
+significam. Build, lint e teste de unidade não olham nenhuma dessas fronteiras.
+
+O que pega esses casos é operar a tela com dados que ninguém planejou: uma segunda
+série, um mês corrente com cobrança emitida, uma renegociação que existe para ter
+motivo. Vale criar a fixture antes da implementação, não depois do primeiro bug.
 
 ---
 

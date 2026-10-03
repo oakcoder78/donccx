@@ -7,7 +7,7 @@
 
 ## How to use
 
-1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-014`**), add to "Open items" and to the Summary table.
+1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-015`**), add to "Open items" and to the Summary table.
 2. **Ordenação:** Summary table e blocos seguem a mesma regra — prioridade H→L; no empate, `TD-###` antes de `IDEA-###`, depois ID ascendente. `Closed items` em data-desc (mais recente primeiro).
 3. **Triaging:** bump Priority; mark `Status: Ready` when scope is clear and effort is estimated.
 4. **Activating:** when work starts, create or link a SDD in `docs/sdd/` and set `Status: Active → docs/sdd/<name>-sdd.md`.
@@ -36,6 +36,7 @@
 | TD-012 | Tech Debt | Decidir entre migrations versionadas e aplicação via MCP | M | Backlog | — |
 | IDEA-003 | Idea | Reajuste anual assistido por série | M | Backlog | `docs/sdd/financeiro-cockpit-sdd.md` |
 | TD-013 | Bug | Cron exibido em UTC com `UTC_TO_BRT` somando 3h sobre horário já em BRT | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
+| TD-014 | Refactor | Mover ações de ciclo de vida para o caminho de submit | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-010 | Refactor | Migrar estrutura-alvo de `docs/` (README em fases) | L | Backlog | — |
@@ -312,6 +313,60 @@ Vale decidir junto com TD-011, que já mexe em `SettingsSyncStatus` e pode acaba
 - A tela mostra um horário que bate com o que aparece em `cron.job_run_details`
 - A conversão está documentada na tela (qual fuso é qual)
 - Um teste cobre um schedule de UTC que atravessa a meia-noite BRT (é justamente o caso do dia 1)
+
+---
+
+### TD-014 — Mover ações de ciclo de vida para o caminho de submit
+
+**Type:** Refactor
+**Priority:** M
+**Status:** Backlog
+**Parent:** —
+**Origin:** 2026-10-03 — a Entrega 1 da revisão da aba Contrato
+**Linked SDD:** `docs/sdd/contract-series-lifecycle-sdd.md`
+**Related:** `ClientFormContent.jsx`, `ContractLifecycleDialogs.jsx`
+
+#### Context
+
+Suspender cobrança, reativar, encerrar e reabrir gravam no banco via RPC e
+**não passam pelo botão Salvar**. Toda a aba Contrato, fora essas quatro ações, é
+buffer que só vira dados no submit.
+
+Dois caminhos de escrita para os mesmos campos foi o que produziu cinco dos dez
+defeitos da seção 4-bis do SDD. A Entrega 1 mitigou o dano — a edição não salva
+sobrevive porque o patch é cirúrgico — mas a classe de bug continua aberta: basta
+uma ação nova que esqueça de atualizar o buffer, e o próximo Salvar desfaz.
+
+O trigger concreto do incômodo não foi técnico. Alguém suspendeu a cobrança,
+depois clicou em Cancelar, e saiu achando que nada tinha acontecido. O Cancelar
+cancela o formulário; a ação já estava no banco. O problema é que a tela não
+esconde que a seção Status se aplica na hora.
+
+#### Proposed approach
+
+Ordem de preferência:
+
+1. **Marcar a seção como "aplica-se já"** e dar a ela um feedback persistente
+   (badge na seção + desfazer). Barato, resolve a confusão, não resolve a classe.
+2. **Travar as ações enquanto houver edição não salva** — o diálogo oferece "Salvar
+   e continuar". Exige um flag `isDirty`, que hoje não existe.
+3. **Mover tudo para o submit**: encerrar vira uma intenção pendente na série e a
+   RPC roda no save. Um caminho de escrita só, some a classe. Custo: encerrar passa
+   a exigir Salvar, e a dialogo precisa explicar que nada foi gravado ainda.
+
+Independente da opção escolhida: documentar no `AGENTS.md` que ações de ciclo de vida
+gravam fora do submit, porque é o tipo de coisa que se esquece.
+
+#### Files
+
+- `src/components/clients/ClientFormContent.jsx` (Modify)
+- `src/components/clients/ContractLifecycleDialogs.jsx` (Modify)
+- `AGENTS.md` (Modify — seção de Surpresas)
+
+#### Acceptance
+
+- Nenhuma ação de ciclo de vida depende de o usuário descobrir que ela já gravou
+- O caminho de escrita dos campos de billing_status tem um dono só
 
 ---
 

@@ -122,6 +122,9 @@ Terse, technical. No articles, filler, pleasantries. Write artifacts to files �
 
 ## Implementation Details Easy to Miss
 
+- **Ações de ciclo de vida gravam FORA do botão Salvar.** Suspender cobrança, reativar, encerrar e reabrir chamam RPC e commitam na hora; o resto da aba Contrato é buffer que só vira dado no submit. `ClientFormContent` é semeado uma vez (`seriesReady`), então quem chama uma dessas ações tem de atualizar o buffer à mão — `aplicarNoForm` faz isso, e `resincronizarCobrancasDaSerie` recalcula o que vem de cobranças. Uma ação nova que esqueça disso é desfeita pelo próximo Salvar. Ver `docs/sdd/contract-series-lifecycle-sdd.md` §4-bis.
+- **`clientId` só existe dentro do `handleSubmit`.** Fora dele o id do cliente é `client?.id`. Usar `clientId` no corpo do componente dá ReferenceError em runtime e o build não pega.
+- **Tailwind resolve empate de cor pela ordem de emissão no CSS, não pela ordem no atributo.** `donc` vem antes de `text` em `tailwind.config.js`, então `className="text-donc-red"` perde para o `text-text-primary` de um `variant="secondary"`. Use `!text-donc-red`.
 - `vite.config.js` injects `__COMMIT_HASH__` at build time via `git rev-parse --short HEAD`.
 - SPA rewrite in `vercel.json`: `/(.*) -> /index.html`.
 - QueryClient defaults: `staleTime: 30s`, `retry: 1`, `gcTime: 5m`.
