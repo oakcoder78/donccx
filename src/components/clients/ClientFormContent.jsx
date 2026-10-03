@@ -144,6 +144,74 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   const { data: billingExceptions = [] } = useBillingExceptions(client?.id)
   const [pendingFiles, setPendingFiles] = useState([])
 
+  // ── Derivação de uma série a partir do banco ────────────────────────────────
+  // toMods / toTiers / seedServices e semearSerie vivem no nível do componente
+  // porque são usados em dois lugares: a semeadura inicial e a re-sincronização
+  // depois de uma ação de ciclo de vida. Duplicar a regra de N/prazo já gerou
+  // divergência uma vez — o form mostrando 12 períodos com 15 no banco.
+
+  const toMods = (list) => {
+    const init = {}
+    ;(list || []).forEach(mp => {
+      const catalogEntry = client?.client_catalog?.find(cc => cc.catalog_item_id === mp.catalog_item_id)
+      init[mp.catalog_item_id] = {
+        active: true,
+        value: mp.additional_value != null ? String(mp.additional_value) : '',
+        status: catalogEntry?.status || 'implantado',
+      }
+    })
+    return init
+  }
+
+  const toTiers = (list) => (list || []).map(t => ({
+    tier_order: t.tier_order, limit_to: t.limit_to,
+    fixed_value: Number(t.fixed_value), excess_unit_price: Number(t.excess_unit_price),
+  }))
+
+  // Serviços (client_catalog, sem série no banco) → seed na original
+  const servicoIds = new Set((catalog || []).filter(c => c.type === 'servico').map(c => c.id))
+  const seedServices = (client?.client_catalog || [])
+    .map(cc => cc.catalog_item_id)
+    .filter(id => servicoIds.has(id))
+
+  /**
+   * Deriva os campos que dependem das cobranças de uma série: N, períodos
+   * lançados e eventuais.
+   *
+   * contract_months é o prazo assinado; o N de regroupRecorrencia é o que
+   * acontece a estar materializado, que com auto_renew passa do prazo. O prazo
+   * vence para o form mostrar o contrato, não o horizonte — senão o horizonte de
+   * 12 meses apareceria como valor editável.
+   *
+   * Exceção: série encerrada é registro do que foi cobrado, não contrato a
+   * completar. Ela mostra os meses que existem, senão encerrar um contrato de 60
+   * meses no mês 40 faria o form exigir regras até 60 e recusar todo save —
+   * inclusive o de renomear o cliente.
+   */
+  function semearSerie(s, ch = [], extras = {}) {
+    const { rules, N } = regroupRecorrencia(ch)
+    const evs = regroupEventuais(ch)
+    const maxEv = evs.reduce(
+      (m, e) => Math.max(m, (Number(e.startMonth) || 1) + (Number(e.installments) || 1) - 1), 0
+    )
+    const termN = s.status === 'encerrada'
+      ? Math.max(N, maxEv, 1)
+      : (s.contract_months != null
+        ? Math.max(s.contract_months, maxEv, 1)
+        : Math.max(N, maxEv, 1))
+    return {
+      ...s,
+      billing_end: s.billing_end || '', reason: s.reason || '',
+      contract_months: s.contract_months ?? termN,
+      usage_driven: s.usage_driven ?? false,
+      correction_anniversary: s.correction_anniversary || '',
+      correction_percent: s.correction_percent ?? '',
+      correction_rule: s.correction_rule || '',
+      N: termN, rules: clampRulesToN(rules, termN), eventuais: evs,
+      mods: extras.mods || {}, tiers: extras.tiers || [], services: extras.services || [],
+    }
+  }
+
   // Sales creating empresa: default comercial to self so RLS insert passes (carteira)
   useEffect(() => {
     if (!isEdit && profile?.id && effectiveRole === 'sales' && !form.comercial_id) {
@@ -174,57 +242,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       if (!tiersBySeries[k]) tiersBySeries[k] = []
       tiersBySeries[k].push(t)
     })
-    const toMods = (list) => {
-      const init = {}
-      ;(list || []).forEach(mp => {
-        const catalogEntry = client?.client_catalog?.find(cc => cc.catalog_item_id === mp.catalog_item_id)
-        init[mp.catalog_item_id] = {
-          active: true,
-          value: mp.additional_value != null ? String(mp.additional_value) : '',
-          status: catalogEntry?.status || 'implantado',
-        }
-      })
-      return init
-    }
-    const toTiers = (list) => (list || []).map(t => ({
-      tier_order: t.tier_order, limit_to: t.limit_to,
-      fixed_value: Number(t.fixed_value), excess_unit_price: Number(t.excess_unit_price),
+    let built = existingSeries.map(s => semearSerie(s, bySeries[s.id] || [], {
+      mods: toMods(modsBySeries[s.id] || []),
+      tiers: toTiers(tiersBySeries[s.id] || []),
+      services: s.kind === 'original' ? [...seedServices] : [],
     }))
-    // Serviços (client_catalog, sem série no banco) → seed na original
-    const servicoIds = new Set((catalog || []).filter(c => c.type === 'servico').map(c => c.id))
-    const seedServices = (client?.client_catalog || [])
-      .map(cc => cc.catalog_item_id)
-      .filter(id => servicoIds.has(id))
-    let built = existingSeries.map(s => {
-      const ch = bySeries[s.id] || []
-      const { rules, N } = regroupRecorrencia(ch)
-      const evs = regroupEventuais(ch)
-      const maxEv = evs.reduce((m, e) => Math.max(m, (Number(e.startMonth) || 1) + (Number(e.installments) || 1) - 1), 0)
-      // contract_months is the signed term; regroupRecorrencia's N is whatever
-      // happens to be materialized, which with auto_renew runs past the term.
-      // The signed term wins so the form shows the contract, not the horizon.
-      // Exception: a closed series is a record of what was charged, not a
-      // contract to complete — it shows the months that actually exist, otherwise
-      // closing a 60-month contract at month 40 would make the form demand rules
-      // up to 60 and refuse every save (including renaming the client).
-      const termN = s.status === 'encerrada'
-        ? Math.max(N, maxEv, 1)
-        : (s.contract_months != null
-          ? Math.max(s.contract_months, maxEv, 1)
-          : Math.max(N, maxEv, 1))
-      return {
-        ...s,
-        billing_end: s.billing_end || '', reason: s.reason || '',
-        contract_months: s.contract_months ?? termN,
-        usage_driven: s.usage_driven ?? false,
-        correction_anniversary: s.correction_anniversary || '',
-        correction_percent: s.correction_percent ?? '',
-        correction_rule: s.correction_rule || '',
-        N: termN, rules: clampRulesToN(rules, termN), eventuais: evs,
-        mods: toMods(modsBySeries[s.id] || []), tiers: toTiers(tiersBySeries[s.id] || []),
-        services: s.kind === 'original' ? [...seedServices] : [],
-      }
-    })
     // Órfãos (legado sem série) → série original
     const orphan = bySeries.none || []
     const orphanMods = modsBySeries.none || []
@@ -876,15 +898,45 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     qc.invalidateQueries({ queryKey: ['series_vencidas'] })
     qc.invalidateQueries({ queryKey: ['financeiro_cockpit'] })
     qc.invalidateQueries({ queryKey: ['clients'] })
-    // A cauda de recorrência muda em encerrar/reabrir. As contagens derivadas
-    // (N meses, "projeção: …") vêm daqui e ficam desatualizadas até recarregar a
-    // página — em troca, nenhuma edição não salva se perde.
-    //
-    // client?.id e o id no escopo do componente. `clientId` só existe dentro do
-    // handleSubmit, e referenciá-lo aqui estourava ReferenceError DEPOIS do patch
-    // ja ter sido aplicado: a série mudava de estado na tela mas as contagens
-    // nunca eram recarregadas, e o erro subia como se a ação tivesse falhado.
-    qc.invalidateQueries({ queryKey: ['contract_charges', client?.id] })
+  }
+
+  /**
+   * Recalcula o que vem das cobranças de UMA série, depois que a ação alterou a
+   * cauda — é o que faz o form continuar mostrando 3 meses depois de "os 15
+   * voltaram", ou os 15 depois do encerramento.
+   *
+   * Só chamamos para as ações que mexem nas cobranças (encerrar, reabrir).
+   * Suspender e reativar não tocam nelas, e re-derivar ali sobrescreveria valores
+   * que o usuário acabou de digitar.
+   *
+   * Reaproveita semearSerie — a mesma função da semeadura inicial — para não
+   * duplicar a regra de prazo.
+   *
+   * client?.id e o id no escopo do componente. `clientId` só existe dentro do
+   * handleSubmit, e referenciá-lo aqui estourava ReferenceError DEPOIS do patch
+   * ja ter sido aplicado: a série mudava de estado na tela mas as contagens
+   * nunca eram recarregadas, e o erro subia como se a ação tivesse falhado.
+   */
+  async function resincronizarCobrancasDaSerie(seriesId, patch = {}) {
+    if (!seriesId) return
+    await qc.invalidateQueries({ queryKey: ['contract_charges', client?.id] })
+
+    const charges = qc.getQueryData(['contract_charges', client?.id]) || []
+    const base = seriesList.find(s => s.id === seriesId)
+    if (!base) return
+
+    const derivado = semearSerie(
+      { ...base, ...patch },
+      charges.filter(c => c.series_id === seriesId),
+      { mods: base.mods, tiers: base.tiers, services: base.services }
+    )
+    setSeriesList(prev => prev.map(s => (s.id === seriesId ? derivado : s)))
+
+    if (seriesId === activeSeries?.id) {
+      setContractN(derivado.N)
+      setContractRules(derivado.rules)
+      setEventuais(derivado.eventuais)
+    }
   }
 
   // Reabrir age direto no banco (não é edição de form): a RPC reconstrói a cauda
@@ -899,7 +951,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       const renewal = activeSeries.contract_months
         ? addMonthsClamped(activeSeries.billing_start, Number(activeSeries.contract_months))
         : null
-      aplicarNoForm(activeSeries.id, { status: 'ativa', contract_renewal: renewal })
+      const patch = { status: 'ativa', contract_renewal: renewal }
+      aplicarNoForm(activeSeries.id, patch)
+      await resincronizarCobrancasDaSerie(activeSeries.id, patch)
       toast.success('Série reaberta — os meses à frente foram repostos')
     } catch (e) {
       toast.error(e?.message || 'Falha ao reabrir a série')
@@ -1883,9 +1937,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           mesesFuturos={mesesFuturosAtiva}
           motivo={activeSeries.reason || ''}
           onClose={() => setEncerrarOpen(false)}
-          onDone={(patch) => {
+          onDone={async (patch) => {
             setEncerrarOpen(false)
             aplicarNoForm(activeSeries.id, patch)
+            await resincronizarCobrancasDaSerie(activeSeries.id, patch)
             toast.success('Série encerrada')
           }}
         />
