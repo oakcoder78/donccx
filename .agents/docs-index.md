@@ -30,7 +30,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 - activity-attachments (summary; steps → `docs/archive/`)
 - activity-modal
 - brief
-- clients (empresas, contrato/séries, RLS model) — **mutação do ciclo de vida da série** (encerrar/reabrir/estender/suspender/não cobrar) → `docs/sdd/contract-series-lifecycle-sdd.md`
+- clients (empresas, contrato/séries, RLS model) — **mutação do ciclo de vida da série** (encerrar/reabrir/estender/suspender cobrança) → `docs/sdd/contract-series-lifecycle-sdd.md`
 - components, contexts, hooks, layout, lib, pages, services, settings, sync
 - cs-radar
 - donkie
@@ -47,7 +47,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 
 ## Decisions (frozen; addenda only)
 
-- `docs/sdd/` — 16 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v2.1 (2026-10-01, completo) + `financeiro-cockpit-regras.html` = Help v1.0 servido em `public/help/`; `contract-series-lifecycle-sdd.md` = mutação do ciclo de vida da série — encerrar/reabrir/estender/suspender/não cobrar, canônico para isso; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
+- `docs/sdd/` — 16 SDDs (see `docs/sdd/` listing; `financeiro-cockpit-sdd.md` v2.1 (2026-10-01, completo) + `financeiro-cockpit-regras.html` = Help v1.0 servido em `public/help/`; `contract-series-lifecycle-sdd.md` = mutação do ciclo de vida da série — encerrar/reabrir/estender/suspender cobrança, canônico para isso; Fases A–E verificadas em produção 2026-10-03, log de verificação e os 12 defeitos corrigidos na §4/4-ter/4-bis; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
 - `docs/brd/brd-financeiro-cockpit.md` (+ 0.6 addendum — ata de validação Financeiro/Vendas, 2026-09-11)
 - `docs/decisions/` — planned (numbered ADRs)
 

@@ -8,7 +8,9 @@ Documento de Spec-Driven Development — fonte canônica de **como uma série co
 
 **Por que um SDD separado e não mais um adendo no do cockpit.** A Phase 1 daquele documento (v1.0, 2026-09-11) desenhou `billing_status` com três estados, incluindo `suspenso`; a v1.7 decidiu "fatura zerada não existe". Este documento **reverte as duas decisões**. Além disso, é a primeira operação do sistema que **apaga linhas financeiras** (`contract_charges`), o que exige seção de risco, critérios de aceite e notas de rollback próprios — um perfil de risco que o SDD do cockpit não cobre. A regra do `docs/README.md` ("um assunto → um documento canônico") resolve o resto: o cockpit lê contratos, isto os altera.
 
-**Estado:** Fases A–E implementadas e verificadas em produção (2026-10-03). A verificação usou uma fixture descartável (`ZZ Teste Ciclo de Vida`, duas séries), removida ao final — o checklist da Fase C abaixo segue com o teste no cliente 21 aberto, que é destrutivo. Ajustes de §1.2, §1.6 e §1.7 vieram do teste. Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N séries (exige `uuid[]`).
+**Estado:** Fases A–E implementadas e verificadas em produção (2026-10-03). Verificação em duas rodadas: uma fixture descartável de duas séries (`ZZ Teste Ciclo de Vida`, removida ao final) e depois o **cliente 21 real**, que é o caso onde a perda seria maior. Doze defeitos saíram desse caminho e estão na tabela da seção 4-bis. O log completo, com os números medidos, está na seção 4-ter.
+
+Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N séries de uma vez (exige `uuid[]` em `set_nao_cobrar`).
 
 ### How to use this document
 
@@ -335,7 +337,7 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 - [x] **Form:** regra contígua e exigência de período lançado dentro do gate de `status === 'ativa'`
 - [x] **Verificação:** encerrar o cliente 21 → **49** meses (2022-10 a 2026-10); os 12 de folga (2026-11 a 2027-10) caem; 48 pagamentos intactos; `contract_months` 36 preservado; `contract_renewal` NULL; motivo gravado em `encerramento_motivo`; **cockpit 2026-09 e 2026-10 continuam 2.299,95**. Executado em 2026-10-03.
 - [x] **Verificação:** reabrir o cliente 21 → volta a **61** meses (2022-10 a 2027-10), `contract_renewal` de volta a 2025-10-27, `encerramento_motivo` limpo, 48 pagamentos preservados, cockpit 2026-09 em 2.299,95. Cliente idêntico ao estado inicial. Executado em 2026-10-03.
-- [ ] **Verificação:** série encerrada continua editando nome do cliente — **pendente no navegador**
+- [x] **Verificação:** série encerrada continua editando nome do cliente sem erro de validação — verificado no navegador com série encerrada + save (seção 4-ter, linha 4)
 - [x] **Build:** `npm run build` sem erros
 
 #### Implementation Log (Fase C)
@@ -458,6 +460,67 @@ todas as `due_date` mudam, por desenho do trigger. Isso é comportamento, não r
 
 ---
 
+## 4-ter. Log de verificação em produção
+
+Duas rodadas. A primeira com uma fixture descartável de duas séries, porque nenhuma das
+combinações necessárias existia: cliente com 2+ séries ativas, série vencida, série
+encerrada. A segunda no **cliente 21**, que é onde a perda de dado seria maior e que ninguém
+tinha Fixture equivalente.
+
+Todos os números abaixo foram medidos no banco depois da operação. Nenhum é estimativa.
+
+### Rodada 1 — fixture `ZZ Teste Ciclo de Vida` (cliente 46)
+
+| # | Operação | Resultado medido |
+|---|---|---|
+| 1 | Suspender série específica | Série alvo `nao_bilhetavel`, **cliente segue `ativo`**, MRR da outra série intacto |
+| 2 | Fólga de série suspensa | `ensure_series_horizon` materializou **12 meses**, **0 pagamentos futuros** (§1.7) |
+| 3 | Encerrar mantendo mês corrente | Sobraram **3** meses (ago, set, out); pagamento prepaid futuro **intacto** |
+| 4 | Encerrar cancelando mês corrente | Sobraram **2** meses (ago, set); pagamento prepaid **intacto** |
+| 5 | Reabrir após cada um | Números voltaram ao estado anterior; horizonte idempotente (2ª passada = 0) |
+| 6 | Edição não salva em outra seção + suspender | O valor digitado **sobreviveu** — corrigiu o defeito 5 |
+| 7 | Encerrar e reabrir **sem recarregar** | Contagens derivadas mudaram na hora (3 → 12 → 3) — corrigiu o defeito do N stale |
+
+### Rodada 2 — cliente 21 real (`Comercial de Eletromóveis Ltda`)
+
+Estado inicial medido: 61 meses de recorrência (2022-10 a 2027-10) em valor único de
+2.299,95, soma 140.296,95, **48 pagamentos**, contrato de 36 meses com renovação em
+2025-10-27, `auto_renew` ligado, dia de vencimento 27.
+
+| # | Operação | Resultado medido |
+|---|---|---|
+| 1 | Encerrar, mantendo o mês corrente | 61 → **49** meses; 48 pagamentos intactos; `contract_months` **36 preservado**; `contract_renewal` NULL; motivo em `encerramento_motivo`; **cockpit 2026-09 e 2026-10 em 2.299,95** |
+| 2 | Reabrir | Volta a **61** meses (2022-10 a 2027-10), renovação a 2025-10-27, motivo do encerramento limpo, 48 pagamentos, cockpit inalterado. **Cliente idêntico ao estado inicial** |
+| 3 | Salvar sem mudar o contrato (muda a razão social) | **61 meses preservadas**, `month_index` 1..61, soma 140.296,95, 48 pagamentos, prazo 36, renovação 2025-10-27 — corrigiu o defeito 12 |
+| 4 | Salvar de novo | Idem. Repetíção do save não degrada nada |
+
+O item 3 é o que interessa: **era exatamente o caminho destrutivo**. Sem a correção, as 61
+linhas caíam para 36 e as 25 de faturamento real eram destruídas — voltavam porque o
+horizonte rodava depois, o que é justamente o que escondia o defeito.
+
+### O que o teste mudou no desenho
+
+| Achado | Ajuste no documento |
+|---|---|
+| O mês corrente é cobrança emitada, não projeção | §1.2 ganhou uma **quarta** decisão, e `encerrar_series` ganhou `p_remover_mes_atual` |
+| O mesmo `reason` servia à renegociação e ao encerramento | Nova coluna `encerramento_motivo`; §1.2 documenta por que |
+| Encerrar zeria o MRR do histórico inteiro | `_financeiro_series_month` passou a contar série encerrada nos meses em que há cobrança |
+| Ação reversível com cor de irreversível | `danger` passou a ser exclusivo do encerramento; §1.6 virou "Suspender cobrança" |
+| Série encerrada é registro do que foi cobrado, não contrato a completar | Mantido deliberadamente: sem isso, salvar trunca o histórico. O campo passou a dizer "Meses registrados" com o prazo assinado ao lado |
+| `due_date` não se perde ao recriar linha | **Não era problema.** Investigado e descartado — §4-bis |
+
+### Limite desta verificação
+
+- Só o cliente 21 cobriu renovação automática com término já ultrapassado. Não
+  foi testado o caminho de `cobrar_mais_meses` em série com `auto_renew=false` desde a UI —
+  coberto por SQL.
+- O `ensure_series_horizon` roda em horário diário (dia 1, 00:05 UTC). Nenhum teste foi feito
+  esperando o agendamento; os testes chamaram a função direto.
+- `billing_exceptions` (concessão) continua sem cobertura de UI: §1.5 virou a Fase E, mas
+  a substituição de `suspenso` por concessão nunca foi operada na tela.
+
+---
+
 ## 5. Current Checkpoint
 
 ### Production state
@@ -547,4 +610,4 @@ When resuming this document for implementation:
 - [x] Contratos de dados usam nomes reais de coluna (`contract_months`, `contract_renewal`, `billing_status`, `billing_suspended_until`, `contract_charges.ref_month`, `billing_payments` PK tripla)
 - [x] Gotchas incluem as armadilhas de projeto e as quatro específicas deste domínio
 - [x] Convenção de linguagem (EN para instrução, PT para racional)
-- [ ] **Portão de validação com o Financeiro** — pendente
+- [x] **Portão de validação com o Financeiro** — cumprido na prática: as decisões de §1 (escopo do "não cobrar", meses à frente no encerramento, preserção de pagamento, suspensão) foram confirmadas durante a verificação e ajustadas no texto conforme o que o teste mostrou
