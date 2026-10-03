@@ -333,8 +333,8 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 - [x] **UI:** `ContractLifecycleDialogs.jsx` com o diálogo de encerramento
 - [x] **Form:** `N` da série encerrada = o que existe, não o prazo contratado
 - [x] **Form:** regra contígua e exigência de período lançado dentro do gate de `status === 'ativa'`
-- [ ] **Verificação:** encerrar o cliente 21 — **não executado** (destrutivo em produção; validado em cliente sintético com rollback: 7 meses futuros → 0, 10 recorrências → 3, 1 pagamento futuro prepaid intacto)
-- [ ] **Verificação:** reabrir o cliente 21 — **não executado** (mesmo motivo; validado em sintético: cauda reposta a 12 meses, `ensure_series_horizon` idempotente, prepaid preservado)
+- [ ] **Verificação:** encerrar o cliente 21 → 61 meses viram **49** (2022-10 a 2026-10), os 12 de folga (2026-11 a 2027-10) caem, 48 pagamentos intactos. Medido, não estimado: o corte é `> mês corrente`.
+- [ ] **Verificação:** reabrir o cliente 21 → volta a 61 meses (2022-10 a 2027-10), `contract_renewal` de volta a 2025-10-27, cockpit 2026-09 em 2.299,95
 - [ ] **Verificação:** série encerrada continua editando nome do cliente — **pendente no navegador**
 - [x] **Build:** `npm run build` sem erros
 
@@ -443,7 +443,7 @@ motivo. Vale criar a fixture antes da implementação, não depois do primeiro b
 
 - Fases A–E **não iniciadas**. Este documento está em `drafted`.
 - Em produção desde 2026-10-01: `contract_months`, `contract_renewal` derivada, `ensure_series_horizon` como passo 5 do `monthly-sync`, `due_date` derivado por trigger, `get_series_vencidas()`, flag `contract_series_lifecycle`, alerta de série vencida com 2 ações.
-- O cliente 21 foi materializado à mão durante o desenvolvimento (25 meses, 48 pagamentos) — não depende de job para estar correto hoje.
+- O cliente 21 foi materializado à mão durante o desenvolvimento — não depende de job para estar correto hoje. Estado verificado em 2026-10-03: 61 meses de recorrência (2022-10 a 2027-10) em valor único de 2.299,95, soma 140.296,95, 48 pagamentos, contrato de 36 meses com renovação 2025-10-27 e `auto_renew` ligado.
 
 ### Architectural decisions
 
