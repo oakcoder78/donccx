@@ -93,10 +93,12 @@ export function EncerrarSerieDialog({
       })
       // O form recebe o patch em vez de recarregar do banco: recarregar reescreve
       // as seções por-série todas e joga fora edições não salvas.
+      // encerramento_motivo, e nao reason: reason descreve a serie (por que a
+      // renegociacao existe) e sobrescrever o apagaria.
       onDone?.({
         status: 'encerrada',
         contract_renewal: null,
-        reason: textoMotivo.trim() || series.reason || null,
+        encerramento_motivo: textoMotivo.trim() || null,
       })
     } catch (e) {
       setErro(e?.message || 'Falha ao encerrar a série')

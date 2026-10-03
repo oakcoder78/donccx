@@ -202,6 +202,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     return {
       ...s,
       billing_end: s.billing_end || '', reason: s.reason || '',
+      encerramento_motivo: s.encerramento_motivo || '',
       contract_months: s.contract_months ?? termN,
       usage_driven: s.usage_driven ?? false,
       correction_anniversary: s.correction_anniversary || '',
@@ -1184,7 +1185,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                   <div className="flex items-start justify-between gap-3 rounded border border-amber-200 bg-amber-50 px-2 py-1.5">
                     <p className="text-xs text-amber-700">
                       Série encerrada — somente leitura.
-                      {activeSeries.reason ? ` Motivo: ${activeSeries.reason}` : ''}
+                      {activeSeries.encerramento_motivo
+                        ? ` Motivo: ${activeSeries.encerramento_motivo}`
+                        : activeSeries.reason
+                          ? ` Motivo: ${activeSeries.reason}`
+                          : ''}
                     </p>
                     <Button
                       type="button"
@@ -1935,7 +1940,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             series_label: activeSeries.label || KIND_LABELS[activeSeries.kind],
           }}
           mesesFuturos={mesesFuturosAtiva}
-          motivo={activeSeries.reason || ''}
+          motivo={activeSeries.encerramento_motivo || ''}
           onClose={() => setEncerrarOpen(false)}
           onDone={async (patch) => {
             setEncerrarOpen(false)
