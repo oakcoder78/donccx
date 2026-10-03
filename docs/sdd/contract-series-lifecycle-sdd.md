@@ -333,8 +333,8 @@ Uma RPC em vez de três chamadas do front, porque o resultado é atômico: encer
 - [x] **UI:** `ContractLifecycleDialogs.jsx` com o diálogo de encerramento
 - [x] **Form:** `N` da série encerrada = o que existe, não o prazo contratado
 - [x] **Form:** regra contígua e exigência de período lançado dentro do gate de `status === 'ativa'`
-- [ ] **Verificação:** encerrar o cliente 21 → 61 meses viram **49** (2022-10 a 2026-10), os 12 de folga (2026-11 a 2027-10) caem, 48 pagamentos intactos. Medido, não estimado: o corte é `> mês corrente`.
-- [ ] **Verificação:** reabrir o cliente 21 → volta a 61 meses (2022-10 a 2027-10), `contract_renewal` de volta a 2025-10-27, cockpit 2026-09 em 2.299,95
+- [x] **Verificação:** encerrar o cliente 21 → **49** meses (2022-10 a 2026-10); os 12 de folga (2026-11 a 2027-10) caem; 48 pagamentos intactos; `contract_months` 36 preservado; `contract_renewal` NULL; motivo gravado em `encerramento_motivo`; **cockpit 2026-09 e 2026-10 continuam 2.299,95**. Executado em 2026-10-03.
+- [x] **Verificação:** reabrir o cliente 21 → volta a **61** meses (2022-10 a 2027-10), `contract_renewal` de volta a 2025-10-27, `encerramento_motivo` limpo, 48 pagamentos preservados, cockpit 2026-09 em 2.299,95. Cliente idêntico ao estado inicial. Executado em 2026-10-03.
 - [ ] **Verificação:** série encerrada continua editando nome do cliente — **pendente no navegador**
 - [x] **Build:** `npm run build` sem erros
 
@@ -425,6 +425,8 @@ errada em silêncio.
 | 8 | `contract_series.reason` fazia dois papéis | Encerrar uma renegociação apagava o motivo pelo qual ela existia | Nada escrevia nos dois campos ao mesmo tempo |
 | 9 | `_financeiro_series_month` filtrava por `status='ativa'` | Encerrar zerava o MRR de **todos** os meses, inclusive os pagos | O teste olhava o mês corrente, não o histórico |
 | 10 | Suspender ("Não cobrar") confirmava com `variant="danger"` | Ação reversível visualmente idêntica à irreversível | `danger` é a única cor de perigo da paleta e foi usada por costume |
+| 11 | O save gravava `contract_months: s.N` | Salvar uma série **encerrada** sobrescrevia o prazo assinado pelo N de registros. No cliente 21 (prazo 36, 49 registrados) salvar renomeando o cliente deixaria o prazo 49 | `N` é igual ao prazo em série **ativa**, então o bug só aparece depois que a Fase C passou a usar N = "o que foi registrado" |
+| 12 | `saveCharges` apagava **todas** as cobranças da série e reinseria as do form | Abrir o cliente 21, não mudar nada e salvar destruía 25 linhas de faturamento real (2025-11 a 2027-10). Voltavam porque `ensure_series_horizon` roda depois e reconstrói — ou seja, a integridade dependia de a reconstrução acertar | O horizonte mascara a perda: depois do save o estado final fica certo. Só apareceu ao comparar a quantidade de linhas com o que o form realmente edita (36) |
 
 **Lição que os dez têm em comum:** nenhum é um erro de cálculo. São erros de
 **contrato entre camadas** — entre o que a tela mostra e o que o buffer é, entre o
@@ -434,6 +436,25 @@ significam. Build, lint e teste de unidade não olham nenhuma dessas fronteiras.
 O que pega esses casos é operar a tela com dados que ninguém planejou: uma segunda
 série, um mês corrente com cobrança emitida, uma renegociação que existe para ter
 motivo. Vale criar a fixture antes da implementação, não depois do primeiro bug.
+
+### Suspeita que não se confirmou
+
+Ao consertar o defeito 12, alya-se que o mesmo save **destruído** recomputaria o
+`due_date` das linhas recriadas — e para série com reajuste no meio do prazo, a recriação
+replicaria a última linha e achataria o histórico de valores.
+
+**Não é problema.** `trg_sync_charge_due_date` só age em `kind='recorrencia'` e
+calcula `due_date` como função pura de (`due_day` da série, `ref_month`): clamp do dia no
+mês. Recriar a linha reproduz o mesmo valor por construção. Conferido nas 61 linhas do
+cliente 21: 61/61 batem com a fórmula, dia 27 em todas.
+
+Eventuais passam por outro caminho: o trigger não as toca, mas elas fazem round-trip
+`regroupEventuais` → `eventualStart` → `expandEventuais`, que preserva o dia —
+`regroupEventuais` lê `c.due_date` e `expandEventuais` o regrava a partir dali.
+Validado com 1 e com 3 parcelas: os dias 11, 11 e 11 sobreviveram ao round-trip.
+
+O que **não** é garantido pela correção do 12: se o usuário mudar o `due_day` da série,
+todas as `due_date` mudam, por desenho do trigger. Isso é comportamento, não regressão.
 
 ---
 

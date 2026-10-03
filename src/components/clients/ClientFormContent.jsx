@@ -367,6 +367,11 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     )
   }, [activeSeries?.id, existingCharges])
   const activeReadOnly = activeSeries?.status === 'encerrada'
+  // Prazo assinado e o que de fato foi contrato. Series encerrada pode ter N
+  // maior que o prazo (o contrato foi ultrapassado e seguiu no mes a mes), e e
+  // o prazo que interessa preservar — ver o payload de save.
+  const prazoAssinado = activeSeries?.contract_months ?? null
+  const mesesAcimaDoPrazo = prazoAssinado ? Math.max(0, contractN - Number(prazoAssinado)) : 0
 
   /**
    * contract_renewal é calculada no banco (billing_start + contract_months).
@@ -784,7 +789,13 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
             correction_rule: s.correction_rule || null,
             usage_driven: !!s.usage_driven,
             contract_signed_date: s.contract_signed_date || null,
-            contract_months: s.N,
+            // Prazo assinado. Para serie ATIVA o N e quem define o prazo (o form
+            // edita os dois juntos). Para serie ENCERRADA nao: o N passa a ser o
+            // que foi registrado, que e maior que o prazo quando o contrato foi
+            // ultrapassado, e salvar renomeando o cliente apagaria o prazo.
+            contract_months: s.status === 'encerrada' && s.contract_months != null && s.contract_months !== ''
+              ? Number(s.contract_months)
+              : s.N,
           },
           clientId, userId: profile?.id,
         })
@@ -794,10 +805,17 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       const all = [...rec, ...ev]
       const hadRows = (existingBySeries[s.id] || []).length > 0
       try {
+        // O form e dono dos meses 1..N e dos eventuais. A cauda do horizonte
+        // (month_index acima do prazo) nao aparece no form e nao e dele: apagar e
+        // deixar ensure_series_horizon reconstruir e o que fazia um save comum
+        // (trocar logo, renomear) destruir 25 linhas de faturamento real. O
+        // limite e max(N, contrato): encolher o prazo tem de remover o que deixou
+        // de fazer parte dele, e a cauda alem disso continua intacta.
+        const managedUpTo = Math.max(s.N, Number(s.contract_months) || 0)
         if (all.length > 0) {
-          await saveCharges({ charges: all, clientId, seriesId: saved.id, userId: profile?.id })
+          await saveCharges({ charges: all, clientId, seriesId: saved.id, userId: profile?.id, recurrenceUpTo: managedUpTo })
         } else if (hadRows) {
-          await saveCharges({ charges: [], clientId, seriesId: saved.id, userId: profile?.id })
+          await saveCharges({ charges: [], clientId, seriesId: saved.id, userId: profile?.id, recurrenceUpTo: managedUpTo })
         }
       } catch (e) { toast.error(`Contrato (${saved.label}): ${friendlyDbError(e)}`); continue }
       // Horizon runs AFTER saveCharges: it replicates the last recurrence row, so
@@ -1266,7 +1284,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     />
                   </div>
                   <div>
-                    <label className="label-sm">Tempo de contrato (meses)</label>
+                    <label className="label-sm">
+                      {activeReadOnly ? 'Meses registrados' : 'Tempo de contrato (meses)'}
+                    </label>
                     <input
                       type="number" min="1" max="120"
                       value={contractN}
@@ -1277,6 +1297,16 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
                     <p className="text-[11px] text-text-tertiary mt-0.5">
                       {contractRenewalLabel}
                     </p>
+                    {/* Serie encerrada mostra o N como "o que foi registrado", nao como
+                        prazo contratado. Sem separar as duas coisas, o mesmo numero
+                        aparecia com rotulo de prazo e lia-se como o oposto do que e. */}
+                    {activeReadOnly && (
+                      <p className="text-[11px] text-text-tertiary mt-0.5">
+                        Prazo assinado: {prazoAssinado ?? '—'} meses
+                        {mesesAcimaDoPrazo > 0 && ` · ultrapassou o prazo em ${mesesAcimaDoPrazo} meses`}
+                        . Pagamentos e histórico ficam como estão.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="label-sm">Início da cobrança *</label>

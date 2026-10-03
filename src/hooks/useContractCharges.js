@@ -125,10 +125,19 @@ export function useContractSeriesMutations(clientId) {
 export function useContractChargesMutations(clientId) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ charges, clientId: overrideId, seriesId, userId }) => {
+    mutationFn: async ({ charges, clientId: overrideId, seriesId, userId, recurrenceUpTo }) => {
       // charges: expanded array of { month_index, kind, mode, amount, percent, label, installment_group, installments_total, ref_month, reason }
       // clientId override lets the create flow target the freshly created client id
       // seriesId scopes the replace to one series (outras séries intactas)
+      //
+      // recurrenceUpTo limita o APAGAMENTO da recorrência. Sem ele o delete é
+      // total e a cauda do horizonte — meses materializados além do prazo, que o
+      // form nem exibe — seria destruída a cada save e reconstruída logo em
+      // seguida por ensure_series_horizon. Funcionava por sorte: a reconstrução
+      // depende de a última linha replicar valor e dia de vencimento, o que não é
+      // garantido em série com reajuste no meio. Passando o limite, a cauda nunca é
+      // tocada. Eventuais continuam com delete total: o form é a fonte inteira do
+      // conjunto deles, e o _group é um UUID novo a cada save.
       const id = overrideId || clientId
       if (!id) throw new Error('Cliente não identificado para salvar o contrato')
       // Validate reason length BEFORE delete (DB CHECK >= 10)
@@ -137,10 +146,20 @@ export function useContractChargesMutations(clientId) {
           throw new Error('Motivo precisa de ao menos 10 caracteres')
         }
       }
-      let del = supabase.from('contract_charges').delete().eq('client_id', id)
-      if (seriesId) del = del.eq('series_id', seriesId)
-      const { error: delErr } = await del
-      if (delErr) throw delErr
+      if (seriesId && recurrenceUpTo != null) {
+        const { error: e1 } = await supabase.from('contract_charges').delete()
+          .eq('client_id', id).eq('series_id', seriesId).eq('kind', 'implantacao')
+        if (e1) throw e1
+        const { error: e2 } = await supabase.from('contract_charges').delete()
+          .eq('client_id', id).eq('series_id', seriesId)
+          .eq('kind', 'recorrencia').lte('month_index', recurrenceUpTo)
+        if (e2) throw e2
+      } else {
+        let del = supabase.from('contract_charges').delete().eq('client_id', id)
+        if (seriesId) del = del.eq('series_id', seriesId)
+        const { error: delErr } = await del
+        if (delErr) throw delErr
+      }
       if (!charges || charges.length === 0) return []
       const payload = charges.map(c => ({
         client_id: id,
