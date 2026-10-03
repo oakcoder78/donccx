@@ -879,7 +879,12 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     // A cauda de recorrência muda em encerrar/reabrir. As contagens derivadas
     // (N meses, "projeção: …") vêm daqui e ficam desatualizadas até recarregar a
     // página — em troca, nenhuma edição não salva se perde.
-    qc.invalidateQueries({ queryKey: ['contract_charges', clientId] })
+    //
+    // client?.id e o id no escopo do componente. `clientId` só existe dentro do
+    // handleSubmit, e referenciá-lo aqui estourava ReferenceError DEPOIS do patch
+    // ja ter sido aplicado: a série mudava de estado na tela mas as contagens
+    // nunca eram recarregadas, e o erro subia como se a ação tivesse falhado.
+    qc.invalidateQueries({ queryKey: ['contract_charges', client?.id] })
   }
 
   // Reabrir age direto no banco (não é edição de form): a RPC reconstrói a cauda
