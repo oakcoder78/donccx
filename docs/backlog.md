@@ -378,13 +378,13 @@ gravam fora do submit, porque é o tipo de coisa que se esquece.
 **Status:** Backlog — parcialmente absorvido pelo rebuild
 **Parent:** —
 **Origin:** 2026-10-01 — adendo v2.0 do SDD do cockpit corrigiu a decisão #7 e definiu a direção; falta fechar o que fazer com mês já fechado
-**Linked SDD:** `docs/sdd/financeiro-faturamento-sdd.md` §1.6 e §4.6 (alerta, Fase 5); `docs/sdd/financeiro-cockpit-sdd.md` (adendo 2026-10-01, v2.0)
+**Linked SDD:** `docs/sdd/financeiro-faturamento-sdd.md` §1.6 e §4.9 (alerta, Fase 6); `docs/sdd/financeiro-cockpit-sdd.md` (adendo 2026-10-01, v2.0)
 **Related commits:** —
 
 > **Atualização 2026-10-03 (rebuild de faturamento).** O rebuild **resolve a pergunta em aberto** e **muda o mecanismo**:
 >
 > - **Mês já fechado deixa de ser problema.** Fatura emitida é imutável (`financeiro-faturamento-sdd.md` §1.5). Aplicar reajuste afeta apenas competências futuras; um mês com pagamento lançado nunca é reescrito. Cai o risco nº 1 abaixo.
-> - **O alerta sai na Fase 5 do rebuild** (§4.6): séries com `correction_anniversary` vencido ou a vencer em 30 dias, com ação de aplicar.
+> - **O alerta sai na Fase 6 do rebuild** (§4.9): séries com `correction_anniversary` vencido ou a vencer em 30 dias, com ação de aplicar.
 > - **O mecanismo muda:** em vez de gravar o novo valor na recorrência materializada e depender de `ensure_series_horizon` para replicar a cauda (risco nº 3 abaixo), aplicar reajuste **anexa um novo período em `series_rules`** a partir da competência de vigência. O horizonte deixa de existir como dado.
 > - **O que continua em aberto:** `correction_rule = 'indice'` sem fonte de IPCA/IGP-M no projeto (risco nº 2). O valor segue digitado. Automatizar exige fonte e cache — é o que resta desta idea.
 >
@@ -769,7 +769,8 @@ A tabela canônica é `client_donc_instances`, que carrega esses campos por cont
 **Priority:** M
 **Status:** Done — 2026-10-03
 **Origin:** 2026-10-03 — auditoria do §1.5 do SDD do ciclo de vida, achada ao registrar a verificação em produção
-**Linked SDD:** `docs/sdd/financeiro-faturamento-sdd.md` §1.12 (resolve); `docs/sdd/contract-series-lifecycle-sdd.md` §1.5 (diagnostica)
+**Linked SDD:** `docs/sdd/financeiro-faturamento-sdd.md` §1.15 (resolve); `docs/sdd/contract-series-lifecycle-sdd.md` §1.5 (diagnostica)
+**Related ADR:** `docs/decisions/001-rebuild-faturamento.md`
 **Related:** `ContractLifecycleDialogs.jsx`, `ExcecaoModal.jsx`, `set_nao_cobrar`, `_financeiro_series_month`, `check_billing_suspended_until`
 
 > **Resolvido pelo rebuild de faturamento (2026-10-03).** A decisão saiu junto com a premissa do módulo: **concessão e desconto passam a ser o mesmo mecanismo em dois momentos** — desconto previsto no plano entra na geração da fatura, desconto negociado é um lançamento na fatura emitida. `billing_exceptions` (0 registros, nunca operada) é extinta na migration `billing_retire`, junto com `billing_suspended_until` e o ramo `suspenso`. O diálogo "Suspender cobrança" permanece operando `nao_bilhetavel`, que continua sendo o flag permanente de faturamento — agora sem colisão de nome, porque a concessão deixa de existir como conceito separado. A decisão fica registrada em `docs/sdd/financeiro-faturamento-sdd.md` §1.12 e na tabela de decisões arquiteturais §7.
