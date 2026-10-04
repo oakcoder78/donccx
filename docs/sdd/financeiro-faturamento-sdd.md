@@ -22,6 +22,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 > **Read this first.** This block is the starting point for any agent resuming work.
 
+- **Stage:** Draft — Section 0 verified against production on 2026-10-03; awaiting Phase 1
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app`
 - **Active phase:** none — Phase 1 not started
