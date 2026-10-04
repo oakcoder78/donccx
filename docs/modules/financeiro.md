@@ -67,7 +67,7 @@ Existe porque o controle de faturamento sai de uma planilha externa para o Hub e
 | Tabela | Escrita | Leitura |
 |---|---|---|
 | `series_rules`, `series_eventuals` | direta, com RLS (o form do contrato edita) | `financial_data` |
-| `invoices`, `invoice_entries` | **só por RPC** — sem policy de INSERT/UPDATE/DELETE | `financial_data` |
+| `invoices`, `invoice_entries` | **só por RPC** — sem policy de INSERT/UPDATE/DELETE e sem GRANT de escrita para `authenticated` | `financial_data` |
 | `invoice_balance` (view) | — (derivada) | `financial_data`, via `security_invoker` — a view herda a RLS de quem consulta |
 | `billing_run_log` | service role (o motor de emissão) | `financial_data` |
 | `clients.delay_days` | `refresh_client_delay_days`, disparado por trigger em `invoices` e `invoice_entries` | dashboard, health score, scoring, Gravity |
@@ -82,6 +82,8 @@ As permissões são **data-driven pelas flags**, não por lista fixa no código:
 | Emitir, ajustar, cancelar, descontar, dar baixa | `financeiro_cockpit_write` | admin, manager, finance |
 
 `service_role` é aceito explicitamente em `can_write_billing()`: o motor de emissão é Edge Function, não tem `auth.uid()`, e um guard só de papel o rejeitaria.
+
+**Duas camadas, ambas necessárias.** O RLS nega o que não tem policy — mas o GRANT também precisa estar ausente. O Supabase concede `ALL` a `authenticated` em toda tabela nova do schema `public`, e um `GRANT SELECT` posterior não remove o resto. A primeira migration do schema revogou de `anon` e `public` e esqueceu `authenticated`, deixando `SIUD` nas tabelas RPC-only: inofensivo enquanto o RLS aguentasse, mas a uma policy permissiva de distância de virar real. `billing_table_grants` fechou isso, e também revogou `USAGE` na sequência de numeração — que permitia queimar número de fatura com um `nextval` direto.
 
 ### Relação com `contract_series`
 

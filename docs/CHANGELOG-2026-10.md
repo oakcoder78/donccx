@@ -37,7 +37,14 @@ Validação da Fase 1 contra a spec, com leitura das migrations e checagens de c
 
 Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql` (10 checagens, transação com rollback). A afirmação "66 asserções verdes" da Fase 1 não tinha artefato no repositório; esta suíte é o que sobra verificável.
 
-**Pendente:** a migration `20261004231500_billing_audit_requires_user` (cancelar e ajustar exigem usuário autenticado) ainda não foi aplicada em produção. Sem ela, a mesma operação com `service_role` falha com erro de CHECK em vez de mensagem clara. A contiguidade das faixas de `series_rules` também segue pendente.
+**Segunda passada de hardening** (revisão do commit `87a361d`). Duas lacunas fechadas:
+
+- **Privilégios de tabela.** `authenticated` ainda tinha `SIUD` em `invoices`, `invoice_entries` e `billing_run_log`. A migration original revogou de `anon` e `public` mas não de `authenticated`, e o Supabase concede `ALL` por padrão em tabela nova — o `GRANT SELECT` que veio depois não remove o resto. O RLS bloqueava (só existem policies de SELECT), então nunca foi explorável, mas contradizia a spec e era a mesma classe latente da view `invoice_balance`. Corrigido em `billing_table_grants`, que também revogou `USAGE` na sequência de numeração: permitia queimar número de fatura com um `nextval` direto.
+- **Auditoria exige usuário.** A migration `billing_audit_requires_user` que estava retida foi aplicada. Cancelar e ajustar sob `service_role` agora falham com mensagem clara em vez de erro de CHECK.
+
+**Suíte expandida de 10 para 19 checagens** — voltaram a grade de datas (15 casos), o `discount_batch`, a baixa por perda separada de desconto, a validação de método, o estorno entre faturas, o pior atraso e os privilégios de tabela e de sequência. 19 passaram, 0 falharam, em transação revertida.
+
+**Pendente:** a contiguidade das faixas de `series_rules` (sem buraco nem sobreposição) não é validada em lugar nenhum. A tabela está vazia, mas **bloqueia a Fase 2**, que vai lê-la.
 
 ### Financeiro — F0 aprovado: conferência da carga histórica
 
