@@ -70,6 +70,7 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 | 5 | June shows "não sincronizou" when it partially synced (57 success, 14 failed) | Month list from `sync_service_log`; banner reads the latest row, not the run outcome | `useFinanceiroCockpit.js`, `FinanceiroCockpitPage.jsx:1316` |
 | 6 | Client paying the latest month resets `clients.delay_days` to 0 | Trigger copies the **latest** month's delay, not the **worst** | `sync_billing_payments_delay_days()` |
 | 7 | **Multi-module clients are under-billed** — the engine suppresses excedente on every series that is not `kind='original'` | Usage is client-level, so the engine attributed it to one series; the real rule is that every module charges per licence | `_financeiro_series_month` (`uso_app` CASE) |
+| 8 | **A client with an active series but no invoice vanishes from the cockpit with no notice** — 15 of 18 clients today | The engine only returns series with a rule for the competência; the cockpit treats "absent" and "nothing to bill" as the same thing | `_financeiro_series_month` gate + cockpit render |
 
 Defect 7 is **latent**: no client has two series today (18, 21 and 29 have one each), so it has never produced a wrong invoice. It will on the day the first module series is created. Section 3.2 states the correct rule.
 
@@ -650,13 +651,48 @@ months = SELECT DISTINCT competencia FROM invoices
 
 No forward months, no `sync_service_log`. Default selection = `max(competencia)`.
 
+### 3.9 Cockpit row state — a série não pode sumir
+
+A série que desaparece do cockpit sem aviso é o defeito (d) da §0 do `contract-series-lifecycle-sdd.md`: o Financeiro não distingue "não deve ser cobrado" de "sumiu". O cockpit novo mostra **três estados**, não dois:
+
+```
+row_state(cliente, competência) =
+  tem fatura na competência            → 'com_fatura'
+  tem série ativa, sem fatura          → 'sem_fatura' + motivo
+  sem série ativa                      → ausente (não há o que cobrar)
+```
+
+O motivo de `sem_fatura` é derivado, na primeira condição que casar:
+
+| Ordem | Condição | Motivo |
+|---|---|---|
+| 1 | Nenhuma regra cobre a competência | `sem_regra` |
+| 2 | `billing_status = 'nao_bilhetavel'` | `nao_bilhetavel` |
+| 3 | Fora de `billing_start`/`billing_end`, ou parada pela regra de §3.4 | `fora_janela` |
+| 4 | `unit × greatest(coalesce(piso,0), uso) = 0` | `valor_zero` |
+| 5 | A competência não tem execução de fechamento | `nao_fechada` |
+
+A derivação é **stateless** — não depende do `billing_run_log`, que é o registro da execução, não a regra. O log serve para conferência e para a observabilidade da §5.5.
+
+Consequência prática: os **15 clientes com série mas sem regra** aparecem com `sem_regra` em vez de sumirem. É o que torna o cockpit útil durante a carga — a tela mostra o que falta lançar em vez de mostrar três linhas sem explicação.
+
+Para uma competência ainda não fechada, os clientes faturáveis aparecem como `nao_fechada`, e o painel mostra o **valor projetado** (a mesma fórmula que o fechamento usaria), marcado como projeção. Assim o Financeiro vê o que será emitido antes de fechar.
+
 ---
 
 ## 4. Superfície (UI)
 
 ### 4.1 Cockpit — invoice-oriented
 
-The client row keeps `MRR mín.`, `MRR real`, `Δ`, `Uso`, and gains an **open balance** indicator. The expanded panel:
+The client row keeps `MRR mín.`, `MRR real`, `Δ`, `Uso`, and gains an **open balance** indicator. **Every client with an active series appears** — a client is never silently absent (§3.9).
+
+| Row state | When | What the row shows |
+|---|---|---|
+| **Com fatura** | the competência has invoices | open balance + state badge + `N de M faturas` |
+| **Sem fatura** | has an active series, no invoice | selo `sem fatura` + the **motivo** (§3.9) + the projected amount when the competência is open |
+| *(ausente)* | no active series | not listed |
+
+The expanded panel:
 
 | Block | Content |
 |---|---|
@@ -665,6 +701,8 @@ The client row keeps `MRR mín.`, `MRR real`, `Δ`, `Uso`, and gains an **open b
 | Invoices of the month | One row per invoice: number, kind, amount, due date, balance, state, last settlement |
 | Eventuais | Each eventual as its own row with its own state — never merged |
 | Profissionais ativos | unchanged |
+
+For a `sem_fatura` row, the panel shows the motivo and, when the competência is open, the projected amount — so the Finance team sees what the close run would emit before running it.
 
 Removed: the "vence dia {due_day} · {billing_start} → {billing_end}" line (defect 1). The invoice row shows `vence {due_date}` — the invoice's own due date.
 
@@ -713,6 +751,18 @@ Reason required in both modes.
 
 Amount + mandatory reason. Writes `adjusted_from`, `adjust_reason`, `adjusted_by`, `adjusted_at` and the new `amount`. Blocked if the new amount is below `paid + discounted + written_off` (that would create a credit, which does not exist).
 
+**Where the correction belongs** — four paths, from cheapest to most expensive:
+
+| Moment | Path | Effect |
+|---|---|---|
+| Before issuing | change the series config (unit, floor) or the rule | affects future invoices only |
+| In the wizard preview (§4.10 step 3) | see before persisting | nothing issued yet — **the cheapest moment** |
+| Issued, not settled | adjust the invoice (this dialog) | audited change to `amount` |
+| Settled | reverse the settlement (`estorno`) → adjust → settle again | required because the adjust is blocked below the settled total |
+| **A whole batch wrong** (e.g. the wrong `unit` for a client) | **cancel the invoices → fix the series → reissue** (§4.7) | cleaner than adjusting 60 invoices one by one |
+
+For the historic load, the recommended sequence is **review in the preview → confirm → settle**. Adjusting after settlement works but costs three operations per invoice.
+
 ### 4.7 Cancel invoice dialog
 
 Reason + summary of what will happen to existing entries (they remain). Confirmation required. The dialog offers to issue the substitute immediately.
@@ -759,6 +809,18 @@ One component, `InvoiceStateBadge`, over `src/components/ui/Badge.jsx`. The map 
 | `cancelada` | slate, riscado | — |
 
 Default sort: `due_date` ascending, then balance descending.
+
+**Row state vocabulary** (`sem_fatura` reasons from §3.9), in `src/lib/financeiro.js`:
+
+| Motivo | Label | Cor |
+|---|---|---|
+| `sem_regra` | "sem regra lançada" | âmbar — ação pendente do Financeiro |
+| `nao_bilhetavel` | "não faturável" | slate — decisão |
+| `fora_janela` | "fora do período do contrato" | slate — decisão |
+| `valor_zero` | "nada a faturar" | slate — decorrência |
+| `nao_fechada` | "competência não fechada" | navy — ação pendente |
+
+Âmbar é reservado para o que exige ação; slate para o que é consequência de uma decisão já tomada. Sem essa distinção, "esqueci de lançar" e "decidi não cobrar" viram a mesma linha.
 
 ### 4.13 UI states
 
@@ -1028,6 +1090,10 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 #### Checklist
 
 - [ ] **Panel:** invoice rows replace the series rows; the `billing_start` line is gone (defect 1)
+- [ ] **Three states:** every client with an active series appears; a client with no invoice shows `sem fatura` + motivo (§3.9); only clients with no series are absent
+- [ ] **Motivo:** the five reasons render with the correct label and colour; `sem_regra` is amber (action), the rest slate (consequence)
+- [ ] **Projection:** for an open competência, a `sem_fatura` row shows the projected amount
+- [ ] **Regression test:** the 15 clients without rules appear as `sem_regra`, not absent
 - [ ] **Eventuais:** own row, own state (defect 2)
 - [ ] **Overdue:** derived from `due_date` and balance, with amount (defect 3)
 - [ ] **Settlement:** real `happened_at` per invoice, no fabricated date (defect 4)
@@ -1172,6 +1238,8 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 | **Permissões pelas flags** | Data-driven; `financial_data` e `financeiro_cockpit_write` decidem, sem lista hardcoded |
 | Sem backfill de `billing_payments` | Dado descartável; o histórico entra pelo wizard com valor e data reais |
 | **F0 é conferência do solicitante** | Não há planilha para conciliar; a única fonte do "certo" é quem opera |
+| **Três estados no cockpit, nunca ausência silenciosa** | Série que some sem aviso é o defeito (d) do lifecycle SDD. "Esqueci de lançar" e "decidi não cobrar" não podem ser a mesma linha. Âmbar para o que exige ação, slate para consequência |
+| **Fatura se corrige em quatro momentos** | O barato é o preview do wizard; o caro é estorno + ajuste + baixa. Para lote errado, cancelar e reemitir é melhor que ajustar fatura a fatura |
 
 ---
 
