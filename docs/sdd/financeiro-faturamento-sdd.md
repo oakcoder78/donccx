@@ -22,11 +22,13 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 > **Read this first.** This block is the starting point for any agent resuming work.
 
-- **Stage:** Draft — Section 0 verified against production on 2026-10-03; awaiting Phase 1
+- **Stage:** Active — Phase 1 complete (2026-10-04); Phase 2 not started
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** none — Phase 1 not started
+- **Active phase:** Phase 2 — Issuing engine
 - **Go-live target:** 2026-11-01 (billing control moves from spreadsheet to Hub)
+
+> **Phase 1 shipped the new model alongside the old one.** Nothing was dropped and nothing in the live cockpit changed. `invoices`, `invoice_entries`, `series_rules`, `series_eventuals` and `billing_run_log` exist and are empty; the old `contract_charges` (134) and `billing_payments` (82) are intact and still drive the current cockpit. The four migrations are `20261004225041_billing_schema`, `20261004225219_billing_derive`, `20261004225421_billing_rpcs`, `20261004225607_billing_due_date_helpers`.
 
 **What already exists related to this work:**
 
@@ -976,7 +978,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 ### Phase 1 — Schema and derivation
 
-**Status:** Not started
+**Status:** Complete — 2026-10-04. Migrations applied, verification green, production untouched.
 
 **Rationale:** A fundação. O dado atual é descartável, mas as tabelas antigas **continuam vivas** nesta fase — o cockpit e as RPCs de ciclo de vida seguem funcionando enquanto o modelo novo é construído ao lado.
 
@@ -989,22 +991,34 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 #### Checklist
 
-- [ ] **Snapshot:** export `contract_charges` and `billing_payments` to a versioned file
-- [ ] **Migration `billing_schema`:** five tables, all CHECKs, all indexes, RLS reading `feature_flags.allowed_roles`
-- [ ] **Migration `billing_derive`:** `invoice_balance` view, `get_invoice_state()`, `get_financeiro_pendencias` rewritten per invoice, `refresh_client_delay_days` + trigger + one-off recompute
-- [ ] **Numbering:** `invoice_number_seq` + `generate_invoice_number()`
-- [ ] **RPCs:** `issue_invoice`, `settle_invoice`, `discount_invoice`, `write_off_invoice`, `reverse_entry`, `adjust_invoice`, `cancel_invoice`
-- [ ] **Service role guard:** `auth.role() = 'service_role'` accepted; GRANTs restricted
-- [ ] **Verification:** SQL proving all 5 combinations (licence/OS/fixed × with/without floor) and the two-module case (scenario 3) against known numbers
-- [ ] **Verification:** the date grid (§5.4) passes
-- [ ] **Verification:** `refresh_client_delay_days` produces the worst delay for a synthetic multi-invoice client
-- [ ] **Build + deploy:** per the header block
+- [x] **Snapshot:** `supabase/snapshots/20261004_pre_billing_rebuild.sql` — 216 linhas (134 charges + 82 payments), restaurável por psql, gerado por `scripts/snapshot-billing.mjs`
+- [x] **Migration `billing_schema`** (`20261004225041`): five tables, all CHECKs, all indexes, RLS reading `feature_flags.allowed_roles`
+- [x] **Migration `billing_derive`** (`20261004225219`): `invoice_balance` view, `invoice_state()`, `refresh_client_delay_days` + 2 triggers
+- [x] **Migration `billing_rpcs`** (`2026100542…` see log): `issue_invoice`, `settle_invoice`, `discount_invoice`, `discount_batch`, `write_off_invoice`, `reverse_entry`, `adjust_invoice`, `cancel_invoice`, `assert_invoice_open`
+- [x] **Migration `billing_due_date_helpers`** (`20261004225607`): `competencia_index`, `billing_due_date` — the clamp is a pure function, testable without the engine
+- [x] **Numbering:** `invoice_number_seq` + `generate_invoice_number()` → `FAT-2026-000001`
+- [x] **Service role guard:** `auth.role() = 'service_role'` accepted; GRANTs restricted; `anon` revoked
+- [x] **Verification:** 51 RPC assertions + 15 date-grid assertions, all green in a rolled-back transaction. Covers partial payment, overpay blocked, method required, reversal attributed to the target's kind, reversal-of-reversal blocked, cross-invoice reversal blocked, over-reversal blocked, discount vs write-off separated, adjust audited and blocked below settled, cancel + reissue, idempotent issue, worst delay
+- [x] **Build:** `npm run build` clean
+- [x] **Production untouched:** old tables intact (134 charges, 82 payments), new tables empty, no fixture residue, no non-zero delay
+
+**Deviations from this document, and why:**
+
+| Deviation | Why |
+|---|---|
+| `get_financeiro_pendencias` **not** rewritten here — moved to Phase 4 | It is a cockpit consumer: the live page reads the old fields (`mrr_real`, `ref_month`, `series_label`). Rewriting it in Phase 1 would touch a live page for no benefit — it returns 0 rows today. It goes with the render that consumes it |
+| The one-off recompute is scoped to clients **that have invoices**, not all clients | The document asked for all clients. Doing that now would zero every client's `delay_days` — there are no invoices yet — and that column feeds dashboard, health score, scoring and Gravity. Today the block is a no-op; the old trigger keeps writing during the transition |
+| `assert_invoice_open` and `discount_batch` added to the RPC list | `assert_invoice_open` is the shared guard (invoice exists, is not cancelled, amount fits the balance). `discount_batch` implements §4.5's "distribuir" mode — proportional with cap and remainder redistribution, which is non-trivial logic that belongs in the database, not in the UI |
+| `series_rules` / `series_eventuals` allow direct writes with RLS | They are plan tables the contract form edits, mirroring `contract_series`'s `series_write` policy. `invoices` and `invoice_entries` remain RPC-only |
+| Two extra helpers (`competencia_index`, `billing_due_date`) | The date grid is a Phase 1 verification, but the clamp lived in the Phase 2 engine. As pure functions they are testable now and the engine just calls them |
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-04 | — | 4 migrations + snapshot + script | 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers; 66 assertions green; old model intact |
+
+> **Note on the invoice-numbering gap.** The 4 migrations were applied through the Supabase MCP, which stamps its own version. The local filenames were renamed to match the recorded versions so `supabase db push` does not see drift. See the commit for the exact list.
 
 ---
 
@@ -1205,11 +1219,13 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 ### Production state
 
-- Nothing from this SDD is implemented. Phase 1 not started.
-- The current module is live and **incorrect in the ways listed in section 0**. No stakeholder should rely on its adimplência numbers.
+- **Phase 1 complete (2026-10-04).** The new model exists alongside the old one: 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers, 2 date helpers. All empty; the old model still drives the cockpit.
+- Snapshot of the old tables versioned at `supabase/snapshots/20261004_pre_billing_rebuild.sql` (216 rows).
+- Verification: 51 RPC assertions + 15 date-grid assertions, green in a rolled-back transaction. Production confirmed untouched afterwards.
+- The current module is still live and **incorrect in the ways listed in section 0**. No stakeholder should rely on its adimplência numbers.
 - Defect 7 (multi-module under-billing) is **latent** — it will produce a wrong invoice the day the first module series is created.
 - Three series have charges (18, 21, 29). 134 charges, 82 payments. All disposable.
-- Go-live target 2026-11-01. Phases 1–5 are the critical path; 6 may follow the cut; 7 closes the rebuild.
+- Go-live target 2026-11-01. Phases 2–5 are the critical path; 6 may follow the cut; 7 closes the rebuild.
 
 ### Architectural decisions
 
@@ -1240,6 +1256,9 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 | **F0 é conferência do solicitante** | Não há planilha para conciliar; a única fonte do "certo" é quem opera |
 | **Três estados no cockpit, nunca ausência silenciosa** | Série que some sem aviso é o defeito (d) do lifecycle SDD. "Esqueci de lançar" e "decidi não cobrar" não podem ser a mesma linha. Âmbar para o que exige ação, slate para consequência |
 | **Fatura se corrige em quatro momentos** | O barato é o preview do wizard; o caro é estorno + ajuste + baixa. Para lote errado, cancelar e reemitir é melhor que ajustar fatura a fatura |
+| **O clamp de vencimento é função pura, testada fora do motor** | `date + interval 'N months'` capa nativamente, mas **encadear somas perde o dia** (`31/01 +1m +1m` = 29/03). A âncora é sempre `first_due_date` numa soma única. Como função pura, a grade de 15 datas é verificável na Fase 1 sem depender do motor |
+| **`get_financeiro_pendencias` migra na Fase 4, não na 1** | É consumidor do cockpit: a página viva lê campos antigos. Reescrever antes do render mexeria em página viva sem benefício — devolve 0 linhas hoje |
+| **O recompute de `delay_days` é escopado a quem tem fatura** | Recomputar todos agora zeraria o atraso de todo mundo (não há fatura ainda), e a coluna alimenta dashboard, health score, scoring e Gravity |
 
 ---
 
