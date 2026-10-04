@@ -44,7 +44,9 @@ Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql
 
 **Suíte expandida de 10 para 19 checagens** — voltaram a grade de datas (15 casos), o `discount_batch`, a baixa por perda separada de desconto, a validação de método, o estorno entre faturas, o pior atraso e os privilégios de tabela e de sequência. 19 passaram, 0 falharam, em transação revertida.
 
-**Pendente:** a contiguidade das faixas de `series_rules` (sem buraco nem sobreposição) não é validada em lugar nenhum. A tabela está vazia, mas **bloqueia a Fase 2**, que vai lê-la.
+**Contiguidade das faixas de `series_rules` — resolvida.** Era o último item da Fase 1 e bloqueava a Fase 2: um buraco silencioso (`1-12` e depois `14-36`) significa competência sem regra — fatura não emitida, sem aviso, que é exatamente a classe de defeito que o rebuild existe para eliminar. `assert_series_rules_contiguous()` valida começar no mês 1, sem buraco, sem sobreposição e no máximo uma faixa aberta no fim; um constraint trigger **deferido** roda no COMMIT, porque o form escreve as faixas em várias linhas e o estado intermediário é inválido (inserir `14-36` antes de `1-12` tem buraco) — validar linha a linha rejeitaria um conjunto válido no fim.
+
+A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
 ### Financeiro — F0 aprovado: conferência da carga histórica
 

@@ -23,6 +23,10 @@
 -- validacao de metodo, o estorno cruzado, o pior atraso nem os privilegios de
 -- tabela. As "66 assercoes" citadas no commit 1724e9e nunca foram versionadas;
 -- esta suite e o artefato verificavel e agora cobre o que aquelas cobriam.
+--
+-- Sao 26 checagens. As de contiguidade (19-25) usam a funcao pura
+-- assert_series_rules_contiguous e, na 25, forcam SET CONSTRAINTS ALL IMMEDIATE
+-- para exercitar o trigger deferido dentro de uma transacao que reverte.
 -- ============================================================================
 
 DO $$
@@ -265,7 +269,88 @@ BEGIN
   -- 18. Nenhum cliente com atraso negativo (sanidade do writer)
   -- ==========================================================================
   IF NOT EXISTS (SELECT 1 FROM public.clients WHERE delay_days < 0) THEN v_passed := v_passed + 1;
-  ELSE v_failed := v_failed || E'\n  FAIL 18 delay_days negativo encontrado'; END IF;
+  ELSE v_failed := v_failed || E'\n  FAIL 18 delay_days negativo'; END IF;
+
+  -- ==========================================================================
+  -- 19-23. Contiguidade das faixas de recorrencia
+  -- ==========================================================================
+  -- O trigger e DEFERRED, entao nao dispara nesta transacao (que reverte). A
+  -- logica e testada direto pela funcao pura; o trigger em si nos checks 24-25.
+
+  -- 19. conjunto contiguo valido passa
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+  INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount) VALUES
+    (v_series, 1, 12, 'amount', 1000), (v_series, 13, NULL, 'amount', 2000);
+  BEGIN
+    PERFORM public.assert_series_rules_contiguous(v_series);
+    v_passed := v_passed + 1;
+  EXCEPTION WHEN OTHERS THEN
+    v_failed := v_failed || E'\n  FAIL 19 conjunto valido recusado: ' || SQLERRM; END;
+
+  -- 20. buraco entre faixas e recusado
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+  INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount) VALUES
+    (v_series, 1, 12, 'amount', 1000), (v_series, 14, 36, 'amount', 2000);
+  BEGIN
+    PERFORM public.assert_series_rules_contiguous(v_series);
+    v_failed := v_failed || E'\n  FAIL 20 buraco aceito';
+  EXCEPTION WHEN SQLSTATE '23514' THEN v_passed := v_passed + 1; END;
+
+  -- 21. sobreposicao e recusada
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+  INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount) VALUES
+    (v_series, 1, 12, 'amount', 1000), (v_series, 12, 36, 'amount', 2000);
+  BEGIN
+    PERFORM public.assert_series_rules_contiguous(v_series);
+    v_failed := v_failed || E'\n  FAIL 21 sobreposicao aceita';
+  EXCEPTION WHEN SQLSTATE '23514' THEN v_passed := v_passed + 1; END;
+
+  -- 22. precisa comecar no mes 1
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+  INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount) VALUES
+    (v_series, 2, 36, 'amount', 1000);
+  BEGIN
+    PERFORM public.assert_series_rules_contiguous(v_series);
+    v_failed := v_failed || E'\n  FAIL 22 serie comecando no mes 2 aceita';
+  EXCEPTION WHEN SQLSTATE '23514' THEN v_passed := v_passed + 1; END;
+
+  -- 23. faixa depois de faixa aberta e recusada
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+  INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount) VALUES
+    (v_series, 1, NULL, 'amount', 1000), (v_series, 13, 36, 'amount', 2000);
+  BEGIN
+    PERFORM public.assert_series_rules_contiguous(v_series);
+    v_failed := v_failed || E'\n  FAIL 23 faixa apos aberta aceita';
+  EXCEPTION WHEN SQLSTATE '23514' THEN v_passed := v_passed + 1; END;
+
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+
+  -- ==========================================================================
+  -- 24. O trigger de contiguidade existe, e deferido e esta ativo
+  -- ==========================================================================
+  IF EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'trg_series_rules_contiguity' AND NOT tgisinternal
+      AND tgdeferrable AND tginitdeferred AND tgenabled = 'O'
+  ) THEN v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 24 trigger de contiguidade ausente ou nao deferido'; END IF;
+
+  -- ==========================================================================
+  -- 25. O trigger rejeita buraco quando forçado a checar agora
+  -- ==========================================================================
+  -- DEFERRED so valida no COMMIT, e esta transacao reverte — entao forco
+  -- IMMEDIATE para exercitar o trigger de fato. Depois volto a DEFERRED.
+  DELETE FROM public.series_rules WHERE series_id = v_series;
+  EXECUTE 'SET CONSTRAINTS ALL IMMEDIATE';
+  BEGIN
+    INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount)
+    VALUES (v_series, 1, 12, 'amount', 1000);
+    INSERT INTO public.series_rules (series_id, month_from, month_to, mode, amount)
+    VALUES (v_series, 14, 36, 'amount', 2000);
+    v_failed := v_failed || E'\n  FAIL 25 trigger aceitou buraco';
+  EXCEPTION WHEN SQLSTATE '23514' THEN v_passed := v_passed + 1; END;
+  EXECUTE 'SET CONSTRAINTS ALL DEFERRED';
+  DELETE FROM public.series_rules WHERE series_id = v_series;
 
   -- Saida: levanta excecao para forcar o ROLLBACK e mostrar o resultado.
   IF v_failed = '' THEN
