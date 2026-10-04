@@ -37,7 +37,7 @@
 | IDEA-003 | Idea | Reajuste anual assistido por série | M | Backlog | `docs/sdd/financeiro-cockpit-sdd.md` |
 | TD-013 | Bug | Cron exibido em UTC com `UTC_TO_BRT` somando 3h sobre horário já em BRT | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-014 | Refactor | Mover ações de ciclo de vida para o caminho de submit | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
-| TD-015 | Tech Debt | Unificar "Suspender cobrança" (`nao_bilhetavel`) com concessão (`billing_exceptions`) | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
+| TD-015 | Tech Debt | Unificar "Suspender cobrança" (`nao_bilhetavel`) com concessão (`billing_exceptions`) | M | Done | `docs/sdd/financeiro-faturamento-sdd.md` |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-010 | Refactor | Migrar estrutura-alvo de `docs/` (README em fases) | L | Backlog | — |
@@ -375,11 +375,20 @@ gravam fora do submit, porque é o tipo de coisa que se esquece.
 
 **Type:** Idea
 **Priority:** M
-**Status:** Backlog
+**Status:** Backlog — parcialmente absorvido pelo rebuild
 **Parent:** —
 **Origin:** 2026-10-01 — adendo v2.0 do SDD do cockpit corrigiu a decisão #7 e definiu a direção; falta fechar o que fazer com mês já fechado
-**Linked SDD:** `docs/sdd/financeiro-cockpit-sdd.md` (adendo 2026-10-01, v2.0)
+**Linked SDD:** `docs/sdd/financeiro-faturamento-sdd.md` §1.6 e §4.6 (alerta, Fase 5); `docs/sdd/financeiro-cockpit-sdd.md` (adendo 2026-10-01, v2.0)
 **Related commits:** —
+
+> **Atualização 2026-10-03 (rebuild de faturamento).** O rebuild **resolve a pergunta em aberto** e **muda o mecanismo**:
+>
+> - **Mês já fechado deixa de ser problema.** Fatura emitida é imutável (`financeiro-faturamento-sdd.md` §1.5). Aplicar reajuste afeta apenas competências futuras; um mês com pagamento lançado nunca é reescrito. Cai o risco nº 1 abaixo.
+> - **O alerta sai na Fase 5 do rebuild** (§4.6): séries com `correction_anniversary` vencido ou a vencer em 30 dias, com ação de aplicar.
+> - **O mecanismo muda:** em vez de gravar o novo valor na recorrência materializada e depender de `ensure_series_horizon` para replicar a cauda (risco nº 3 abaixo), aplicar reajuste **anexa um novo período em `series_rules`** a partir da competência de vigência. O horizonte deixa de existir como dado.
+> - **O que continua em aberto:** `correction_rule = 'indice'` sem fonte de IPCA/IGP-M no projeto (risco nº 2). O valor segue digitado. Automatizar exige fonte e cache — é o que resta desta idea.
+>
+> Os itens 1, 2 e 3 do *Proposed approach* abaixo descrevem o modelo antigo e estão superados pelo rebuild; mantidos como histórico.
 
 #### Context
 
@@ -758,12 +767,14 @@ A tabela canônica é `client_donc_instances`, que carrega esses campos por cont
 
 **Type:** Tech Debt
 **Priority:** M
-**Status:** Backlog
+**Status:** Done — 2026-10-03
 **Origin:** 2026-10-03 — auditoria do §1.5 do SDD do ciclo de vida, achada ao registrar a verificação em produção
-**Linked SDD:** `docs/sdd/contract-series-lifecycle-sdd.md`
+**Linked SDD:** `docs/sdd/financeiro-faturamento-sdd.md` §1.12 (resolve); `docs/sdd/contract-series-lifecycle-sdd.md` §1.5 (diagnostica)
 **Related:** `ContractLifecycleDialogs.jsx`, `ExcecaoModal.jsx`, `set_nao_cobrar`, `_financeiro_series_month`, `check_billing_suspended_until`
 
-#### Context
+> **Resolvido pelo rebuild de faturamento (2026-10-03).** A decisão saiu junto com a premissa do módulo: **concessão e desconto passam a ser o mesmo mecanismo em dois momentos** — desconto previsto no plano entra na geração da fatura, desconto negociado é um lançamento na fatura emitida. `billing_exceptions` (0 registros, nunca operada) é extinta na migration `billing_retire`, junto com `billing_suspended_until` e o ramo `suspenso`. O diálogo "Suspender cobrança" permanece operando `nao_bilhetavel`, que continua sendo o flag permanente de faturamento — agora sem colisão de nome, porque a concessão deixa de existir como conceito separado. A decisão fica registrada em `docs/sdd/financeiro-faturamento-sdd.md` §1.12 e na tabela de decisões arquiteturais §7.
+
+#### Context (histórico — o diagnóstico que originou a decisão)
 
 Existem **três** mecanismos de suspensão no codebase, e dois deles têm o mesmo nome para
 quem opera:

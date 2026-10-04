@@ -10,6 +10,8 @@ Reference BRD: `docs/brd/brd-financeiro-cockpit.md` v0.6 (ata de validação 202
 
 **Escopo deste documento: leitura.** Como o cockpit *lê* as séries para calcular MRR, uso e adimplência. **Mutar o ciclo de vida de uma série** — encerrar, reabrir, estender, suspender, não cobrar — é assunto do documento canônico `docs/sdd/contract-series-lifecycle-sdd.md`, criado em 2026-10-01. Duas decisões deste documento foram **superadas** por ele e estão marcadas como tal na seção de decisões validadas: o estado `suspenso` de `billing_status` (§1.0 Phase 1) e "fatura zerada não existe" (v1.7).
 
+> **Superado em parte (2026-10-03).** O rebuild de faturamento — `docs/sdd/financeiro-faturamento-sdd.md` — substitui tudo o que este documento diz sobre **adimplência, composição de fatura e pendências**. O modelo muda de status por competência (`billing_payments`) para lançamentos por fatura (`invoices` + `invoice_entries`), e `contract_charges` deixa de existir como tabela única de plano e documento. **Este documento permanece canônico para o extrato de uso e MRR** (uso, piso, excedente, módulos, profissionais, CSV, PDF, Help). Não implemente adimplência a partir daqui. As seções afetadas são as de Phase 3.5 (`billing_payments`), a de pendências (`get_financeiro_pendencias`) e a de exceções (`billing_exceptions`, extinta por TD-015).
+
 ### How to use this document
 
 1. **Before implementing:** Read this document fully. Understand the data contracts, component tree, and business rules before touching any file.
