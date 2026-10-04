@@ -78,6 +78,8 @@ for (const c of charges) {
 
 const monthDiff = (a, b) => (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + (b.getUTCMonth() - a.getUTCMonth())
 const pad = n => String(n).padStart(2, '0')
+// CSV para Excel pt-BR: separador ';' e decimal ','
+const br = n => n.toFixed(2).replace('.', ',')
 const lastDay = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate()
 
 const rows = []
@@ -103,16 +105,19 @@ for (const s of active) {
       serie: s.label || 'Contrato original',
       tipo: s.billing_type.replace(/^por_/,''),
       piso,
-      unit: unit.toFixed(2),
+      unit: br(unit),
       competencia: comp,
       mes: i + 1,
       uso,
       snapshot: a ? 'sim' : 'nao',
       uso_real: a ? ((ehOs ? a.temOs : a.temLic) ? 'sim' : 'nao') : 'nao',
       instancias: a ? a.inst.size : 0,
-      base: base.toFixed(2),
-      excedente: excedente.toFixed(2),
-      valor: valor.toFixed(2),
+      base: br(base),
+      excedente: br(excedente),
+      valor: br(valor),
+      _base: base,
+      _exc: excedente,
+      _valor: valor,
       vencimento: `${comp}-${pad(day)}`,
       tem_regra: (rulesBy.get(s.id) || 0) > 0 ? 'sim' : 'nao',
     })
@@ -130,7 +135,7 @@ for (const r of rows) {
   let a = byClient.get(r.cliente)
   if (!a) { a = { meses: 0, comUso: 0, base: 0, exc: 0, valor: 0, de: r.competencia, ate: r.competencia, tipos: new Set(), piso: r.piso, unit: r.unit, regra: r.tem_regra, inst: 0 }; byClient.set(r.cliente, a) }
   a.meses++; if (r.uso_real === 'sim') a.comUso++
-  a.base += +r.base; a.exc += +r.excedente; a.valor += +r.valor
+  a.base += r._base; a.exc += r._exc; a.valor += r._valor
   if (r.competencia < a.de) a.de = r.competencia
   if (r.competencia > a.ate) a.ate = r.competencia
   a.tipos.add(r.tipo); a.inst = Math.max(a.inst, r.instancias)
@@ -139,7 +144,7 @@ for (const r of rows) {
 console.log('=== RESUMO POR CLIENTE ===')
 console.log('cliente;tipo;piso;unit;meses;com_uso;base;excedente;valor;de;ate;regra;max_inst')
 for (const [c, a] of [...byClient].sort((x, y) => x[0].localeCompare(y[0]))) {
-  console.log(`${c};${[...a.tipos].join('+')};${a.piso};${a.unit};${a.meses};${a.comUso};${a.base.toFixed(2)};${a.exc.toFixed(2)};${a.valor.toFixed(2)};${a.de};${a.ate};${a.regra};${a.inst}`)
+  console.log(`${c};${[...a.tipos].join('+')};${a.piso};${br(+a.unit)};${a.meses};${a.comUso};${br(a.base)};${br(a.exc)};${br(a.valor)};${a.de};${a.ate};${a.regra};${a.inst}`)
 }
 
 console.log('\n=== TOTAIS ===')
@@ -147,10 +152,10 @@ console.log('linhas:', rows.length)
 console.log('meses com uso real:', rows.filter(r => r.uso_real === 'sim').length)
 console.log('meses no piso (sem dado):', rows.filter(r => r.uso_real === 'nao').length)
 console.log('meses com algum snapshot:', rows.filter(r => r.snapshot === 'sim').length)
-console.log('soma base:', rows.reduce((t, r) => t + +r.base, 0).toFixed(2))
-console.log('soma excedente:', rows.reduce((t, r) => t + +r.excedente, 0).toFixed(2))
-console.log('soma valor:', rows.reduce((t, r) => t + +r.valor, 0).toFixed(2))
-console.log('linhas com valor zero:', rows.filter(r => +r.valor === 0).length)
+console.log('soma base:', br(rows.reduce((t, r) => t + r._base, 0)))
+console.log('soma excedente:', br(rows.reduce((t, r) => t + r._exc, 0)))
+console.log('soma valor:', br(rows.reduce((t, r) => t + r._valor, 0)))
+console.log('linhas com valor zero:', rows.filter(r => r._valor === 0).length)
 console.log('series sem regra:', new Set(rows.filter(r => r.tem_regra === 'nao').map(r => r.cliente)).size)
 
 console.log('\n=== ANOMALIAS ===')

@@ -16,6 +16,8 @@ Ele existe porque **não há planilha para conciliar**. O módulo substitui uma 
 
 O detalhe linha a linha está em **`faturamento-carga-historica.csv`** (582 competências, 18 séries, 2021-03 a 2026-09). Este markdown traz o resumo por cliente, os totais e as anomalias — a revisão é sobre os totais e as exceções, não sobre cada linha.
 
+**Formato do CSV:** separador `;` e decimal `,` — abre direto no Excel pt-BR. As colunas são: `cliente; serie; tipo; piso; unit; competencia; mes; uso; uso_real; snapshot; instancias; base; excedente; valor; vencimento; tem_regra`. A coluna `uso_real` diz se a competência tem o dado de uso relevante para a série; quando é `nao`, o valor saiu do piso.
+
 ## Como conferir
 
 1. Leia a tabela de resumo por cliente. Para cada um, confira: **valor unitário**, **piso**, **mês inicial** e **valor total calculado**.
