@@ -94,6 +94,10 @@ The Contacts tab (`ClientTabContatos`) displays client contacts with:
 6. `RegistrarDadosModal` captures operational input, posts it to Supabase, and on success signals the parent tab to reload its data.
 7. State is lifted to the highest component that needs it (`ClientDetail`) and passed down; loading/error flags are handled locally in each component.
 
+### Billing (contract → invoice)
+
+The contract tab edits `contract_series` — the commercial plan. Billing reads it to issue invoices: `series_rules` holds the recurrence, `invoices` the issued document, `invoice_entries` the payments. The client's `delay_days` is written by the billing module (`refresh_client_delay_days`) and read by the dashboard, health score, scoring and Gravity. See `docs/modules/financeiro.md`; the rebuild spec is `docs/sdd/financeiro-faturamento-sdd.md`. Until Phase 7 the legacy `contract_charges` + `billing_payments` still drive the live cockpit.
+
 ### Client Lifecycle Model
 Clients now support lifecycle classification through the `lifecycle_stage` field. This field defines how the client is treated across the system.
 

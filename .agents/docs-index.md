@@ -1,7 +1,7 @@
 # doncCX Hub — Documentation Index
 
 > GENERATED — do not edit by hand. Sole writer: `index-updater` skill.
-> last-verified: 2026-10-03
+> last-verified: 2026-10-04
 
 ## Purpose
 
@@ -35,6 +35,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 - cs-radar
 - donkie
 - email
+- **financeiro (faturamento e contas a receber)** — `docs/modules/financeiro.md`; rebuild em curso, spec canônica em `docs/sdd/financeiro-faturamento-sdd.md`; Fase 1 (schema) em produção 2026-10-04, modelo novo vazio ao lado do antigo
 - greeting-engine (hub), greeting-engine-content, greeting-engine-debug, greeting-engine-phase-1-spec, greeting-engine-roadmap-v2, greeting-engine-runtime, greeting-engine-tone-guide
 - health-score-dashboard (engine + dashboard merged)
 - meu-dia-dashboard (dashboard v3)

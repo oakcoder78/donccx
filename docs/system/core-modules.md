@@ -48,3 +48,10 @@
 *Responsibility*: Calculates health metrics using activity data, contact engagement and custom rules; displays the score via UI components such as `HealthBar`.
 *Data*: Numeric health score, underlying indicators (activity frequency, satisfaction signals, onboarding completion).
 *Contribution*: Drives risk assessment, informs dashboard alerts and guides CS agents in prioritising outreach.
+
+## Financeiro
+
+*Purpose*: Turn a client's commercial plan into money receivable — invoice, settle, discount, write off and report delinquency.
+*Responsibility*: Derives each competência's amount from the contract rule and real usage, issues immutable invoices, records value-based entries (partial payment included), and keeps `clients.delay_days` as the worst overdue invoice.
+*Data*: `series_rules` + `series_eventuals` (the plan), `invoices` (the document), `invoice_entries` (the ledger), `billing_run_log` (issuance observability). The legacy `contract_charges` + `billing_payments` still drive the live cockpit and retire in Phase 7.
+*Contribution*: Replaces the external spreadsheet from nov/2026, and supplies the delinquency signal that dashboard, health score, scoring and Gravity consume. See `docs/modules/financeiro.md` and `docs/sdd/financeiro-faturamento-sdd.md`.

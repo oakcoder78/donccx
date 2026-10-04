@@ -4,6 +4,7 @@
 
 | Mês | Destaques |
 |---|---|
+| [2026-10](CHANGELOG-2026-10.md) | **Rebuild de faturamento — Fase 1 (schema + derivação) em produção ao lado do antigo**; F0 aprovado (582 competências, R$ 103 mil de excedente não faturado); SDD do rebuild + revisão adversarial (45 correções) + ADR |
 | [2026-09](CHANGELOG-2026-09.md) | Séries contratuais + V2 definitivo; **cockpit financeiro entregue (SDD 0–5 + UI v2 + Help)**; empresas leitura global + sales carteira; dashboard V3 polish; **auditoria de permissões — flags substituem hardcode, RLS de coluna financeira (`clients_safe`), effectiveRole consistente** |
 | [2026-08](CHANGELOG-2026-08.md) | Dashboard V3 p/ 6 papéis; form v2 Contrato; cockpit financeiro; Freshdesk ops |
 | [2026-07](CHANGELOG-2026-07.md) | Sync service log; operacionais |
