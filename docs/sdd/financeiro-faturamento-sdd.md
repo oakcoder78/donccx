@@ -789,7 +789,9 @@ The settlement window and the Histórico view are a **right drawer on ≥md** (`
 
 There is **no spreadsheet to reconcile against**. F0 is therefore the requester's conference, not an automated recomputation.
 
-**Deliverable:** `docs/operations/faturamento-carga-historica.md`.
+**Deliverable:** `docs/operations/faturamento-carga-historica.md` (+ `.csv` with the 582 rows).
+
+**Status:** v1 generated 2026-10-03 — **awaiting the requester's approval**. Numbers: 582 competências, 18 séries, 69 com uso real, 513 no piso, R$ 103.084,09 de excedente calculado, 15 séries sem regra cadastrada. The anomalies table in the artefact is the decision list.
 
 | Step | Content |
 |---|---|
