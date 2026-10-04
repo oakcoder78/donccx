@@ -352,7 +352,7 @@ The recurrence plan. Extracted from `contract_charges` where `kind = 'recorrenci
 | `created_at` | timestamptz NOT NULL DEFAULT now() | |
 
 CHECK: `(mode='amount' AND amount IS NOT NULL AND percent IS NULL) OR (mode='percent' AND percent IS NOT NULL AND amount IS NULL)`.
-UNIQUE `(series_id, month_from)`. Contiguity (no gaps, no overlap) validated in the RPC.
+UNIQUE `(series_id, month_from)`. Contiguity (no gaps, no overlap): **not yet enforced** — no RPC writes this table in Phase 1. Pending before Phase 2 (see Phase 1 deviations).
 
 ### 2.3 `series_eventuals` — new
 
@@ -473,7 +473,7 @@ Issuance observability (§5.5).
 
 `FAT-{issue_year}-{global_sequence:06d}` — zero-padded so lexical order matches numeric order. A global sequence (`invoice_number_seq`), not reset per year; the year prefix is informational. On the historic load, invoices are numbered in **chronological competência order** per client, so the sequence reads coherently within a client's history.
 
-`generate_invoice_number()` returns the formatted string. The number is allocated inside the same statement that inserts the invoice, so a conflict does not burn a number.
+`generate_invoice_number()` returns the formatted string. `issue_invoice` checks for an existing competência before calling `generate_invoice_number()`, so an idempotent re-issue does not burn a number. `nextval` is not transactional: a race between two concurrent issues for the same competência can still burn one number. The `ON CONFLICT` clause keeps the duplicate out.
 
 ### 2.8 Derived values
 
@@ -994,7 +994,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 - [x] **Snapshot:** `supabase/snapshots/20261004_pre_billing_rebuild.sql` — 216 linhas (134 charges + 82 payments), restaurável por psql, gerado por `scripts/snapshot-billing.mjs`
 - [x] **Migration `billing_schema`** (`20261004225041`): five tables, all CHECKs, all indexes, RLS reading `feature_flags.allowed_roles`
 - [x] **Migration `billing_derive`** (`20261004225219`): `invoice_balance` view, `invoice_state()`, `refresh_client_delay_days` + 2 triggers
-- [x] **Migration `billing_rpcs`** (`2026100542…` see log): `issue_invoice`, `settle_invoice`, `discount_invoice`, `discount_batch`, `write_off_invoice`, `reverse_entry`, `adjust_invoice`, `cancel_invoice`, `assert_invoice_open`
+- [x] **Migration `billing_rpcs`** (`20261004225421`): `issue_invoice`, `settle_invoice`, `discount_invoice`, `discount_batch`, `write_off_invoice`, `reverse_entry`, `adjust_invoice`, `cancel_invoice`, `assert_invoice_open`
 - [x] **Migration `billing_due_date_helpers`** (`20261004225607`): `competencia_index`, `billing_due_date` — the clamp is a pure function, testable without the engine
 - [x] **Numbering:** `invoice_number_seq` + `generate_invoice_number()` → `FAT-2026-000001`
 - [x] **Service role guard:** `auth.role() = 'service_role'` accepted; GRANTs restricted; `anon` revoked
@@ -1011,12 +1011,16 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 | `assert_invoice_open` and `discount_batch` added to the RPC list | `assert_invoice_open` is the shared guard (invoice exists, is not cancelled, amount fits the balance). `discount_batch` implements §4.5's "distribuir" mode — proportional with cap and remainder redistribution, which is non-trivial logic that belongs in the database, not in the UI |
 | `series_rules` / `series_eventuals` allow direct writes with RLS | They are plan tables the contract form edits, mirroring `contract_series`'s `series_write` policy. `invoices` and `invoice_entries` remain RPC-only |
 | Two extra helpers (`competencia_index`, `billing_due_date`) | The date grid is a Phase 1 verification, but the clamp lived in the Phase 2 engine. As pure functions they are testable now and the engine just calls them |
+| `delay_days` is written by **triggers** on `invoice_entries` and `invoices`, not by explicit calls from each RPC (§2.9) | Equivalent coverage: every settlement, reversal, discount, cancel and adjust touches one of the two tables. Recorded here because §2.9 lists the RPCs |
+| `series_rules` contiguity (§2.2) is **not** enforced yet | No RPC writes `series_rules` in Phase 1; direct writes go through RLS. Pending: a trigger or RPC must reject gaps and overlaps before the Phase 2 engine reads the table. Table is empty, so there is no live exposure |
+| §2.7 said a conflicting insert "does not burn a number" | That was wrong for PostgreSQL: `nextval` is evaluated in the INSERT and sequences are not transactional. Fixed by the hardening migration: a pre-check skips `nextval` for an existing competência. A race between two concurrent issues can still burn one number; `ON CONFLICT` covers the duplicate |
 
 #### Implementation Log (Phase 1)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-10-04 | — | 4 migrations + snapshot + script | 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers; 66 assertions green; old model intact |
+| 2026-10-04 | `1724e9e` | 4 migrations + snapshot + script | 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers; old model intact. The "66 assertions" were **not** versioned in the repo; see the hardening row |
+| 2026-10-04 | pending | `20261004230000_billing_security_hardening`, `20261004231500_billing_audit_requires_user`, `supabase/tests/billing_rebuild_phase1.sql` | Post-validation hardening. Applied to production: `invoice_balance` with `security_invoker`; EXECUTE revoked from `authenticated` on `assert_invoice_open`, `invoice_state`, `generate_invoice_number`, `refresh_client_delay_days`; row locks (`FOR UPDATE`) in `assert_invoice_open`, `reverse_entry`, `adjust_invoice`, `cancel_invoice`, `discount_batch`; `issue_invoice` pre-check; CHECK `invoices_recorrencia_series_chk`; `cancel_invoice` refuses invoices with settled entries; `adjust_invoice` refuses zero. Suite: 10 checks, 0 failed, run in a rolled-back transaction. **Not yet applied:** `20261004231500` (audit requires a user) — blocked at the production push; its effect is limited to clearer errors under `service_role` |
 
 > **Note on the invoice-numbering gap.** The 4 migrations were applied through the Supabase MCP, which stamps its own version. The local filenames were renamed to match the recorded versions so `supabase db push` does not see drift. See the commit for the exact list.
 

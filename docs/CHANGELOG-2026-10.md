@@ -25,6 +25,20 @@ Produção conferida depois: tabelas novas vazias, antigas intactas, sem resídu
 
 **Três desvios do SDD, registrados na seção da fase:** `get_financeiro_pendencias` migra na Fase 4 e não na 1 (é consumidor do cockpit, e a página viva lê campos antigos); o recompute de `delay_days` é escopado a quem tem fatura (recomputar todos agora zeraria o atraso de todo mundo, e a coluna alimenta dashboard, health score, scoring e Gravity); `assert_invoice_open` e `discount_batch` entraram na lista de RPCs — a distribuição proporcional com teto pertence ao banco, não à UI.
 
+### Financeiro — validação da Fase 1 e hardening
+
+Validação da Fase 1 contra a spec, com leitura das migrations e checagens de catálogo em produção. Achados corrigidos por duas migrations novas (as já aplicadas não foram editadas):
+
+- **Vazamento de saldo:** `invoice_balance` rodava com privilégios do dono e contornava a RLS. Agora `security_invoker`. Hoje é latente (a tabela de faturas está vazia), mas viraria real na Fase 2.
+- **Funções sensíveis expostas:** `assert_invoice_open` (devolvia o saldo em erro), `invoice_state`, `generate_invoice_number` e `refresh_client_delay_days` estavam executáveis por qualquer usuário logado. Revogadas.
+- **Corrida no saldo:** duas baixas simultâneas podiam passar a mesma checagem e pagar a maior. Faturas agora travadas (`FOR UPDATE`) antes da leitura.
+- **Numeração:** reemissão idempotente gastava número da sequência; corrigido.
+- **Regras:** cancelar fatura com pagamento é recusado (estorne antes); ajuste para zero é recusado (use cancelamento); recorrência exige série.
+
+Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql` (10 checagens, transação com rollback). A afirmação "66 asserções verdes" da Fase 1 não tinha artefato no repositório; esta suíte é o que sobra verificável.
+
+**Pendente:** a migration `20261004231500_billing_audit_requires_user` (cancelar e ajustar exigem usuário autenticado) ainda não foi aplicada em produção. Sem ela, a mesma operação com `service_role` falha com erro de CHECK em vez de mensagem clara. A contiguidade das faixas de `series_rules` também segue pendente.
+
 ### Financeiro — F0 aprovado: conferência da carga histórica
 
 `docs/operations/faturamento-carga-historica.md` + `.csv`: 582 competências de 2021-03 a 2026-09, 18 séries, com uso, piso, unit, valor calculado e vencimento. É o gate da Fase 2 — o motor não emite competência histórica sem esta conferência aprovada, porque não há planilha para conciliar.

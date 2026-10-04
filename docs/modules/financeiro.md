@@ -68,6 +68,7 @@ Existe porque o controle de faturamento sai de uma planilha externa para o Hub e
 |---|---|---|
 | `series_rules`, `series_eventuals` | direta, com RLS (o form do contrato edita) | `financial_data` |
 | `invoices`, `invoice_entries` | **só por RPC** — sem policy de INSERT/UPDATE/DELETE | `financial_data` |
+| `invoice_balance` (view) | — (derivada) | `financial_data`, via `security_invoker` — a view herda a RLS de quem consulta |
 | `billing_run_log` | service role (o motor de emissão) | `financial_data` |
 | `clients.delay_days` | `refresh_client_delay_days`, disparado por trigger em `invoices` e `invoice_entries` | dashboard, health score, scoring, Gravity |
 
