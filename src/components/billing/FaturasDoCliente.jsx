@@ -170,11 +170,17 @@ function Composicao({ invoiceId }) {
   if (comp.isPending || !comp.data) return null
   const c = comp.data
   const excedente = Number(c.excedente || 0)
+  // Contrato fixo (ou travado) nao tem licencas: so a base aparece.
+  const porLicenca = Number(c.unit || 0) > 0
   return (
     <span className="text-xs text-text-secondary">
       Base {BRL.format(Number(c.base))}
       {excedente > 0 && <> + excedente {BRL.format(excedente)}</>}
-      {' '}· uso {c.uso} {c.uso === 1 ? 'licença' : 'licenças'}, piso {c.piso}, {BRL.format(Number(c.unit))} por licença
+      {porLicenca && (
+        <>
+          {' '}· uso {c.uso} {c.uso === 1 ? 'licença' : 'licenças'}, piso {c.piso}, {BRL.format(Number(c.unit))} por licença
+        </>
+      )}
     </span>
   )
 }
