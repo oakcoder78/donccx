@@ -28,16 +28,23 @@ function competenciaOptions() {
 }
 
 // Motivo e projecao por cliente, a partir das linhas por serie do preview.
+// `composicao` separa a projecao por tipo (recorrencia, eventual), para a tela
+// dizer de onde vem o valor.
 function resumoPorCliente(motivos) {
   const map = new Map()
   for (const r of motivos) {
-    const cur = map.get(r.client_id) || { motivo: null, projecao: 0 }
-    if (r.outcome === 'emitiria') cur.projecao += Number(r.amount || 0)
-    else if (r.outcome === 'pulada' && !cur.motivo) cur.motivo = r.reason
+    const cur = map.get(r.client_id) || { motivo: null, projecao: 0, composicao: [] }
+    if (r.outcome === 'emitiria') {
+      const valor = Number(r.amount || 0)
+      cur.projecao += valor
+      cur.composicao.push({ kind: r.kind, valor })
+    } else if (r.outcome === 'pulada' && !cur.motivo) cur.motivo = r.reason
     map.set(r.client_id, cur)
   }
   return map
 }
+
+const ROTULO_TIPO = { recorrencia: 'Recorrência', eventual: 'Eventual' }
 
 export default function FinanceiroCockpitV2Page() {
   const { effectiveRole } = useAuth()
@@ -175,7 +182,17 @@ export default function FinanceiroCockpitV2Page() {
                                 : <span className="text-xs text-text-secondary">Sem fatura</span>)
                             : <span className="text-xs text-text-secondary">Sem fatura</span>}
                         {c.estado === 'sem_fatura' && canWrite && r?.projecao > 0 && (
-                          <span className="block text-xs text-text-secondary mt-1">Projeção {BRL.format(r.projecao)}</span>
+                          <span className="block text-xs text-text-secondary mt-1">
+                            Projeção {BRL.format(r.projecao)}
+                            <span className="block text-[11px]">
+                              {r.composicao.map((p, i) => (
+                                <span key={i}>
+                                  {i > 0 && ' + '}
+                                  {ROTULO_TIPO[p.kind] || p.kind} {BRL.format(p.valor)}
+                                </span>
+                              ))}
+                            </span>
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{BRL.format(Number(c.saldo_aberto || 0))}</td>
