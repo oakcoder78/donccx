@@ -121,11 +121,14 @@ Os maiores:
 
 ## Aprovação
 
-Este documento precisa de: **aprovador, data e versão** antes de a Fase 2 emitir qualquer competência histórica.
+Aprovado. É o que destrava a emissão de competência histórica (< 2026-11) — o motor se recusa sem isso, e a recusa é verificável (checagem 27 da suíte da Fase 2).
 
 | Campo | Valor |
 |---|---|
 | Versão | 1 (2026-10-03) |
-| Aprovado por | — |
-| Data | — |
+| Aprovado por | Operação do faturamento (solicitante) |
+| Data | 2026-10-03 |
+| Registro | Flag `billing_f0_approved`, ligada — desligá-la volta a bloquear a emissão histórica |
+
+**Revisões futuras:** uma versão nova deste documento não substitui a aprovação automaticamente. A flag é que é o gate, e ela é binária — se o cálculo mudar, desligue a flag, publique a versão nova e peça nova aprovação.
 | Observações | — |

@@ -20,7 +20,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 ## Product
 
 - `docs/product/` — planned (vision, glossary, roadmap); today: `docs/core-concepts.md`, `docs/platform-overview.md`
-- `docs/operations/` — `deploy.md`, `storage.md`, `faturamento-carga-historica.md` (+ `.csv`) = task F0 do rebuild de faturamento, conferência da carga histórica; gate da Fase 2, aguardando aprovação
+- `docs/operations/` — `deploy.md`, `storage.md`, `faturamento-carga-historica.md` (+ `.csv`) = task F0 do rebuild de faturamento, conferência da carga histórica; **aprovada 2026-10-03** (v1, flag `billing_f0_approved`), gate da emissão de competências anteriores a 2026-11
 - `docs/security/` — `RLS-EMPRESAS-SERIES.md`, `SDD-AUDIT.md`, `SECURITY_REMEDIATION_PLAN.md` (Fase 4, 2026-10-05: grants de `SECURITY DEFINER` expostas a `anon`); suíte `supabase/tests/security_function_grants.sql`
 - `docs/ui-patterns.md` — component patterns (Table, Toggle, Drawer, Health Legend…)
 
@@ -35,7 +35,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 - cs-radar
 - donkie
 - email
-- **financeiro (faturamento e contas a receber)** — `docs/modules/financeiro.md`; rebuild em curso, spec canônica em `docs/sdd/financeiro-faturamento-sdd.md`; Fase 1 (schema) em produção 2026-10-04, modelo novo vazio ao lado do antigo
+- **financeiro (faturamento e contas a receber)** — `docs/modules/financeiro.md`; rebuild em curso, spec canônica em `docs/sdd/financeiro-faturamento-sdd.md`; **Fases 1–3 completas** (schema 2026-10-04, motor e ciclo de vida 2026-10-05), modelo novo ainda vazio ao lado do antigo — as regras só entram na Fase 5
 - greeting-engine (hub), greeting-engine-content, greeting-engine-debug, greeting-engine-phase-1-spec, greeting-engine-roadmap-v2, greeting-engine-runtime, greeting-engine-tone-guide
 - health-score-dashboard (engine + dashboard merged)
 - meu-dia-dashboard (dashboard v3)
@@ -48,7 +48,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 
 ## Decisions (frozen; addenda only)
 
-- `docs/sdd/` — 17 SDDs (see `docs/sdd/` listing; `financeiro-faturamento-sdd.md` = **rebuild de faturamento/contas a receber** — regra ≠ fatura, lançamentos por valor, baixa em lote, carga histórica, canônico para adimplência/fatura; substitui em parte o `financeiro-cockpit-sdd.md`; `financeiro-cockpit-sdd.md` v2.1 (2026-10-01, completo) + `financeiro-cockpit-regras.html` = Help v1.0 servido em `public/help/` — canônico para extrato de uso/MRR; `contract-series-lifecycle-sdd.md` = mutação do ciclo de vida da série — encerrar/reabrir/estender/suspender cobrança, canônico para isso; Fases A–E verificadas em produção 2026-10-03, log de verificação e os 13 defeitos corrigidos na §4/4-ter/4-bis; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
+- `docs/sdd/` — 17 SDDs (see `docs/sdd/` listing; `financeiro-faturamento-sdd.md` = **rebuild de faturamento/contas a receber** — regra ≠ fatura, lançamentos por valor, baixa em lote, carga histórica, canônico para adimplência/fatura; substitui em parte o `financeiro-cockpit-sdd.md`; `financeiro-cockpit-sdd.md` v2.1 (2026-10-01, completo) + `financeiro-cockpit-regras.html` = Help v1.0 servido em `public/help/` — canônico para extrato de uso/MRR; `contract-series-lifecycle-sdd.md` = mutação do ciclo de vida da série — encerrar/reabrir/estender/suspender cobrança, canônico para isso; Fases A–E verificadas em produção 2026-10-03, log de verificação e os 13 defeitos corrigidos na §4/4-ter/4-bis; **RPCs migradas para `series_rules` + `invoices` na Fase 3 do rebuild (2026-10-05)** — as regras de negócio do doc continuam valendo, o mecanismo mudou; `empresas-form-v2-sdd.md` has 2026-09-07 addendum)
 - `docs/brd/brd-financeiro-cockpit.md` (+ 0.6 addendum — ata de validação Financeiro/Vendas, 2026-09-11)
 - `docs/decisions/` — ADRs numerados: `001-rebuild-faturamento.md` (Accepted 2026-10-03) = rebuild vs. patch do módulo de faturamento, justificativa pelo requisito de pagamento parcial
 
