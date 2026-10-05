@@ -44,7 +44,9 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 - `encerrar_series`, `reabrir_series`, `reativar_series`, `set_nao_cobrar`, `cobrar_mais_meses` — lifecycle RPCs. `encerrar_series` deletes `contract_charges`; `reabrir_series` and `cobrar_mais_meses` call `ensure_series_horizon`.
 - `sync_billing_payments_delay_days()` — AFTER INSERT/UPDATE/DELETE trigger on `billing_payments`. Copies the delay of the **most recent** `ref_month` to `clients.delay_days`. Consumed by `get_finance_summary`, `health-recalc`, `DashboardPage.jsx:199`, `scoring.js:158`, `healthScore.js:226`, `gravidade.js:30`, `ClientsPage.jsx:38`, `ClientHealthDrawer.jsx:105`.
 - `trg_sync_charge_due_date` — derives `contract_charges.due_date` from `ref_month` + `due_day` with end-of-month clamp.
-- Feature flags: `cockpit_financeiro` (admin/manager/finance), `financeiro_cockpit_write` (admin/finance/manager), `financial_data` (admin/manager/finance/**sales**). Registered in `SettingsFeatureFlags.jsx` under "Cockpits & Dashboards".
+- **The new model (Phase 1, 2026-10-04):** `series_rules`, `series_eventuals`, `invoices`, `invoice_entries`, `billing_run_log`; the `invoice_balance` view with `security_invoker`; `invoice_state`, `refresh_client_delay_days` (+ 2 triggers), `competencia_index`, `billing_due_date`, `generate_invoice_number`, `assert_invoice_open`, `assert_series_rules_contiguous` (+ deferred constraint trigger); the write RPCs `issue_invoice`, `settle_invoice`, `discount_invoice`, `discount_batch`, `write_off_invoice`, `reverse_entry`, `adjust_invoice`, `cancel_invoice`. `contract_series` gained `first_competencia` and `first_due_date`. **All empty** — the old model still drives the cockpit.
+- **The engine (Phase 2, 2026-10-05):** `close_competencia(p_competencia, p_mode, p_force, p_series_ids)` with `preview`/`real`; `billing_client_usage` and `billing_series_rule` as the two derivations it reads. Verified by `supabase/tests/billing_rebuild_phase2.sql` (28 checks).
+- Feature flags: `cockpit_financeiro` (admin/manager/finance), `financeiro_cockpit_write` (admin/finance/manager), `financial_data` (admin/manager/finance/**sales**), `billing_f0_approved` (enabled — the F0 approval, gates historic issuance). Registered in `SettingsFeatureFlags.jsx` under "Cockpits & Dashboards".
 - Base UI components available: `Avatar`, `Badge`, `Button`, `Card`, `Drawer`, `HealthBar`, `Modal`, `PageHeader`, `Spinner`, `StagePill`, `UserEditModal` (all in `src/components/ui/`).
 
 **What does NOT exist and needs to be created:**
@@ -720,16 +722,37 @@ Removed: the "vence dia {due_day} · {billing_start} → {billing_end}" line (de
 
 ### 4.2 Close competência
 
-**The missing primary action.** A button in the cockpit header, gated by `financeiro_cockpit_write`.
+**The missing primary action.** A button in the cockpit header, gated by `financeiro_cockpit_write`. It calls `close_competencia` (Phase 2) — the UI never computes an amount itself.
+
+```
+close_competencia(p_competencia text, p_mode text, p_force boolean, p_series_ids uuid[])
+  p_mode        'preview' | 'real'
+  p_force       true bypasses the usage completeness gate
+  p_series_ids  NULL = every active series; otherwise scoped
+```
 
 Flow:
-1. Select the competência to close (default = the first not-yet-closed month with usage data).
-2. **Preview** — the generator runs without persisting and lists, per series: client, series, usage, floor, unit, base, excedente, amount, due date. Series that will be skipped are listed with the reason (`amount_zero`, `nao_bilhetavel`, `outside_window`, `usage_incomplete`).
-3. **Completeness gate** — if any client's usage snapshot for that competência is `pending` or missing, the run is blocked and those clients are listed as "em conciliação". The user can close anyway with an explicit acknowledgement, and those clients are recorded as `usage_incomplete` in `billing_run_log`.
-4. **Confirm** — invoices are issued chronologically and numbered.
-5. Result is written to `billing_run_log` and surfaced as a summary.
+1. Select the competência (default = the first not-yet-closed month with usage data).
+2. **Preview** (`p_mode='preview'`) — persists nothing. Returns one row per series and per eventual instalment.
+3. **Completeness gate** — a usage-driven series whose client has no snapshot for the competência, or a pending one, comes back `pulada` with `usage_incomplete`. The UI lists those as "em conciliação"; closing anyway is `p_force=true`, and the run records the override.
+4. **Confirm** (`p_mode='real'`) — issues and writes `billing_run_log`.
+5. The summary row (`series_id IS NULL`) carries `emitidas` / `ja_emitidas` / `puladas`.
 
-A close run is **idempotent**: running twice issues nothing the second time (partial unique index + `ON CONFLICT DO NOTHING`). A `pg_advisory_xact_lock` on the competência serialises concurrent runs.
+**Return contract** — what Phase 4 renders:
+
+| Column | Meaning |
+|---|---|
+| `series_id`, `client_id`, `client_name`, `series_label` | identity |
+| `kind` | `recorrencia` or `eventual` |
+| `outcome` | `emitiria` (preview) · `emitida` · `ja_emitida` (idempotent no-op) · `pulada` |
+| `reason` | when `pulada`: `sem_regra`, `nao_bilhetavel`, `fora_janela`, `antes_inicio`, `valor_zero`, `usage_incomplete`. On `ja_emitida`: `idempotente` |
+| `month_index` | position in the contract, 1-based (recurrence only) |
+| `uso`, `piso`, `unit` | the inputs the engine read |
+| `base`, `excedente`, `amount` | the composition (§3.2) |
+| `due_date` | from `billing_due_date` |
+| `invoice_id`, `invoice_number` | set on `emitida` and `ja_emitida` |
+
+A close run is **idempotent**: running twice issues nothing the second time (the pre-check plus `ON CONFLICT DO NOTHING`). A `pg_advisory_xact_lock` on the competência serialises concurrent runs. A historic competência (`< 2026-11`) in `real` mode requires the `billing_f0_approved` flag.
 
 ### 4.3 Settlement window
 
@@ -962,7 +985,9 @@ Asserting the exact `due_date` for recurrence and for eventual instalments, incl
 
 ### 5.6 Parity test
 
-The new engine and `_financeiro_series_month` must agree on `mrr_real` for 2026-06 → 2026-09, **except** where defect 7 applies (multi-module series, none today). Run before Phase 3 ships. Any other divergence is a bug in the new engine.
+The new engine and `_financeiro_series_month` must agree on `mrr_real` for 2026-06 → 2026-09, **except** where defect 7 applies (multi-module series, none today). Any other divergence is a bug in the new engine.
+
+**Implemented as check 28 of `supabase/tests/billing_rebuild_phase2.sql`**, and it is what caught the `base + excedente` defect: the engine and the live engine agreed on every series whose rule equals `unit × floor`, and diverged the moment a percent rule existed. A parity test that only covers the common case does not test the formula — it tests the coincidence.
 
 ### 5.7 Regression: lifecycle
 
