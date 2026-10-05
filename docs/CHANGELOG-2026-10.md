@@ -1,5 +1,23 @@
 # Changelog — 2026-10
 
+## 2026-10-05
+
+### Financeiro — Fase 4, pré-trabalho do design system e leituras do cockpit
+
+Antes das telas do cockpit novo (atrás da flag `cockpit_faturamento`), o design system ganhou o que a Fase 4 precisa. O que mudou em `src/components/ui`:
+
+- **Tokens de estado** em `tailwind.config.js` (`status.*`): texto escuro para o faturamento, com contraste pensado para `text-xs`. Âmbar = ação; verde só para quitada; azul para aberta e parcial; vermelho para vencida; cinza para consequência.
+- **`Modal`**: Escape fecha, `role="dialog"`, `aria-modal`, foco preso e devolvido ao fechar. Clique no fundo não fecha, para não perder texto digitado.
+- **`Drawer`**: largura por variável CSS; de `md` (768px) para cima é lateral, abaixo é tela cheia (sheet). Foco preso.
+- **`Button`**: variante `warning` (fundo âmbar suave, texto escuro), para ações irreversíveis que não são cancelamento.
+- **Novos**: `InvoiceStateBadge`, `MotivoBadge` (`StateBadges.jsx`), `ConfirmDialog`, `EmptyState`, `ErrorState`, `ReadOnlyBanner` (`StatusViews.jsx`), `Pagination` (50 por página).
+- **Ícone** `Lock` no registro `Icons`.
+- **Docs**: `ui-patterns.md` alinhado ao config e aos limiares reais da `HealthBar` (75% e 50%).
+
+**Leituras do cockpit novo** (migration `20261005150000_billing_cockpit_reads`, suíte `billing_rebuild_phase4_reads.sql`, 9 checagens): `billing_cockpit_clientes`, `billing_cockpit_faturas`, `billing_pendencias` e `billing_cockpit_motivos`. Quem só lê não recebe motivo nem projeção.
+
+**Em aberto:** o cockpit novo ainda não tem MRR, Δ e excedente faturado. As telas serão construídas a seguir, com a referência visual aprovada no canvas do Claude Design.
+
 ## 2026-10-04
 
 ### Financeiro — Fase 1 do rebuild: schema e derivação

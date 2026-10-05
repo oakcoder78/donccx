@@ -32,6 +32,27 @@ export default {
           secondary: '#4a4a46',
           tertiary:  '#888780',
         },
+        // Estados do faturamento: texto escuro (>= 4,5:1 sobre branco, para
+        // text-xs), fundo suave e linha. Cor nunca e a unica informacao: cada
+        // estado tambem tem texto e icone. Amber = acao; green so quitada.
+        status: {
+          'amber-text': '#633806',
+          'amber-bg':   '#FAEEDA',
+          'amber-line': '#FAC775',
+          'red-text':   '#791F1F',
+          'red-bg':     '#FCEBEB',
+          'red-line':   '#F7C1C1',
+          'red-solid':  '#A32D2D',
+          'green-text': '#085041',
+          'green-bg':   '#E1F5EE',
+          'green-line': '#9FE1CB',
+          'blue-text':  '#0C447C',
+          'blue-bg':    '#E6F1FB',
+          'blue-line':  '#B5D4F4',
+          'slate-text': '#444441',
+          'slate-bg':   '#F1EFE8',
+          'slate-line': '#D3D1C7',
+        },
       },
       borderRadius: {
         lg: '10px',

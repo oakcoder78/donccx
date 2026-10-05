@@ -149,9 +149,9 @@ Used in: Health Dashboard (dimension bars), Project Cockpit (project progress), 
 
 | Range | Color | Meaning |
 |-------|-------|---------|
-| ≥ 80% | `#2f9e70` (green) | High / on track |
-| 40–79% | `#d98b28` (amber) | Medium / attention |
-| < 40% | `#d64545` (red) | Low / alert |
+| ≥ 75% | `#1D9E75` (green) | High / on track (`HealthBar.jsx`) |
+| 50–74% | `#BA7517` (amber) | Medium / attention |
+| < 50% | `#E24B4A` (red) | Low / alert |
 
 For dimension scores (0–20 scale):
 - ≥ 20: full green
@@ -373,9 +373,9 @@ Used in: Health Dashboard (Saudáveis/Atenção/Alerta), generic filter chips.
 |-------|-----|---------------|-------|
 | Navy | `#173557` | `bg-donc-navy` | Table headers, toggle ON, primary buttons, active chips |
 | Sky | `#59c2ed` | `bg-donc-sky` | Highlights, heatmap, dimension Uso, accent links |
-| Green | `#2f9e70` | `bg-donc-verde` | Success, Saudável, progress >80% |
-| Amber | `#d98b28` | `bg-donc-amber` | Warning, Atenção, progress 40-80% |
-| Red | `#d64545` | `bg-donc-red` | Error, Alerta, progress <40% |
+| Green | `#1D9E75` | `bg-donc-verde` | Success, Saudável, progress ≥75% |
+| Amber | `#BA7517` | `bg-donc-amber` | Warning, Atenção, progress 50–74% |
+| Red | `#E24B4A` | `bg-donc-red` | Error, Alerta, progress <50% |
 | Purple | `#b46cd1` | `bg-donc-purple` | Dimension Suporte, accent |
 | Lime | `#d3da47` | — | Dimension Projeto |
 | White | `#ffffff` | `bg-white` | Toggle knob, text on navy |
@@ -385,10 +385,11 @@ Used in: Health Dashboard (Saudáveis/Atenção/Alerta), generic filter chips.
 | Token | Equivalent | Usage |
 |-------|------------|-------|
 | `bg-bg-primary` | `#ffffff` | Card backgrounds, table backgrounds, page surface |
-| `bg-bg-secondary` | `#f4f5f7` | Skeleton loading, hover state, header background (legacy) |
-| `text-text-primary` | `#1a1a18` / `#0e223a` | Primary text, headings |
-| `text-text-secondary` | `#3b4a5e` | Secondary text, body content |
-| `text-text-tertiary` | `#6b7889` / `#888780` | Hints, labels, metadata, disabled |
+| `bg-bg-secondary` | `#f7f7f5` | Skeleton loading, hover state, header background (legacy) |
+| `text-text-primary` | `#1a1a18` | Primary text, headings |
+| `text-text-secondary` | `#4a4a46` | Secondary text, body content |
+| `text-text-tertiary` | `#888780` | Hints, labels, metadata, disabled |
+| `bg-status-*-bg` / `text-status-*-text` / `border-status-*-line` | ver `tailwind.config.js` | Estados do faturamento: texto escuro ≥4,5:1 sobre branco, fundo suave. Âmbar = ação; verde só quitada; azul aberta/parcial; vermelho vencida; cinza consequência |
 | `border-border-secondary` | — | Input borders, subtle dividers |
 | `border-border-tertiary` | `rgba(15,34,58,0.09)` | Card borders, table row dividers |
 
