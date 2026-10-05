@@ -219,6 +219,73 @@ BEGIN
     || ' renewal=' || coalesce(v_row.contract_renewal::text,'null')
     || ' months=' || coalesce(v_row.contract_months::text,'null'); END IF;
 
+  -- ==========================================================================
+  -- 14-18. Escolha explicita no encerramento: a regra vem da negociacao
+  -- ==========================================================================
+  PERFORM set_config('request.jwt.claims', json_build_object('role','service_role','sub',v_user)::text, true);
+
+  -- 14. Padrao (os dois flags false) nao cancela nada
+  UPDATE public.contract_series SET status = 'ativa' WHERE id = v_ts;
+  v_inv := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-08', 300, '2099-08-10',
+                                'parcela padrao', gen_random_uuid(), 1::smallint, 2::smallint);
+  v_res := public.encerrar_series(v_ts, false, NULL, 'sem cancelamento nesta sonda', false, false);
+  SELECT status INTO v_txt FROM public.invoices WHERE id = v_inv;
+  IF v_txt = 'emitida' THEN v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 14 eventual cancelado sem escolha: ' || coalesce(v_txt,'null'); END IF;
+
+  -- 15. So o eventual: a recorrencia futura fica
+  UPDATE public.contract_series SET status = 'ativa' WHERE id = v_ts;
+  v_inv := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-08', 310, '2099-08-10',
+                                'parcela so eventual', gen_random_uuid(), 1::smallint, 2::smallint);
+  v_inv2 := public.issue_invoice(v_tc, v_ts, 'recorrencia', '2099-09', 100, '2099-09-10');
+  v_res := public.encerrar_series(v_ts, false, NULL, 'so o eventual sai nesta sonda', false, true);
+  IF (SELECT status FROM public.invoices WHERE id = v_inv) = 'cancelada'
+     AND (SELECT status FROM public.invoices WHERE id = v_inv2) = 'emitida' THEN
+    v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 15 so-eventual: eventual=' || coalesce((SELECT status FROM public.invoices WHERE id = v_inv),'null')
+    || ' recorrencia=' || coalesce((SELECT status FROM public.invoices WHERE id = v_inv2),'null'); END IF;
+
+  -- 16. Os dois: recorrencia e eventual cancelados
+  UPDATE public.contract_series SET status = 'ativa' WHERE id = v_ts;
+  v_inv := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-10', 320, '2099-10-10',
+                                'parcela dos dois', gen_random_uuid(), 1::smallint, 2::smallint);
+  v_inv2 := public.issue_invoice(v_tc, v_ts, 'recorrencia', '2099-10', 110, '2099-10-10');
+  v_res := public.encerrar_series(v_ts, true, NULL, 'cancelar os dois nesta sonda', false, true);
+  IF (SELECT status FROM public.invoices WHERE id = v_inv) = 'cancelada'
+     AND (SELECT status FROM public.invoices WHERE id = v_inv2) = 'cancelada' THEN
+    v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 16 os-dois nao cancelou ambos'; END IF;
+
+  -- 17. cancelar_eventual_grupo cancela as parcelas nao pagas e preserva a paga
+  v_pay := gen_random_uuid();  -- grupo proprio deste teste
+  UPDATE public.contract_series SET status = 'ativa' WHERE id = v_ts;
+  v_inv := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-11', 500, '2099-11-10',
+                                'grupo teste', v_pay, 1::smallint, 2::smallint);
+  v_inv2 := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-12', 500, '2099-12-10',
+                                 'grupo teste', v_pay, 2::smallint, 2::smallint);
+  PERFORM public.settle_invoice(v_inv, 500, current_date, 'pix');
+  v_res := public.cancelar_eventual_grupo(v_pay, 'cancelamento de teste do grupo');
+  IF (v_res->>'parcelas_canceladas')::int = 1
+     AND (SELECT status FROM public.invoices WHERE id = v_inv) = 'emitida'
+     AND (SELECT status FROM public.invoices WHERE id = v_inv2) = 'cancelada' THEN
+    v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 17 cancelar_eventual_grupo: ' || coalesce(v_res::text,'null'); END IF;
+
+  -- 18. Papel fora da lista nao encerra, mesmo com a serie ja encerrada
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE role NOT IN ('admin','manager','finance','sales')) THEN
+    UPDATE public.contract_series SET status = 'encerrada' WHERE id = v_ts;
+    PERFORM set_config('request.jwt.claims', json_build_object('role','authenticated','sub',
+      (SELECT id FROM public.profiles WHERE role NOT IN ('admin','manager','finance','sales') ORDER BY id LIMIT 1))::text, true);
+    BEGIN
+      v_res := public.encerrar_series(v_ts, false, NULL, 'sonda de papel sem permissao', false, false);
+      v_failed := v_failed || E'\n  FAIL 18 papel sem permissao recebeu ' || v_res::text;
+    EXCEPTION WHEN SQLSTATE '42501' THEN
+      v_passed := v_passed + 1;
+    END;
+  ELSE
+    v_failed := v_failed || E'\n  FAIL 18 sem perfil fora dos papeis para o teste';
+  END IF;
+
   IF coalesce(v_failed, '') = '' THEN
     RAISE EXCEPTION 'SUITE OK — % passed, 0 failed (transacao revertida)', v_passed;
   ELSE

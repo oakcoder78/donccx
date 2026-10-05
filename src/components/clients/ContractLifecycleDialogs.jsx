@@ -45,12 +45,12 @@ function Modal({ title, subtitle, children, onClose }) {
 }
 
 /**
- * Encerrar uma série é irreversível na aparência e por isso precisa explicar as
- * consequências: o que continua no histórico, o que some, e que dá para voltar.
+ * Encerrar uma série para de lançar cobrança. O que acontece com as faturas
+ * futuras não liquidadas é decidido pela negociação, não pelo sistema: a recorrência
+ * e as parcelas eventuais são escolhas separadas, ambas desmarcadas por padrão.
  *
- * A opção de apagar os meses futuros e a de mantê-los são as duas reversíveis —
- * reabrir reconstrói a cauda pela ensure_series_horizon, que replica a última
- * linha de recorrência. A escolha é higiene de dado, não a dados.
+ * Cancelar uma fatura não é reversível pela tela. Reabrir a série retoma a
+ * cobrança daqui para frente; não restaura o que foi cancelado.
  */
 export function EncerrarSerieDialog({
   series,
@@ -60,7 +60,8 @@ export function EncerrarSerieDialog({
   onClose,
   onDone,
 }) {
-  const [remover, setRemover] = useState(true)
+  const [remover, setRemover] = useState(false)
+  const [cancelarEventuais, setCancelarEventuais] = useState(false)
   // Só aparece quando o mês corrente tem cobrança emitida. Fechar em outubro e
   // decidir se outubro também cai é uma decisão diferente de fechar a partir de
   // novembro — e o encerramento não pode assumir.
@@ -87,6 +88,7 @@ export function EncerrarSerieDialog({
       await callRpc('encerrar_series', {
         p_series_id: series.series_id,
         p_remover_futuro: remover,
+        p_cancelar_eventuais: cancelarEventuais,
         p_remover_mes_atual: remover && removerMesAtual,
         p_eventual: comMulta
           ? {
@@ -123,49 +125,30 @@ export function EncerrarSerieDialog({
         <li>· Meses vencidos e registrados como pagos ficam no histórico.</li>
         {mesesFuturos > 0 && (
           <li>
-            · Restam <strong>{mesesFuturos} meses</strong> à frente que não serão
-            cobrados.
+            · Restam <strong>{mesesFuturos} meses</strong> à frente
+            {remover ? ' e serão cancelados.' : ' e continuam cobrados como estão.'}
           </li>
         )}
       </ul>
 
       {mesesFuturos > 0 && (
         <>
-          <fieldset className="mb-4">
-            <legend className="label-sm mb-1.5">O que fazer com os meses à frente?</legend>
-            <label className="flex items-start gap-2 text-xs text-text-primary cursor-pointer mb-1.5">
-              <input
-                type="radio"
-                name="futuro"
-                checked={remover}
-                onChange={() => setRemover(true)}
-                className="mt-0.5"
-              />
-              <span>
-                Cancelar e não registrar
-                <span className="block text-text-tertiary">
-                  Eram projeção, nunca foram contratados.
-                </span>
+          <label className="flex items-start gap-2 text-xs text-text-primary cursor-pointer mb-2">
+            <input
+              type="checkbox"
+              checked={remover}
+              onChange={(e) => setRemover(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              Cancelar a cobrança recorrente futura
+              <span className="block text-text-tertiary">
+                Só as faturas ainda não pagas. O que já foi pago continua.
               </span>
-            </label>
-            <label className="flex items-start gap-2 text-xs text-text-primary cursor-pointer">
-              <input
-                type="radio"
-                name="futuro"
-                checked={!remover}
-                onChange={() => setRemover(false)}
-                className="mt-0.5"
-              />
-              <span>
-                Manter como registro
-                <span className="block text-text-tertiary">
-                  Continuam no histórico como o que o contrato previa.
-                </span>
-              </span>
-            </label>
-          </fieldset>
+            </span>
+          </label>
 
-          {temMesAtual && (
+          {temMesAtual && remover && (
             <label className="flex items-start gap-2 text-xs text-text-primary cursor-pointer mb-3">
               <input
                 type="checkbox"
@@ -183,12 +166,28 @@ export function EncerrarSerieDialog({
             </label>
           )}
 
-          <p className="text-[11px] text-text-tertiary mb-4">
-            As opções são reversíveis: reabrir a série reconstrói o que foi removido.
-            Pagamentos nunca são apagados, nem de meses cancelados.
-          </p>
         </>
       )}
+
+      <label className="flex items-start gap-2 text-xs text-text-primary cursor-pointer mb-3">
+        <input
+          type="checkbox"
+          checked={cancelarEventuais}
+          onChange={(e) => setCancelarEventuais(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          Cancelar as parcelas eventuais futuras
+          <span className="block text-text-tertiary">
+            Implantações e outras parcelas contratadas à parte. Só as não pagas.
+          </span>
+        </span>
+      </label>
+
+      <p className="text-[11px] text-text-tertiary mb-4">
+        Cancelar é definitivo pela tela: reabrir a série retoma a cobrança daqui para
+        frente, mas não restaura o que foi cancelado. Pagamentos nunca são apagados.
+      </p>
 
       <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer mb-3">
         <input

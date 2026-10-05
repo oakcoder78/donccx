@@ -52,6 +52,10 @@ A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
 As RPCs de ciclo de vida passam a operar sobre `series_rules` + `invoices`. Duas das cinco não precisaram de nada — `reativar_series` e `set_nao_cobrar` só tocam `billing_status`.
 
+**Correção pós-validação.** A primeira versão cancelava toda fatura futura do encerramento, parcelas eventuais inclusive, o que o comportamento antigo não fazia. Agora a escolha é explícita: `p_remover_futuro` cancela a recorrência, `p_cancelar_eventuais` cancela o eventual, ambos desmarcados por padrão, e `cancelar_eventual_grupo` cancela as parcelas de um eventual de uma vez. A checagem de papel vem antes do retorno de "já encerrada", e o diálogo perdeu duas frases que ficariam falsas. Suíte: 19 checagens, 0 falhas. Migration `20261005130000_billing_lifecycle_eventual_choice`.
+
+**Em aberto:** `sales` ainda pode encerrar série sem poder cancelar as faturas futuras.
+
 O que muda de conceito, e é a parte que importa:
 
 - **Encerrar** antes **apagava** as linhas futuras de `contract_charges` — a projeção materializada. No modelo novo não existe projeção: a fatura nasce quando a competência fecha. Então encerrar agora **cancela as faturas futuras não liquidadas** e para a emissão pelo status. Fatura com lançamento não é cancelada — pagamento é fato, não projeção.

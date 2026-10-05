@@ -272,6 +272,14 @@ Sem isso, apagar os meses futuros com `contract_months` preservado faria o form 
 
 ### `encerrar_series(p_series_id uuid, p_remover_futuro boolean, p_eventual jsonb default null)`
 
+> **Contrato atual (Fase 3, correção de 2026-10-05).** A assinatura é `encerrar_series(p_series_id, p_remover_futuro default false, p_eventual, p_motivo, p_remover_mes_atual, p_cancelar_eventuais default false)`. O que acontece com as faturas futuras não liquidadas é decidido pela negociação, não pelo sistema:
+> - `p_remover_futuro` cancela a **recorrência** futura não liquidada;
+> - `p_cancelar_eventuais` cancela as **parcelas eventuais** futuras não liquidadas;
+> - faturas com lançamento nunca são canceladas;
+> - a checagem de papel vem antes do retorno de "já encerrada".
+>
+> A descrição abaixo é o mecanismo original, sobre `contract_charges`. Está mantida como histórico.
+
 ```sql
 RETURNS jsonb
 ```

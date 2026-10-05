@@ -933,7 +933,10 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
    * Rederiva o que vem das cobranças de UMA série depois de uma ação de ciclo de
    * vida, para o form não contradizer o que a ação acabou de fazer.
    *
-   * Encerrar trunca a cauda: a releitura passa a mostrar os meses que sobraram.
+   * Encerrar não toca mais contract_charges (Fase 3 do rebuild de faturamento):
+   * a releitura mostra a projeção antiga, com as parcelas futuras que ela ainda
+   * tem. O que foi cancelado vive nas faturas novas, e o cockpit antigo continua
+   * sem refletir o encerramento até a Fase 4.
    * Reabrir não repõe cobrança nenhuma (Fase 3 do rebuild de faturamento), mas
    * muda o status para 'ativa' — e é o status que decide o N em semearSerie:
    * encerrada mostra os meses que existem, ativa mostra o prazo assinado. Sem
