@@ -42,6 +42,8 @@ Existe porque o controle de faturamento sai de uma planilha externa para o Hub e
 | `billing_client_usage`, `billing_series_rule` | As duas derivações que o motor consulta: o uso agregado do cliente no mês e a faixa vigente para um mês de contrato |
 | `invoice_state`, `refresh_client_delay_days`, `competencia_index`, `billing_due_date`, `generate_invoice_number` | Derivação e numeração |
 | `assert_invoice_open` | Guarda compartilhada: fatura existe, não está cancelada, valor cabe no saldo |
+| `encerrar_series`, `reabrir_series`, `cobrar_mais_meses`, `get_series_vencidas` | **Ciclo de vida, migrado na Fase 3 (2026-10-05).** Encerrar cancela as faturas futuras não liquidadas e para a emissão pelo status; o eventual de encerramento vira fatura. Reabrir devolve status e `contract_renewal` e nada emite retroativamente |
+| `reativar_series`, `set_nao_cobrar` | Ciclo de vida que **não** precisou de migração — só tocam `billing_status` |
 
 ### Modelo antigo (em produção — aposentadoria na Fase 7)
 
@@ -51,7 +53,7 @@ Existe porque o controle de faturamento sai de uma planilha externa para o Hub e
 | `billing_payments` | Status por `(cliente, série, competência)`; 82 linhas. Não representa parcial |
 | `billing_exceptions`, `billing_os_tiers` | Concessão e faixas de OS; 0 linhas, nunca operadas |
 | `_financeiro_series_month`, `get_financeiro_cockpit`, `get_financeiro_detalhe`, `get_financeiro_export`, `get_financeiro_pendencias` | O motor e as RPCs do cockpit atual |
-| `ensure_series_horizon`, `encerrar_series`, `reabrir_series`, `cobrar_mais_meses`, `set_nao_cobrar` | Ciclo de vida da série (ver `docs/sdd/contract-series-lifecycle-sdd.md`) |
+| `ensure_series_horizon` | Materializa a recorrência e grava `billing_payments`. **O ciclo de vida parou de chamá-la na Fase 3**; segue viva só para o cron e o botão "Repor horizonte", que mantêm o modelo antigo até a Fase 7 |
 
 ### Frontend
 
@@ -107,7 +109,7 @@ No rebuild, o painel passa a ser orientado a fatura e o cockpit mostra **três e
 - **`contract_series`** — o plano que gera as faturas.
 - **`client_usage`** — o uso que compõe o excedente.
 - **`feature_flags`** — `financial_data`, `financeiro_cockpit_write`, `cockpit_financeiro`.
-- **Ciclo de vida da série** (`docs/sdd/contract-series-lifecycle-sdd.md`) — encerrar, reabrir, suspender e estender compartilham as tabelas e migram na Fase 3.
+- **Ciclo de vida da série** (`docs/sdd/contract-series-lifecycle-sdd.md`) — encerrar, reabrir, suspender e estender. **Migrado para o modelo novo na Fase 3 (2026-10-05):** as RPCs leem e escrevem `series_rules` + `invoices`. As regras de negócio daquele documento continuam valendo; o que mudou é o mecanismo.
 - **Sync** (`docs/system/sync-pipeline.md`) — o uso chega pelo `monthly-sync`; a emissão depende de o sync da competência estar completo.
 
 ## References
