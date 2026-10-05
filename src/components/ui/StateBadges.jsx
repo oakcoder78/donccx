@@ -30,6 +30,8 @@ export const MOTIVO_META = {
   fora_janela:      { label: 'Fora da janela',          tone: 'slate', Icon: Icons.Calendar },
   antes_inicio:     { label: 'Antes do início',         tone: 'slate', Icon: Icons.ArrowLeft },
   usage_incomplete: { label: 'Uso incompleto',          tone: 'slate', Icon: Icons.HelpCircle },
+  // O motor devolve este motivo para cliente marcado como nao bilhetavel.
+  nao_bilhetavel:   { label: 'Não bilhetável',          tone: 'slate', Icon: Icons.Minus },
 }
 
 export function InvoiceStateBadge({ state, className = '' }) {
@@ -44,9 +46,10 @@ export function InvoiceStateBadge({ state, className = '' }) {
   )
 }
 
+// Motivo fora da tabela nao pode sumir da tela (SDD §3.9): mostra o codigo cru.
 export function MotivoBadge({ motivo, className = '' }) {
-  const meta = MOTIVO_META[motivo]
-  if (!meta) return null
+  if (!motivo) return null
+  const meta = MOTIVO_META[motivo] || { label: motivo, tone: 'slate', Icon: Icons.HelpCircle }
   const { label, tone, Icon } = meta
   return (
     <span className={`${BASE} ${TONE[tone]} ${className}`} data-motivo={motivo} data-acao={meta.acao ? 'true' : undefined}>
