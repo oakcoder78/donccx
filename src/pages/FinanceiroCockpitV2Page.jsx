@@ -229,7 +229,7 @@ export default function FinanceiroCockpitV2Page() {
         confirmLabel={fechar.isSuccess ? 'Concluído' : 'Emitir faturas'}
         cancelLabel={fechar.isSuccess ? 'Fechar' : 'Voltar'}
         busy={fechar.isPending}
-        onConfirm={() => fechar.mutate(competencia)}
+        onConfirm={() => (fechar.isSuccess ? setFechando(false) : fechar.mutate(competencia))}
         onClose={() => setFechando(false)}
         summary={
           preview.isPending ? <Spinner size="sm" /> :
