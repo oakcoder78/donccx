@@ -48,6 +48,24 @@ Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql
 
 A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
+### Financeiro — Fase 2: o motor de emissão
+
+`close_competencia(competencia, modo, force, series_ids)` fecha uma competência: calcula o valor de cada série ativa e emite. Dois modos — **preview** não persiste nada e lista o que seria emitido e o que seria pulado com o motivo; **real** emite e registra em `billing_run_log`.
+
+Cobre a regra de parada da recorrência (as cinco combinações de `billing_end` × `contract_months` × `auto_renew`), o gate de completude do uso (bloqueia em snapshot ausente ou pendente, com `force` para sobrepor), os eventuais parcelados, o lock de concorrência (`pg_advisory_xact_lock`) e o gate do F0 — emissão de competência anterior ao corte exige a flag `billing_f0_approved`, que está ligada com a aprovação registrada.
+
+**Suíte de 28 checagens, 0 falhas**, em transação revertida. Ela encontrou **três defeitos reais** antes de qualquer emissão:
+
+- O CHECK de `billing_type` não permitia `fixo` — a terceira base do SDD não podia ser cadastrada.
+- O motor comparava `billing_type = 'os'`, mas o banco guarda **`por_os`**. O Todimo cairia no ramo de licença e a fatura sairia R$ 310,73 em vez de R$ 6.641,13. É o mesmo erro que eu tinha cometido no gerador do F0.
+- A fórmula do valor **ignorava a faixa** para série usage-driven: eu calculava `unit × max(piso, uso)`, que só coincide com o correto quando a faixa vale exatamente `unit × piso`. Uma faixa percentual — "os 12 primeiros meses a 50%" — era silenciosamente ignorada e o cliente pagava preço cheio. Corrigido para `base + excedente`, que é o que o engine vivo faz.
+
+O §3.2 do SDD foi corrigido junto, e a checagem de paridade contra `_financeiro_series_month` passa para 2026-06 a 2026-09.
+
+Produção conferida: 0 faturas, 0 lançamentos, tabelas antigas intactas (134 charges, 82 payments). O motor não tem faixas para ler até o wizard carregá-las (Fase 5).
+
+**Desvio registrado:** o Edge Function para o caminho de cron fica para a Fase 6 — o cockpit da Fase 4 chama a RPC direto, então o corte não depende dele.
+
 ### Financeiro — F0 aprovado: conferência da carga histórica
 
 `docs/operations/faturamento-carga-historica.md` + `.csv`: 582 competências de 2021-03 a 2026-09, 18 séries, com uso, piso, unit, valor calculado e vencimento. É o gate da Fase 2 — o motor não emite competência histórica sem esta conferência aprovada, porque não há planilha para conciliar.

@@ -38,6 +38,8 @@ Existe porque o controle de faturamento sai de uma planilha externa para o Hub e
 | `billing_run_log` | Observabilidade da emissão: o que foi emitido, pulado e por quê |
 | `invoice_balance` (view) | Saldo, estado, atraso e valor vencido, derivados |
 | `issue_invoice`, `settle_invoice`, `discount_invoice`, `discount_batch`, `write_off_invoice`, `reverse_entry`, `adjust_invoice`, `cancel_invoice` | As RPCs de escrita — as tabelas não aceitam escrita direta |
+| `close_competencia` | O motor: fecha uma competência em `preview` ou `real`, aplica a regra de parada, o gate de completude do uso, os eventuais e o gate do F0 |
+| `billing_client_usage`, `billing_series_rule` | As duas derivações que o motor consulta: o uso agregado do cliente no mês e a faixa vigente para um mês de contrato |
 | `invoice_state`, `refresh_client_delay_days`, `competencia_index`, `billing_due_date`, `generate_invoice_number` | Derivação e numeração |
 | `assert_invoice_open` | Guarda compartilhada: fatura existe, não está cancelada, valor cabe no saldo |
 

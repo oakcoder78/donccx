@@ -22,10 +22,10 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 > **Read this first.** This block is the starting point for any agent resuming work.
 
-- **Stage:** Active — Phase 1 complete (2026-10-04); Phase 2 not started
+- **Stage:** Active — Phase 1 complete (2026-10-04), Phase 2 complete (2026-10-05); Phase 3 not started
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** Phase 2 — Issuing engine
+- **Active phase:** Phase 3 — Lifecycle migration
 - **Go-live target:** 2026-11-01 (billing control moves from spreadsheet to Hub)
 
 > **Phase 1 shipped the new model alongside the old one.** Nothing was dropped and nothing in the live cockpit changed. `invoices`, `invoice_entries`, `series_rules`, `series_eventuals` and `billing_run_log` exist and are empty; the old `contract_charges` (134) and `billing_payments` (82) are intact and still drive the current cockpit. The four migrations are `20261004225041_billing_schema`, `20261004225219_billing_derive`, `20261004225421_billing_rpcs`, `20261004225607_billing_due_date_helpers`.
@@ -565,20 +565,28 @@ Three rules that must not be lost:
 
 ```
 usage_metric(série) =
-  billing_type = 'licenca' → uso_lic
-  billing_type = 'os'      → uso_os
-  billing_type = 'fixo'    → none
+  billing_type IN ('licenca','por_licenca') → uso_lic
+  billing_type IN ('os','por_os')           → uso_os
+  billing_type = 'fixo'                     → none
 
 base(série, competência) =
   rule(competência).mode = 'percent' → rule.percent/100 × unit × greatest(coalesce(floor,0), 1)
   rule(competência).mode = 'amount'  → rule.amount
   (no rule for the competência)      → no invoice
 
+excedente(série, competência) =
+  usage_driven AND billing_type <> 'fixo' → greatest(0, usage_metric − floor) × unit
+  otherwise                               → 0
+
 amount(série, competência) =
   usage_driven = false               → base                      (travado)
   billing_type = 'fixo'              → base
-  billing_type IN ('licenca','os')   → unit × greatest(coalesce(floor, 0), usage_metric)
+  billing_type IN ('licenca','os')   → base + excedente
 ```
+
+**`base + excedente`, not `unit × max(floor, usage)`.** The two coincide only when the rule's amount equals `unit × floor` — which is the common case, and the reason the first draft of this document wrote the simpler form. It is wrong for a step-priced contract: with a 50% rule on a floor-50 series, `unit × max(floor, usage)` silently ignores the discount and charges full price. The excedente is always at the **full** unit price; only the base is discounted. This matches the live engine (`rules_total + excedente`) and is what the Phase 2 suite's parity check verifies.
+
+**Two spellings for the same base.** The database stores `por_licenca` / `por_os` — the live engine reads those — and the rename to `licenca` / `os` is a Phase 7 item. Until then the new engine accepts both, and `fixo` was added to the CHECK constraint (it only allowed the two legacy values).
 
 **There is no `kind='original'` guard.** Every series with `usage_driven=true` charges excedente on the shared usage, each at its own unit price. That is the rule validated by the requester (§1.2): with 205 licences, série 1 at R$ 50 and série 2 at R$ 20 produce 10.250 + 4.100 = 14.350. The live engine suppresses the second series' excedente (defect 7).
 
@@ -1032,36 +1040,46 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 ### Phase 2 — Issuing engine
 
-**Status:** Not started
+**Status:** Complete — 2026-10-05. Engine applied, 28-check suite green, production untouched.
 
 **Rationale:** Fecha competência e emite documento. Roda **em paralelo** ao engine antigo — nada é desligado ainda. Depende do F0 aprovado para competências históricas.
 
 **Scope:**
-- `close_competencia` edge function: preview / scoped / real modes
+- `close_competencia(competencia, mode, force, series_ids)`: preview / real modes
 - Idempotency (partial unique index + `ON CONFLICT DO NOTHING`) and `pg_advisory_xact_lock`
 - Completeness gate on usage
 - `billing_run_log`
 - Recurrence stop rule (§3.4)
-- Eventual and complement generation
+- Eventual instalment generation
 
 #### Checklist
 
-- [ ] **Issuer:** `close_competencia(competencia, mode)` with `preview` / `real`
-- [ ] **Preview:** persists nothing; lists emitted and skipped with reasons
-- [ ] **Idempotency:** second run issues nothing
-- [ ] **Concurrency:** two parallel runs produce no duplicate
-- [ ] **Stop rule:** all five combinations of §3.4 tested
-- [ ] **Completeness gate:** blocks on pending usage, allows explicit override
-- [ ] **Skip rules:** `amount = 0`, `nao_bilhetavel`, outside window
-- [ ] **Parity:** §5.6 passes for 2026-06 → 2026-09
-- [ ] **F0 gate:** historic competências refuse to issue without an approved F0 version
-- [ ] **Build + deploy:** per the header block
+- [x] **Issuer:** `close_competencia(p_competencia, p_mode, p_force, p_series_ids)` with `preview` / `real`
+- [x] **Preview:** persists nothing; lists emitted and skipped with reasons (`emitiria` / `pulada` + reason)
+- [x] **Idempotency:** second run issues nothing — 6 issued, then 0, in the suite
+- [x] **Concurrency:** `pg_advisory_xact_lock(hashtext('close_competencia:'||competencia))` serialises; the partial unique index is the backstop. **Not exercised with two live sessions** — the MCP runs one transaction per call. Verified by construction and by the idempotency path, which is the same code
+- [x] **Stop rule:** all five combinations of §3.4 tested (checks 8–12)
+- [x] **Completeness gate:** blocks on pending or missing usage, `p_force` overrides (checks 16–18)
+- [x] **Skip rules:** `sem_regra`, `nao_bilhetavel`, `fora_janela`, `antes_inicio`, `valor_zero` — all tested
+- [x] **Parity:** §5.6 passes for 2026-06 → 2026-09 (check 28)
+- [x] **F0 gate:** flag `billing_f0_approved` (enabled, v1 2026-10-03); disabled, a historic competência in `real` mode is refused (check 27)
+- [x] **Build:** `npm run build` clean
+- [x] **Production untouched:** 0 invoices, old tables intact (134 charges, 82 payments)
+
+**Deviations from this document, and why:**
+
+| Deviation | Why |
+|---|---|
+| The Edge Function wrapper for the cron path is **deferred to Phase 6** | Phase 4's cockpit calls the RPC directly, so the go-live path does not need it; and deploying a function now (verify_jwt, `fix-supabase-urls.js`) adds risk with no consumer yet. The natural home is Phase 6 (Operation), with the cron |
+| `billing_client_usage` and `billing_series_rule` exist as separate functions | The usage aggregation (across instances, `pending=false`, `donc_snapshot` fallback) and the rule lookup are independently testable and were the two places the first draft of this document got wrong |
+| §3.2's `unit × max(floor, usage)` was **wrong** | Corrected to `base + excedente`. The two coincide only when the rule equals `unit × floor`; a percent rule was silently ignored. Caught by the suite's check 7, and the fix restores parity with the live engine |
+| `billing_type` accepts **two spellings** | The database stores `por_licenca`/`por_os` (the live engine reads them); the rename is a Phase 7 item. The CHECK also gained `fixo`, which it did not allow |
 
 #### Implementation Log (Phase 2)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-05 | (this commit) | `20261004234857_billing_engine_helpers`, `20261004235019_billing_close_competencia`, `20261004235349_billing_billing_type_fixo`, `20261004235417_billing_engine_por_os_fix`, `20261004235651_billing_run_log_outcomes`, `20261005000046_billing_engine_base_mais_excedente`, `supabase/tests/billing_rebuild_phase2.sql` | The engine: preview/real, stop rule, usage gate with override, eventual instalments, run log, advisory lock, F0 gate. 28 checks, 0 failed. Three real defects found by the suite and fixed: `billing_type` CHECK did not allow `fixo`; the engine compared `'os'` while the database stores `'por_os'` (Todimo would have been billed 310,73 instead of 6.641,13); and the amount formula ignored the rule's base for usage-driven series |
 
 ---
 
@@ -1228,6 +1246,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 ### Production state
 
 - **Phase 1 complete (2026-10-04).** The new model exists alongside the old one: 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers, 2 date helpers. All empty; the old model still drives the cockpit.
+- **Phase 2 complete (2026-10-05).** The issuing engine: `close_competencia` with preview/real, the recurrence stop rule, the usage completeness gate with override, eventual instalments, `billing_run_log`, the F0 gate. Verified by a 28-check suite, all green in a rolled-back transaction. Still nothing emitted in production — the engine has no rules to read until the wizard loads them (Phase 5).
 - Snapshot of the old tables versioned at `supabase/snapshots/20261004_pre_billing_rebuild.sql` (216 rows).
 - Verification: 51 RPC assertions + 15 date-grid assertions, green in a rolled-back transaction. Production confirmed untouched afterwards.
 - The current module is still live and **incorrect in the ways listed in section 0**. No stakeholder should rely on its adimplência numbers.
