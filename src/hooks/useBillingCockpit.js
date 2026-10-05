@@ -82,6 +82,7 @@ export function useCloseCompetencia() {
       qc.invalidateQueries({ queryKey: ['billing_clientes', competencia] })
       qc.invalidateQueries({ queryKey: ['billing_motivos', competencia] })
       qc.invalidateQueries({ queryKey: ['billing_faturas'] })
+      qc.invalidateQueries({ queryKey: ['billing_extrato'] })
     },
   })
 }
@@ -104,6 +105,7 @@ export function useCloseSeries() {
       qc.invalidateQueries({ queryKey: ['billing_clientes', competencia] })
       qc.invalidateQueries({ queryKey: ['billing_motivos', competencia] })
       qc.invalidateQueries({ queryKey: ['billing_faturas'] })
+      qc.invalidateQueries({ queryKey: ['billing_extrato'] })
     },
   })
 }

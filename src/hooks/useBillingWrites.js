@@ -25,6 +25,7 @@ function useInvalidarFaturamento() {
     qc.invalidateQueries({ queryKey: ['billing_motivos', competencia] })
     qc.invalidateQueries({ queryKey: ['billing_faturas'] })
     qc.invalidateQueries({ queryKey: ['billing_lancamentos'] })
+    qc.invalidateQueries({ queryKey: ['billing_extrato'] })
   }
 }
 
