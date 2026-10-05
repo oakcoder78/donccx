@@ -286,6 +286,47 @@ BEGIN
     v_failed := v_failed || E'\n  FAIL 18 sem perfil fora dos papeis para o teste';
   END IF;
 
+  -- ==========================================================================
+  -- 19-20. sales cancela pelo ciclo de vida, mas nao cancela avulso
+  -- ==========================================================================
+  PERFORM set_config('request.jwt.claims', json_build_object('role','service_role','sub',v_user)::text, true);
+  IF EXISTS (SELECT 1 FROM public.profiles WHERE role = 'sales') THEN
+    v_pay := (SELECT id FROM public.profiles WHERE role = 'sales' ORDER BY id LIMIT 1);
+    UPDATE public.contract_series SET status = 'ativa' WHERE id = v_ts;
+    v_inv := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-03', 410, '2099-03-10',
+                                  'parcela sales', gen_random_uuid(), 1::smallint, 2::smallint);
+    v_inv2 := public.issue_invoice(v_tc, v_ts, 'recorrencia', '2099-03', 120, '2099-03-10');
+    PERFORM set_config('request.jwt.claims', json_build_object('role','authenticated','sub',v_pay)::text, true);
+    SET LOCAL ROLE authenticated;
+    BEGIN
+      v_res := public.encerrar_series(v_ts, true, NULL, 'sales encerrando com os dois', false, true);
+      IF (SELECT status FROM public.invoices WHERE id = v_inv) = 'cancelada'
+         AND (SELECT status FROM public.invoices WHERE id = v_inv2) = 'cancelada' THEN
+        v_passed := v_passed + 1;
+      ELSE v_failed := v_failed || E'\n  FAIL 19 sales nao cancelou os dois pelo encerramento'; END IF;
+    EXCEPTION WHEN OTHERS THEN
+      v_failed := v_failed || E'\n  FAIL 19 sales: ' || SQLERRM;
+    END;
+    RESET ROLE;
+
+    -- 20. cancel_invoice avulso continua so para financeiro
+    PERFORM set_config('request.jwt.claims', json_build_object('role','service_role','sub',v_user)::text, true);
+    UPDATE public.contract_series SET status = 'ativa' WHERE id = v_ts;
+    v_inv := public.issue_invoice(v_tc, v_ts, 'eventual', '2099-04', 415, '2099-04-10',
+                                  'avulso sales', gen_random_uuid(), 1::smallint, 2::smallint);
+    PERFORM set_config('request.jwt.claims', json_build_object('role','authenticated','sub',v_pay)::text, true);
+    SET LOCAL ROLE authenticated;
+    BEGIN
+      PERFORM public.cancel_invoice(v_inv, 'cancelamento avulso por sales');
+      v_failed := v_failed || E'\n  FAIL 20 sales cancelou fatura avulsa';
+    EXCEPTION WHEN SQLSTATE '42501' THEN
+      v_passed := v_passed + 1;
+    END;
+    RESET ROLE;
+  ELSE
+    v_failed := v_failed || E'\n  FAIL 19 sem perfil sales para o teste';
+  END IF;
+
   IF coalesce(v_failed, '') = '' THEN
     RAISE EXCEPTION 'SUITE OK — % passed, 0 failed (transacao revertida)', v_passed;
   ELSE

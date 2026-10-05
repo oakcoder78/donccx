@@ -54,7 +54,7 @@ As RPCs de ciclo de vida passam a operar sobre `series_rules` + `invoices`. Duas
 
 **Correção pós-validação.** A primeira versão cancelava toda fatura futura do encerramento, parcelas eventuais inclusive, o que o comportamento antigo não fazia. Agora a escolha é explícita: `p_remover_futuro` cancela a recorrência, `p_cancelar_eventuais` cancela o eventual, ambos desmarcados por padrão, e `cancelar_eventual_grupo` cancela as parcelas de um eventual de uma vez. A checagem de papel vem antes do retorno de "já encerrada", e o diálogo perdeu duas frases que ficariam falsas. Suíte: 19 checagens, 0 falhas. Migration `20261005130000_billing_lifecycle_eventual_choice`.
 
-**Em aberto:** `sales` ainda pode encerrar série sem poder cancelar as faturas futuras.
+**`sales` consistente.** Pode encerrar a série e cancelar, pela mesma ação, as recorrências e os eventuais futuros não pagos, e também cancelar o grupo de um eventual. Continua sem baixa, desconto, estorno ou cancelamento avulso de fatura: esse caminho segue restrito a admin, manager e finance. Migration `20261005140000_lifecycle_sales_cancel`; suíte da Fase 3 com 21 checagens.
 
 O que muda de conceito, e é a parte que importa:
 
