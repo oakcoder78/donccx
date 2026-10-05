@@ -48,6 +48,16 @@ Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql
 
 A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
+### Financeiro — `issue_invoice` vira primitivo interno
+
+A validação da Fase 2 deixou uma decisão pendente: `issue_invoice` era executável por `authenticated`, então um usuário de financeiro podia emitir fatura de valor arbitrário chamando a RPC direto — pulando o gate do F0, o gate de completude do uso e a fórmula do §3.2.
+
+Revogado de `authenticated`; fica só para `service_role`. O motor (`close_competencia`) é `SECURITY DEFINER` e roda como dono, então não dependia desse grant, e nada no frontend nem nas Edge Functions chamava a função — verificado por varredura. Os gates existem contra **erro**, não contra má-fé, e um caminho que os pula por acidente é um footgun.
+
+**Consequência:** fatura avulsa deixa de ser possível pela interface. Se virar necessidade, merece RPC própria com regra, não o primitivo cru.
+
+Junto: `search_path` fixado em `competencia_index` e `billing_due_date`, os dois helpers da Fase 1 que não tinham — são `IMMUTABLE` e não leem tabela, então o risco era baixo, mas é higiene. A checagem 10 da suíte da Fase 1 passou a cobrir o `issue_invoice`.
+
 ### Segurança — `manage_cron_job` era executável por `anon`
 
 Achado na validação da Fase 2 do faturamento, mas de outro domínio (sync) — por isso migration e commit separados.

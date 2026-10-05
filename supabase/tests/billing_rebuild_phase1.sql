@@ -160,10 +160,16 @@ BEGIN
   -- ==========================================================================
   -- 10. Funcoes de saldo e numeracao nao sao executaveis por authenticated
   -- ==========================================================================
+  -- issue_invoice entra aqui: e o primitivo do motor, nao um caminho de usuario.
+  -- Executavel por authenticated, permitia emitir fatura de valor arbitrario
+  -- pulando o gate do F0, o gate de completude do uso e a formula do §3.2.
   IF NOT has_function_privilege('authenticated', 'public.assert_invoice_open(uuid,numeric,text)', 'EXECUTE')
      AND NOT has_function_privilege('authenticated', 'public.invoice_state(uuid)', 'EXECUTE')
      AND NOT has_function_privilege('authenticated', 'public.generate_invoice_number(int)', 'EXECUTE')
-     AND NOT has_function_privilege('authenticated', 'public.refresh_client_delay_days(integer)', 'EXECUTE') THEN
+     AND NOT has_function_privilege('authenticated', 'public.refresh_client_delay_days(integer)', 'EXECUTE')
+     AND NOT has_function_privilege('authenticated', 'public.issue_invoice(integer,uuid,text,text,numeric,date,text,uuid,smallint,smallint,uuid)', 'EXECUTE')
+     AND has_function_privilege('service_role', 'public.issue_invoice(integer,uuid,text,text,numeric,date,text,uuid,smallint,smallint,uuid)', 'EXECUTE')
+     AND has_function_privilege('authenticated', 'public.close_competencia(text,text,boolean,uuid[])', 'EXECUTE') THEN
     v_passed := v_passed + 1;
   ELSE
     v_failed := v_failed || E'\n  FAIL 10 funcao sensivel executavel por authenticated';
