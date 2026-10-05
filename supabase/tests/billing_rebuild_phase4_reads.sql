@@ -115,6 +115,19 @@ BEGIN
     v_failed := v_failed || E'\n  FAIL 9 sem perfil csm para o teste';
   END IF;
 
+  -- 10. faturas devolvem o series_id (a substituta e emitida so para a serie)
+  PERFORM set_config('request.jwt.claims', json_build_object('role','service_role','sub',v_admin)::text, true);
+  IF EXISTS (SELECT 1 FROM public.billing_cockpit_faturas(v_client, '2099-05')
+             WHERE invoice_id = v_inv AND series_id = v_series) THEN
+    v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 10 faturas sem series_id'; END IF;
+
+  -- 11. lancamentos: a baixa aparece e e estornavel; estorno inteiro a torna nao estornavel
+  SELECT count(*) INTO v_n FROM public.billing_cockpit_lancamentos(v_inv)
+  WHERE kind = 'pagamento' AND amount = 900 AND reversible = true;
+  IF v_n = 1 THEN v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 11 lancamento da baixa nao estornavel'; END IF;
+
   IF coalesce(v_failed, '') = '' THEN
     RAISE EXCEPTION 'SUITE OK — % passed, 0 failed (transacao revertida)', v_passed;
   ELSE

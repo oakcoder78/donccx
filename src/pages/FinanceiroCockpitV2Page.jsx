@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import {
-  useBillingClientes, useBillingMotivos, useBillingFaturas,
+  useBillingClientes, useBillingMotivos,
   useClosePreview, useCloseCompetencia,
 } from '../hooks/useBillingCockpit'
 import { Icons } from '../lib/icons'
@@ -12,14 +12,9 @@ import { Spinner } from '../components/ui/Spinner'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { InvoiceStateBadge, MotivoBadge } from '../components/ui/StateBadges'
 import { EmptyState, ErrorState, ReadOnlyBanner } from '../components/ui/StatusViews'
+import { FaturasDoCliente } from '../components/billing/FaturasDoCliente'
 
 const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
-
-function brDate(iso) {
-  if (!iso) return '—'
-  const [y, m, d] = String(iso).slice(0, 10).split('-')
-  return `${d}/${m}/${y}`
-}
 
 // Ultimos 12 meses, o corrente primeiro. Sem meses futuros (SDD §1.8).
 function competenciaOptions() {
@@ -191,7 +186,12 @@ export default function FinanceiroCockpitV2Page() {
                     {aberto && (
                       <tr className="bg-bg-secondary border-t border-border-tertiary">
                         <td colSpan={4} className="px-3 py-3">
-                          <FaturasDoCliente clientId={c.client_id} competencia={competencia} />
+                          <FaturasDoCliente
+                            clientId={c.client_id}
+                            clientName={c.client_name}
+                            competencia={competencia}
+                            canWrite={canWrite}
+                          />
                         </td>
                       </tr>
                     )}
@@ -239,40 +239,3 @@ function Indicador({ titulo, valor }) {
   )
 }
 
-function FaturasDoCliente({ clientId, competencia }) {
-  const faturas = useBillingFaturas(clientId, competencia)
-
-  if (faturas.isPending) return <Spinner size="sm" />
-  if (faturas.isError) {
-    return (
-      <ErrorState
-        title="Não foi possível carregar as faturas deste cliente."
-        message={faturas.error?.message}
-        onRetry={() => faturas.refetch()}
-      />
-    )
-  }
-  const rows = faturas.data || []
-  if (rows.length === 0) {
-    return <EmptyState reason="Sem fatura" title="Nenhuma fatura nesta competência" />
-  }
-
-  return (
-    <ul className="flex flex-col gap-2">
-      {rows.map(f => (
-        <li key={f.invoice_id} className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-md border border-border-tertiary bg-bg-primary px-3 py-2 text-sm">
-          <InvoiceStateBadge state={f.state} />
-          <span className="font-medium text-text-primary">{f.number}</span>
-          <span className="text-text-secondary">
-            {f.kind === 'eventual'
-              ? `Eventual${f.installments_total ? ` · parcela ${f.installment_no} de ${f.installments_total}` : ''}`
-              : 'Recorrência'}
-          </span>
-          <span className="text-text-secondary">vence {brDate(f.due_date)}</span>
-          <span className="tabular-nums text-text-primary">Saldo {BRL.format(Number(f.balance || 0))}</span>
-          {f.last_settlement && <span className="text-text-secondary">último lançamento {brDate(f.last_settlement)}</span>}
-        </li>
-      ))}
-    </ul>
-  )
-}
