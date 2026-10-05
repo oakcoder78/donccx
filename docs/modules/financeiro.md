@@ -1,7 +1,7 @@
 ---
 status: vivo
 owner: financeiro
-verified: 2026-10-04
+verified: 2026-10-05
 expires: 2027-01-04
 supersedes: []
 ---
@@ -42,7 +42,7 @@ Existe porque o controle de faturamento sai de uma planilha externa para o Hub e
 | `billing_client_usage`, `billing_series_rule` | As duas derivações que o motor consulta: o uso agregado do cliente no mês e a faixa vigente para um mês de contrato |
 | `invoice_state`, `refresh_client_delay_days`, `competencia_index`, `billing_due_date`, `generate_invoice_number` | Derivação e numeração |
 | `assert_invoice_open` | Guarda compartilhada: fatura existe, não está cancelada, valor cabe no saldo |
-| `encerrar_series`, `reabrir_series`, `cobrar_mais_meses`, `get_series_vencidas` | **Ciclo de vida, migrado na Fase 3 (2026-10-05).** Encerrar cancela as faturas futuras não liquidadas e para a emissão pelo status; o eventual de encerramento vira fatura. Reabrir devolve status e `contract_renewal` e nada emite retroativamente |
+| `encerrar_series`, `cancelar_eventual_grupo`, `reabrir_series`, `cobrar_mais_meses`, `get_series_vencidas` | **Ciclo de vida, migrado na Fase 3 (2026-10-05).** Encerrar para a emissão pelo status e cancela, por escolha explícita, a recorrência futura e/ou as parcelas eventuais futuras não liquidadas (`p_remover_futuro`, `p_cancelar_eventuais`; ambos desligados por padrão). O eventual de encerramento vira fatura. Reabrir devolve status e `contract_renewal` e nada emite retroativamente |
 | `reativar_series`, `set_nao_cobrar` | Ciclo de vida que **não** precisou de migração — só tocam `billing_status` |
 
 ### Modelo antigo (em produção — aposentadoria na Fase 7)
@@ -84,6 +84,11 @@ As permissões são **data-driven pelas flags**, não por lista fixa no código:
 |---|---|---|
 | Ler faturas e lançamentos | `financial_data` | admin, manager, finance |
 | Emitir, ajustar, cancelar, descontar, dar baixa | `financeiro_cockpit_write` | admin, manager, finance |
+
+Duas exceções, por papel fixo no RPC e não por flag:
+
+- **Encerrar série e cancelar faturas futuras pelo ciclo de vida** (`encerrar_series`, `cancelar_eventual_grupo`): admin, manager, finance e **sales**. O cancelamento passa por `_cancel_lifecycle_invoice`, que mantém a auditoria sem a checagem de financeiro e não é executável fora do owner.
+- `sales` **não** pode cancelar uma fatura avulsa (`cancel_invoice`), nem dar baixa, desconto ou estorno.
 
 `service_role` é aceito explicitamente em `can_write_billing()`: o motor de emissão é Edge Function, não tem `auth.uid()`, e um guard só de papel o rejeitaria.
 

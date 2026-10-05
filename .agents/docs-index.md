@@ -1,7 +1,7 @@
 # doncCX Hub — Documentation Index
 
 > GENERATED — do not edit by hand. Sole writer: `index-updater` skill.
-> last-verified: 2026-10-04
+> last-verified: 2026-10-05
 
 ## Purpose
 

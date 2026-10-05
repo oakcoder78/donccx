@@ -52,18 +52,18 @@ A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
 As RPCs de ciclo de vida passam a operar sobre `series_rules` + `invoices`. Duas das cinco não precisaram de nada — `reativar_series` e `set_nao_cobrar` só tocam `billing_status`.
 
-**Correção pós-validação.** A primeira versão cancelava toda fatura futura do encerramento, parcelas eventuais inclusive, o que o comportamento antigo não fazia. Agora a escolha é explícita: `p_remover_futuro` cancela a recorrência, `p_cancelar_eventuais` cancela o eventual, ambos desmarcados por padrão, e `cancelar_eventual_grupo` cancela as parcelas de um eventual de uma vez. A checagem de papel vem antes do retorno de "já encerrada", e o diálogo perdeu duas frases que ficariam falsas. Suíte: 19 checagens, 0 falhas. Migration `20261005130000_billing_lifecycle_eventual_choice`.
+**Correção pós-validação.** A primeira versão cancelava toda fatura futura do encerramento, parcelas eventuais inclusive, o que o comportamento antigo não fazia. Agora a escolha é explícita: `p_remover_futuro` cancela a recorrência, `p_cancelar_eventuais` cancela o eventual, ambos desmarcados por padrão, e `cancelar_eventual_grupo` cancela as parcelas de um eventual de uma vez. A checagem de papel vem antes do retorno de "já encerrada", e o diálogo perdeu duas frases que ficariam falsas. Suíte: 21 checagens, 0 falhas. Migration `20261005130000_billing_lifecycle_eventual_choice`.
 
 **`sales` consistente.** Pode encerrar a série e cancelar, pela mesma ação, as recorrências e os eventuais futuros não pagos, e também cancelar o grupo de um eventual. Continua sem baixa, desconto, estorno ou cancelamento avulso de fatura: esse caminho segue restrito a admin, manager e finance. Migration `20261005140000_lifecycle_sales_cancel`; suíte da Fase 3 com 21 checagens.
 
 O que muda de conceito, e é a parte que importa:
 
-- **Encerrar** antes **apagava** as linhas futuras de `contract_charges` — a projeção materializada. No modelo novo não existe projeção: a fatura nasce quando a competência fecha. Então encerrar agora **cancela as faturas futuras não liquidadas** e para a emissão pelo status. Fatura com lançamento não é cancelada — pagamento é fato, não projeção.
+- **Encerrar** antes **apagava** as linhas futuras de `contract_charges` — a projeção materializada. No modelo novo não existe projeção: a fatura nasce quando a competência fecha. Então encerrar agora **cancela as faturas futuras não liquidadas** e para a emissão pelo status. *(Versão original; a escolha explícita de cancelamento veio na correção abaixo.)* Fatura com lançamento não é cancelada — pagamento é fato, não projeção.
 - O **eventual de encerramento** (multa, acerto) vira **fatura**, não linha de projeção.
 - **Reabrir** devolve status e `contract_renewal` e **nada emite retroativamente**. Antes rematerializava a projeção via `ensure_series_horizon`; agora não há o que rematerializar.
 - **Cobrar mais meses** só estende `billing_end` — o motor lê a janela na hora de emitir.
 
-**Suíte de 14 checagens, 0 falhas**, incluindo o que mais importava: o **replay do cliente 21 real**. Encerrar e reabrir não toca o modelo antigo — 61 charges continuam 61, 48 pagamentos continuam 48, e a série volta exata ao estado anterior (`ativa` / `2025-10-27` / 36).
+**Suíte de 14 checagens, 0 falhas** (na versão original; hoje são 21, ver a correção acima), incluindo o que mais importava: o **replay do cliente 21 real**. Encerrar e reabrir não toca o modelo antigo — 61 charges continuam 61, 48 pagamentos continuam 48, e a série volta exata ao estado anterior (`ativa` / `2025-10-27` / 36).
 
 Desvios registrados: encerrar **não** trunca a janela da regra (o status já para a emissão, e truncar seria estado a restaurar no reopen); `ensure_series_horizon` **não** foi aposentada nesta fase (o cron e o botão ainda a chamam, e `contract_charges` só morre na Fase 7) — o que importa é que o ciclo de vida parou de chamá-la. Fica uma **limitação transitória deliberada**: uma ação de ciclo de vida não aparece no cockpit **antigo** depois desta fase, porque ele lê `contract_charges`. A janela é curta — a Fase 4 reescreve o cockpit.
 
@@ -118,7 +118,7 @@ Produção conferida: 0 faturas, 0 lançamentos, tabelas antigas intactas (134 c
 
 Verificado e sem mudança: fórmula `base + excedente`, regra de parada, calendário de eventuais, contrato de retorno (§4.2), paridade com o motor antigo (check 28), gate do F0 e a contiguidade das faixas.
 
-**Em aberto, decisão pendente:** `issue_invoice` é executável por `authenticated`. Um usuário de financeiro pode emitir fatura de valor arbitrário fora do motor, pulando o gate do F0, o gate de completude do uso e a fórmula do §3.2. Confirmado por sonda, revertida. Se a emissão deve passar só pelo motor, a correção é revogar o EXECUTE de `authenticated`; o motor roda como dono e não depende desse grant.
+**Resolvido** (`7e4d9ec`): `issue_invoice` era executável por `authenticated`, e um usuário de financeiro podia emitir fatura de valor arbitrário fora do motor, pulando o gate do F0, o gate de completude do uso e a fórmula do §3.2. Agora é primitivo interno, `service_role` apenas.
 
 **Desvio registrado:** o Edge Function para o caminho de cron fica para a Fase 6 — o cockpit da Fase 4 chama a RPC direto, então o corte não depende dele.
 

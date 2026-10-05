@@ -14,7 +14,7 @@ Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N 
 
 > **As RPCs deste documento foram migradas (2026-10-05).** A Fase 3 do rebuild de faturamento (`docs/sdd/financeiro-faturamento-sdd.md`) moveu `encerrar_series`, `reabrir_series`, `cobrar_mais_meses` e `get_series_vencidas` para `series_rules` + `invoices`. `reativar_series` e `set_nao_cobrar` não mudaram — só tocam `billing_status`. O que muda de comportamento:
 >
-> - **Encerrar** não apaga mais linhas de `contract_charges` (a projeção materializada deixou de existir): cancela as **faturas futuras não liquidadas** e o status para a emissão. Fatura com lançamento não é cancelada — pagamento é fato.
+> - **Encerrar** não apaga mais linhas de `contract_charges` (a projeção materializada deixou de existir). Para a emissão pelo status, e cancela, **por escolha explícita**, a recorrência futura (`p_remover_futuro`) e/ou as parcelas eventuais futuras (`p_cancelar_eventuais`), ambas desligadas por padrão. A regra de cancelamento vem da negociação, não do sistema. Fatura com lançamento não é cancelada — pagamento é fato. `sales` pode encerrar e cancelar por esta ação; o cancelamento avulso de fatura segue restrito a admin, manager e finance.
 > - O **eventual de encerramento** vira fatura (`kind='eventual'`), não linha de projeção.
 > - **Reabrir** devolve status e `contract_renewal` e nada emite retroativamente; `ensure_series_horizon` não é mais chamada pelo ciclo de vida.
 > - **Regressão verificada:** o replay do cliente 21 (61 charges, 48 payments, `ativa` / `2025-10-27` / 36) passa.
