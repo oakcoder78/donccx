@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { Icons } from '../../lib/icons'
 import { Button } from '../ui/Button'
 import { Spinner } from '../ui/Spinner'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { InvoiceStateBadge } from '../ui/StateBadges'
 import { EmptyState, ErrorState } from '../ui/StatusViews'
-import { useBillingFaturas } from '../../hooks/useBillingCockpit'
+import { useBillingFaturas, useBillingComposicao, useCloseSeries } from '../../hooks/useBillingCockpit'
 import { useBillingLancamentos } from '../../hooks/useBillingWrites'
 import {
   SettleDialog, DiscountDialog, AdjustDialog, WriteOffDialog, ReverseDialog, CancelDialog, BRL,
@@ -23,7 +24,7 @@ function brDate(iso) {
 const METODO_LABEL = { pix: 'Pix', boleto: 'Boleto', transferencia: 'Transferência', cartao: 'Cartão', dinheiro: 'Dinheiro', outro: 'Outro' }
 const KIND_LABEL = { pagamento: 'Pagamento', desconto: 'Desconto', baixa: 'Baixa por perda', estorno: 'Estorno' }
 
-export function FaturasDoCliente({ clientId, clientName, competencia, canWrite }) {
+export function FaturasDoCliente({ clientId, clientName, competencia, canWrite, seriesIds = [] }) {
   const faturas = useBillingFaturas(clientId, competencia)
   const [selecionadas, setSelecionadas] = useState([])
   const [dialogo, setDialogo] = useState(null) // { tipo, fatura?, faturas?, entry? }
@@ -41,13 +42,15 @@ export function FaturasDoCliente({ clientId, clientName, competencia, canWrite }
 
   const rows = faturas.data || []
   if (rows.length === 0) {
-    return <EmptyState reason="Sem fatura" title="Nenhuma fatura nesta competência" />
+    return <FecharSoEsteCliente clientName={clientName} competencia={competencia} canWrite={canWrite} seriesIds={seriesIds} />
   }
 
   const abertas = rows.filter(f => f.state !== 'cancelada' && Number(f.balance) > 0)
   const selecionadasObj = abertas.filter(f => selecionadas.includes(f.invoice_id))
   const fechar = () => setDialogo(null)
   const temEventualNaSerie = (f) => rows.some(r => r.kind === 'eventual' && r.series_id === f.series_id)
+  // Selecao so faz sentido com 2 ou mais faturas abertas para distribuir um desconto.
+  const podeSelecionar = canWrite && abertas.length >= 2
 
   function alternar(id) {
     setSelecionadas(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
@@ -55,7 +58,10 @@ export function FaturasDoCliente({ clientId, clientName, competencia, canWrite }
 
   return (
     <div className="flex flex-col gap-3">
-      {canWrite && selecionadasObj.length >= 2 && (
+      {podeSelecionar && selecionadasObj.length < 2 && (
+        <span className="text-xs text-text-secondary">Marque duas ou mais faturas abertas para distribuir um desconto entre elas.</span>
+      )}
+      {podeSelecionar && selecionadasObj.length >= 2 && (
         <div className="flex items-center justify-between gap-2 rounded-md border border-border-tertiary bg-bg-primary px-3 py-2 text-sm">
           <span>{selecionadasObj.length} faturas selecionadas</span>
           <Button variant="secondary" size="sm" onClick={() => setDialogo({ tipo: 'desconto', faturas: selecionadasObj })}>
@@ -72,10 +78,10 @@ export function FaturasDoCliente({ clientId, clientName, competencia, canWrite }
           return (
             <li key={f.invoice_id} className="rounded-md border border-border-tertiary bg-bg-primary px-3 py-2 text-sm flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {canWrite && aberta && (
+                {podeSelecionar && aberta && (
                   <input
                     type="checkbox"
-                    aria-label={`Selecionar ${f.number} para desconto em lote`}
+                    aria-label={`Selecionar ${f.number} para distribuir desconto`}
                     checked={selecionadas.includes(f.invoice_id)}
                     onChange={() => alternar(f.invoice_id)}
                   />
@@ -92,6 +98,8 @@ export function FaturasDoCliente({ clientId, clientName, competencia, canWrite }
                 <span className="tabular-nums text-text-primary">Saldo {BRL.format(Number(f.balance))}</span>
                 {f.last_settlement && <span className="text-text-secondary">último lançamento {brDate(f.last_settlement)}</span>}
               </div>
+
+              {f.kind === 'recorrencia' && <Composicao invoiceId={f.invoice_id} />}
 
               {canWrite && (
                 <div className="flex flex-wrap gap-2">
@@ -151,6 +159,67 @@ export function FaturasDoCliente({ clientId, clientName, competencia, canWrite }
         onClose={fechar}
         entry={dialogo?.entry}
         competencia={competencia}
+      />
+    </div>
+  )
+}
+
+// Composicao da recorrencia (SDD §3.2): base da faixa mais excedente do uso.
+function Composicao({ invoiceId }) {
+  const comp = useBillingComposicao(invoiceId)
+  if (comp.isPending || !comp.data) return null
+  const c = comp.data
+  const excedente = Number(c.excedente || 0)
+  return (
+    <span className="text-xs text-text-secondary">
+      Base {BRL.format(Number(c.base))}
+      {excedente > 0 && <> + excedente {BRL.format(excedente)}</>}
+      {' '}· uso {c.uso} {c.uso === 1 ? 'licença' : 'licenças'}, piso {c.piso}, {BRL.format(Number(c.unit))} por licença
+    </span>
+  )
+}
+
+// Competencia sem fatura para o cliente: pode fechar so ele (SDD §4.2, por serie).
+function FecharSoEsteCliente({ clientName, competencia, canWrite, seriesIds }) {
+  const [aberto, setAberto] = useState(false)
+  const fechar = useCloseSeries()
+  const podeFechar = canWrite && seriesIds.length > 0
+
+  const resultado = fechar.data || []
+  const emitidas = resultado.filter(r => r.outcome === 'emitida').length
+  const puladas = resultado.filter(r => r.outcome === 'pulada')
+  const motivosPuladas = [...new Set(puladas.map(r => r.reason))].join(', ')
+
+  return (
+    <div className="flex flex-col gap-3">
+      <EmptyState reason="Sem fatura" title="Nenhuma fatura nesta competência" />
+      {podeFechar && (
+        <div>
+          <Button variant="secondary" size="sm" onClick={() => { fechar.reset(); setAberto(true) }}>
+            Fechar só este cliente
+          </Button>
+        </div>
+      )}
+      <ConfirmDialog
+        open={aberto}
+        onClose={() => setAberto(false)}
+        title={`Fechar ${competencia} só para ${clientName}?`}
+        description="Emite as faturas deste cliente nesta competência. As demais continuam como estão."
+        requireReason={false}
+        variant="warning"
+        confirmLabel={fechar.isSuccess ? 'Concluído' : 'Emitir só este cliente'}
+        cancelLabel={fechar.isSuccess ? 'Fechar' : 'Voltar'}
+        busy={fechar.isPending}
+        onConfirm={() => (fechar.isSuccess
+          ? setAberto(false)
+          : fechar.mutate({ competencia, seriesIds }))}
+        summary={
+          fechar.isSuccess ? (
+            <span>Emitidas: {emitidas}. {puladas.length > 0 ? `Puladas: ${puladas.length} (${motivosPuladas}).` : ''}</span>
+          ) : fechar.isError ? (
+            <span className="text-status-red-text">Não foi possível fechar: {fechar.error?.message}</span>
+          ) : null
+        }
       />
     </div>
   )

@@ -85,3 +85,39 @@ export function useCloseCompetencia() {
     },
   })
 }
+
+// Fechamento de um cliente so: o motor aceita o filtro por serie (SDD §4.2).
+export function useCloseSeries() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ competencia, seriesIds }) => {
+      const { data, error } = await supabase.rpc('close_competencia', {
+        p_competencia: competencia,
+        p_mode: 'real',
+        p_force: false,
+        p_series_ids: seriesIds,
+      })
+      if (error) throw error
+      return data || []
+    },
+    onSuccess: (_data, { competencia }) => {
+      qc.invalidateQueries({ queryKey: ['billing_clientes', competencia] })
+      qc.invalidateQueries({ queryKey: ['billing_motivos', competencia] })
+      qc.invalidateQueries({ queryKey: ['billing_faturas'] })
+    },
+  })
+}
+
+// Composicao da fatura (base + excedente), lida do registro do motor.
+export function useBillingComposicao(invoiceId, enabled = true) {
+  return useQuery({
+    queryKey: ['billing_composicao', invoiceId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('billing_cockpit_composicao', { p_invoice_id: invoiceId })
+      if (error) throw error
+      return data?.[0] || null
+    },
+    enabled: enabled && !!invoiceId,
+    staleTime: 5 * 60 * 1000,
+  })
+}

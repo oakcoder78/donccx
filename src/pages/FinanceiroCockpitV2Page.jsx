@@ -208,6 +208,7 @@ export default function FinanceiroCockpitV2Page() {
                             clientName={c.client_name}
                             competencia={competencia}
                             canWrite={canWrite}
+                            seriesIds={c.series_ids || []}
                           />
                         </td>
                       </tr>
