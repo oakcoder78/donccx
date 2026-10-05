@@ -48,6 +48,24 @@ Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql
 
 A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
+### Segurança — `manage_cron_job` era executável por `anon`
+
+Achado na validação da Fase 2 do faturamento, mas de outro domínio (sync) — por isso migration e commit separados.
+
+`manage_cron_job` é `SECURITY DEFINER`, **não tinha guard nenhum**, e `anon` tinha `EXECUTE`. A ação `schedule` aceita `p_url` arbitrário e agenda um job que faz `net.http_post` para essa URL com o header `x-webhook-secret` lido de `vault.decrypted_secrets`. Com a chave anon — pública, está no bundle — qualquer pessoa **exfiltrava o segredo do webhook de sync** no primeiro minuto, e ainda podia dar `unschedule` nos jobs reais, parando o sync.
+
+**Por que a auditoria de junho não pegou:** `manage_cron_job` nasceu em `20260701000002`, depois da auditoria; e o §2.4 daquela revisou `search_path` das funções existentes, não quem pode executá-las.
+
+Revogado de `anon` e `authenticated`, mantido para `service_role` — que é quem chama (`monthly-sync`, `sync-schedule`). **Nota de execução:** o primeiro `REVOKE` não pegou, porque o ACL tinha o grant para `PUBLIC`; foi preciso revogar de `PUBLIC` e reconceder explicitamente.
+
+Na mesma varredura, **`create_default_fases`**: escreve em `onboarding_fases` e `onboardings.fase_atual_id`, era executável por `anon`, e **não é chamada por ninguém** — nem frontend, nem Edge Function, nem trigger, nem cron. Revogada; a remoção ficou como TD-016.
+
+`set_impersonation` e `clear_impersonation` perderam o acesso de `anon` por higiene — a primeira já exige `role='admin'` internamente.
+
+**Não tocadas de propósito:** `get_user_role` (as policies de RLS a chamam, inclusive para anon), `get_effective_role` (wrapper dela), `register_report_view` e `check_report_access` (o `ReportPublicPage` roda como anon).
+
+Suíte nova: `supabase/tests/security_function_grants.sql`, 4 checagens, 0 falhas. Guarda a regra — função `SECURITY DEFINER` sem guard interno não pode ser executável por `anon` nem por `authenticated`. O TD-017 propõe que ela vire varredura dinâmica no CI, porque o padrão se repete: função nova nasce com os grants default do Supabase e ninguém revisa.
+
 ### Financeiro — Fase 2: o motor de emissão
 
 `close_competencia(competencia, modo, force, series_ids)` fecha uma competência: calcula o valor de cada série ativa e emite. Dois modos — **preview** não persiste nada e lista o que seria emitido e o que seria pulado com o motivo; **real** emite e registra em `billing_run_log`.

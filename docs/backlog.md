@@ -7,7 +7,7 @@
 
 ## How to use
 
-1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-016`**), add to "Open items" and to the Summary table.
+1. **New item:** copy the template at the bottom, assign the next ID (próximo livre: **`TD-018`**), add to "Open items" and to the Summary table.
 2. **Ordenação:** Summary table e blocos seguem a mesma regra — prioridade H→L; no empate, `TD-###` antes de `IDEA-###`, depois ID ascendente. `Closed items` em data-desc (mais recente primeiro).
 3. **Triaging:** bump Priority; mark `Status: Ready` when scope is clear and effort is estimated.
 4. **Activating:** when work starts, create or link a SDD in `docs/sdd/` and set `Status: Active → docs/sdd/<name>-sdd.md`.
@@ -38,6 +38,8 @@
 | TD-013 | Bug | Cron exibido em UTC com `UTC_TO_BRT` somando 3h sobre horário já em BRT | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-014 | Refactor | Mover ações de ciclo de vida para o caminho de submit | M | Backlog | `docs/sdd/contract-series-lifecycle-sdd.md` |
 | TD-015 | Tech Debt | Unificar "Suspender cobrança" (`nao_bilhetavel`) com concessão (`billing_exceptions`) | M | Done | `docs/sdd/financeiro-faturamento-sdd.md` |
+| TD-016 | Tech Debt | Remover `create_default_fases` (dead code que escreve) | L | Backlog | `docs/security/SECURITY_REMEDIATION_PLAN.md` |
+| TD-017 | Tech Debt | Varredura periódica de grants em funções `SECURITY DEFINER` | M | Backlog | `docs/security/SECURITY_REMEDIATION_PLAN.md` |
 | TD-004 | Tech Debt | Adicionar validação Zod no operational-report-sync | L | Backlog | — |
 | TD-007 | Tech Debt | Investigar provisionamento legado do oak-donc-reports | L | Backlog | — |
 | TD-010 | Refactor | Migrar estrutura-alvo de `docs/` (README em fases) | L | Backlog | — |
@@ -840,6 +842,85 @@ as duas coisas como limpeza.
   Mexer nela exige recontar 26 séries contra o valor atual antes de aceitar o resultado.
 - **Sem dono:** essa decisão é do Financeiro. Ficar no backlog sem resposta é o mesmo
   defeito 13 de novo, em outra forma.
+
+---
+
+### TD-016 — Remover `create_default_fases`
+
+**Type:** Tech Debt
+**Priority:** L
+**Status:** Backlog
+**Origin:** 2026-10-05 — varredura de grants na validação da Fase 2 do faturamento
+**Linked SDD:** —
+**Related commits:** `docs/security/SECURITY_REMEDIATION_PLAN.md` §4.2
+
+#### Context
+
+`create_default_fases(p_onboarding_id integer)` insere linhas em `onboarding_fases` e
+muda `onboardings.fase_atual_id`. Era executável por `anon` e não é chamada por ninguém:
+nem frontend, nem Edge Function, nem trigger, nem cron — confirmado por varredura.
+
+O EXECUTE já foi revogado (§4.2), então não há exposição. O que resta é o código morto:
+uma função que escreve, sem chamador, é superfície que volta a ser perigosa no dia em que
+alguém a conceder de novo por engano.
+
+#### Proposed approach
+
+1. Confirmar com quem cuida de onboarding se a função tem uso planejado (o fluxo de fases
+   pode querer criá-la ao iniciar um onboarding).
+2. Se não tiver: `DROP FUNCTION public.create_default_fases(integer)` numa migration.
+3. Se tiver: manter, mas com guard de papel explícito — hoje ela não tem nenhum.
+
+#### Files
+
+- `supabase/migrations/` (Create — o drop, se for o caso)
+- `supabase/tests/security_function_grants.sql` (Modify — a checagem vira "função ausente")
+
+#### Risks
+
+- Se algum caminho não rastreado a chama (integração externa, script fora do repo), o drop
+  quebra em runtime sem aviso. Por isso o passo 1 antes.
+
+---
+
+### TD-017 — Varredura periódica de grants em `SECURITY DEFINER`
+
+**Type:** Tech Debt
+**Priority:** M
+**Status:** Backlog
+**Origin:** 2026-10-05 — `manage_cron_job` nasceu depois da auditoria de junho e nunca foi revisada
+**Linked SDD:** —
+**Related commits:** `docs/security/SECURITY_REMEDIATION_PLAN.md` §4.1, §4.5
+
+#### Context
+
+A auditoria de junho (§2.4) revisou `search_path` das `SECURITY DEFINER` existentes — não
+*quem pode executá-las*. `manage_cron_job` foi criada em `20260701000002`, depois da
+auditoria, e nasceu com `EXECUTE` para `anon` e sem guard nenhum: a ação `schedule` aceitava
+URL arbitrária e enviava o segredo do vault para ela.
+
+O padrão se repete: **função nova nasce com os grants default do Supabase (`ALL` para
+`anon`/`authenticated`/`PUBLIC`) e ninguém revisa.** A suíte `security_function_grants.sql`
+guarda a regra, mas só para as funções que ela conhece.
+
+#### Proposed approach
+
+1. A suíte vira a lista completa: toda `SECURITY DEFINER` sem guard interno tem de estar
+   numa lista explícita de "pode ser anon" (hoje: `get_user_role`, `get_effective_role`,
+   `register_report_view`, `check_report_access`) — e falhar se aparecer uma nova fora dela.
+2. Rodar a suíte no CI (o workflow já existe para `/oc`) ou num cron mensal.
+3. Documentar no `AGENTS.md` que função nova precisa de grant explícito.
+
+#### Files
+
+- `supabase/tests/security_function_grants.sql` (Modify — varredura dinâmica + allowlist)
+- `.github/workflows/` (Modify — rodar a suíte)
+- `AGENTS.md` (Modify — a regra)
+
+#### Risks
+
+- A varredura dinâmica pode dar falso positivo em função nova legítima; a allowlist resolve,
+  mas exige manutenção.
 
 ---
 

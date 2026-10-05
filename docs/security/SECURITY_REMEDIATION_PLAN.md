@@ -252,6 +252,55 @@ All tests print `PASS` or `FAIL` — they do not throw, so every test runs and r
 Created `.github/PULL_REQUEST_TEMPLATE.md` with a dedicated security section:
 
 ```markdown
+## Phase 4 — ✅ Completed 2026-10-05
+
+### 4.1 ✅ Revogar EXECUTE de anon/authenticated em `manage_cron_job`
+
+**Crítico.** Achado na validação da Fase 2 do rebuild de faturamento, mas de outro domínio (sync).
+
+`manage_cron_job` é `SECURITY DEFINER`, **não tinha guard nenhum**, e `anon` tinha `EXECUTE`. A ação `schedule` aceita `p_url` arbitrário e agenda um job que faz:
+
+```sql
+select net.http_post(
+  url := <p_url>,
+  headers := jsonb_build_object('x-webhook-secret',
+    (select decrypted_secret from vault.decrypted_secrets where name = 'sync_webhook_secret')),
+  body := <p_body>)
+```
+
+Com a chave anon — pública, está no bundle do frontend — qualquer pessoa **exfiltrava o segredo do webhook de sync** para um servidor próprio no primeiro minuto, e ainda podia dar `unschedule` nos jobs reais.
+
+**Por que a auditoria de junho não pegou:** `manage_cron_job` nasceu em `20260701000002`, depois da auditoria. E o §2.4 daquela auditoria revisou `search_path` das `SECURITY DEFINER` existentes, não *quem pode executá-las*.
+
+Quem chama: `monthly-sync` e `sync-schedule`, sempre com service role. Revogado de `anon` e `authenticated`, concedido a `service_role`.
+
+**Nota de execução:** o primeiro `REVOKE` (de `anon`/`authenticated`) não pegou, porque o ACL tinha `=X/postgres` — o grant para `PUBLIC`. Foi preciso revogar de `PUBLIC` e reconceder explicitamente.
+
+### 4.2 ✅ Revogar EXECUTE em `create_default_fases`
+
+Mesma varredura. `create_default_fases(p_onboarding_id integer)` **escreve** — insere em `onboarding_fases` e muda `onboardings.fase_atual_id` — e era executável por `anon`. Com id inteiro sequencial, dava para enumerar onboardings e jogar cada um de volta para a primeira fase.
+
+**É código morto:** não é chamada pelo frontend, por Edge Function, por trigger nem por cron. Confirmado por varredura. Revogada (não dropada — a remoção é decisão à parte, registrada no backlog).
+
+### 4.3 ✅ Higiene: impersonation
+
+`set_impersonation` e `clear_impersonation` não precisam de `anon`. A primeira exige `role='admin'` internamente e levanta com `auth.uid()` NULL; a segunda é no-op sem usuário. Revogadas de `anon` por higiene, mantidas para `authenticated`.
+
+### 4.4 Não tocadas, de propósito
+
+| Função | Por quê |
+|---|---|
+| `get_user_role` | Chamada pelas policies de RLS para qualquer papel, inclusive `anon`. Revogar transformaria "nega" em "erro de permissão" |
+| `get_effective_role` | Wrapper de `get_user_role`; devolve NULL para anon |
+| `register_report_view` | `ReportPublicPage.jsx` roda como anon — é por desenho |
+| `check_report_access` | Idem; exige token do relatório + e-mail autorizado |
+
+### 4.5 ✅ Suíte
+
+`supabase/tests/security_function_grants.sql` — 4 checagens, 0 falhas. Guarda a regra: **função `SECURITY DEFINER` sem guard interno não pode ser executável por `anon` nem por `authenticated`.**
+
+---
+
 ## Security Checklist
 - [ ] New Edge Function includes JWT/caller verification
 - [ ] New table has RLS enabled and at least one policy

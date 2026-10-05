@@ -21,7 +21,7 @@ Flow: `module-detector` → this index → retrieve minimal sections.
 
 - `docs/product/` — planned (vision, glossary, roadmap); today: `docs/core-concepts.md`, `docs/platform-overview.md`
 - `docs/operations/` — `deploy.md`, `storage.md`, `faturamento-carga-historica.md` (+ `.csv`) = task F0 do rebuild de faturamento, conferência da carga histórica; gate da Fase 2, aguardando aprovação
-- `docs/security/` — `RLS-EMPRESAS-SERIES.md`, `SDD-AUDIT.md`, `SECURITY_REMEDIATION_PLAN.md`
+- `docs/security/` — `RLS-EMPRESAS-SERIES.md`, `SDD-AUDIT.md`, `SECURITY_REMEDIATION_PLAN.md` (Fase 4, 2026-10-05: grants de `SECURITY DEFINER` expostas a `anon`); suíte `supabase/tests/security_function_grants.sql`
 - `docs/ui-patterns.md` — component patterns (Table, Toggle, Drawer, Health Legend…)
 
 ## Modules (`docs/modules/`, one file per business domain)
