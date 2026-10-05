@@ -930,9 +930,15 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
   }
 
   /**
-   * Recalcula o que vem das cobranças de UMA série, depois que a ação alterou a
-   * cauda — é o que faz o form continuar mostrando 3 meses depois de "os 15
-   * voltaram", ou os 15 depois do encerramento.
+   * Rederiva o que vem das cobranças de UMA série depois de uma ação de ciclo de
+   * vida, para o form não contradizer o que a ação acabou de fazer.
+   *
+   * Encerrar trunca a cauda: a releitura passa a mostrar os meses que sobraram.
+   * Reabrir não repõe cobrança nenhuma (Fase 3 do rebuild de faturamento), mas
+   * muda o status para 'ativa' — e é o status que decide o N em semearSerie:
+   * encerrada mostra os meses que existem, ativa mostra o prazo assinado. Sem
+   * esta chamada o form ficaria preso na visão de série encerrada depois de
+   * reabrir.
    *
    * Só chamamos para as ações que mexem nas cobranças (encerrar, reabrir).
    * Suspender e reativar não tocam nelas, e re-derivar ali sobrescreveria valores
@@ -968,8 +974,9 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
     }
   }
 
-  // Reabrir age direto no banco (não é edição de form): a RPC reconstrói a cauda
-  // de recorrência e recalcula a renovação.
+  // Reabrir age direto no banco (não é edição de form): a RPC devolve o status e
+  // recalcula a renovação. Nada é emitido retroativamente — a cobrança volta a
+  // ser gerada daqui para a frente, na janela que a regra já tinha.
   const [reabrindo, setReabrindo] = useState(false)
   async function handleReabrir() {
     if (!activeSeries) return
@@ -983,7 +990,7 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
       const patch = { status: 'ativa', contract_renewal: renewal }
       aplicarNoForm(activeSeries.id, patch)
       await resincronizarCobrancasDaSerie(activeSeries.id, patch)
-      toast.success('Série reaberta — os meses à frente foram repostos')
+      toast.success('Série reaberta — a cobrança volta a ser gerada')
     } catch (e) {
       toast.error(e?.message || 'Falha ao reabrir a série')
     } finally {

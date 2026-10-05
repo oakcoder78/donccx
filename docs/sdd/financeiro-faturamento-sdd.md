@@ -116,7 +116,7 @@ Two clients have **more than one instance row per month**: LOJAS MM (instances 1
 | `src/components/financeiro/ExcecaoModal.jsx` | **Delete** — absorbed by plan discount + invoice discount |
 | `src/components/clients/tabs/operacional/BillingSchedule.jsx` | Modify — reads `invoices`/`invoice_entries` |
 | `src/components/clients/tabs/operacional/ClientSubDados.jsx` | Modify — worst delay + open balance instead of `useLatestBillingPayment` |
-| `src/components/clients/ClientFormContent.jsx` | Modify — rule editor, pre-fill floor, no `saveCharges` |
+| `src/components/clients/ClientFormContent.jsx` | Modify — rule editor, pre-fill floor, no `saveCharges`. **Phase 5** — the rule editor migrates with the wizard, so the load does not create rules the next contract edit silently ignores |
 | `src/components/clients/ContractLifecycleDialogs.jsx` | Modify — lifecycle actions against the new model |
 | `src/components/clients/SeriesVencidasAlerta.jsx` | Modify — stop reading `contract_charges` |
 | `src/hooks/useInvoices.js` | **Create** — invoice + entry queries and mutations |
@@ -1167,6 +1167,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 | Date | Commit | Files | Summary |
 |---|---|---|---|
 | 2026-10-05 | (this commit) | `20261005121933_billing_lifecycle_migrate`, `supabase/tests/billing_rebuild_phase3.sql` | Lifecycle onto `series_rules` + `invoices`. Closing cancels unpaid future invoices and issues the closing eventual as an invoice; reopening restores status and renewal and issues nothing retroactively. 14 checks, 0 failed — including the client 21 replay: 61 charges and 48 payments untouched, series back to its exact previous state |
+| 2026-10-05 | `87f1250` + follow-up | `ClientFormContent.jsx`, `docs/modules/financeiro.md` | **Frontend of the phase.** The three RPCs kept their signatures, so the dialogs kept working — but the copy no longer matched: reopening does not restore months, it resumes issuance. Fixed the reopen toast, the two comments that described the old mechanism, and the domain doc's old-model table. The `resincronizarCobrancasDaSerie` call on reopen **stays**: it is what re-derives `N` from the new status (an `encerrada` series shows the months that exist, an `ativa` one shows the contract term), so removing it would pin the form to the closed-series view |
 
 ---
 
@@ -1222,6 +1223,16 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 - Wizard: client → plan → preview → confirm → settlement
 - F0 output consumed as defaults
 - Chronological numbering per client
+- **The contract rule editor migrated to `series_rules`** — see the note below
+
+**The rule editor has to move with the wizard, not after it.** The wizard writes `series_rules`; the form still writes `contract_charges`. If only the wizard migrates, the load creates rules that the very next contract edit silently ignores — the operator fixes a price in the form, the load's rule stays, and the engine keeps issuing the old value. Nothing errors, which is what makes it dangerous.
+
+The wizard is the right home because it is the same data model and the same problem: how a rule is created. Doing it here also keeps the cutover honest — after Phase 5 the form is the only way to edit a rule outside the wizard, so it has to be on the new model before the go-live, not after.
+
+**What the migration changes in the form:**
+- `saveCharges` stops writing `contract_charges` for the recurrence and writes `series_rules` periods instead
+- The floor is editable per series and pre-fills from the client's usage (§3.3) — today the form has no floor field at all
+- `useContractCharges.js` loses its `contract_charges` reads for recurrence; the eventuais keep their own path until Phase 7
 
 #### Checklist
 
@@ -1229,6 +1240,9 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 - [ ] **Preview:** shows amounts and due dates before persisting
 - [ ] **Numbering:** chronological per client
 - [ ] **Batch settlement:** opens over the issued invoices, dates per invoice
+- [ ] **Rule editor:** `saveCharges` writes `series_rules`, not `contract_charges`
+- [ ] **Floor:** editable per series, pre-filled from usage
+- [ ] **No silent divergence:** editing a rule in the form changes what the engine issues — verified by closing a competência after an edit
 - [ ] **End-to-end:** load all 18 clients through the UI, no SQL
 - [ ] **F0:** the loaded values match the approved conference
 - [ ] **Build + deploy:** per the header block
