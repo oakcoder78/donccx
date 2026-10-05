@@ -331,6 +331,28 @@ BEGIN
   IF v_parity_bad = '' THEN v_passed := v_passed + 1;
   ELSE v_failed := v_failed || E'\n  FAIL 28 paridade:' || v_parity_bad; END IF;
 
+  -- ==========================================================================
+  -- 29. Parcela eventual de valor zero e pulada, sem abortar o fechamento
+  -- ==========================================================================
+  INSERT INTO public.series_eventuals (series_id, label, total, installments, first_due_date)
+  VALUES (v_ts, 'parcela zero', 0.01, 2, '2026-09-05');
+  SELECT count(*) INTO v_n FROM public.close_competencia('2026-09','real')
+  WHERE series_id = v_ts AND kind = 'eventual' AND outcome = 'pulada' AND reason = 'valor_zero';
+  DELETE FROM public.series_eventuals WHERE series_id = v_ts AND label = 'parcela zero';
+  IF v_n = 1 THEN v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 29 parcela zero nao foi pulada (' || v_n || ' linhas)'; END IF;
+
+  -- ==========================================================================
+  -- 30. Linha de resumo do log tem outcome proprio, nao conta como emissao
+  -- ==========================================================================
+  SELECT count(*) INTO v_n FROM public.billing_run_log
+  WHERE competencia = '2026-09' AND series_id IS NULL AND outcome = 'resumo';
+  IF v_n >= 1 AND NOT EXISTS (
+    SELECT 1 FROM public.billing_run_log
+    WHERE competencia = '2026-09' AND reason = 'resumo' AND outcome <> 'resumo'
+  ) THEN v_passed := v_passed + 1;
+  ELSE v_failed := v_failed || E'\n  FAIL 30 resumo sem outcome proprio (' || v_n || ' linhas)'; END IF;
+
   -- Limpeza do fixture sintetico (o rollback cobre, mas deixa explicito).
   DELETE FROM public.billing_run_log WHERE competencia = '2026-09';
   DELETE FROM public.invoice_entries WHERE invoice_id IN (SELECT id FROM public.invoices WHERE client_id IN (v_c18, v_c20, v_c21, v_tc));

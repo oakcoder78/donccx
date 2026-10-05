@@ -466,7 +466,7 @@ Issuance observability (§5.5).
 | `run_at` | timestamptz NOT NULL DEFAULT now() | |
 | `competencia` | text NOT NULL | |
 | `series_id` | uuid NULL FK → `contract_series` | NULL for the run summary |
-| `outcome` | text NOT NULL CHECK IN ('emitida','pulada','erro') | |
+| `outcome` | text NOT NULL CHECK IN ('emitida','emitiria','ja_emitida','pulada','erro','resumo') | `erro` is **not written** by the engine: a failure aborts the whole transaction, so there is no per-series error row. `resumo` is the summary row (§4.2) |
 | `reason` | text NULL | e.g. `amount_zero`, `nao_bilhetavel`, `outside_window`, `usage_incomplete` |
 | `invoice_id` | uuid NULL FK → `invoices` | |
 | `detail` | jsonb NULL | amounts, usage, floor at decision time |
@@ -609,7 +609,9 @@ The engine must decide, per competência, whether the series is still billable. 
 
 | `billing_end` | `contract_months` | `auto_renew` | Rule |
 |---|---|---|---|
-| set, competência > `billing_end` | any | any | **stop** |
+| set, competência > mês de `billing_end` | any | any | **stop** |
+
+The comparison is by month: the competência that contains `billing_end` is billed in full (§1.14, mês cheio). A contract ending on 15/11 bills November.
 | null | set | true | continue indefinitely (month-to-month after `contract_renewal`) |
 | null | set | false | **stop** after `contract_months` months from `first_competencia` |
 | null | null | true | continue indefinitely |
@@ -736,7 +738,7 @@ Flow:
 2. **Preview** (`p_mode='preview'`) — persists nothing. Returns one row per series and per eventual instalment.
 3. **Completeness gate** — a usage-driven series whose client has no snapshot for the competência, or a pending one, comes back `pulada` with `usage_incomplete`. The UI lists those as "em conciliação"; closing anyway is `p_force=true`, and the run records the override.
 4. **Confirm** (`p_mode='real'`) — issues and writes `billing_run_log`.
-5. The summary row (`series_id IS NULL`) carries `emitidas` / `ja_emitidas` / `puladas`.
+5. The summary row (`series_id IS NULL`) carries `emitidas` / `ja_emitidas` / `puladas`, with `outcome='resumo'` and `reason='resumo'`. It is not `emitida`: counting emitted rows in the log must not count summaries.
 
 **Return contract** — what Phase 4 renders:
 
@@ -1065,7 +1067,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 ### Phase 2 — Issuing engine
 
-**Status:** Complete — 2026-10-05. Engine applied, 28-check suite green, production untouched.
+**Status:** Complete — 2026-10-05. Engine applied, 30-check suite green, production untouched.
 
 **Rationale:** Fecha competência e emite documento. Roda **em paralelo** ao engine antigo — nada é desligado ainda. Depende do F0 aprovado para competências históricas.
 
@@ -1104,7 +1106,8 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| 2026-10-05 | (this commit) | `20261004234857_billing_engine_helpers`, `20261004235019_billing_close_competencia`, `20261004235349_billing_billing_type_fixo`, `20261004235417_billing_engine_por_os_fix`, `20261004235651_billing_run_log_outcomes`, `20261005000046_billing_engine_base_mais_excedente`, `supabase/tests/billing_rebuild_phase2.sql` | The engine: preview/real, stop rule, usage gate with override, eventual instalments, run log, advisory lock, F0 gate. 28 checks, 0 failed. Three real defects found by the suite and fixed: `billing_type` CHECK did not allow `fixo`; the engine compared `'os'` while the database stores `'por_os'` (Todimo would have been billed 310,73 instead of 6.641,13); and the amount formula ignored the rule's base for usage-driven series |
+| 2026-10-05 | `3c9bf09` | `20261004234857_billing_engine_helpers`, `20261004235019_billing_close_competencia`, `20261004235349_billing_billing_type_fixo`, `20261004235417_billing_engine_por_os_fix`, `20261004235651_billing_run_log_outcomes`, `20261005000046_billing_engine_base_mais_excedente`, `supabase/tests/billing_rebuild_phase2.sql` | The engine: preview/real, stop rule, usage gate with override, eventual instalments, run log, advisory lock, F0 gate. 28 checks, 0 failed. Three real defects found by the suite and fixed: `billing_type` CHECK did not allow `fixo`; the engine compared `'os'` while the database stores `'por_os'` (Todimo would have been billed 310,73 instead of 6.641,13); and the amount formula ignored the rule's base for usage-driven series |
+| 2026-10-05 | (este commit) | `20261005010000_billing_engine_summary_and_zero_installment`, `supabase/tests/billing_rebuild_phase2.sql` (checks 29–30) | Validation of the engine. Two defects confirmed in production inside rolled-back transactions and fixed: (1) the summary row wrote `outcome='emitida'`, so one invoice showed as three emitted rows in the log; now `resumo`; (2) a zero-value eventual installment raised `22023` and aborted the whole competência; now `pulada / valor_zero`. Verified: 30 checks green, parity (check 28) green, advisor reviewed. **Open, not changed:** `issue_invoice` is executable by `authenticated`, so a finance user can issue an arbitrary invoice that skips the engine's F0 gate, usage gate and §3.2 formula. Probe confirmed; decision pending |
 
 ---
 
@@ -1271,7 +1274,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 ### Production state
 
 - **Phase 1 complete (2026-10-04).** The new model exists alongside the old one: 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers, 2 date helpers. All empty; the old model still drives the cockpit.
-- **Phase 2 complete (2026-10-05).** The issuing engine: `close_competencia` with preview/real, the recurrence stop rule, the usage completeness gate with override, eventual instalments, `billing_run_log`, the F0 gate. Verified by a 28-check suite, all green in a rolled-back transaction. Still nothing emitted in production — the engine has no rules to read until the wizard loads them (Phase 5).
+- **Phase 2 complete (2026-10-05).** The issuing engine: `close_competencia` with preview/real, the recurrence stop rule, the usage completeness gate with override, eventual instalments, `billing_run_log`, the F0 gate. Verified by a 30-check suite (28 at completion; checks 29–30 added in the validation), all green in a rolled-back transaction. Still nothing emitted in production — the engine has no rules to read until the wizard loads them (Phase 5).
 - Snapshot of the old tables versioned at `supabase/snapshots/20261004_pre_billing_rebuild.sql` (216 rows).
 - Verification: 51 RPC assertions + 15 date-grid assertions, green in a rolled-back transaction. Production confirmed untouched afterwards.
 - The current module is still live and **incorrect in the ways listed in section 0**. No stakeholder should rely on its adimplência numbers.

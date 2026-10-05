@@ -64,6 +64,15 @@ O §3.2 do SDD foi corrigido junto, e a checagem de paridade contra `_financeiro
 
 Produção conferida: 0 faturas, 0 lançamentos, tabelas antigas intactas (134 charges, 82 payments). O motor não tem faixas para ler até o wizard carregá-las (Fase 5).
 
+**Validação da Fase 2.** Suítes rodadas em produção, em transação revertida: Fase 1 com 26 checagens, Fase 2 com 30. Dois defeitos confirmados por sondas e corrigidos na migration `20261005010000`:
+
+- **Resumo contado como fatura.** A linha-resumo do `billing_run_log` gravava `outcome='emitida'`. Uma fatura aparecia como três linhas emitidas. Agora é `resumo`.
+- **Parcela zero abortava o fechamento.** Uma parcela eventual de valor zero levantava `22023` e cancelava a competência inteira. Agora é `pulada / valor_zero`.
+
+Verificado e sem mudança: fórmula `base + excedente`, regra de parada, calendário de eventuais, contrato de retorno (§4.2), paridade com o motor antigo (check 28), gate do F0 e a contiguidade das faixas.
+
+**Em aberto, decisão pendente:** `issue_invoice` é executável por `authenticated`. Um usuário de financeiro pode emitir fatura de valor arbitrário fora do motor, pulando o gate do F0, o gate de completude do uso e a fórmula do §3.2. Confirmado por sonda, revertida. Se a emissão deve passar só pelo motor, a correção é revogar o EXECUTE de `authenticated`; o motor roda como dono e não depende desse grant.
+
 **Desvio registrado:** o Edge Function para o caminho de cron fica para a Fase 6 — o cockpit da Fase 4 chama a RPC direto, então o corte não depende dele.
 
 ### Financeiro — F0 aprovado: conferência da carga histórica
