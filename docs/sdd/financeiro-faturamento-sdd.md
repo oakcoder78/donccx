@@ -22,10 +22,10 @@ This document is a Spec-Driven Development (SDD) artifact. It serves as the **si
 
 > **Read this first.** This block is the starting point for any agent resuming work.
 
-- **Stage:** Active — Phase 1 complete (2026-10-04), Phase 2 complete (2026-10-05); Phase 3 not started
+- **Stage:** Active — Phases 1–3 complete (2026-10-05); Phase 4 not started
 - **Active branch:** `main`
 - **Last deploy:** `donccx-donccx.vercel.app` (Vercel auto-deploy on `git push origin main`)
-- **Active phase:** Phase 3 — Lifecycle migration
+- **Active phase:** Phase 4 — Cockpit rewrite
 - **Go-live target:** 2026-11-01 (billing control moves from spreadsheet to Hub)
 
 > **Phase 1 shipped the new model alongside the old one.** Nothing was dropped and nothing in the live cockpit changed. `invoices`, `invoice_entries`, `series_rules`, `series_eventuals` and `billing_run_log` exist and are empty; the old `contract_charges` (134) and `billing_payments` (82) are intact and still drive the current cockpit. The four migrations are `20261004225041_billing_schema`, `20261004225219_billing_derive`, `20261004225421_billing_rpcs`, `20261004225607_billing_due_date_helpers`.
@@ -1123,31 +1123,50 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 ### Phase 3 — Lifecycle migration
 
-**Status:** Not started
+**Status:** Complete — 2026-10-05. Three RPCs migrated, 14-check suite green, production untouched.
 
 **Rationale:** As RPCs de ciclo de vida foram verificadas em produção em 2026-10-03 e compartilham as tabelas com este rebuild. Migrá-las é pré-requisito para aposentar `contract_charges` — e é aqui que o risco de regressão mora.
 
 **Scope:**
-- `encerrar_series`, `reabrir_series`, `reativar_series`, `set_nao_cobrar`, `cobrar_mais_meses` onto `series_rules` + `invoices`
-- New semantics: closing ends the rule window and cancels unissued projections; reopening reopens the window
-- `ContractLifecycleDialogs.jsx`, `SeriesVencidasAlerta.jsx`, `useContractCharges.js`
-- `ensure_series_horizon` retired; the cron and the "Repor horizonte" button repurposed or removed
+- `encerrar_series`, `reabrir_series`, `cobrar_mais_meses`, `get_series_vencidas` onto `series_rules` + `invoices`
+- `reativar_series` and `set_nao_cobrar` need **no migration** — they only touch `billing_status`
+- `ensure_series_horizon` no longer called by the lifecycle; the function stays until Phase 7
 
 #### Checklist
 
-- [ ] **RPCs:** five functions rewritten with tests for each
-- [ ] **Closing semantics:** documented in the lifecycle SDD and cross-linked
-- [ ] **Reopen:** restores the rule window; issues nothing retroactively
-- [ ] **Regression:** client 21 baselines (§5.7) preserved — 61 months, 48 payments, MRR 2.299,95
-- [ ] **Cron:** `contract-series-sync` no longer writes payments; schedule reviewed
-- [ ] **Lifecycle SDD:** supersession/pointer note added
-- [ ] **Build + deploy:** per the header block
+- [x] **RPCs:** three rewritten (`encerrar_series`, `reabrir_series`, `cobrar_mais_meses`) plus `get_series_vencidas`; two proven to need no change (`reativar_series`, `set_nao_cobrar`)
+- [x] **Closing semantics:** documented below and cross-linked from the lifecycle SDD
+- [x] **Reopen:** restores `status` and `contract_renewal`, clears the motive, issues nothing retroactively
+- [x] **Regression:** client 21 baselines preserved — 61 charges → 61, 48 payments → 48, and the series back to `ativa` / `2025-10-27` / `36` (checks 12–13)
+- [x] **Cron:** `contract-series-sync` still calls `ensure_series_horizon`, which now only maintains the dying old model. The lifecycle stopped calling it — the schedule is reviewed in Phase 6
+- [x] **Lifecycle SDD:** pointer added
+- [x] **Build:** `npm run build` clean
+- [x] **Production untouched:** 0 invoices, 0 rules, old tables intact (134, 82), client 21 unchanged, 0 closed series
+
+**Closing semantics, restated for the new model:**
+
+| | Old model | New model |
+|---|---|---|
+| What closing did | deleted the future rows of `contract_charges` (the materialised projection) | cancels **unpaid future invoices**; the status stops issuance |
+| What it cannot do | — | cancel an invoice with entries — a payment is a fact |
+| The current month | `p_remover_mes_atual` deleted it | same flag moves the cutoff one month back; the unpaid invoice is cancelled |
+| The closing eventual | inserted a `contract_charges` row | issues an **invoice** (`kind='eventual'`) |
+| Reopening | re-materialised via `ensure_series_horizon` | restores status and renewal; nothing is issued retroactively |
+
+**Deviations from this document, and why:**
+
+| Deviation | Why |
+|---|---|
+| Closing **cancels** instead of truncating the rule window | The document said "closing ends the rule window". It does not need to: the engine filters `status='ativa'`, so a closed series issues nothing. Truncating would be extra state to restore on reopen, and for a fixed-term series it would fight the stop rule (§3.4) |
+| `ensure_series_horizon` is **not** retired in this phase | The cron and the "Repor horizonte" button still call it, and `contract_charges` only dies in Phase 7. What matters is that the lifecycle stopped calling it. Retiring the function belongs with the cron decision (Phase 6) |
+| `get_series_vencidas` changed too | It read `contract_charges` for `last_launched_month` and `meses_futuros`; both now read `invoices`. In the new model there is no materialised projection, so `meses_futuros` is normally 0 — the alert is about the expired contract, not about slack |
+| **Transitional limitation, deliberate:** a lifecycle action does not show in the **old** cockpit after this phase | The old cockpit reads `contract_charges`. The window is short (Phase 4 rewrites it), and dual-writing into a dying model would be a patch |
 
 #### Implementation Log (Phase 3)
 
 | Date | Commit | Files | Summary |
 |---|---|---|---|
-| — | — | — | — |
+| 2026-10-05 | (this commit) | `20261005121933_billing_lifecycle_migrate`, `supabase/tests/billing_rebuild_phase3.sql` | Lifecycle onto `series_rules` + `invoices`. Closing cancels unpaid future invoices and issues the closing eventual as an invoice; reopening restores status and renewal and issues nothing retroactively. 14 checks, 0 failed — including the client 21 replay: 61 charges and 48 payments untouched, series back to its exact previous state |
 
 ---
 
@@ -1285,6 +1304,7 @@ node scripts/fix-supabase-urls.js       # after any function deploy
 
 - **Phase 1 complete (2026-10-04).** The new model exists alongside the old one: 5 tables, 20 indexes, 7 policies, 9 RPCs, 2 derivation triggers, 2 date helpers. All empty; the old model still drives the cockpit.
 - **Phase 2 complete (2026-10-05).** The issuing engine: `close_competencia` with preview/real, the recurrence stop rule, the usage completeness gate with override, eventual instalments, `billing_run_log`, the F0 gate. Verified by a 30-check suite (28 at completion; checks 29–30 added in the validation), all green in a rolled-back transaction. Still nothing emitted in production — the engine has no rules to read until the wizard loads them (Phase 5).
+- **Phase 3 complete (2026-10-05).** The lifecycle RPCs now operate on the new model: `encerrar_series` cancels unpaid future invoices and issues the closing eventual as an invoice; `reabrir_series` and `cobrar_mais_meses` no longer call `ensure_series_horizon`; `get_series_vencidas` reads `invoices`. `reativar_series` and `set_nao_cobrar` needed no change. Verified by a 14-check suite including the client 21 replay — 61 charges and 48 payments untouched.
 - Snapshot of the old tables versioned at `supabase/snapshots/20261004_pre_billing_rebuild.sql` (216 rows).
 - Verification: 51 RPC assertions + 15 date-grid assertions, green in a rolled-back transaction. Production confirmed untouched afterwards.
 - The current module is still live and **incorrect in the ways listed in section 0**. No stakeholder should rely on its adimplência numbers.

@@ -12,6 +12,15 @@ Documento de Spec-Driven Development — fonte canônica de **como uma série co
 
 Entrega 2 pendente: reestruturar o layout da aba Contrato e permitir escolher N séries de uma vez (exige `uuid[]` em `set_nao_cobrar`).
 
+> **As RPCs deste documento foram migradas (2026-10-05).** A Fase 3 do rebuild de faturamento (`docs/sdd/financeiro-faturamento-sdd.md`) moveu `encerrar_series`, `reabrir_series`, `cobrar_mais_meses` e `get_series_vencidas` para `series_rules` + `invoices`. `reativar_series` e `set_nao_cobrar` não mudaram — só tocam `billing_status`. O que muda de comportamento:
+>
+> - **Encerrar** não apaga mais linhas de `contract_charges` (a projeção materializada deixou de existir): cancela as **faturas futuras não liquidadas** e o status para a emissão. Fatura com lançamento não é cancelada — pagamento é fato.
+> - O **eventual de encerramento** vira fatura (`kind='eventual'`), não linha de projeção.
+> - **Reabrir** devolve status e `contract_renewal` e nada emite retroativamente; `ensure_series_horizon` não é mais chamada pelo ciclo de vida.
+> - **Regressão verificada:** o replay do cliente 21 (61 charges, 48 payments, `ativa` / `2025-10-27` / 36) passa.
+>
+> As seções deste documento que descrevem o comportamento antigo — §1.2, §1.3, §1.8 — continuam válidas como **regra de negócio**; o que mudou é o mecanismo. O histórico da verificação de 2026-10-03 (§4-ter) fica como está: foi medido no modelo antigo.
+
 ### How to use this document
 
 1. **Fase A–E** na seção 4 são a ordem de execução. Uma fase ativa por vez.

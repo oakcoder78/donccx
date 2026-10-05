@@ -48,6 +48,21 @@ Suíte de verificação versionada em `supabase/tests/billing_rebuild_phase1.sql
 
 A suíte foi de 19 para **26 checagens**: 26 passaram, 0 falharam.
 
+### Financeiro — Fase 3: ciclo de vida migrado para o modelo novo
+
+As RPCs de ciclo de vida passam a operar sobre `series_rules` + `invoices`. Duas das cinco não precisaram de nada — `reativar_series` e `set_nao_cobrar` só tocam `billing_status`.
+
+O que muda de conceito, e é a parte que importa:
+
+- **Encerrar** antes **apagava** as linhas futuras de `contract_charges` — a projeção materializada. No modelo novo não existe projeção: a fatura nasce quando a competência fecha. Então encerrar agora **cancela as faturas futuras não liquidadas** e para a emissão pelo status. Fatura com lançamento não é cancelada — pagamento é fato, não projeção.
+- O **eventual de encerramento** (multa, acerto) vira **fatura**, não linha de projeção.
+- **Reabrir** devolve status e `contract_renewal` e **nada emite retroativamente**. Antes rematerializava a projeção via `ensure_series_horizon`; agora não há o que rematerializar.
+- **Cobrar mais meses** só estende `billing_end` — o motor lê a janela na hora de emitir.
+
+**Suíte de 14 checagens, 0 falhas**, incluindo o que mais importava: o **replay do cliente 21 real**. Encerrar e reabrir não toca o modelo antigo — 61 charges continuam 61, 48 pagamentos continuam 48, e a série volta exata ao estado anterior (`ativa` / `2025-10-27` / 36).
+
+Desvios registrados: encerrar **não** trunca a janela da regra (o status já para a emissão, e truncar seria estado a restaurar no reopen); `ensure_series_horizon` **não** foi aposentada nesta fase (o cron e o botão ainda a chamam, e `contract_charges` só morre na Fase 7) — o que importa é que o ciclo de vida parou de chamá-la. Fica uma **limitação transitória deliberada**: uma ação de ciclo de vida não aparece no cockpit **antigo** depois desta fase, porque ele lê `contract_charges`. A janela é curta — a Fase 4 reescreve o cockpit.
+
 ### Financeiro — `issue_invoice` vira primitivo interno
 
 A validação da Fase 2 deixou uma decisão pendente: `issue_invoice` era executável por `authenticated`, então um usuário de financeiro podia emitir fatura de valor arbitrário chamando a RPC direto — pulando o gate do F0, o gate de completude do uso e a fórmula do §3.2.
