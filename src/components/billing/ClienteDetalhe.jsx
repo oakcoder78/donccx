@@ -139,9 +139,9 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, podeCorte, selo
             <span className="text-2xl font-semibold tabular-nums text-text-primary">{BRL.format(emAberto)} em aberto</span>
             {selo}
           </div>
-          {cliente.estado === 'com_fatura' && faturado != null && (
+          {cliente.estado === 'com_fatura' && (
             <span className="text-xs text-text-secondary">
-              de {BRL.format(faturado)} faturados · {cliente.n_em_aberto} de {cliente.m_faturas} faturas em aberto
+              de {BRL.format(Number(cliente.faturado || 0))} faturados · {cliente.n_em_aberto} de {cliente.m_faturas} faturas em aberto
             </span>
           )}
         </div>
