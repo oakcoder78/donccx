@@ -58,6 +58,10 @@ BEGIN
   IF v_user IS NULL THEN
     RAISE EXCEPTION 'suite: nenhum perfil disponivel para auditoria';
   END IF;
+  -- Simula meses consolidados pelo cron (so nesta transacao, revertida no final).
+  INSERT INTO public.sync_service_log (ref_month, service_name, triggered_by, status, started_at, finished_at)
+  SELECT to_char(m, 'YYYY-MM'), 'donc-api', 'cron', 'success', m + interval '1 month', m + interval '1 month' + interval '1 second'
+  FROM generate_series(date '2026-01-01', date '2100-12-01', interval '1 month') m;
   PERFORM set_config('request.jwt.claims',
     json_build_object('role', 'service_role', 'sub', v_user)::text, true);
 

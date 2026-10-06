@@ -36,6 +36,12 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', json_build_object('role','service_role','sub',v_admin)::text, true);
 
+  -- Simula meses consolidados pelo cron (so nesta transacao, revertida no final):
+  -- a barreira recusa leitura e escrita de competencia nao consolidada.
+  INSERT INTO public.sync_service_log (ref_month, service_name, triggered_by, status, started_at, finished_at)
+  SELECT to_char(m, 'YYYY-MM'), 'donc-api', 'cron', 'success', m + interval '1 month', m + interval '1 month' + interval '1 second'
+  FROM generate_series(date '2026-01-01', date '2100-12-01', interval '1 month') m;
+
   -- Fixture: fatura futura (2099) e fatura vencida (2026-01, due 2026-01-10)
   v_inv := public.issue_invoice(v_client, v_series, 'recorrencia', '2099-05', 900, '2099-05-10');
   v_inv_old := public.issue_invoice(v_client, v_series, 'recorrencia', '2026-01', 400, '2026-01-10');
