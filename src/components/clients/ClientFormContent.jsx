@@ -21,7 +21,7 @@ import { OsTiersSection } from './sections/OsTiersSection'
 import { EventuaisSection } from './sections/EventuaisSection'
 import { FormSection } from './form/FormSection'
 import { InfoHint } from './form/InfoHint'
-import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, addMonthsClamped, getBaseTotal, formatBRL4, clampRulesToN } from '@/lib/contractRules'
+import { validateRulesContiguous, validateOsTiers, expandRulesToCharges, expandEventuais, eventualStart, regroupRecorrencia, regroupEventuais, resolveMRR, renegWindows, billingEnd, addMonthsClamped, getBaseTotal, formatBRL4, clampRulesToN, regrasParaCockpitNovo, eventuaisParaCockpitNovo } from '@/lib/contractRules'
 import { renewalSuggestion, excecaoLabel } from '@/lib/financeiro'
 import { useBillingExceptions } from '@/hooks/useBillingExceptions'
 import toast from 'react-hot-toast'
@@ -818,6 +818,23 @@ export function ClientFormContent({ client, onSuccess, onCancel }) {
           await saveCharges({ charges: [], clientId, seriesId: saved.id, userId: profile?.id, recurrenceUpTo: managedUpTo })
         }
       } catch (e) { toast.error(`Contrato (${saved.label}): ${friendlyDbError(e)}`); continue }
+      // Modelo novo do cockpit de faturamento: regras e eventuais tambem vao para
+      // series_rules / series_eventuals. Falha aqui nao reverte o contrato antigo,
+      // mas o cockpit novo fica sem esses valores ate o proximo salvamento.
+      try {
+        const { regras, percentuaisIgnoradas } = regrasParaCockpitNovo(s.rules)
+        const { error: rpcErr } = await supabase.rpc('salvar_regras_contrato', {
+          p_series_id: saved.id,
+          p_rules: regras,
+          p_eventuais: eventuaisParaCockpitNovo(ev),
+        })
+        if (rpcErr) throw rpcErr
+        if (percentuaisIgnoradas > 0) {
+          toast.error(`Contrato (${saved.label}): ${percentuaisIgnoradas} regra(s) em percentual não entram no cockpit novo ainda`)
+        }
+      } catch (e) {
+        toast.error(`Contrato (${saved.label}): cockpit novo não atualizado — ${friendlyDbError(e)}`)
+      }
       // Horizon runs AFTER saveCharges: it replicates the last recurrence row, so
       // calling it earlier would extend with the previous value and then have the
       // rules rewrite wipe it. Same function the monthly job calls.

@@ -318,3 +318,47 @@ export const TI_TIPO_OPTIONS = [
   { value: 'hibrida', label: 'Híbrida' },
   { value: 'nao_possui', label: 'Não possui' },
 ]
+
+/**
+ * Regras do form → series_rules (modelo novo do cockpit de faturamento).
+ * 'absolute' e 'base' viram valor fixo ('amount'). A ultima faixa fica aberta
+ * (month_to null): o motor para sozinho no fim do contrato (billing_end).
+ * Percentual nao entra: o motor novo calcula percentual sobre o contrato, nao
+ * sobre o total do cliente, entao a conversao nao e a mesma. Devolve quantas ficaram de fora.
+ */
+export function regrasParaCockpitNovo(rules) {
+  const sorted = [...(rules || [])].sort((a, b) => a.from - b.from)
+  const ultima = sorted.length ? sorted[sorted.length - 1] : null
+  const regras = []
+  let percentuaisIgnoradas = 0
+  for (const r of sorted) {
+    if (r.mode === 'percent') { percentuaisIgnoradas += 1; continue }
+    regras.push({
+      month_from: r.from,
+      month_to: r === ultima ? null : r.to,
+      amount: Number(r.value),
+    })
+  }
+  return { regras, percentuaisIgnoradas }
+}
+
+/**
+ * Eventuais expandidos (uma linha por parcela) → um item por eventual, no formato
+ * de series_eventuals. Agrupa pelo installment_group que o form ja gera.
+ */
+export function eventuaisParaCockpitNovo(expandidos) {
+  const grupos = new Map()
+  for (const p of expandidos || []) {
+    if (p.kind !== 'implantacao' || !p.installment_group) continue
+    const g = grupos.get(p.installment_group) || { label: p.label, total: 0, installments: p.installments_total, first_due_date: null }
+    g.total += Number(p.amount) || 0
+    if (p.due_date && (!g.first_due_date || p.due_date < g.first_due_date)) g.first_due_date = p.due_date
+    grupos.set(p.installment_group, g)
+  }
+  return [...grupos.values()].map(g => ({
+    label: g.label || 'Implantação',
+    total: Math.round(g.total * 100) / 100,
+    installments: g.installments,
+    first_due_date: g.first_due_date,
+  })).filter(g => g.first_due_date && g.total > 0)
+}
