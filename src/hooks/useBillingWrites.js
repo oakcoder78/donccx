@@ -123,14 +123,3 @@ export function useCancel(competencia) {
     onSuccess: () => invalidar(competencia),
   })
 }
-
-// Encerrar com corte: cobra a competencia corrente da serie (base integral +
-// excedente ate hoje) e encerra a serie. O banco confere uso e emissao.
-export function useEncerrarComCorte(competencia) {
-  const invalidar = useInvalidarFaturamento()
-  return useMutation({
-    mutationFn: ({ seriesId, motivo, confirmoUso }) =>
-      rpc('encerrar_com_corte', { p_series_id: seriesId, p_motivo: motivo, p_confirmo_uso: confirmoUso }),
-    onSuccess: () => invalidar(competencia),
-  })
-}

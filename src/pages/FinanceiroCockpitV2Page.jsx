@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import {
-  useBillingClientes, useBillingMotivos, useBillingConsolidacao,
+  useBillingClientes, useBillingMotivos, useBillingCompetencias,
   useClosePreview, useCloseCompetencia,
 } from '../hooks/useBillingCockpit'
 import { Icons } from '../lib/icons'
@@ -27,18 +27,6 @@ const SELO_TONE = {
   green: 'bg-status-green-bg text-status-green-text',
   slate: 'bg-status-slate-bg text-status-slate-text',
 }
-
-// Ultimos 12 meses, o corrente primeiro. Sem meses futuros (SDD §1.8).
-function competenciaOptions() {
-  const out = []
-  const now = new Date()
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-  }
-  return out
-}
-
 // Motivo e projecao por cliente, a partir das linhas por serie do preview.
 // `projecaoRecorrencia` e o MRR real projetado (so recorrencia); `projecao`
 // inclui eventuais, e e o que o fechamento emitiria.
@@ -118,14 +106,6 @@ const MOTIVO_PULA = {
   nao_bilhetavel: 'não bilhetável',
   valor_zero: 'valor zero',
 }
-
-// Primeiro dia do mes seguinte: quando o uso do mes e consolidado pelo cron.
-function dataConsolidacao(competencia) {
-  const [ano, mes] = competencia.split('-').map(Number)
-  const d = new Date(ano, mes, 1)
-  return d.toLocaleDateString('pt-BR')
-}
-
 const COLUNAS_CSV = [
   { titulo: 'Cliente', campo: 'client_name' },
   { titulo: 'Situação', campo: 'situacao' },
@@ -145,16 +125,17 @@ export default function FinanceiroCockpitV2Page() {
   const { isEnabled } = useFeatureFlags()
   const canWrite = isEnabled('financeiro_cockpit_write', effectiveRole)
 
-  const opcoes = useMemo(competenciaOptions, [])
-  const [competencia, setCompetencia] = useState(opcoes[0])
+  // So as competencias consolidadas pelo cron: o mes corrente nao aparece antes da sincronizacao.
+  const competenciasDisponiveis = useBillingCompetencias()
+  const opcoes = competenciasDisponiveis.data || []
+  const [escolhida, setEscolhida] = useState(null)
+  const competencia = escolhida && opcoes.includes(escolhida) ? escolhida : (opcoes[0] ?? null)
   const [expandido, setExpandido] = useState(null)
   const [fechando, setFechando] = useState(false)
   const [filtro, setFiltro] = useState(FILTRO_INICIAL)
 
   const clientes = useBillingClientes(competencia)
   const motivos = useBillingMotivos(competencia, canWrite)
-  const consolidacao = useBillingConsolidacao(competencia, canWrite)
-  const consolidada = consolidacao.data?.consolidada === true
   const preview = useClosePreview()
   const fechar = useCloseCompetencia()
 
@@ -247,13 +228,6 @@ export default function FinanceiroCockpitV2Page() {
         <ReadOnlyBanner reason="Seu perfil vê as faturas, mas não fecha competência nem lança pagamentos." />
       )}
 
-      {canWrite && consolidacao.isSuccess && !consolidada && (
-        <div role="status" className="rounded-lg border border-status-amber-line bg-status-amber-bg px-4 py-3 text-sm text-status-amber-text">
-          <strong>Não é possível fechar {competencia} ainda.</strong>{' '}
-          O uso não foi sincronizado. O fechamento libera depois da sincronização de {dataConsolidacao(competencia)}. Se precisar encerrar um contrato antes disso, solicite ao administrador.
-        </div>
-      )}
-
       {clientes.isSuccess && lista.length > 0 && (
         <section aria-label="Resumo da competência" className="grid grid-cols-2 divide-x divide-y divide-border-tertiary rounded-lg border border-border-tertiary bg-bg-primary md:grid-cols-4 md:divide-y-0">
           <Indicador
@@ -287,8 +261,8 @@ export default function FinanceiroCockpitV2Page() {
           <label className="flex flex-col gap-1 text-xs text-text-secondary">
             Competência
             <select
-              value={competencia}
-              onChange={e => { setCompetencia(e.target.value); setExpandido(null) }}
+              value={competencia ?? ''}
+              onChange={e => { setEscolhida(e.target.value); setExpandido(null) }}
               className="rounded-md border border-border-secondary px-2 py-1.5 text-sm text-text-primary bg-bg-primary"
             >
               {opcoes.map(c => <option key={c} value={c}>{c}</option>)}
@@ -349,8 +323,6 @@ export default function FinanceiroCockpitV2Page() {
             <Button
               variant="primary"
               onClick={abrirFechamento}
-              disabled={!consolidada}
-              title={consolidada ? undefined : 'Só fecha depois da sincronização de uso do mês'}
             >
               <Icons.Check size={14} aria-hidden="true" />
               Fechar competência
@@ -367,7 +339,15 @@ export default function FinanceiroCockpitV2Page() {
         </div>
       </div>
 
-      {clientes.isPending && <div className="py-10 flex justify-center"><Spinner /></div>}
+      {competenciasDisponiveis.isSuccess && !competencia && (
+        <EmptyState
+          reason="Sem competência"
+          title="Nenhuma competência fechável ainda"
+          description="A competência aparece aqui depois da sincronização de uso do mês."
+        />
+      )}
+
+      {competencia && clientes.isPending && <div className="py-10 flex justify-center"><Spinner /></div>}
 
       {clientes.isError && (
         <ErrorState
@@ -459,7 +439,6 @@ export default function FinanceiroCockpitV2Page() {
                             cliente={c}
                             competencia={competencia}
                             canWrite={canWrite}
-                            podeCorte={effectiveRole === 'admin'}
                             selo={<Selo cliente={c} motivo={r?.motivo} canWrite={canWrite} />}
                             projecao={canWrite && r?.projecao > 0 ? r.projecao : null}
                           />

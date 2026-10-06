@@ -48,16 +48,15 @@ export function useBillingFaturas(clientId, competencia, enabled = true) {
   })
 }
 
-// Consolidacao do uso da competencia: so o cron do mes seguinte consolida.
-export function useBillingConsolidacao(competencia, enabled = true) {
+// Competencias que a tela pode mostrar: so as consolidadas pelo cron do mes seguinte.
+export function useBillingCompetencias() {
   return useQuery({
-    queryKey: ['billing_consolidacao', competencia],
+    queryKey: ['billing_competencias'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('billing_consolidacao', { p_competencia: competencia })
+      const { data, error } = await supabase.rpc('billing_competencias_consolidadas')
       if (error) throw error
-      return data?.[0] || { consolidada: false, consolidada_em: null }
+      return (data || []).map(r => (typeof r === 'string' ? r : r.billing_competencias_consolidadas))
     },
-    enabled: enabled && !!competencia,
     staleTime: 60 * 1000,
   })
 }
