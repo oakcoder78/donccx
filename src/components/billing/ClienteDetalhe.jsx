@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { Spinner } from '../ui/Spinner'
 import { ErrorState, EmptyState } from '../ui/StatusViews'
 import { FaturasDoCliente } from './FaturasDoCliente'
 import { useBillingExtrato } from '../../hooks/useBillingExtrato'
 import { BRL } from './BillingWriteDialogs'
 import { Button } from '../ui/Button'
+import { ConfirmDialog } from '../ui/ConfirmDialog'
+import { useEncerrarComCorte } from '../../hooks/useBillingWrites'
 import { toCsv, baixarCsv, carimboData } from '../../lib/csv'
 
 // Painel expandido de um cliente: contrato, faturas e extrato, nessa ordem.
@@ -108,6 +111,11 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
   const fixo = cliente.tipo === 'fixo'
   const emAberto = Number(cliente.saldo_aberto || 0)
   const faturado = cliente.mrr_real != null ? Number(cliente.mrr_real) : null
+  // Corte so com uma serie: com mais de uma, o operador escolhe pela fatura.
+  const serieUnica = (cliente.series_ids || []).length === 1 && cliente.tem_regra !== false
+  const [corteAberto, setCorteAberto] = useState(false)
+  const [confirmoUso, setConfirmoUso] = useState(false)
+  const corte = useEncerrarComCorte(competencia)
 
   return (
     <div className="flex flex-col gap-5 px-1 py-2">
@@ -125,7 +133,48 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
             </span>
           )}
         </div>
+        {canWrite && (
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={!serieUnica}
+            title={serieUnica ? 'Cobra o uso até hoje e encerra o contrato' : 'Disponível para cliente com uma única série e regra lançada'}
+            onClick={() => { setConfirmoUso(false); corte.reset(); setCorteAberto(true) }}
+          >
+            Encerrar com corte
+          </Button>
+        )}
       </header>
+
+      <ConfirmDialog
+        open={corteAberto}
+        title={`Encerrar ${cliente.client_name} com corte?`}
+        description={`Emite a competência ${competencia} desta série (base integral e excedente até hoje) e encerra o contrato. Depois disso o contrato não cobra mais.`}
+        requireReason
+        reasonLabel="Motivo do encerramento"
+        reasonHint="Fica registrado na auditoria. Mínimo de 10 caracteres."
+        variant="danger"
+        confirmLabel={corte.isSuccess ? 'Concluído' : 'Cobrar corte e encerrar'}
+        cancelLabel={corte.isSuccess ? 'Fechar' : 'Voltar'}
+        busy={corte.isPending}
+        onConfirm={({ reason }) => {
+          if (corte.isSuccess) { setCorteAberto(false); return }
+          corte.mutate({ seriesId: cliente.series_ids[0], motivo: reason, confirmoUso })
+        }}
+        onClose={() => setCorteAberto(false)}
+        summary={
+          corte.isError ? <span role="alert" className="text-status-red-text">Não foi possível encerrar: {corte.error?.message}</span> :
+          corte.isSuccess ? <span>Corte emitido e contrato encerrado.</span> :
+          <span>Conferir antes: o uso até hoje precisa estar sincronizado e sem pendências.</span>
+        }
+      >
+        {!corte.isSuccess && (
+          <label className="flex items-start gap-2 text-sm text-text-primary">
+            <input type="checkbox" className="mt-1" checked={confirmoUso} onChange={e => setConfirmoUso(e.target.checked)} />
+            Conferi o uso deste cliente até hoje.
+          </label>
+        )}
+      </ConfirmDialog>
 
       {/* Contrato e calculo: a conta que forma o valor, e os termos do contrato */}
       <Bloco titulo="Contrato e cálculo">
