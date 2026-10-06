@@ -48,6 +48,20 @@ export function useBillingFaturas(clientId, competencia, enabled = true) {
   })
 }
 
+// Consolidacao do uso da competencia: so o cron do mes seguinte consolida.
+export function useBillingConsolidacao(competencia, enabled = true) {
+  return useQuery({
+    queryKey: ['billing_consolidacao', competencia],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('billing_consolidacao', { p_competencia: competencia })
+      if (error) throw error
+      return data?.[0] || { consolidada: false, consolidada_em: null }
+    },
+    enabled: enabled && !!competencia,
+    staleTime: 60 * 1000,
+  })
+}
+
 // Preview: calcula o que o fechamento emitiria, sem gravar nada.
 export function useClosePreview() {
   return useMutation({

@@ -2,7 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useFeatureFlags } from '../hooks/useFeatureFlags'
 import {
-  useBillingClientes, useBillingMotivos,
+  useBillingClientes, useBillingMotivos, useBillingConsolidacao,
   useClosePreview, useCloseCompetencia,
 } from '../hooks/useBillingCockpit'
 import { Icons } from '../lib/icons'
@@ -110,6 +110,22 @@ function aplicaFiltros(lista, f) {
   })
 }
 
+// Texto do motivo de cada serie pulada no fechamento.
+const MOTIVO_PULA = {
+  sem_regra: 'sem regra lançada',
+  usage_incomplete: 'uso não consolidado',
+  fora_janela: 'fora da janela do contrato',
+  nao_bilhetavel: 'não bilhetável',
+  valor_zero: 'valor zero',
+}
+
+// Primeiro dia do mes seguinte: quando o uso do mes e consolidado pelo cron.
+function dataConsolidacao(competencia) {
+  const [ano, mes] = competencia.split('-').map(Number)
+  const d = new Date(ano, mes, 1)
+  return d.toLocaleDateString('pt-BR')
+}
+
 const COLUNAS_CSV = [
   { titulo: 'Cliente', campo: 'client_name' },
   { titulo: 'Situação', campo: 'situacao' },
@@ -137,6 +153,8 @@ export default function FinanceiroCockpitV2Page() {
 
   const clientes = useBillingClientes(competencia)
   const motivos = useBillingMotivos(competencia, canWrite)
+  const consolidacao = useBillingConsolidacao(competencia, canWrite)
+  const consolidada = consolidacao.data?.consolidada === true
   const preview = useClosePreview()
   const fechar = useCloseCompetencia()
 
@@ -204,10 +222,17 @@ export default function FinanceiroCockpitV2Page() {
     const rows = preview.data || []
     const emitiria = rows.filter(r => r.outcome === 'emitiria')
     const puladas = rows.filter(r => r.outcome === 'pulada')
+    // Conta por motivo, para o operador saber por que cada serie ficou de fora.
+    const porMotivo = {}
+    for (const r of puladas) porMotivo[r.reason] = (porMotivo[r.reason] || 0) + 1
+    const motivos = Object.entries(porMotivo)
+      .map(([m, n]) => `${n} ${MOTIVO_PULA[m] || m}`)
+      .join(', ')
     return {
       emitiria: emitiria.length,
       valor: emitiria.reduce((s, r) => s + Number(r.amount || 0), 0),
       puladas: puladas.length,
+      motivos,
     }
   }, [preview.data])
 
@@ -220,6 +245,13 @@ export default function FinanceiroCockpitV2Page() {
 
       {!canWrite && (
         <ReadOnlyBanner reason="Seu perfil vê as faturas, mas não fecha competência nem lança pagamentos." />
+      )}
+
+      {canWrite && consolidacao.isSuccess && !consolidada && (
+        <div role="status" className="rounded-lg border border-status-amber-line bg-status-amber-bg px-4 py-3 text-sm text-status-amber-text">
+          <strong>Uso de {competencia} ainda não consolidado.</strong>{' '}
+          O fechamento libera depois da sincronização de {dataConsolidacao(competencia)}. Valores de uso e excedente podem mudar até lá.
+        </div>
       )}
 
       {clientes.isSuccess && lista.length > 0 && (
@@ -314,7 +346,12 @@ export default function FinanceiroCockpitV2Page() {
 
         <div className="flex items-center gap-2">
           {canWrite && (
-            <Button variant="primary" onClick={abrirFechamento}>
+            <Button
+              variant="primary"
+              onClick={abrirFechamento}
+              disabled={!consolidada}
+              title={consolidada ? undefined : 'Só fecha depois da sincronização de uso do mês'}
+            >
               <Icons.Check size={14} aria-hidden="true" />
               Fechar competência
             </Button>
@@ -448,13 +485,18 @@ export default function FinanceiroCockpitV2Page() {
         onConfirm={() => (fechar.isSuccess ? setFechando(false) : fechar.mutate(competencia))}
         onClose={() => setFechando(false)}
         summary={
+          fechar.isError ? <span role="alert" className="text-status-red-text">Não foi possível fechar: {fechar.error?.message}</span> :
           preview.isPending ? <Spinner size="sm" /> :
           preview.isError ? <span className="text-status-red-text">Não foi possível calcular a prévia: {preview.error?.message}</span> :
           fechar.isSuccess ? <span>Emitidas: {(fechar.data || []).filter(r => r.outcome === 'emitida').length}. Já existentes: {(fechar.data || []).filter(r => r.outcome === 'ja_emitida').length}.</span> :
           preview.isSuccess ? (
             <span>
               Vai emitir <strong>{previewResumo.emitiria}</strong> fatura(s), somando <strong>{BRL.format(previewResumo.valor)}</strong>.
-              {' '}Pulam <strong>{previewResumo.puladas}</strong> série(s).
+              {previewResumo.puladas > 0 && (
+                <>
+                  {' '}Pulam <strong>{previewResumo.puladas}</strong> série(s): {previewResumo.motivos}.
+                </>
+              )}
             </span>
           ) : null
         }
