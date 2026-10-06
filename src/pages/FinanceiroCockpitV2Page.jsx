@@ -6,6 +6,7 @@ import {
   useClosePreview, useCloseCompetencia,
 } from '../hooks/useBillingCockpit'
 import { Icons } from '../lib/icons'
+import { toCsv, baixarCsv, carimboData } from '../lib/csv'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Button } from '../components/ui/Button'
 import { Spinner } from '../components/ui/Spinner'
@@ -18,7 +19,7 @@ const BRL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' 
 
 const TIPO_LABEL = { por_licenca: 'Por licença', por_os: 'Por OS', os: 'Por OS', licenca: 'Por licença', fixo: 'Fixo' }
 
-// Tons dos selos, com os tokens status.* do projeto. Cor nunca e a unica
+// Tons dos selos, com os tokens status.* do projeto. A cor nunca e a unica
 // informacao: o texto do selo ja diz a situacao.
 const SELO_TONE = {
   red:   'bg-status-red-bg text-status-red-text',
@@ -56,33 +57,22 @@ function resumoPorCliente(motivos) {
 }
 
 // Situacao do cliente: a pior condicao (vencida > aberta > quitada).
-function Selo({ cliente, motivo, canWrite }) {
+function situacaoDo(cliente) {
   if (cliente.estado === 'com_fatura') {
     const atraso = Number(cliente.maior_atraso || 0)
-    if (atraso > 0) {
-      return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SELO_TONE.red}`}>
-          Vencida · {atraso} {atraso === 1 ? 'dia' : 'dias'}
-        </span>
-      )
-    }
-    if (Number(cliente.n_em_aberto) > 0) {
-      return (
-        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SELO_TONE.blue}`}>
-          Aberta
-        </span>
-      )
-    }
-    return (
-      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SELO_TONE.green}`}>
-        Quitada
-      </span>
-    )
+    if (atraso > 0) return { chave: 'vencida', rotulo: `Vencida · ${atraso} ${atraso === 1 ? 'dia' : 'dias'}`, tone: 'red' }
+    if (Number(cliente.n_em_aberto) > 0) return { chave: 'aberta', rotulo: 'Aberta', tone: 'blue' }
+    return { chave: 'quitada', rotulo: 'Quitada', tone: 'green' }
   }
-  if (canWrite && motivo) return <MotivoBadge motivo={motivo} />
+  return { chave: 'sem_fatura', rotulo: 'Sem fatura', tone: 'slate' }
+}
+
+function Selo({ cliente, motivo, canWrite }) {
+  if (cliente.estado !== 'com_fatura' && canWrite && motivo) return <MotivoBadge motivo={motivo} />
+  const s = situacaoDo(cliente)
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SELO_TONE.slate}`}>
-      Sem fatura
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${SELO_TONE[s.tone]}`}>
+      {s.rotulo}
     </span>
   )
 }
@@ -93,6 +83,45 @@ function Valor({ children, muted = false }) {
   )
 }
 
+// Bloco do topo: rotulo pequeno, valor em destaque e uma linha de contexto.
+function Indicador({ rotulo, valor, contexto, destaque = false }) {
+  return (
+    <div className="flex flex-col gap-1 px-4 py-3">
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">{rotulo}</span>
+      <span className={`text-xl font-semibold tabular-nums ${destaque ? 'text-status-red-text' : 'text-text-primary'}`}>{valor}</span>
+      {contexto && <span className="text-xs text-text-secondary">{contexto}</span>}
+    </div>
+  )
+}
+
+// Filtros da lista. A situacao vem do estado real do cliente, nao do selo.
+const FILTRO_INICIAL = { busca: '', situacao: 'todas', tipo: 'todos', soComSaldo: false }
+
+function aplicaFiltros(lista, f) {
+  const termo = f.busca.trim().toLowerCase()
+  return lista.filter(c => {
+    if (termo && !String(c.client_name || '').toLowerCase().includes(termo)) return false
+    if (f.situacao !== 'todas' && situacaoDo(c).chave !== f.situacao) return false
+    if (f.tipo !== 'todos' && c.tipo !== f.tipo && !(f.tipo === 'por_os' && c.tipo === 'os')) return false
+    if (f.soComSaldo && !(Number(c.saldo_aberto) > 0)) return false
+    return true
+  })
+}
+
+const COLUNAS_CSV = [
+  { titulo: 'Cliente', campo: 'client_name' },
+  { titulo: 'Situação', campo: 'situacao' },
+  { titulo: 'Dias de atraso', campo: 'atraso', tipo: 'numero' },
+  { titulo: 'Tipo', campo: 'tipo_label' },
+  { titulo: 'Uso', campo: 'uso' },
+  { titulo: 'MRR mínimo (R$)', campo: 'mrr_minimo', tipo: 'numero' },
+  { titulo: 'MRR real (R$)', campo: 'mrr_real', tipo: 'numero' },
+  { titulo: 'Faturado (R$)', campo: 'faturado', tipo: 'numero' },
+  { titulo: 'Faturas em aberto', campo: 'n_em_aberto' },
+  { titulo: 'Faturas emitidas', campo: 'm_faturas' },
+  { titulo: 'Saldo em aberto (R$)', campo: 'saldo_aberto', tipo: 'numero' },
+]
+
 export default function FinanceiroCockpitV2Page() {
   const { effectiveRole } = useAuth()
   const { isEnabled } = useFeatureFlags()
@@ -102,6 +131,7 @@ export default function FinanceiroCockpitV2Page() {
   const [competencia, setCompetencia] = useState(opcoes[0])
   const [expandido, setExpandido] = useState(null)
   const [fechando, setFechando] = useState(false)
+  const [filtro, setFiltro] = useState(FILTRO_INICIAL)
 
   const clientes = useBillingClientes(competencia)
   const motivos = useBillingMotivos(competencia, canWrite)
@@ -110,19 +140,62 @@ export default function FinanceiroCockpitV2Page() {
 
   const resumo = useMemo(() => resumoPorCliente(motivos.data || []), [motivos.data])
   const lista = clientes.data || []
+  const filtrada = useMemo(() => aplicaFiltros(lista, filtro), [lista, filtro])
+  const filtrosAtivos = filtro.busca.trim() !== '' || filtro.situacao !== 'todas' || filtro.tipo !== 'todos' || filtro.soComSaldo
 
-  const totais = useMemo(() => ({
-    clientes: lista.length,
-    comFatura: lista.filter(c => c.estado === 'com_fatura').length,
-    vencidas: lista.filter(c => Number(c.maior_atraso || 0) > 0).length,
-    saldo: lista.reduce((s, c) => s + Number(c.saldo_aberto || 0), 0),
-  }), [lista])
+  // Topo: sempre sobre a competencia inteira, nao sobre o filtro da lista.
+  const topo = useMemo(() => {
+    const faturado = lista.reduce((s, c) => s + Number(c.faturado || 0), 0)
+    const excedente = lista.reduce((s, c) => s + Number(c.excedente || 0), 0)
+    const saldo = lista.reduce((s, c) => s + Number(c.saldo_aberto || 0), 0)
+    const faturas = lista.reduce((s, c) => s + Number(c.m_faturas || 0), 0)
+    const emAberto = lista.reduce((s, c) => s + Number(c.n_em_aberto || 0), 0)
+    const vencido = lista.reduce((s, c) => s + Number(c.vencido_valor || 0), 0)
+    const vencidos = lista.filter(c => Number(c.maior_atraso || 0) > 0)
+    const maiorAtraso = vencidos.reduce((m, c) => Math.max(m, Number(c.maior_atraso || 0)), 0)
+    return { faturado, excedente, saldo, faturas, emAberto, vencido, vencidos: vencidos.length, maiorAtraso }
+  }, [lista])
+
+  // Projecao do proximo fechamento: so quem fecha a competencia ve.
+  const aEmitir = useMemo(() => {
+    if (!canWrite) return null
+    const semFatura = lista.filter(c => c.estado === 'sem_fatura')
+    let valor = 0
+    let semRegra = 0
+    for (const c of semFatura) {
+      const r = resumo.get(c.client_id)
+      valor += Number(r?.projecaoRecorrencia || 0)
+      if (r?.motivo === 'sem_regra') semRegra += 1
+    }
+    return { valor, series: semFatura.length, semRegra }
+  }, [canWrite, lista, resumo])
 
   function abrirFechamento() {
     setFechando(true)
     preview.reset()
     fechar.reset()
     preview.mutate(competencia)
+  }
+
+  function exportarLista() {
+    const linhas = filtrada.map(c => {
+      const r = resumo.get(c.client_id)
+      const s = situacaoDo(c)
+      return {
+        client_name: c.client_name,
+        situacao: s.rotulo,
+        atraso: c.maior_atraso,
+        tipo_label: TIPO_LABEL[c.tipo] || c.tipo || '',
+        uso: c.uso ?? '',
+        mrr_minimo: c.mrr_minimo,
+        mrr_real: c.mrr_real != null ? c.mrr_real : (canWrite ? (r?.projecaoRecorrencia > 0 ? r.projecaoRecorrencia : null) : null),
+        faturado: c.estado === 'com_fatura' ? c.faturado : null,
+        n_em_aberto: c.estado === 'com_fatura' ? c.n_em_aberto : '',
+        m_faturas: c.estado === 'com_fatura' ? c.m_faturas : '',
+        saldo_aberto: c.saldo_aberto,
+      }
+    })
+    baixarCsv(`financeiro-clientes-${competencia}-${carimboData()}.csv`, toCsv(linhas, COLUNAS_CSV))
   }
 
   const previewResumo = useMemo(() => {
@@ -157,14 +230,103 @@ export default function FinanceiroCockpitV2Page() {
         <ReadOnlyBanner reason="Seu perfil vê as faturas, mas não fecha competência nem lança pagamentos." />
       )}
 
-      {canWrite && (
-        <div className="flex justify-end">
-          <Button variant="primary" onClick={abrirFechamento}>
-            <Icons.Check size={14} aria-hidden="true" />
-            Fechar competência
+      {clientes.isSuccess && lista.length > 0 && (
+        <section aria-label="Resumo da competência" className="grid grid-cols-2 divide-x divide-y divide-border-tertiary rounded-lg border border-border-tertiary md:grid-cols-4 md:divide-y-0">
+          <Indicador
+            rotulo="Faturado no mês"
+            valor={BRL.format(topo.faturado)}
+            contexto={`${topo.faturas} fatura(s) emitida(s)${topo.excedente > 0 ? ` · inclui ${BRL.format(topo.excedente)} de excedente` : ''}`}
+          />
+          <Indicador
+            rotulo="Em aberto"
+            valor={BRL.format(topo.saldo)}
+            contexto={`${topo.emAberto} de ${topo.faturas} faturas não quitadas`}
+          />
+          <Indicador
+            rotulo="Vencido"
+            valor={BRL.format(topo.vencido)}
+            destaque={topo.vencido > 0}
+            contexto={topo.vencidos > 0 ? `${topo.vencidos} cliente(s) · maior atraso ${topo.maiorAtraso} dias` : 'Nenhuma fatura vencida'}
+          />
+          <Indicador
+            rotulo="A emitir no fechamento"
+            valor={aEmitir ? BRL.format(aEmitir.valor) : '—'}
+            contexto={aEmitir
+              ? `${aEmitir.series} série(s) sem fatura${aEmitir.semRegra > 0 ? ` · ${aEmitir.semRegra} sem regra lançada` : ''}`
+              : 'Disponível para quem fecha a competência'}
+          />
+        </section>
+      )}
+
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+            Buscar cliente
+            <input
+              type="search"
+              value={filtro.busca}
+              onChange={e => setFiltro(f => ({ ...f, busca: e.target.value }))}
+              placeholder="Nome do cliente"
+              className="w-56 rounded-md border border-border-secondary px-2 py-1.5 text-sm text-text-primary bg-bg-primary"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+            Situação
+            <select
+              value={filtro.situacao}
+              onChange={e => setFiltro(f => ({ ...f, situacao: e.target.value }))}
+              className="rounded-md border border-border-secondary px-2 py-1.5 text-sm text-text-primary bg-bg-primary"
+            >
+              <option value="todas">Todas</option>
+              <option value="vencida">Vencida</option>
+              <option value="aberta">Aberta</option>
+              <option value="quitada">Quitada</option>
+              <option value="sem_fatura">Sem fatura</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+            Tipo
+            <select
+              value={filtro.tipo}
+              onChange={e => setFiltro(f => ({ ...f, tipo: e.target.value }))}
+              className="rounded-md border border-border-secondary px-2 py-1.5 text-sm text-text-primary bg-bg-primary"
+            >
+              <option value="todos">Todos</option>
+              <option value="por_licenca">Por licença</option>
+              <option value="por_os">Por OS</option>
+              <option value="fixo">Fixo</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 pb-1.5 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={filtro.soComSaldo}
+              onChange={e => setFiltro(f => ({ ...f, soComSaldo: e.target.checked }))}
+            />
+            Só com saldo
+          </label>
+          {filtrosAtivos && (
+            <Button variant="ghost" size="sm" onClick={() => setFiltro(FILTRO_INICIAL)}>Limpar filtros</Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {canWrite && (
+            <Button variant="primary" onClick={abrirFechamento}>
+              <Icons.Check size={14} aria-hidden="true" />
+              Fechar competência
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            onClick={exportarLista}
+            disabled={filtrada.length === 0}
+            title={filtrada.length === 0 ? 'Nenhum cliente com os filtros atuais' : 'Exporta os clientes da lista, com os filtros aplicados'}
+          >
+            Exportar CSV
           </Button>
         </div>
-      )}
+      </div>
 
       {clientes.isPending && <div className="py-10 flex justify-center"><Spinner /></div>}
 
@@ -184,7 +346,15 @@ export default function FinanceiroCockpitV2Page() {
         />
       )}
 
-      {clientes.isSuccess && lista.length > 0 && (
+      {clientes.isSuccess && lista.length > 0 && filtrada.length === 0 && (
+        <EmptyState
+          reason="Sem resultado"
+          title="Nenhum cliente com os filtros atuais"
+          description="Ajuste ou limpe os filtros para ver os clientes da competência."
+        />
+      )}
+
+      {clientes.isSuccess && filtrada.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-border-tertiary">
           <table className="w-full text-sm">
             <thead className="bg-donc-navy text-white text-xs uppercase">
@@ -199,7 +369,7 @@ export default function FinanceiroCockpitV2Page() {
               </tr>
             </thead>
             <tbody>
-              {lista.map(c => {
+              {filtrada.map(c => {
                 const aberto = expandido === c.client_id
                 const r = resumo.get(c.client_id)
                 const fixo = c.tipo === 'fixo'
@@ -259,18 +429,6 @@ export default function FinanceiroCockpitV2Page() {
               })}
             </tbody>
           </table>
-        </div>
-      )}
-
-      {clientes.isSuccess && lista.length > 0 && (
-        <div className="flex items-center gap-2 text-sm text-text-secondary">
-          <span
-            aria-hidden="true"
-            className={`inline-block h-2 w-2 rounded-full ${totais.vencidas > 0 ? 'bg-status-red-text' : 'bg-status-green-text'}`}
-          />
-          {totais.vencidas > 0
-            ? `${totais.vencidas} ${totais.vencidas === 1 ? 'cliente com fatura vencida' : 'clientes com fatura vencida'} · ${BRL.format(totais.saldo)} em aberto nesta competência`
-            : `Nenhuma fatura vencida · ${BRL.format(totais.saldo)} em aberto nesta competência`}
         </div>
       )}
 

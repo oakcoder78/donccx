@@ -3,6 +3,8 @@ import { ErrorState, EmptyState } from '../ui/StatusViews'
 import { FaturasDoCliente } from './FaturasDoCliente'
 import { useBillingExtrato } from '../../hooks/useBillingExtrato'
 import { BRL } from './BillingWriteDialogs'
+import { Button } from '../ui/Button'
+import { toCsv, baixarCsv, carimboData } from '../../lib/csv'
 
 // Painel expandido de um cliente: contrato, faturas e extrato, nessa ordem.
 // Cada bloco tem titulo proprio e um filete separando do anterior.
@@ -88,13 +90,20 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
 
       {/* Extrato: a linha do tempo com saldo acumulado */}
       <Bloco titulo="Extrato" nota="emissões, pagamentos e ajustes em ordem">
-        <Extrato clientId={cliente.client_id} competencia={competencia} />
+        <Extrato clientId={cliente.client_id} clientName={cliente.client_name} competencia={competencia} />
       </Bloco>
     </div>
   )
 }
 
-function Extrato({ clientId, competencia }) {
+const COLUNAS_EXTRATO_CSV = [
+  { titulo: 'Data', campo: 'data_br' },
+  { titulo: 'Descrição', campo: 'descricao' },
+  { titulo: 'Valor (R$)', campo: 'valor', tipo: 'numero' },
+  { titulo: 'Saldo acumulado (R$)', campo: 'saldo_acumulado', tipo: 'numero' },
+]
+
+function Extrato({ clientId, clientName, competencia }) {
   const extrato = useBillingExtrato(clientId, competencia)
 
   if (extrato.isPending) return <Spinner size="sm" />
@@ -114,6 +123,19 @@ function Extrato({ clientId, competencia }) {
 
   return (
     <div className="overflow-x-auto">
+      <div className="mb-2 flex justify-end">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            const exportadas = linhas.map(l => ({ ...l, data_br: brDate(l.data) }))
+            const slug = String(clientName || 'cliente').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+            baixarCsv(`financeiro-extrato-${slug}-${competencia}-${carimboData()}.csv`, toCsv(exportadas, COLUNAS_EXTRATO_CSV))
+          }}
+        >
+          Exportar CSV
+        </Button>
+      </div>
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border-secondary text-left">
