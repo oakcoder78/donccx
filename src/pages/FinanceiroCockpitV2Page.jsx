@@ -249,8 +249,8 @@ export default function FinanceiroCockpitV2Page() {
 
       {canWrite && consolidacao.isSuccess && !consolidada && (
         <div role="status" className="rounded-lg border border-status-amber-line bg-status-amber-bg px-4 py-3 text-sm text-status-amber-text">
-          <strong>Uso de {competencia} ainda não consolidado.</strong>{' '}
-          O fechamento libera depois da sincronização de {dataConsolidacao(competencia)}. Valores de uso e excedente podem mudar até lá.
+          <strong>Não é possível fechar {competencia} ainda.</strong>{' '}
+          O uso não foi sincronizado. O fechamento libera depois da sincronização de {dataConsolidacao(competencia)}. Se precisar encerrar um contrato antes disso, solicite ao administrador.
         </div>
       )}
 
@@ -459,6 +459,7 @@ export default function FinanceiroCockpitV2Page() {
                             cliente={c}
                             competencia={competencia}
                             canWrite={canWrite}
+                            podeCorte={effectiveRole === 'admin'}
                             selo={<Selo cliente={c} motivo={r?.motivo} canWrite={canWrite} />}
                             projecao={canWrite && r?.projecao > 0 ? r.projecao : null}
                           />

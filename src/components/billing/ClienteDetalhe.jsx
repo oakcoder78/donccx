@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { Spinner } from '../ui/Spinner'
 import { ErrorState, EmptyState } from '../ui/StatusViews'
 import { FaturasDoCliente } from './FaturasDoCliente'
@@ -9,7 +8,6 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useEncerrarComCorte } from '../../hooks/useBillingWrites'
 import { toCsv, baixarCsv, carimboData } from '../../lib/csv'
-import { sincronizarUsoDonc } from '../../lib/clientSync'
 
 // Painel expandido de um cliente: contrato, faturas e extrato, nessa ordem.
 // Cada bloco tem titulo proprio e um filete separando do anterior.
@@ -118,7 +116,8 @@ function mesAtualSp() {
   return `${p.year}-${p.month}`
 }
 
-export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao }) {
+// podeCorte: so o administrador encerra com corte. E uma operacao excepcional.
+export function ClienteDetalhe({ cliente, competencia, canWrite, podeCorte, selo, projecao }) {
   const fixo = cliente.tipo === 'fixo'
   const emAberto = Number(cliente.saldo_aberto || 0)
   const faturado = cliente.mrr_real != null ? Number(cliente.mrr_real) : null
@@ -127,26 +126,8 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
   const [corteAberto, setCorteAberto] = useState(false)
   const [confirmoUso, setConfirmoUso] = useState(false)
   const corte = useEncerrarComCorte(competencia)
-  const qc = useQueryClient()
-  const [sincronizando, setSincronizando] = useState(false)
-  const [erroSync, setErroSync] = useState(null)
-  // O corte sempre cobra o mes corrente (America/Sao_Paulo), entao so aparece nele.
   const mesCorrente = mesAtualSp()
   const corteDisponivel = competencia === mesCorrente && serieUnica
-
-  async function sincronizarUso() {
-    setSincronizando(true)
-    setErroSync(null)
-    try {
-      await sincronizarUsoDonc(cliente.client_id, competencia)
-      qc.invalidateQueries({ queryKey: ['billing_clientes'] })
-      qc.invalidateQueries({ queryKey: ['billing_motivos'] })
-    } catch (e) {
-      setErroSync(e.message)
-    } finally {
-      setSincronizando(false)
-    }
-  }
 
   return (
     <div className="flex flex-col gap-5 px-1 py-2">
@@ -164,7 +145,7 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
             </span>
           )}
         </div>
-        {canWrite && competencia === mesCorrente && (
+        {canWrite && podeCorte && competencia === mesCorrente && (
           <Button
             variant="secondary"
             size="sm"
@@ -194,19 +175,19 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
         }}
         onClose={() => setCorteAberto(false)}
         summary={
-          corte.isError ? <span role="alert" className="text-status-red-text">Não foi possível encerrar: {corte.error?.message}</span> :
+          corte.isError ? (
+            <span role="alert" className="text-status-red-text">
+              Não foi possível encerrar: {corte.error?.message}
+              <br />
+              Se o uso não estiver sincronizado, peça ao administrador para sincronizar e fazer o encerramento.
+            </span>
+          ) :
           corte.isSuccess ? <span>Corte emitido e contrato encerrado.</span> :
-          <span>Conferir antes: o uso até hoje precisa estar sincronizado e sem pendências.</span>
+          <span>Conferir antes: o uso até hoje precisa estar sincronizado e sem pendências. Esta operação é excepcional e cancela a cobrança futura do contrato.</span>
         }
       >
         {!corte.isSuccess && (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center gap-3">
-              <Button variant="secondary" size="sm" onClick={sincronizarUso} disabled={sincronizando || corte.isPending}>
-                {sincronizando ? 'Sincronizando…' : 'Sincronizar uso agora'}
-              </Button>
-              {erroSync && <span role="alert" className="text-xs text-status-red-text">{erroSync}</span>}
-            </div>
             <label className="flex items-start gap-2 text-sm text-text-primary">
               <input type="checkbox" className="mt-1" checked={confirmoUso} onChange={e => setConfirmoUso(e.target.checked)} />
               Conferi o uso deste cliente até hoje.
