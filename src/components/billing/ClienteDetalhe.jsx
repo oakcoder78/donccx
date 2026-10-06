@@ -33,6 +33,77 @@ function Campo({ rotulo, valor, ajuda }) {
   )
 }
 
+// Faixa de calculo: BASE + EXCEDENTE = MRR REAL. Contrato fixo mostra so o valor.
+// Sem fatura e sem projecao, a faixa mostra o minimo garantido e diz quando o real aparece.
+function Celula({ rotulo, valor, destaque = false, ajuda }) {
+  return (
+    <div className={`flex min-w-0 flex-1 flex-col gap-0.5 rounded-md px-4 py-3 ${destaque ? 'bg-bg-secondary' : 'border border-border-tertiary bg-bg-primary'}`}>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-text-secondary">{rotulo}</span>
+      <span className={`text-lg font-semibold tabular-nums ${destaque ? 'text-text-primary' : 'text-text-primary'}`}>{valor}</span>
+      {ajuda && <span className="text-xs text-text-secondary">{ajuda}</span>}
+    </div>
+  )
+}
+
+function Operador({ simbolo }) {
+  return <span aria-hidden="true" className="self-center text-lg font-semibold text-text-secondary">{simbolo}</span>
+}
+
+function CalculoMrr({ cliente, fixo, projecao }) {
+  const real = cliente.mrr_real != null ? Number(cliente.mrr_real) : null
+  const excedente = Number(cliente.excedente || 0)
+
+  if (fixo) {
+    return (
+      <Celula
+        rotulo="Valor fixo do mês"
+        valor={real != null ? BRL.format(real) : (projecao != null ? BRL.format(projecao) : '—')}
+        ajuda="contrato de valor fixo, sem licenças"
+      />
+    )
+  }
+
+  if (real == null) {
+    return (
+      <div className="flex flex-wrap items-stretch gap-2">
+        <Celula
+          rotulo="Mínimo garantido"
+          valor={BRL.format(Number(cliente.mrr_minimo || 0))}
+          ajuda={`piso ${cliente.piso ?? 0} × ${BRL.format(Number(cliente.valor_unitario || 0))} por licença`}
+        />
+        <Celula
+          rotulo="MRR real"
+          valor={projecao != null ? BRL.format(projecao) : '—'}
+          ajuda={projecao != null ? 'projeção; vira faturado ao fechar' : 'aparece depois do fechamento'}
+        />
+      </div>
+    )
+  }
+
+  const base = real - excedente
+  const acimaDoPiso = Math.max(0, Number(cliente.uso || 0) - Number(cliente.piso || 0))
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-stretch gap-2">
+        <Celula
+          rotulo="Base do plano"
+          valor={BRL.format(base)}
+          ajuda={`mínimo garantido ${BRL.format(Number(cliente.mrr_minimo || 0))}`}
+        />
+        <Operador simbolo="+" />
+        <Celula
+          rotulo="Excedente"
+          valor={BRL.format(excedente)}
+          ajuda={excedente > 0 ? `${acimaDoPiso} licenças acima do piso × ${BRL.format(Number(cliente.valor_unitario || 0))}` : 'uso dentro do piso'}
+        />
+        <Operador simbolo="=" />
+        <Celula destaque rotulo="MRR real" valor={BRL.format(real)} ajuda="faturado no mês" />
+      </div>
+    </div>
+  )
+}
+
 export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao }) {
   const fixo = cliente.tipo === 'fixo'
   const emAberto = Number(cliente.saldo_aberto || 0)
@@ -56,24 +127,14 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
         </div>
       </header>
 
-      {/* Contrato: os termos que explicam o valor */}
-      <Bloco titulo="Contrato" nota="Como o valor é calculado">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
+      {/* Contrato e calculo: a conta que forma o valor, e os termos do contrato */}
+      <Bloco titulo="Contrato e cálculo">
+        <CalculoMrr cliente={cliente} fixo={fixo} projecao={projecao} />
+        <div className="grid grid-cols-2 gap-x-8 gap-y-3 border-t border-border-tertiary pt-3 md:grid-cols-4">
           <Campo rotulo="Tipo" valor={TIPO_LABEL[cliente.tipo] || cliente.tipo || '—'} />
-          {!fixo && <Campo rotulo="Valor unitário" valor={BRL.format(Number(cliente.valor_unitario || 0))} ajuda="por licença" />}
-          {!fixo && <Campo rotulo="Piso" valor={`${cliente.piso ?? 0} licenças`} ajuda="mínimo cobrado" />}
-          {!fixo && <Campo rotulo="Uso no mês" valor={`${cliente.uso ?? 0} licenças`} ajuda={cliente.uso > cliente.piso ? `${cliente.uso - cliente.piso} acima do piso` : 'dentro do piso'} />}
-        </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-3">
-          {!fixo && <Campo rotulo="MRR mínimo" valor={BRL.format(Number(cliente.mrr_minimo || 0))} ajuda="piso × valor unitário" />}
-          <Campo
-            rotulo="MRR real"
-            valor={faturado != null ? BRL.format(faturado) : (projecao != null ? BRL.format(projecao) : '—')}
-            ajuda={faturado != null ? 'base + excedente, faturado' : (projecao != null ? 'projeção da competência' : 'disponível para quem fecha a competência')}
-          />
-          {cliente.excedente != null && Number(cliente.excedente) > 0 && (
-            <Campo rotulo="Excedente" valor={BRL.format(Number(cliente.excedente))} ajuda="uso acima do piso, a valor cheio" />
-          )}
+          {!fixo && <Campo rotulo="Valor por licença" valor={BRL.format(Number(cliente.valor_unitario || 0))} />}
+          {!fixo && <Campo rotulo="Piso" valor={`${cliente.piso ?? 0} licenças`} />}
+          {!fixo && <Campo rotulo="Uso no mês" valor={`${cliente.uso ?? 0} licenças`} />}
         </div>
       </Bloco>
 
