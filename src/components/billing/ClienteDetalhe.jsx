@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Spinner } from '../ui/Spinner'
 import { ErrorState, EmptyState } from '../ui/StatusViews'
 import { FaturasDoCliente } from './FaturasDoCliente'
@@ -8,6 +9,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useEncerrarComCorte } from '../../hooks/useBillingWrites'
 import { toCsv, baixarCsv, carimboData } from '../../lib/csv'
+import { syncClient } from '../../lib/clientSync'
 
 // Painel expandido de um cliente: contrato, faturas e extrato, nessa ordem.
 // Cada bloco tem titulo proprio e um filete separando do anterior.
@@ -107,15 +109,45 @@ function CalculoMrr({ cliente, fixo, projecao }) {
   )
 }
 
+// Mes corrente no fuso de Sao Paulo, no formato YYYY-MM.
+function mesAtualSp() {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' })
+      .formatToParts(new Date()).map(x => [x.type, x.value])
+  )
+  return `${p.year}-${p.month}`
+}
+
 export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao }) {
   const fixo = cliente.tipo === 'fixo'
   const emAberto = Number(cliente.saldo_aberto || 0)
   const faturado = cliente.mrr_real != null ? Number(cliente.mrr_real) : null
-  // Corte so com uma serie: com mais de uma, o operador escolhe pela fatura.
+// Corte so com uma serie: com mais de uma, o operador escolhe pela fatura.
   const serieUnica = (cliente.series_ids || []).length === 1 && cliente.tem_regra !== false
   const [corteAberto, setCorteAberto] = useState(false)
   const [confirmoUso, setConfirmoUso] = useState(false)
   const corte = useEncerrarComCorte(competencia)
+  const qc = useQueryClient()
+  const [sincronizando, setSincronizando] = useState(false)
+  const [erroSync, setErroSync] = useState(null)
+  // O corte sempre cobra o mes corrente (America/Sao_Paulo), entao so aparece nele.
+  const mesCorrente = mesAtualSp()
+  const corteDisponivel = competencia === mesCorrente && serieUnica
+
+  async function sincronizarUso() {
+    setSincronizando(true)
+    setErroSync(null)
+    try {
+      const result = await syncClient({ id: cliente.client_id, health_total: null })
+      if (result.errors?.length) setErroSync(result.errors.join(' · '))
+      qc.invalidateQueries({ queryKey: ['billing_clientes'] })
+      qc.invalidateQueries({ queryKey: ['billing_motivos'] })
+    } catch (e) {
+      setErroSync(e.message)
+    } finally {
+      setSincronizando(false)
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5 px-1 py-2">
@@ -133,12 +165,12 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
             </span>
           )}
         </div>
-        {canWrite && (
+        {canWrite && competencia === mesCorrente && (
           <Button
             variant="secondary"
             size="sm"
-            disabled={!serieUnica}
-            title={serieUnica ? 'Cobra o uso até hoje e encerra o contrato' : 'Disponível para cliente com uma única série e regra lançada'}
+            disabled={!corteDisponivel}
+            title={corteDisponivel ? 'Cobra o uso até hoje e encerra o contrato' : 'Disponível para cliente com uma única série e regra lançada'}
             onClick={() => { setConfirmoUso(false); corte.reset(); setCorteAberto(true) }}
           >
             Encerrar com corte
@@ -169,10 +201,18 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
         }
       >
         {!corte.isSuccess && (
-          <label className="flex items-start gap-2 text-sm text-text-primary">
-            <input type="checkbox" className="mt-1" checked={confirmoUso} onChange={e => setConfirmoUso(e.target.checked)} />
-            Conferi o uso deste cliente até hoje.
-          </label>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button variant="secondary" size="sm" onClick={sincronizarUso} disabled={sincronizando || corte.isPending}>
+                {sincronizando ? 'Sincronizando…' : 'Sincronizar uso agora'}
+              </Button>
+              {erroSync && <span role="alert" className="text-xs text-status-red-text">{erroSync}</span>}
+            </div>
+            <label className="flex items-start gap-2 text-sm text-text-primary">
+              <input type="checkbox" className="mt-1" checked={confirmoUso} onChange={e => setConfirmoUso(e.target.checked)} />
+              Conferi o uso deste cliente até hoje.
+            </label>
+          </div>
         )}
       </ConfirmDialog>
 
