@@ -68,6 +68,8 @@ function situacaoDo(cliente) {
 }
 
 function Selo({ cliente, motivo, canWrite }) {
+  // Sem regra lancada o cliente nao fatura: o selo diz isso, para qualquer perfil.
+  if (cliente.tem_regra === false) return <MotivoBadge motivo="sem_regra" />
   if (cliente.estado !== 'com_fatura' && canWrite && motivo) return <MotivoBadge motivo={motivo} />
   const s = situacaoDo(cliente)
   return (
@@ -239,7 +241,7 @@ export default function FinanceiroCockpitV2Page() {
             contexto={topo.vencidos > 0 ? `${topo.vencidos} cliente(s) · maior atraso ${topo.maiorAtraso} dias` : 'Nenhuma fatura vencida'}
           />
           <Indicador
-            rotulo="A emitir no fechamento"
+            rotulo="Recorrência a emitir"
             valor={aEmitir ? BRL.format(aEmitir.valor) : '—'}
             contexto={aEmitir
               ? `${aEmitir.series} série(s) sem fatura${aEmitir.semRegra > 0 ? ` · ${aEmitir.semRegra} sem regra lançada` : ''}`
@@ -373,8 +375,10 @@ export default function FinanceiroCockpitV2Page() {
                 const aberto = expandido === c.client_id
                 const r = resumo.get(c.client_id)
                 const fixo = c.tipo === 'fixo'
+                // Sem regra lancada: nao ha uso nem minimo a mostrar (o cliente nao fatura).
+                const semRegra = c.tem_regra === false
                 // MRR real: o faturado; sem fatura, a projecao de recorrencia (so quem fecha ve).
-                const mrrReal = c.mrr_real != null
+                const mrrReal = semRegra ? null : c.mrr_real != null
                   ? Number(c.mrr_real)
                   : (canWrite && r?.projecaoRecorrencia > 0 ? r.projecaoRecorrencia : null)
                 return (
@@ -397,8 +401,8 @@ export default function FinanceiroCockpitV2Page() {
                         </button>
                       </td>
                       <td className="px-3 py-3 text-text-secondary">{TIPO_LABEL[c.tipo] || c.tipo || '—'}</td>
-                      <td className="px-3 py-3 text-right"><Valor muted={fixo}>{fixo ? '—' : (c.uso ?? 0)}</Valor></td>
-                      <td className="px-3 py-3 text-right"><Valor muted={fixo}>{fixo ? '—' : BRL.format(Number(c.mrr_minimo || 0))}</Valor></td>
+                      <td className="px-3 py-3 text-right"><Valor muted={fixo || semRegra}>{fixo || semRegra ? '—' : (c.uso ?? 0)}</Valor></td>
+                      <td className="px-3 py-3 text-right"><Valor muted={fixo || semRegra}>{fixo || semRegra ? '—' : BRL.format(Number(c.mrr_minimo || 0))}</Valor></td>
                       <td className="px-3 py-3 text-right">
                         <Valor muted={mrrReal == null}>{mrrReal != null ? BRL.format(mrrReal) : '—'}</Valor>
                       </td>
