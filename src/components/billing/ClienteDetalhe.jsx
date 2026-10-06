@@ -9,7 +9,7 @@ import { Button } from '../ui/Button'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { useEncerrarComCorte } from '../../hooks/useBillingWrites'
 import { toCsv, baixarCsv, carimboData } from '../../lib/csv'
-import { syncClient } from '../../lib/clientSync'
+import { sincronizarUsoDonc } from '../../lib/clientSync'
 
 // Painel expandido de um cliente: contrato, faturas e extrato, nessa ordem.
 // Cada bloco tem titulo proprio e um filete separando do anterior.
@@ -138,8 +138,7 @@ export function ClienteDetalhe({ cliente, competencia, canWrite, selo, projecao 
     setSincronizando(true)
     setErroSync(null)
     try {
-      const result = await syncClient({ id: cliente.client_id, health_total: null })
-      if (result.errors?.length) setErroSync(result.errors.join(' · '))
+      await sincronizarUsoDonc(cliente.client_id, competencia)
       qc.invalidateQueries({ queryKey: ['billing_clientes'] })
       qc.invalidateQueries({ queryKey: ['billing_motivos'] })
     } catch (e) {

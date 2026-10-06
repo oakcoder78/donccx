@@ -37,48 +37,7 @@ export async function syncClient(client) {
 
   if (instances?.length > 0) {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/donc-api-sync`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'apikey': SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ trigger: 'manual', month: refMonth, client_id: client.id }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
-
-      // auto-aprovar via merge todos os pendentes deste cliente
-      const { data: pending } = await supabase
-        .from('client_usage')
-        .select('id, donc_snapshot, os_created, active_users, profissionais_inativos, os_finalizadas, os_abertas, os_canceladas, unidades, os_por_tipo, partial_day')
-        .eq('client_id', client.id)
-        .eq('pending', true)
-
-      for (const row of pending ?? []) {
-        const snap = row.donc_snapshot
-        if (!snap) continue
-        const apiVals = {
-          os_created:             snap.totalOs                  ?? null,
-          active_users:           snap.profissionais?.ativos    ?? null,
-          profissionais_inativos: snap.profissionais?.inativos  ?? null,
-          os_finalizadas:         snap.osPorStatus?.finalizadas ?? null,
-          os_abertas:             snap.osPorStatus?.abertas     ?? null,
-          os_canceladas:          snap.osPorStatus?.canceladas  ?? null,
-          unidades:               snap.unidades                 ?? null,
-        }
-        const patch = { pending: false, partial_day: row.partial_day ?? null }
-        for (const [k, v] of Object.entries(apiVals)) {
-          const cur = row[k]
-          if (cur === null || cur === undefined || cur === 0) patch[k] = v
-        }
-        if (!row.os_por_tipo && snap?.osPorTipo) patch.os_por_tipo = snap.osPorTipo
-        await supabase.from('client_usage').update(patch).eq('id', row.id)
-      }
-
-      results.donc = data.synced ?? 0
+      results.donc = await sincronizarUsoDonc(client.id, refMonth)
 
       // Captura dados atualizados de uso
       const { data: usageAfter } = await supabase
@@ -123,4 +82,62 @@ export async function syncClient(client) {
   }
 
   return results
+}
+
+// Sincroniza so o uso DONC de um cliente no mes e aprova as linhas pendentes.
+// Nao mexe em Freshdesk nem em health score (ver syncClient para o fluxo completo).
+export async function sincronizarUsoDonc(clientId, refMonth = mesAtual()) {
+  const { data: instances } = await supabase
+    .from('client_donc_instances')
+    .select('id')
+    .eq('client_id', clientId)
+    .eq('active', true)
+  if (!instances?.length) throw new Error('Cliente sem instância DONC ativa.')
+
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/donc-api-sync`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'apikey': SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ trigger: 'manual', month: refMonth, client_id: clientId }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+
+  // auto-aprovar via merge todos os pendentes deste cliente
+  const { data: pending } = await supabase
+    .from('client_usage')
+    .select('id, donc_snapshot, os_created, active_users, profissionais_inativos, os_finalizadas, os_abertas, os_canceladas, unidades, os_por_tipo, partial_day')
+    .eq('client_id', clientId)
+    .eq('pending', true)
+
+  for (const row of pending ?? []) {
+    const snap = row.donc_snapshot
+    if (!snap) continue
+    const apiVals = {
+      os_created:             snap.totalOs                  ?? null,
+      active_users:           snap.profissionais?.ativos    ?? null,
+      profissionais_inativos: snap.profissionais?.inativos  ?? null,
+      os_finalizadas:         snap.osPorStatus?.finalizadas ?? null,
+      os_abertas:             snap.osPorStatus?.abertas     ?? null,
+      os_canceladas:          snap.osPorStatus?.canceladas  ?? null,
+      unidades:               snap.unidades                 ?? null,
+    }
+    const patch = { pending: false, partial_day: row.partial_day ?? null }
+    for (const [k, v] of Object.entries(apiVals)) {
+      const cur = row[k]
+      if (cur === null || cur === undefined || cur === 0) patch[k] = v
+    }
+    if (!row.os_por_tipo && snap?.osPorTipo) patch.os_por_tipo = snap.osPorTipo
+    await supabase.from('client_usage').update(patch).eq('id', row.id)
+  }
+  return data.synced ?? 0
+}
+
+function mesAtual() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit' })
+    .format(new Date()).slice(0, 7)
 }
