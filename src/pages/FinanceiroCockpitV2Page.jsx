@@ -210,20 +210,10 @@ export default function FinanceiroCockpitV2Page() {
   }, [preview.data])
 
   return (
-    <div className="p-4 md:p-6 flex flex-col gap-5">
+    <div className="min-h-full bg-bg-secondary p-4 md:p-6 flex flex-col gap-5">
       <PageHeader
         title="Faturamento"
-        subtitle="Cockpit novo, em teste. A página atual segue em uso."
-        action={
-          <select
-            aria-label="Competência"
-            value={competencia}
-            onChange={e => { setCompetencia(e.target.value); setExpandido(null) }}
-            className="text-sm rounded-md border border-border-secondary px-2 py-1.5 bg-bg-primary"
-          >
-            {opcoes.map(c => <option key={c} value={c}>{c}</option>)}
-          </select>
-        }
+        subtitle={`Competência ${competencia} · cockpit novo, em teste`}
       />
 
       {!canWrite && (
@@ -231,7 +221,7 @@ export default function FinanceiroCockpitV2Page() {
       )}
 
       {clientes.isSuccess && lista.length > 0 && (
-        <section aria-label="Resumo da competência" className="grid grid-cols-2 divide-x divide-y divide-border-tertiary rounded-lg border border-border-tertiary md:grid-cols-4 md:divide-y-0">
+        <section aria-label="Resumo da competência" className="grid grid-cols-2 divide-x divide-y divide-border-tertiary rounded-lg border border-border-tertiary bg-bg-primary md:grid-cols-4 md:divide-y-0">
           <Indicador
             rotulo="Faturado no mês"
             valor={BRL.format(topo.faturado)}
@@ -258,8 +248,18 @@ export default function FinanceiroCockpitV2Page() {
         </section>
       )}
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3 rounded-lg border border-border-tertiary bg-bg-primary p-3">
         <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-text-secondary">
+            Competência
+            <select
+              value={competencia}
+              onChange={e => { setCompetencia(e.target.value); setExpandido(null) }}
+              className="rounded-md border border-border-secondary px-2 py-1.5 text-sm text-text-primary bg-bg-primary"
+            >
+              {opcoes.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
           <label className="flex flex-col gap-1 text-xs text-text-secondary">
             Buscar cliente
             <input
@@ -355,7 +355,7 @@ export default function FinanceiroCockpitV2Page() {
       )}
 
       {clientes.isSuccess && filtrada.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border-tertiary">
+        <div className="overflow-x-auto rounded-lg border border-border-tertiary bg-bg-primary">
           <table className="w-full text-sm">
             <thead className="bg-donc-navy text-white text-xs uppercase">
               <tr>
