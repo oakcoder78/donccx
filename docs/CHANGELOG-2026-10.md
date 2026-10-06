@@ -2,6 +2,21 @@
 
 ## 2026-10-05
 
+### Financeiro — Fase 4 em produção: cockpit novo, consolidação e barreira
+
+A tela nova de faturamento, `/financeiro-faturamento`, entrou atrás da flag `cockpit_faturamento` (admin e finance). Detalhes, regras e roteiro de validação em `docs/sdd/financeiro-faturamento-fase4.md`.
+
+- **Topo** com faturado (incluindo excedente), em aberto, vencido e recorrência a emitir.
+- **Lista** com filtros (competência, busca, situação, tipo, só com saldo) e exportação CSV que respeita os filtros.
+- **Painel do cliente** com o bloco de cálculo (base + excedente = MRR real), as faturas do mês e o extrato, com CSV.
+- **Consolidação:** só competências com o uso consolidado pelo cron do mês seguinte aparecem e podem ser fechadas. Sincronização manual não consolida.
+- **Barreira no banco:** leituras e escritas de fatura de competência não consolidada são recusadas para qualquer chamada (migration `20261005330000`).
+- **Encerrar com corte:** cobra a competência corrente de uma série (base integral, excedente até a data) e encerra, só para admin, sem botão na tela.
+- **Cliente sem regra** mostra selo próprio e não mostra uso nem MRR.
+- **Dados de teste** `[TESTE] Alfa`, `[TESTE] Beta` e `[TESTE] Gama` removidos. Resumos de fechamento sem série mantidos como auditoria.
+
+Pendências na seção 10 do doc da Fase 4: `encerrar_series` fora da barreira, meses anteriores a julho sem registro de consolidação, prévia de competência já fechada.
+
 ### Financeiro — Fase 4, pré-trabalho do design system e leituras do cockpit
 
 Antes das telas do cockpit novo (atrás da flag `cockpit_faturamento`), o design system ganhou o que a Fase 4 precisa. O que mudou em `src/components/ui`:

@@ -8,7 +8,7 @@ supersedes: []
 
 # Module — Financeiro (Faturamento e Contas a Receber)
 
-> **Em rebuild.** A Fase 1 (schema) está em produção desde 2026-10-04: o modelo novo existe ao lado do antigo e está vazio. O cockpit que o Financeiro usa hoje ainda lê o modelo antigo. A spec canônica do rebuild é `docs/sdd/financeiro-faturamento-sdd.md` — este documento é o mapa do domínio, não a especificação.
+> **Em rebuild, Fase 4 em produção.** O cockpit novo (`/financeiro-faturamento`, flag `cockpit_faturamento`, papéis admin e finance) lê e escreve o modelo novo. Só meses consolidados pelo cron aparecem e podem ser alterados; a barreira no banco garante isso para qualquer chamada. A tela antiga (`/financeiro-cockpit`) segue sendo a de rotina até a Fase 7. Detalhes da Fase 4 em `docs/sdd/financeiro-faturamento-fase4.md`. A spec canônica do rebuild é `docs/sdd/financeiro-faturamento-sdd.md`.
 
 ## Purpose
 

@@ -1,7 +1,8 @@
 -- ============================================================================
 -- Teardown do fixture de teste do cockpit (Fase 4).
--- Apaga so o que pertence aos clientes "[TESTE] ..." e depois mostra a linha de
--- base: 134 charges, 82 payments, 0 faturas, 0 regras, 0 encerradas, 0 run_log.
+-- Apaga so o que pertence aos clientes "[TESTE] ..." (Alfa, Beta, Gama). Nao
+-- apaga resumos de fechamento sem serie (billing_run_log.series_id IS NULL): sao
+-- auditoria de acoes reais. Depois mostra a linha de base.
 --
 -- Rodar: supabase db query --linked -f supabase/fixtures/billing_test/teardown.sql
 -- ============================================================================
@@ -17,7 +18,7 @@ BEGIN
   SELECT coalesce(array_agg(id), '{}') INTO v_faturas FROM public.invoices WHERE client_id = ANY (v_clientes);
 
   DELETE FROM public.invoice_entries WHERE invoice_id = ANY (v_faturas);
-  DELETE FROM public.billing_run_log WHERE series_id = ANY (v_series) OR series_id IS NULL;
+  DELETE FROM public.billing_run_log WHERE series_id = ANY (v_series);
   DELETE FROM public.invoices WHERE client_id = ANY (v_clientes);
   DELETE FROM public.series_eventuals WHERE series_id = ANY (v_series);
   DELETE FROM public.series_rules WHERE series_id = ANY (v_series);
